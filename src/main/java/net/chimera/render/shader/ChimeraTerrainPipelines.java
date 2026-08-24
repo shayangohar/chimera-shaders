@@ -52,10 +52,15 @@ public final class ChimeraTerrainPipelines {
             return;
         }
 
-        PipelineManager.setTerrainVertexFormat(ChimeraVertexFormats.EXTENDED_TERRAIN);
-        ThreadBuilderPack.setTerrainBuilderConstructor(renderType ->
-                new ChimeraExtTerrainBuilder(TerrainRenderType.getLayer(renderType).bufferSize() / DefaultVertexFormat.BLOCK.getVertexSize()));
-        PipelineManager.setShaderGetter(renderType -> terrainPipeline);
+        // DIAGNOSTIC BUILD: terrain redirect AND vertex-format extension both
+        // disabled - terrain runs 100% on host pipelines/format inside chimera's
+        // M3 segment frame. If terrain is visible now, the bug is in
+        // chimera_terrain's pipeline/shader; if still invisible, it is in the
+        // segment frame routing.
+        ChimeraMod.LOGGER.info("[dbg] terrain redirect DISABLED for bisection (pure host terrain)");
+        PipelineManager.setDefaultTerrainShaderGetter();
+        PipelineManager.setTerrainVertexFormat(CustomVertexFormat.COMPRESSED_TERRAIN);
+        ThreadBuilderPack.defaultTerrainBuilderConstructor();
         rebuildChunks();
     }
 

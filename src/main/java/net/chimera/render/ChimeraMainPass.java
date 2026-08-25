@@ -31,10 +31,14 @@ import static org.lwjgl.vulkan.VK10.*;
 /**
  * Chimera's main render pass — two-buffer segmented frame:
  *
- *   - Nothing opens at frame start.
  *   - renderLevel HEAD opens the HDR segment (world -> RGBA16F).
- *   - renderLevel TAIL closes the composite... actually keeps the pass OPEN:
- *     hand and GUI draw into the same HDR buffer via rebindMainTarget.
+ *   - After cullTerrain, renderShadowSegment closes the HDR pass, records
+ *     the shadow map (terrain re-rendered from the light's perspective via
+ *     renderSectionLayer + the shadowPassActive redirect), and reopens HDR.
+ *     Running after cullTerrain is required: that is what fills VulkanMod's
+ *     section draw queues, and a fresh SectionGraph is empty until it does.
+ *   - Terrain, entities, hand, and GUI draw into the HDR buffer via
+ *     rebindMainTarget / the encoder alias.
  *   - MainPass.end: close HDR -> present HDR directly to swapchain via a
  *     fullscreen passthrough.
  *
@@ -68,6 +72,8 @@ public class ChimeraMainPass implements MainPass {
      * light's perspective during the shadow phase.
      */
     private boolean shadowPassActive;
+    /** Caps the empty-graph shadow diagnostic to a few lines per session. */
+    private int shadowDiagLogs = 3;
 
     private GpuTexture hdrColorTexture;
     private GpuTextureView hdrColorTextureView;
@@ -82,17 +88,15 @@ public class ChimeraMainPass implements MainPass {
     }
 
     /**
-     * Renders the shadow map: re-renders terrain from the light's perspective
-     * into the shadow framebuffer, then binds the shadow texture for sampling.
-     * Called at renderLevel HEAD, before the HDR segment opens.
+     * Records the shadow pass: re-renders SOLID terrain from the light's
+     * perspective into the shadow framebuffer, then binds the shadow texture
+     * for sampling by the terrain shader. Runs with no render pass open;
+     * renderSectionLayer's rebindMainTarget opens the shadow pass (via the
+     * shadowPassActive redirect) and this method closes it afterward.
      */
     public void renderShadowMap() {
-        if (!this.shadowMap.isInitialized()) return;
-
-        var mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
-
         VkCommandBuffer cmd = Renderer.getCommandBuffer();
+        var mc = net.minecraft.client.Minecraft.getInstance();
 
         // Compute light matrices
         Vec3 playerPos = mc.player.position();
@@ -118,6 +122,14 @@ public class ChimeraMainPass implements MainPass {
             VRenderSystem.calculateMVP();
 
             WorldRenderer worldRenderer = WorldRenderer.getInstance();
+            // A fresh SectionGraph (allChanged) is empty until cullTerrain
+            // refills it; the shadow pass would record zero draws. Log the
+            // anomalous case, capped, instead of failing silently.
+            if (this.shadowDiagLogs > 0 && worldRenderer.getVisibleSectionsCount() == 0) {
+                this.shadowDiagLogs--;
+                LOGGER.warn("[chimera] shadow phase: section graph empty (visibleSections=0, graphNeedsUpdate={}); shadow map stays clear",
+                        worldRenderer.graphNeedsUpdate());
+            }
             worldRenderer.renderSectionLayer(
                     TerrainRenderType.SOLID,
                     playerPos.x, playerPos.y, playerPos.z,
@@ -143,6 +155,38 @@ public class ChimeraMainPass implements MainPass {
         this.shadowMap.bindShadowTexture();
     }
 
+
+    /**
+     * Renders the shadow map between cullTerrain and the terrain layers.
+     * Closes the HDR pass opened at HEAD, draws terrain from the light's
+     * perspective into the shadow map, then reopens the HDR pass (load ops)
+     * so the terrain layers continue into it.
+     *
+     * Timing matters: cullTerrain is what fills VulkanMod's section draw
+     * queues, and a fresh SectionGraph (allChanged) is empty until it runs.
+     * Rendering the shadow pass after cullTerrain guarantees the shadow
+     * phase sees this frame's section data instead of a possibly-empty
+     * graph.
+     */
+    public void renderShadowSegment() {
+        if (!this.shadowMap.isInitialized()) {
+            return;
+        }
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) {
+            return;
+        }
+
+        VkCommandBuffer cmd = Renderer.getCommandBuffer();
+        Renderer.getInstance().endRenderPass(cmd);
+        try {
+            this.renderShadowMap();
+        } finally {
+            // Reopen the HDR pass (load ops) for the terrain layers.
+            this.rebindMainTarget();
+        }
+    }
+
     // ------------------------------------------------------------------
     // Segment control
     // ------------------------------------------------------------------
@@ -151,9 +195,6 @@ public class ChimeraMainPass implements MainPass {
         if (this.hdrFramebuffer == null) {
             return;
         }
-
-        // Render shadow map before opening HDR
-        renderShadowMap();
 
         VkCommandBuffer commandBuffer = Renderer.getCommandBuffer();
         try (MemoryStack stack = MemoryStack.stackPush()) {

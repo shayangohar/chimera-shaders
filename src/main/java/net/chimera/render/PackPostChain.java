@@ -500,7 +500,8 @@ final class PackPostChain {
             pass.packPostChainActive = pass.packTargetResourcesReady
                     && !pass.packTargetGraph.steps().isEmpty();
             if (pass.packPostChainActive) {
-                LOGGER.info("[chimera] pack frame schedule: phases={}, prepare={}, early={}, late={}, final={}, depth={}, deviations={}",
+                LOGGER.info("[chimera] pack frame schedule: phases={}, prepare={}, early={}, late={}, final={}, "
+                        + "depth={}, deviations={}",
                         pass.packFrameSchedule.phases(),
                         pass.packFrameSchedule.stages(PackFrameSchedulePlan.PostWindow.PREPARE).stream()
                                 .map(PackFrameSchedulePlan.PostStage::name).toList(),
@@ -512,7 +513,8 @@ final class PackPostChain {
                                 .map(PackFrameSchedulePlan.PostStage::name).toList(),
                         pass.packTargetGraph.depth().names(),
                         pass.packFrameSchedule.deviations());
-                LOGGER.info("[chimera] pack target graph: targets={}, steps={}, depth={}, maxAttachments={}, fingerprint={}",
+                LOGGER.info("[chimera] pack target graph: targets={}, steps={}, depth={}, "
+                        + "maxAttachments={}, fingerprint={}",
                         pass.packTargetGraph.targets().size(), pass.packTargetGraph.steps().size(),
                         pass.packTargetGraph.depth().names(), pass.packTargetGraph.maxAttachments(),
                         pass.packTargetGraph.fingerprint());

@@ -86,8 +86,8 @@ final class PostBypassTest {
             assertTrue(transaction.containsSlot(0), "identity resolve missed HDR slot 0");
         }
 
-        // A missing mask-critical family makes the whole frame host-rendered
-        // so installed geometry must not keep writing targets that
+        // A missing mask-critical family makes the whole frame host-rendered:
+        // installed geometry must not keep writing targets that
         // nothing presents, so every program is carried as fallback.
         ConformanceReport report = new ConformanceReport("bypass-fixture", false, List.of(),
                 Map.of(), List.of(), List.of());

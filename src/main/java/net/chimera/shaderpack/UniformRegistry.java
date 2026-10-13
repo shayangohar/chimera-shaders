@@ -482,7 +482,7 @@ public final class UniformRegistry {
     }
 
     /**
-     * Plans a post program whose colortex bindings are backed by M5.6 target
+     * Plans a post program whose colortex bindings are backed by post target
      * images rather than the older single-image seam aliases.
      */
     public static ProgramInterface planPost(String source, PostTargetPlan targetPlan) {

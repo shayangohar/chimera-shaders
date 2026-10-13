@@ -117,7 +117,8 @@ final class EntityRealPackTest {
                         "Complementary improved-rain data must not alpha-blend");
             }
             var stage = FamilyAdapterRegistry.stageFor(name);
-            var prepared = PackPipelines.prepare(plan, analysis.plan().advancedResources(), stage, plan.convertedVertex());
+            var prepared = PackPipelines.prepare(plan, analysis.plan().advancedResources(), stage,
+                    plan.convertedVertex());
             compileStage(prepared.vertex(), true, pack + " " + name + " vertex");
             compileStage(prepared.fragment(), false, pack + " " + name + " fragment");
             if (FamilyAdapterRegistry.isSkyFamily(name)) {
@@ -293,7 +294,7 @@ final class EntityRealPackTest {
     }
 
     /**
-     * sampler identity: the descriptor sampler follows the declared
+     * Sampler identity: the descriptor sampler follows the declared
      * sampler type, because a {@code sampler2DShadow} lookup is a depth
      * comparison and a plain {@code sampler2D} lookup reads the value. Report
      * how each admitted program reads the shadow textures and reject any type
@@ -319,7 +320,7 @@ final class EntityRealPackTest {
     }
 
     /**
-     * descriptor identity on the real pack program: the built contract's
+     * Descriptor identity on the real pack program: the built contract's
      * transform blocks must answer to the semantic names the bridge looks up.
      * VulkanMod names config-declared blocks {@code "UBO: <binding>"} and
      * {@code Pipeline.getUBO(String)} compares names exactly, so a numeric block
@@ -348,7 +349,7 @@ final class EntityRealPackTest {
             Expectation expectation, ProgramImageBindingManifest manifest) {
         var samplers = plan.interfacePlan().effective(expectation.stage()).samplers();
         boolean declaresNoise = samplers.stream().anyMatch(sampler -> sampler.name().equals("noisetex"));
-        // names BSL block explicitly: its manifest must carry the
+        // BSL's gbuffers_block must always carry the
         // canonical slot-7 pack-texture noise entry, not a bare declaration.
         boolean requireNoise = declaresNoise
                 || (expectation.pack().equals("bsl") && expectation.program().equals("gbuffers_block"));

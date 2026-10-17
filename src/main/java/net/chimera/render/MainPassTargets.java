@@ -1,5 +1,6 @@
 package net.chimera.render;
 
+import net.chimera.mixin.ChimeraRenderPassAccessor;
 import net.vulkanmod.vulkan.Vulkan;
 import net.vulkanmod.vulkan.framebuffer.Framebuffer;
 import net.vulkanmod.vulkan.framebuffer.MainDepthSnapshot;
@@ -38,8 +39,18 @@ final class MainPassTargets {
         this.pass = pass;
     }
 
+    /**
+     * Creates the HDR framebuffer and points the HDR render passes at it. A screen recreates it at a
+     * frame boundary, and a Reforged RenderPass transitions the images of the framebuffer it holds,
+     * so passes left on the old one transitioned its freed images. Following the framebuffer, rather
+     * than rebuilding the passes, keeps the pipeline variants Reforged caches per RenderPass. The
+     * format only changes in createResources, which builds new passes.
+     */
     void createHdrFramebuffer(int width, int height) {
         this.hdrFramebuffer = framebuffer(width, height, pass.packHdrFormat);
+        for (RenderPass hdrPass : new RenderPass[] {hdrRenderPass, hdrAuxRenderPass, hdrAuxClearDepthRenderPass}) {
+            if (hdrPass != null) ((ChimeraRenderPassAccessor) hdrPass).chimera$setFramebuffer(this.hdrFramebuffer);
+        }
     }
 
     void createOutputFramebuffer(int width, int height) {

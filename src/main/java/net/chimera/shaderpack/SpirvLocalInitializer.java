@@ -38,6 +38,15 @@ import java.util.Set;
  * sky. Iris leaves those pixels black; a Vulkan driver wrote whatever its
  * registers held there, and the reprojected history spread it as bright
  * single-colour specks along every edge against the sky.</p>
+ *
+ * <p>A variable every path writes whole before anything can read it keeps no
+ * initializer ({@link SpirvWrittenFirst}): a GLSL initializer is such a write,
+ * so the zero is never seen, under GL or here. The null still costs: NVIDIA then
+ * fills the variable per invocation. BSL's shadowcomp copies two colour tables
+ * (75 vec3) into private globals this way, and zeroing them first took its
+ * dispatch from 0.2 ms to 33 ms on an RTX card. In BSL's world programs the
+ * optimizer makes such tables locals stored after a branch; zeroing those made
+ * each terrain draw ten times slower with multicoloured block light on.</p>
  */
 public final class SpirvLocalInitializer {
     private static final int MAGIC = 0x07230203;
@@ -96,6 +105,12 @@ public final class SpirvLocalInitializer {
         private final Map<Integer, Integer> declaredNulls = new HashMap<>();
         /** Variables and struct types decorated BuiltIn. */
         private final Set<Integer> builtIns = new HashSet<>();
+        /** Each variable's storage class. */
+        private final Map<Integer, Integer> storage = new HashMap<>();
+        private final List<Integer> variables = new ArrayList<>();
+        private final Set<Integer> entryFunctions = new HashSet<>();
+        /** Variables every path writes whole before anything can read them. */
+        private final Set<Integer> writtenFirst = new HashSet<>();
         private boolean outputStages = true;
         private int firstFunction = -1;
         private boolean needed;
@@ -113,12 +128,17 @@ public final class SpirvLocalInitializer {
                 if (count == 0) return false;
                 record(words[at] & 0xFFFF, at, count);
             }
+            writtenFirst.addAll(SpirvWrittenFirst.find(words, firstFunction, storage, entryFunctions));
+            for (int at : variables) needed |= initializable(at) != null;
             return true;
         }
 
         private void record(int opcode, int at, int count) {
             switch (opcode) {
-                case OP_ENTRY_POINT -> outputStages &= OUTPUT_STAGES.contains(words[at + 1]);
+                case OP_ENTRY_POINT -> {
+                    outputStages &= OUTPUT_STAGES.contains(words[at + 1]);
+                    entryFunctions.add(words[at + 2]);
+                }
                 case OP_DECORATE, OP_MEMBER_DECORATE -> recordBuiltIn(opcode, at);
                 case OP_TYPE_BOOL, OP_TYPE_INT, OP_TYPE_FLOAT, OP_TYPE_VECTOR, OP_TYPE_MATRIX,
                         OP_TYPE_ARRAY, OP_TYPE_STRUCT ->
@@ -126,7 +146,10 @@ public final class SpirvLocalInitializer {
                 case OP_TYPE_POINTER -> pointers.put(words[at + 1], new int[] {words[at + 2], words[at + 3]});
                 case OP_CONSTANT_NULL -> nulls.putIfAbsent(words[at + 1], words[at + 2]);
                 case OP_FUNCTION -> { if (firstFunction < 0) firstFunction = at; }
-                case OP_VARIABLE -> { if (initializable(at) != null) needed = true; }
+                case OP_VARIABLE -> {
+                    storage.put(words[at + 2], words[at + 3]);
+                    variables.add(at);
+                }
                 case OP_UNDEF -> { if (plainData(types, words[at + 1])) needed = true; }
                 default -> { }
             }
@@ -141,10 +164,11 @@ public final class SpirvLocalInitializer {
         /**
          * The pointee of the uninitialized variable at {@code at} when it takes a null initializer:
          * a plain function local or private global, or a plain output of a stage whose outputs
-         * start at zero, built-ins aside. Null otherwise.
+         * start at zero, built-ins aside, that is not written whole first. Null otherwise.
          */
         private Integer initializable(int at) {
             if ((words[at] & 0xFFFF) != OP_VARIABLE || words[at] >>> 16 != 4) return null;
+            if (writtenFirst.contains(words[at + 2])) return null;
             int[] pointer = pointers.get(words[at + 1]);
             if (pointer == null || !plainData(types, pointer[1])) return null;
             int storage = words[at + 3];

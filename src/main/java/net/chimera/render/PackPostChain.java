@@ -32,6 +32,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import static org.lwjgl.vulkan.VK10.*;
 
@@ -610,6 +612,21 @@ final class PackPostChain {
         return "unavailable inputs " + missing;
     }
 
+    /**
+     * The targets pass computes and post passes store to (colorimgN), each with the formats they
+     * bind it in: their images are created for storage, with a view in any other format.
+     */
+    private Map<Integer, Set<Integer>> storageTargets() {
+        Map<Integer, Set<Integer>> targets = new TreeMap<>();
+        if (pass.packPassComputes != null) {
+            pass.packPassComputes.storageTargets().forEach((target, formats) ->
+                    targets.computeIfAbsent(target, ignored -> new TreeSet<>()).addAll(formats));
+        }
+        pass.packPlan.advancedResources().targetImageFormats().forEach((target, formats) ->
+                targets.computeIfAbsent(target, ignored -> new TreeSet<>()).addAll(formats));
+        return targets;
+    }
+
     void configurePackPostTargets(int width, int height) {
         if (pass.packPostChainRejected) {
             return;
@@ -646,8 +663,7 @@ final class PackPostChain {
                     pass.packPlan.activePrograms(), pass.packTargetGraph, computeDepthReads());
             pass.packNeedsHdrDepth = pass.packTargetGraph.depth().any();
             pass.packDepthTargets.configure(width, height, pass.packTargetGraph.depth());
-            pass.packTargetResourcesReady = pass.packPostTargets.configure(pass.packTargetGraph,
-                    pass.packPassComputes == null ? Map.of() : pass.packPassComputes.storageTargets());
+            pass.packTargetResourcesReady = pass.packPostTargets.configure(pass.packTargetGraph, storageTargets());
             pass.packPostChainActive = pass.packTargetResourcesReady && runsChain(pass.packTargetGraph,
                     pass.packPassComputes != null && pass.packPassComputes.runInPostChain());
             // New targets, at load or after a resize: Iris runs its setup computes again.

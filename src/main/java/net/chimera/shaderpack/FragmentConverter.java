@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 /**
  * Converts a pack fragment stage to Vulkan GLSL for its family (post, terrain, water, shadow,
@@ -386,10 +388,63 @@ public final class FragmentConverter {
                 declarations = SHADOW_RENDER_STAGE_DEFINES + declarations;
             }
             if (!geometryStage || !modern) {
-                return "#version 460\n" + declarations + src;
+                String assembled = "#version 460\n" + declarations + src;
+                return geometryStage ? withoutNanOutputs(assembled) : assembled;
             }
-            return declarations.isEmpty() ? src : LegacyGlslConverter.insertAfterFirstLine(src, declarations);
+            return withoutNanOutputs(declarations.isEmpty() ? src
+                    : LegacyGlslConverter.insertAfterFirstLine(src, declarations));
         }
+    }
+
+    /** The float output types a geometry fragment writes NaN through. */
+    private static final Pattern FLOAT_OUTPUT = Pattern.compile("float|vec[234]|float16_t|f16vec[234]");
+
+    /**
+     * {@code source} writing what a NaN shows in place of a NaN in its float outputs, at the end of
+     * main's body: a colour with a NaN component is opaque black, and another output takes 0 for
+     * each NaN component. Under GL, as under Vulkan, a NaN fragment blends to NaN at any alpha,
+     * which shows black over whatever it covers. But a later blend that weighs the NaN by zero yields
+     * the other term under NVIDIA's GL driver, and NaN under Vulkan. RenderPearl 2.8's float16 path
+     * computes a NaN name-tag background, and Iris draws the opaque glyphs over it, while in Chimera
+     * the glyphs stayed NaN and the whole tag black. Opaque black keeps Iris's box; a 0 at the quad's
+     * 25% alpha showed the unlit scene there instead, bright at night, since the tag skips deferred
+     * lighting. Each output goes through a helper overloaded for its type, so it still resolves when
+     * a 16-bit output compiles as its 32-bit type.
+     */
+    static String withoutNanOutputs(String source) {
+        GlslTree tree = GlslTree.parse(source);
+        String helper = GlslTokenRewriter.uniqueIdentifier(source, "chimeraNoNan");
+        Set<String> types = new TreeSet<>();
+        StringBuilder statements = new StringBuilder();
+        for (GlslDeclarations.Variable output : GlslDeclarations.variables(tree)) {
+            // A built-in, as RenderPearl's depth_unchanged gl_FragDepth, and an output the program
+            // never writes stay unwritten: a write would store an undefined value.
+            if (!output.qualifiers().contains("out") || !output.plain() || output.name().startsWith("gl_")
+                    || !FLOAT_OUTPUT.matcher(output.type()).matches()
+                    || GlslTokenRewriter.identifierCount(source, output.name()) < 2) {
+                continue;
+            }
+            types.add(output.type());
+            // A 16-bit output may compile as its 32-bit type (GlslVendorExtensions.widenInterfaces).
+            String widened = GlslVendorExtensions.widenedType(output.type());
+            if (widened != null) types.add(widened);
+            statements.append(output.name()).append(" = ").append(helper).append('(').append(output.name())
+                    .append(");\n");
+        }
+        if (statements.isEmpty()) return source;
+        StringBuilder helpers = new StringBuilder();
+        for (String type : types) {
+            String guarded = type.endsWith("vec4")
+                    ? "any(isnan(value)) ? " + type + "(0, 0, 0, 1) : value"
+                    : "mix(value, " + type + "(0), isnan(value))";
+            helpers.append(type).append(' ').append(helper).append('(').append(type).append(" value) { return ")
+                    .append(guarded).append("; }\n");
+        }
+        int main = GlslTokenRewriter.mainDefinition(tree).range().start();
+        String withHelpers = tree.print(List.of(new GlslTree.Edit(new GlslTree.Range(main, main),
+                helpers.toString())));
+        // At the end of main's body, ahead of the alpha test Iris appends there too (PackAlphaTestPlan).
+        return GlslTokenRewriter.appendMainBody(withHelpers, statements.toString().strip());
     }
 
     private static boolean entityStage(UniformRegistry.Stage stage) {

@@ -1,12 +1,18 @@
 package net.chimera.shaderpack;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -122,6 +128,129 @@ final class TessellationStageBridgeTest {
                 && evaluation.contains("uniform ViewUBO")
                 && evaluation.contains("gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);"), evaluation);
         assertEquals(1, conversion.outputLayout().location("VertexData_uv_te"));
+    }
+
+    /** Shrimple's hand evaluation stage at its default DISPLACE_MODE: it interpolates the projected position. */
+    private static final String HAND_EVALUATION = EVALUATION.replace("vec4 view =", "gl_Position =")
+            .replace("gl_Position = gl_ProjectionMatrix * view;", "");
+
+    /**
+     * The entity bridge adds the identities and host values the hand fragment reads to the vertex
+     * stage's outputs; both stages pass them on after the pack's own. The control stage copies each
+     * per vertex. The evaluation stage writes an integer as the first vertex's and a float at the
+     * evaluated point, and converts the clip depth the vertex stage left in GL's range.
+     */
+    @Test
+    void aHandPassesTheBridgeValuesOnThroughBothStages() {
+        LegacyGlslConverter.TerrainVaryingLayout vertex = new LegacyGlslConverter.TerrainVaryingLayout(
+                Map.of("VertexData_blockId", "int", "VertexData_uv", "vec2", "chimeraRenderedItemId", "uint",
+                        "chimeraVertexAlpha", "float"),
+                Map.of("VertexData_blockId", 3, "VertexData_uv", 5, "chimeraRenderedItemId", 6,
+                        "chimeraVertexAlpha", 7),
+                Map.of("chimeraRenderedItemId", "flat"));
+        TessellationStageBridge.Conversion conversion = TessellationStageBridge.convert(true, CONTROL,
+                HAND_EVALUATION, vertex, FRAGMENT, null, null, false);
+        String control = conversion.control();
+        assertTrue(control.contains("layout(location = 6) flat in uint chimeraRenderedItemId[];")
+                && control.contains("layout(location = 2) flat out uint chimeraRenderedItemIdTC[];")
+                && control.contains("layout(location = 3) out float chimeraVertexAlphaTC[];")
+                && control.contains("chimeraRenderedItemIdTC[gl_InvocationID] = "
+                        + "chimeraRenderedItemId[gl_InvocationID];"), control);
+        String evaluation = conversion.evaluation();
+        assertTrue(evaluation.contains("layout(location = 2) flat out uint chimeraRenderedItemId;")
+                && evaluation.contains("chimeraRenderedItemId = chimeraRenderedItemIdTC[0];")
+                && evaluation.contains("chimeraVertexAlpha = gl_TessCoord.x * chimeraVertexAlphaTC[0]"
+                        + " + gl_TessCoord.y * chimeraVertexAlphaTC[1] + gl_TessCoord.z * chimeraVertexAlphaTC[2];")
+                && evaluation.contains("gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);")
+                && !evaluation.contains("ViewUBO"), evaluation);
+        assertEquals(List.of(2, 3), List.of(conversion.outputLayout().location("chimeraRenderedItemId"),
+                conversion.outputLayout().location("chimeraVertexAlpha")));
+        assertNull(PackCompileTest.compileBetween(control, "tess_control"), control);
+        assertNull(PackCompileTest.compileBetween(evaluation, "tess_evaluation"), evaluation);
+    }
+
+    /**
+     * The host serves the hand's projection to its vertex stage alone, so a hand stage that reads a
+     * legacy matrix (Shrimple's DISPLACE_TESSELATION) falls back, where a terrain stage reads the host's.
+     */
+    @Test
+    void aHandStageReadingADrawMatrixIsRefused() {
+        LegacyGlslConverter.TerrainVaryingLayout vertex = new LegacyGlslConverter.TerrainVaryingLayout(
+                Map.of("VertexData_blockId", "int", "VertexData_uv", "vec2"),
+                Map.of("VertexData_blockId", 0, "VertexData_uv", 1));
+        IllegalArgumentException refused = assertThrows(
+                IllegalArgumentException.class, () -> TessellationStageBridge.convert(true, CONTROL, EVALUATION,
+                        vertex, FRAGMENT, null, null, false));
+        assertTrue(refused.getMessage().contains("gl_ProjectionMatrix"), refused.getMessage());
+    }
+
+    /**
+     * A tessellated hand in a pack: admitted, its evaluation stage declaring the entity family's
+     * uniform block where it reads a uniform, and the whole descriptor set matching every stage as
+     * the runtime checks it (PackPipelines.prepareLayout). Declaring the terrain lanes' block there
+     * stopped the game at launch (DESCRIPTOR_LAYOUT_MISMATCH:ChimeraTerrainPackUniforms).
+     */
+    @Test
+    void aTessellatedHandsDescriptorsServeEveryStage(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectory(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("shaders.properties"), "iris.features.optional=TESSELATION_SHADERS\n");
+        Files.writeString(shaders.resolve("gbuffers_hand.vsh"), """
+                #version 430 compatibility
+                out vec2 uv;
+                void main() {
+                    uv = gl_MultiTexCoord0.xy;
+                    gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_hand.tcs"), """
+                #version 430 compatibility
+                layout(vertices = 3) out;
+                in vec2 uv[];
+                out vec2 uvTc[];
+                void main() {
+                    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+                    uvTc[gl_InvocationID] = uv[gl_InvocationID];
+                    gl_TessLevelOuter[0] = 1.0; gl_TessLevelOuter[1] = 1.0; gl_TessLevelOuter[2] = 1.0;
+                    gl_TessLevelInner[0] = 1.0;
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_hand.tes"), """
+                #version 430 compatibility
+                layout(triangles) in;
+                uniform float frameTimeCounter;
+                in vec2 uvTc[];
+                out vec2 uvTe;
+                void main() {
+                    gl_Position = gl_TessCoord.x * gl_in[0].gl_Position + gl_TessCoord.y * gl_in[1].gl_Position
+                            + gl_TessCoord.z * gl_in[2].gl_Position;
+                    uvTe = gl_TessCoord.x * uvTc[0] + gl_TessCoord.y * uvTc[1] + gl_TessCoord.z * uvTc[2]
+                            + vec2(0.0, frameTimeCounter * 0.0);
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_hand.fsh"), """
+                #version 430 compatibility
+                uniform sampler2D texture;
+                uniform float frameTimeCounter;
+                uniform int currentRenderedItemId;
+                in vec2 uvTe;
+                void main() {
+                    gl_FragData[0] = texture2D(texture, uvTe) * float(currentRenderedItemId) * frameTimeCounter;
+                }
+                """);
+        PackProbe.Analysis analysis = PackProbe.analyze(root);
+        PackProgramPlan hand = analysis.plan().program("gbuffers_hand");
+        assertTrue(hand.executable(), hand.deviations().toString());
+        assertTrue(hand.convertedTessEvaluation().contains("layout(binding = 2) uniform ChimeraEntityUniforms")
+                && hand.convertedTessEvaluation().contains("chimeraRenderedItemId = chimeraRenderedItemIdTC[0];")
+                && !hand.convertedTessControl().contains("ChimeraTerrainPackUniforms"), hand.convertedTessEvaluation());
+        PackPipelines.PreparedPipeline prepared = PackPipelines.prepare(hand, analysis.plan().advancedResources(),
+                UniformRegistry.Stage.HAND, PackFamilyPipelines.familyVertex(hand));
+        PackPipelines.prepareLayout(prepared, hand.name(), analysis.plan().advancedResources());
+        assertNull(PackCompileTest.compile(prepared.vertex(), true), prepared.vertex());
+        assertNull(PackCompileTest.compileBetween(prepared.between().tessControl(), "tess_control"));
+        assertNull(PackCompileTest.compileBetween(prepared.between().tessEvaluation(), "tess_evaluation"),
+                prepared.between().tessEvaluation());
+        assertNull(PackCompileTest.compile(prepared.fragment(), false), prepared.fragment());
     }
 
     /** GL's ccw is Vulkan's cw under the upper-left domain origin, and GL's default is ccw. */

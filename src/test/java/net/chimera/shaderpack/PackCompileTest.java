@@ -171,7 +171,10 @@ final class PackCompileTest {
                 prepared = PackPipelines.prepare(program, resources, stage, vertex);
                 // The runtime checks a post or shadow program's whole descriptor set before creating it
                 // (PackPipelines.buildPost, buildShadow, buildGeometry); a mismatch there stops the game.
-                if (stage == UniformRegistry.Stage.POST || FamilyAdapterRegistry.isShadowFamily(program.name())) {
+                // So it does for a program with stages between vertex and fragment: Shrimple's hand
+                // evaluation stage declared the terrain lanes' uniform block and stopped it at launch.
+                if (stage == UniformRegistry.Stage.POST || FamilyAdapterRegistry.isShadowFamily(program.name())
+                        || !prepared.between().present().isEmpty()) {
                     PackPipelines.prepareLayout(prepared, program.name(), resources);
                 }
             } catch (RuntimeException failure) {
@@ -358,6 +361,11 @@ final class PackCompileTest {
     }
 
     /** VulkanMod's shaderc settings; returns the first error line, or null on success. */
+    /** The compile error of {@code source} as the stage between vertex and fragment named {@code stage}, or null. */
+    static String compileBetween(String source, String stage) {
+        return outcome(source, BETWEEN_KINDS.get(stage), "pack" + BETWEEN_EXTENSIONS.get(stage)).error();
+    }
+
     static String compile(String source, boolean vertex) {
         return vertex ? outcome(source, Shaderc.shaderc_glsl_vertex_shader, "pack.vsh").error()
                 : outcome(source, Shaderc.shaderc_glsl_fragment_shader, "pack.fsh").error();

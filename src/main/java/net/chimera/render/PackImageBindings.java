@@ -5,6 +5,7 @@ import net.chimera.shaderpack.PackPipelines;
 import net.chimera.shaderpack.PackResourcePlan;
 import net.chimera.shaderpack.PostTargetPlan;
 import net.chimera.shaderpack.ProgramImageBindingManifest;
+import net.chimera.shaderpack.TargetImages;
 import net.vulkanmod.gl.GlSampler;
 import net.vulkanmod.gl.GlTexture;
 import net.vulkanmod.vulkan.Renderer;
@@ -131,7 +132,10 @@ final class PackImageBindings {
             if (pass.materials.materialMapOwner == null) return null;
             return pass.materials.materialMapOwner.resolveDrawMaterial(drawContext, entry.resourceKey());
         }
-        VulkanImage image = entryImage(entry, colors, fallback);
+        VulkanImage image = entry.kind() == ProgramImageBindingManifest.Kind.TARGET_IMAGE
+                && TargetImages.world(bound.name())
+                ? pass.packPostTargets.worldStorageImage(PackResourcePlan.targetIndex(entry.resourceKey()))
+                : entryImage(entry, colors, fallback);
         return new ChimeraTextureBindingState.Snapshot(image,
                 image == null ? null : pass.shadowPass.shadowSamplerFor(bound, entry, image));
     }
@@ -164,7 +168,8 @@ final class PackImageBindings {
                     : pass.packResourceOwner.image(entry.resourceKey());
             case ADVANCED_IMAGE -> pass.packAdvancedImageOwner == null ? null
                     : pass.packAdvancedImageOwner.image(entry.resourceKey());
-            // The image the chain reads now, which PostTargetStorage holds in the general layout.
+            // A pass's: the image the chain reads now, which PostTargetStorage holds in the general
+            // layout. A hand program's resolves in resolve(), to the image world programs read.
             case TARGET_IMAGE -> pass.packPostTargets.storageSource(Renderer.getCommandBuffer(),
                     PackResourcePlan.targetIndex(entry.resourceKey()));
             case CENTER_DEPTH -> pass.packCenterDepth == null ? null : pass.packCenterDepth.image();
@@ -246,8 +251,9 @@ final class PackImageBindings {
 
     /**
      * Called before opening attachments, including host geometry render passes: captures the
-     * depthtex0 a program reads while the world still draws, and moves its advanced images into
-     * their graphics layouts.
+     * depthtex0 a program reads while the world still draws, moves its advanced images into
+     * their graphics layouts, and holds the targets a hand program stores to as colorimgN in the
+     * general layout until its lane run ends (releaseWorldStorage).
      */
     public void prepareProgramImages(GraphicsPipeline pipeline) {
         ChimeraMainPass.ProgramImages program = this.programImages.get(pipeline);
@@ -255,7 +261,9 @@ final class PackImageBindings {
         boolean drawnDepth = pass.depth.needsDrawnDepth(pipeline);
         boolean advanced = pass.packAdvancedImageOwner != null
                 && pass.packAdvancedImageOwner.needsGraphicsTransition(program.manifest());
-        if (!drawnDepth && !advanced) return;
+        List<Integer> stored = worldStorageTargets(program);
+        boolean storage = !stored.isEmpty() && !pass.packPostTargets.holdsWorldStorage(stored);
+        if (!drawnDepth && !advanced && !storage) return;
         boolean resume = Renderer.getInstance().getBoundRenderPass() != null;
         if (resume) Renderer.getInstance().endRenderPass();
         try {
@@ -263,6 +271,31 @@ final class PackImageBindings {
             if (advanced) {
                 pass.packAdvancedImageOwner.prepareGraphicsImages(Renderer.getCommandBuffer(), program.manifest());
             }
+            if (storage) pass.packPostTargets.holdWorldStorage(Renderer.getCommandBuffer(), stored);
+        } finally {
+            if (resume) pass.rebindMainTarget();
+        }
+    }
+
+    /** The targets a world program stores to as colorimgN (a hand program, TargetImages), ascending. */
+    private static List<Integer> worldStorageTargets(ChimeraMainPass.ProgramImages program) {
+        if (!TargetImages.world(program.name())) return List.of();
+        return program.manifest().entries().stream()
+                .filter(entry -> entry.kind() == ProgramImageBindingManifest.Kind.TARGET_IMAGE)
+                .map(entry -> PackResourcePlan.targetIndex(entry.resourceKey())).distinct().sorted().toList();
+    }
+
+    /**
+     * Returns the targets a hand lane's run stored to as colorimgN to the sampled layout, once the
+     * run has drawn: VulkanMod moves no image out of GENERAL ("Unexpected value:1"), and later draws
+     * sample them. Called outside or between render passes; one bound here reopens.
+     */
+    public void releaseWorldStorage() {
+        if (!pass.packPostTargets.holdsWorldStorage()) return;
+        boolean resume = Renderer.getInstance().getBoundRenderPass() != null;
+        if (resume) Renderer.getInstance().endRenderPass();
+        try {
+            pass.packPostTargets.releaseWorldStorage(Renderer.getCommandBuffer());
         } finally {
             if (resume) pass.rebindMainTarget();
         }

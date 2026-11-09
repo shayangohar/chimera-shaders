@@ -63,10 +63,14 @@ final class FlipSidesTest {
         final Map<Integer, String> finalReads = new HashMap<>();
         private int frame;
         private int irisState;
+        /** The copies Chimera recorded, and those at the last frame start. */
+        int copies;
+        int frameStartCopies;
         private final PostTargetSides.Ops ops = new PostTargetSides.Ops() {
             @Override
             public void copy(PostTargetSides.Image from, PostTargetSides.Image to) {
                 chimera.put(to, chimera.get(from));
+                copies++;
             }
 
             @Override
@@ -130,7 +134,9 @@ final class FlipSidesTest {
                     iris[0][target] = iris[1][target];
                 }
             }
+            int before = copies;
             sides.beginFrame(ops);
+            frameStartCopies = copies - before;
             if (frame == 0 || cleared(0)) chimera.put(new PostTargetSides.Image(0, PostTargetSides.HDR), "clear0");
             reads.clear();
             finalReads.clear();
@@ -229,6 +235,16 @@ final class FlipSidesTest {
                 }
                 chimera.put(image, chimera.get(image) + draw);
             }
+        }
+
+        /** A screen change between frames: the world attachments are made anew, the HDR image undefined. */
+        void replaceHdr() {
+            chimera.put(new PostTargetSides.Image(0, PostTargetSides.HDR), "undefined");
+            sides.hdrReplaced();
+        }
+
+        boolean anyImageHolds(String token) {
+            return chimera.values().stream().anyMatch(value -> value != null && value.contains(token));
         }
 
         private void check(boolean condition, String message) {
@@ -381,6 +397,41 @@ final class FlipSidesTest {
         assertTrue(harness.mismatches.isEmpty(), String.join("\n", harness.mismatches));
         assertTrue(harness.reads.get("deferred1").get(0).contains(">composite1@1>world-PREPARE@2"),
                 "the world must draw over last frame's final image: " + harness.reads.get("deferred1").get(0));
+        assertTrue(harness.frameStartCopies <= 2, "alt back from the HDR image, main into it: "
+                + harness.frameStartCopies);
+    }
+
+    /**
+     * Every screen opened or closed makes a new HDR image between frames, without touching the pack
+     * targets. The frame that follows must take colortex0 from the graph sides; written back as the
+     * side the old image stood in for, the new image's undefined content would land on colortex0's alt.
+     */
+    @Test
+    void aNewHdrImageFromAScreenChangeIsNeverWrittenBack(@TempDir Path root) throws Exception {
+        Harness harness = harness(root, Map.of(
+                "deferred1", "const bool colortex0Clear = false;\nuniform sampler2D colortex0;\n"
+                        + "/* RENDERTARGETS: 0 */\n" + copies("colortex0"),
+                "composite1", "uniform sampler2D colortex0;\n/* RENDERTARGETS: 0 */\n" + copies("colortex0")), "");
+        for (int frame = 0; frame < 2; frame++) harness.run(Frame.plain(Set.of(0)));
+        harness.replaceHdr();
+        for (int frame = 2; frame < 4; frame++) harness.run(Frame.plain(Set.of(0)));
+        assertTrue(!harness.anyImageHolds("undefined"), "a new HDR image's content reached a target");
+    }
+
+    /**
+     * Alpha Piscium, Ebin and RenderPearl keep colortex0 and no pass writes it: the HDR image already
+     * holds main when the frame ends, so carrying it over copies nothing, and the world draws on.
+     */
+    @Test
+    void aColortex0NoPassWritesCarriesOverWithoutACopy(@TempDir Path root) throws Exception {
+        Harness harness = harness(root, Map.of(
+                "deferred1", "const bool colortex0Clear = false;\nuniform sampler2D colortex0;\n"
+                        + "/* RENDERTARGETS: 3 */\n" + copies("colortex0")), "");
+        for (int frame = 0; frame < 3; frame++) harness.run(Frame.plain(Set.of(0)));
+        assertTrue(harness.mismatches.isEmpty(), String.join("\n", harness.mismatches));
+        assertEquals(0, harness.frameStartCopies);
+        assertTrue(harness.reads.get("deferred1").get(0).startsWith("clear0>world-PREPARE@0>world-EARLY@0"),
+                harness.reads.get("deferred1").get(0));
     }
 
     /**

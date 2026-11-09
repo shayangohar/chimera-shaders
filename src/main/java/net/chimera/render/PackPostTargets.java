@@ -182,6 +182,8 @@ public final class PackPostTargets {
         if (!this.configured || this.graph == null) {
             throw new IllegalStateException("pack target graph is not configured");
         }
+        // A screen change makes a new HDR image between frames: it holds nothing to write back.
+        if (hdrColor != this.hdrIdentitySource) this.sides.hdrReplaced();
         this.hdrIdentitySource = hdrColor;
         this.colortex0Clear = colortex0Clear;
         this.temporal.beginFrame(hdrColor != null);
@@ -190,8 +192,8 @@ public final class PackPostTargets {
         this.currentFlipStep = null;
         boolean full = this.sides.fullClearDue();
         withOps(commandBuffer, ops -> this.sides.beginFrame(ops));
-        if (hdrColor != null && !this.sides.clearedEachFrame(0)) {
-            // Loaded from colortex0's main side; the world target opens on it next.
+        if (hdrColor != null && carriesColortex0()) {
+            // It holds colortex0's main side; the world target opens on it next, loading it.
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 hdrColor.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
             }
@@ -211,6 +213,15 @@ public final class PackPostTargets {
 
     public void requireFrameStarted() {
         this.temporal.requireFrameStarted();
+    }
+
+    /**
+     * Whether colortex0 is not cleared every frame (colortex0Clear=false): the world target must
+     * open loading the HDR image, which beginFrame left holding colortex0's main side, as Iris keeps
+     * colortex0 from the last frame. A clearing open would wipe it.
+     */
+    public boolean carriesColortex0() {
+        return this.configured && this.sides.carriesColortex0();
     }
 
     /** Invalidates target 0 before pack geometry initializes it at render-pass load. */

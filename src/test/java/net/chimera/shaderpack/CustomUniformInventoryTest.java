@@ -78,7 +78,7 @@ final class CustomUniformInventoryTest {
                 "framemod600", "frameTimeSmooth", "starter", "isEyeInCave", "isCold", "isDesert",
                 "isJungle", "isMesa", "isMushroom", "isSavanna", "isSwamp", "inDry", "inRainy",
                 "inSnowy", "inNetherWastes", "inCrimsonForest", "inWarpedForest", "inBasaltDeltas",
-                "inSoulValley", "inPaleGarden", "maxBlindnessDarkness"}) {
+                "inSoulValley", "inPaleGarden", "maxBlindnessDarkness", "velocity"}) {
             assertTrue(UniformRegistry.descriptor(retired) == null,
                     label + ": retired synthetic uniform is back in the catalog: " + retired);
         }

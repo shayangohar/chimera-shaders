@@ -206,7 +206,7 @@ final class PackFrameState {
         scalar(table, () -> aspectRatio, "aspectRatio");
         scalar(table, () -> nearPlane, "near");
         scalar(table, () -> farPlane, "far");
-        scalar(table, () -> blindness, "blindness", "blindFactor");
+        scalar(table, () -> blindness, "blindness");
         scalar(table, () -> darknessFactor, "darknessFactor");
         scalar(table, () -> darknessLightFactor, "darknessLightFactor");
         scalar(table, () -> nightVision, "nightVision");

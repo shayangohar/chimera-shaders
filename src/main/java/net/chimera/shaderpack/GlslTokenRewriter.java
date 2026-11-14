@@ -157,15 +157,17 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Converts legacy shadow lookups to expressions using the declared sampler.
-     * GLSL opaque sampler types cannot be function parameters, so this rewrite
-     * deliberately emits an inline expression instead of a generated helper.
+     * Converts legacy shadow lookups to inline expressions on the sampler's type: a sampler
+     * parameter's own type inside its function (BSL's texture2DShadow(sampler2DShadow, vec3)
+     * helper), else the declared uniform's in {@code samplerTypes}.
      */
     static String rewriteShadowCalls(String source, Map<String, String> samplerTypes) {
         List<GlslLexer.Token> tokens = new ArrayList<>(GlslLexer.lex(source));
-        // A program may define a function under one of these names (Solas's own
-        // texture2DShadow); its calls and its definition are the program's, not legacy lookups.
-        Set<String> userDefined = userDefinedFunctions(GlslTree.parse(source), LEGACY_SHADOW_CALLS);
+        GlslTree tree = GlslTree.parse(source);
+        // A program may define a function under one of these names (Solas's and BSL's own
+        // texture2DShadow); its calls and its definition are the program's, left to GLSL's overload
+        // resolution as Iris leaves them, not legacy lookups.
+        Set<String> userDefined = userDefinedFunctions(tree, LEGACY_SHADOW_CALLS);
         // Work from the innermost calls outward. This keeps nested legacy
         // lookups valid when the outer coordinate expression is rendered.
         for (int index = tokens.size() - 1; index >= 0; index--) {
@@ -179,7 +181,7 @@ public final class GlslTokenRewriter {
             if (open < 0 || !tokens.get(open).symbol("(") || close < 0) {
                 throw new IllegalArgumentException("unbalanced legacy shadow call");
             }
-            tokens.set(index, raw(legacyShadowExpression(tokens, index, close, samplerTypes)));
+            tokens.set(index, raw(legacyShadowExpression(tokens, index, close, samplerTypes, tree)));
             for (int clear = index + 1; clear <= close; clear++) {
                 tokens.set(clear, raw(""));
             }
@@ -191,7 +193,7 @@ public final class GlslTokenRewriter {
 
     /** The inline expression replacing the legacy shadow call at {@code call}, whose arguments end at {@code close}. */
     private static String legacyShadowExpression(List<GlslLexer.Token> tokens, int call, int close,
-                                                 Map<String, String> samplerTypes) {
+                                                 Map<String, String> samplerTypes, GlslTree tree) {
         String function = tokens.get(call).text();
         int open = GlslLexer.nextSignificant(tokens, call);
         List<int[]> arguments = argumentRanges(tokens, open + 1, close);
@@ -200,8 +202,10 @@ public final class GlslTokenRewriter {
         if (arguments.size() != expectedArguments) {
             throw new IllegalArgumentException("invalid legacy shadow argument count");
         }
-        String sampler = singleIdentifier(tokens, arguments.get(0));
-        String samplerType = samplerTypes == null ? null : samplerTypes.get(sampler);
+        int samplerToken = singleIdentifier(tokens, arguments.get(0));
+        String sampler = tokens.get(samplerToken).text();
+        String samplerType = parameterType(tree, samplerToken);
+        if (samplerType == null && samplerTypes != null) samplerType = samplerTypes.get(sampler);
         if (samplerType == null) {
             throw new IllegalArgumentException("legacy shadow sampler is not declared: " + sampler);
         }
@@ -485,7 +489,15 @@ public final class GlslTokenRewriter {
         return defined;
     }
 
-    private static String singleIdentifier(List<GlslLexer.Token> tokens, int[] range) {
+    /** The type of the function parameter the identifier at {@code token} names, or null for any other name. */
+    private static String parameterType(GlslTree tree, int token) {
+        GlslTree.Binding binding = tree.resolve(token);
+        return binding != null && binding.node() instanceof GlslTree.Parameter parameter
+                ? tree.text(parameter.type().range()) : null;
+    }
+
+    /** The token index of the one identifier in {@code range}. */
+    private static int singleIdentifier(List<GlslLexer.Token> tokens, int[] range) {
         int first = -1;
         int last = -1;
         for (int index = range[0]; index < range[1]; index++) {
@@ -500,7 +512,7 @@ public final class GlslTokenRewriter {
         if (first < 0 || first != last || tokens.get(first).kind() != GlslLexer.Kind.IDENTIFIER) {
             throw new IllegalArgumentException("legacy shadow sampler must be an identifier");
         }
-        return tokens.get(first).text();
+        return first;
     }
 
     private static String argumentText(List<GlslLexer.Token> tokens, int[] range) {

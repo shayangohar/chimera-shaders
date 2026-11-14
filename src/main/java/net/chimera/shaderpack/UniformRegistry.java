@@ -496,13 +496,16 @@ public final class UniformRegistry {
     /**
      * A declared uniform Iris does not provide is left unset, so GL reads it as zero, and the
      * program still runs (Solas's {@code vxRenderDistance}, a Voxy value). Chimera serves the
-     * same zero. Iris names Chimera lacks are not covered: those stay unsupported.
+     * same zero: the source key names no value, so the frame state cannot answer for the name
+     * (it used to serve blindFactor, one of Iris's unregistered HardcodedCustomUniforms, as
+     * blindness). Iris names Chimera lacks are not covered: those stay unsupported.
      */
     static UniformDescriptor unsetDescriptor(String name, String glslType) {
         if (name == null || irisServes(name) || !SUPPORTED_TYPES.contains(glslType)) {
             return null;
         }
-        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, name, DefaultPolicy.ZERO);
+        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "unset:" + name,
+                DefaultPolicy.ZERO);
     }
 
     /**
@@ -774,7 +777,6 @@ public final class UniformRegistry {
         addLive(specs, "frameTime", "float");
         addLive(specs, "nightVision", "float");
         addLive(specs, "screenBrightness", "float");
-        addDefault(specs, "velocity", "float");
         addLive(specs, "worldDay", "int");
         addLive(specs, "atlasSize", "ivec2");
         addLive(specs, "eyeBrightness", "ivec2");

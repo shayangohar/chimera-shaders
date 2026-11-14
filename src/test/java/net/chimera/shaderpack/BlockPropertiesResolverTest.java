@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -363,7 +364,12 @@ final class BlockPropertiesResolverTest {
         Files.writeString(root.resolve("item.properties"), "#if F(1)\nitem.1=stick\n#endif\nitem.2=torch\n");
         PackItemIdResolver.ParseResult items = PackItemIdResolver.parse(root, Map.of());
         assertEquals(2, items.resolver().resolve("minecraft:torch"), "the item map reads on too");
-        assertTrue(items.deviations().contains("ITEM_PROPERTIES_CONDITION_UNSUPPORTED"), items.deviations().toString());
+        assertFalse(items.deviations().contains("ITEM_PROPERTIES_CONDITION_UNSUPPORTED"),
+                "JCPP reads F(1) as 0 and skips the rest, so nothing is unsupported: " + items.deviations());
+        PackItemIdResolver.ParseResult unread = PackItemIdResolver.parse(root, Map.of("F", "F(x) x"));
+        assertEquals(2, unread.resolver().resolve("minecraft:torch"), "a function-like macro is skipped too");
+        assertTrue(unread.deviations().contains("ITEM_PROPERTIES_CONDITION_UNSUPPORTED"),
+                unread.deviations().toString());
     }
 
     /**

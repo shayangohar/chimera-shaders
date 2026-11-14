@@ -3,6 +3,7 @@ package net.chimera.shaderpack;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -125,13 +126,20 @@ final class ProgramReportRules {
      * The sources a program's report reads, joined by stage name: a variant's prepared sources when
      * it has them, else the authored ones. Advanced declarations are judged per stage, as each stage
      * compiles alone and as the plan judges them (PackAdvancedResourcePlan.addUnplannedDeclarations):
-     * an image both stages only declare is no use of it.
+     * an image both stages only declare is no use of it. A pass's own compute ({@code <pass>.csh}
+     * beside its fragment) is planned apart (PassComputePlan) and dispatched before the program, as
+     * Iris's CompositeRenderer does, so the program's row leaves it out, as its plan does.
      */
     private record ReportSources(boolean relaxed, String source, String fragment, boolean advancedDeclarations) {
         static ReportSources of(PackProbe.Inventory inventory) {
             boolean relaxed = !inventory.variantFolder.isBlank();
             Map<String, String> sourceView = relaxed && !inventory.preparedSources.isEmpty()
                     ? inventory.preparedSources : inventory.sources;
+            if (sourceView.containsKey("compute") && sourceView.containsKey("fragment")
+                    && PassComputePlan.isPassComputeProgram(inventory.name)) {
+                sourceView = new HashMap<>(sourceView);
+                sourceView.remove("compute");
+            }
             StringBuilder combinedSource = new StringBuilder();
             sourceView.entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())

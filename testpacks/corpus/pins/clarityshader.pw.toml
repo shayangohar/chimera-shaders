@@ -1,0 +1,15 @@
+filename = 'Clarity 1.1.3.zip'
+name = 'Clarity'
+side = 'client'
+x-modrinth-version-number = '1.1.3'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = 'd1431cb0d3b914de008710f63f6c100802fa4a08460f73b2b72f9ada8fb03cca7c6f42b6e213568ec233e4cdfc5dcd7548cc9b44ba444d2ade47464d15f2a0f0'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/rinvvngy/versions/BOa5cSU4/Clarity%201.1.3.zip'
+
+[update.modrinth]
+mod-id = 'rinvvngy'
+version = 'BOa5cSU4'

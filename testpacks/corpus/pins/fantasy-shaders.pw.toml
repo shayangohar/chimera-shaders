@@ -1,0 +1,15 @@
+filename = 'Fantasy Shaders Reimagined v1.11.zip'
+name = 'Fantasy Shaders Reimagined'
+side = 'client'
+x-modrinth-version-number = '1.11'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = '8750fcf9f73e52804f924ff62a3a03b7bfc9b7fd534d59ef1fedc91c6e6a9ebc0a68a666be08f4787a6207dca7b5d253375b3a77267e4c9cecb878ff6a8f1050'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/l6di6hYz/versions/nLDvebj3/Fantasy%20Shaders%20Reimagined%20v1.11.zip'
+
+[update.modrinth]
+mod-id = 'l6di6hYz'
+version = 'nLDvebj3'

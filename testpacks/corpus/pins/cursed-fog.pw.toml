@@ -1,0 +1,15 @@
+filename = 'Cursed Fog - V1.0.10.zip'
+name = 'Cursed Fog'
+side = 'client'
+x-modrinth-version-number = '1.0.10'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = '02c0b2ceade9a9ae2eccfd699f022a185045b4c38ffc31bd515f5a0b6bd083067c988f9358a2738a6b846d8644f9ec11ad9ff6753c87bf21f23c715ae8f853f0'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/sAZ9WsJP/versions/9yVXZsfs/Cursed%20Fog%20-%20V1.0.10.zip'
+
+[update.modrinth]
+mod-id = 'sAZ9WsJP'
+version = '9yVXZsfs'

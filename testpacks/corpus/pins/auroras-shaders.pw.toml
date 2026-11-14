@@ -1,0 +1,15 @@
+filename = 'Auroras Shaders.zip'
+name = 'Auroras Shaders'
+side = 'client'
+x-modrinth-version-number = '1.9'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = '8c54bb4ec16477f4e632603069b353988f3947b56349db9905965c817eae02aac5031aefc6857a2adb0800549ac5eaec1b31fc8398fdbff11a785c2f2322b09b'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/hgAKxFQg/versions/dF60Go3s/Aurora%27s%20Shaders.zip'
+
+[update.modrinth]
+mod-id = 'hgAKxFQg'
+version = 'dF60Go3s'

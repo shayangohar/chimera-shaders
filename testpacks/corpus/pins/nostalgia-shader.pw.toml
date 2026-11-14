@@ -1,0 +1,15 @@
+filename = 'Nostalgia_v5.1.zip'
+name = 'Nostalgia Shader'
+side = 'client'
+x-modrinth-version-number = '5.1'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = '9a15161da2e360bcc446bfeb5163a2b4e70e49b46545ccbdde05540a46d861a7a378c243769faeabca76019e75cb1e55b1b2c04f74b8aaa23b86d436ebbb034c'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/xEItlMn3/versions/fzxeGgx7/Nostalgia_v5.1.zip'
+
+[update.modrinth]
+mod-id = 'xEItlMn3'
+version = 'fzxeGgx7'

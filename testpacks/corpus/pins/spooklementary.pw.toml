@@ -1,0 +1,15 @@
+filename = 'Spooklementary_v2.0.4.zip'
+name = 'Spooklementary'
+side = 'client'
+x-modrinth-version-number = 'v2.0.4'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = '64d6e2442253bbe016ba88cb347884b34e261deed846b96185d33dd9e9c3e79706a3ef4aa6b563793951e02edfff6349a3fb7f72c9574b49f3e7a07f39eaa6f9'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/6uJCfiCH/versions/rcr90eRP/Spooklementary_v2.0.4.zip'
+
+[update.modrinth]
+mod-id = '6uJCfiCH'
+version = 'rcr90eRP'

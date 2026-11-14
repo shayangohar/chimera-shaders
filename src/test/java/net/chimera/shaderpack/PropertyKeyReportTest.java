@@ -126,12 +126,13 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * JCPP reports a conditional it cannot read and reads on: shaders.properties and
-     * dimension.properties used to stop at one. An #if Chimera cannot evaluate reads false, and a
-     * stray #else turns the rest off; JCPP gives these results.
+     * JCPP reports a malformed conditional and reads on: shaders.properties and
+     * dimension.properties used to stop at one. {@code #if F(1)} with no F reads false, as JCPP reads
+     * the name as 0 and skips the rest, and a stray #else turns the rest off; JCPP gives these results.
+     * A condition Chimera cannot evaluate (a function-like macro) also reads false, and is reported.
      */
     @Test
-    void aConditionalJcppCannotReadIsSkippedAndTheFileReadsOn(@TempDir Path root) throws Exception {
+    void aMalformedConditionalIsSkippedAndTheFileReadsOn(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
         Files.writeString(shaders.resolve("composite.fsh"), """
                 #version 120
@@ -173,6 +174,11 @@ final class PropertyKeyReportTest {
         List<String> deviations = new ArrayList<>();
         assertEquals(Map.of("*", "world0", "minecraft:the_nether", "world-1"),
                 DimensionProperties.read(shaders, Map.of(), deviations).worlds());
+        assertEquals(List.of(), deviations, "JCPP evaluates it, so nothing is unsupported");
+
+        deviations.clear();
+        assertEquals(Map.of("*", "world0", "minecraft:the_nether", "world-1"),
+                DimensionProperties.read(shaders, Map.of("F", "F(x) x"), deviations).worlds());
         assertEquals(List.of("PREPROCESSOR_CONDITION_UNSUPPORTED"), deviations);
     }
 

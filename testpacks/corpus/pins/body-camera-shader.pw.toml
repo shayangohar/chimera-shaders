@@ -1,0 +1,15 @@
+filename = 'Body Camera Shader - V1.6.2.zip'
+name = 'Body Camera'
+side = 'client'
+x-modrinth-version-number = '1.6.2'
+x-modrinth-release-type = 'release'
+
+[download]
+hash = 'b016c9185acacb4d66478a060969511242a165bdfc4641aa3eddf864e2b457ebf0fd4f975ce78855cd181604a3bd1ae70a3d3611e5005a2794cc057b9c994352'
+hash-format = 'sha512'
+mode = 'url'
+url = 'https://cdn.modrinth.com/data/by2i3tnt/versions/5iEu1h6y/Body%20Camera%20Shader%20-%20V1.6.2.zip'
+
+[update.modrinth]
+mod-id = 'by2i3tnt'
+version = '5iEu1h6y'

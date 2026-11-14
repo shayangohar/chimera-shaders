@@ -267,7 +267,6 @@ public final class FragmentConverter {
                 }
                 src = AtlasSampleRewriter.rewriteTerrainAtlasSamples(src, emittedAtlasSamplers);
             }
-            src = removeLegacyShadowSamplerHelper(src);
             if (GlslTokenRewriter.containsIdentifier(src, "shadow2DProj")
                     || GlslTokenRewriter.containsIdentifier(src, "shadow2DProjLod")) {
                 throw new IllegalArgumentException("projected shadow lookup is outside the supported bridge");
@@ -815,47 +814,6 @@ public final class FragmentConverter {
         // Keep the version directive at the start of the source. The final
         // declaration pass inserts its other generated declarations after it.
         return LegacyGlslConverter.insertAfterFirstLine(result, "layout(location = 0) out vec4 fragColor;\n");
-    }
-
-    /**
-     * A pack's own {@code float texture2DShadow(sampler2DShadow s, vec3 c) { return shadow2D(s, c).x; }}
-     * goes: the shadow-sampler rewrite serves that name itself.
-     */
-    static String removeLegacyShadowSamplerHelper(String source) {
-        if (source == null || !source.contains("texture2DShadow")) return source;
-        GlslTree tree = GlslTree.parse(source);
-        List<GlslDeclarations.TextEdit> removals = new ArrayList<>();
-        for (GlslTree.External external : tree.externals()) {
-            if (external instanceof GlslTree.Function function && isLegacyShadowHelper(tree, function)) {
-                removals.add(new GlslDeclarations.TextEdit(tree.offset(function.range().start()),
-                        tree.offset(function.range().end()), ""));
-            }
-        }
-        return GlslDeclarations.apply(source, removals);
-    }
-
-    private static boolean isLegacyShadowHelper(GlslTree tree, GlslTree.Function function) {
-        if (function.body() == null || !function.qualifiers().isEmpty() || function.parameters().size() != 2
-                || !tree.text(function.name()).equals("texture2DShadow")
-                || !tree.text(function.returnType().range()).equals("float")) {
-            return false;
-        }
-        GlslTree.Parameter sampler = function.parameters().get(0);
-        GlslTree.Parameter coordinate = function.parameters().get(1);
-        if (!simpleParameter(tree, sampler, "sampler2DShadow") || !simpleParameter(tree, coordinate, "vec3")) {
-            return false;
-        }
-        List<String> body = new ArrayList<>();
-        for (int index = function.body().range().start(); index < function.body().range().end(); index++) {
-            if (tree.tokens().get(index).significant()) body.add(tree.text(index));
-        }
-        return body.equals(List.of("{", "return", "shadow2D", "(", tree.text(sampler.name()), ",",
-                tree.text(coordinate.name()), ")", ".", "x", ";", "}"));
-    }
-
-    private static boolean simpleParameter(GlslTree tree, GlslTree.Parameter parameter, String type) {
-        return parameter.qualifiers().isEmpty() && parameter.name() >= 0 && parameter.arrays().isEmpty()
-                && tree.text(parameter.type().range()).equals(type);
     }
 
     /** {@code [layout(...)] uniform sampler name;} for this one name, with the binding written onto it. */

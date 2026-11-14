@@ -149,7 +149,12 @@ final class IrisCoreProfile {
         for (Map.Entry<String, String> entry : declared.entrySet()) {
             replacements.put(entry.getKey(), compatibilityValue(entry.getKey(), entry.getValue(), overlay));
         }
-        return GlslTokenRewriter.replaceIdentifiers(result, replacements);
+        // Only the core names themselves: a parameter or local of the same name keeps its meaning
+        // (Pixel Perfect's toViewspace(in mat4 projectionMatrix, ...)). Iris gets the same result
+        // another way: its rename moves the parameter and its uses together to a fresh name. One
+        // difference stays: in a composite vertex stage, Iris's CompositeCoreTransformer replaces
+        // every reference, a same-named parameter's uses included. No corpus pack names one there.
+        return GlslScopedReferences.replace(result, replacements);
     }
 
     /** The compatibility built-in that serves one core name, read as the type the stage gives it. */
@@ -245,7 +250,7 @@ final class IrisCoreProfile {
         src = GlslTokenRewriter.replaceIdentifiers(src, Map.of("gl_VertexID", "chimeraLineVertexIndex"));
         if (packLineProgram) {
             src = withoutLineCoreDeclarations(src);
-            return GlslTokenRewriter.replaceIdentifiers(src, Map.ofEntries(
+            return GlslScopedReferences.replace(src, Map.ofEntries(
                     Map.entry("vaPosition", "gl_Vertex.xyz"),
                     Map.entry("vaColor", "gl_Color"),
                     Map.entry("vaNormal", "gl_Normal"),

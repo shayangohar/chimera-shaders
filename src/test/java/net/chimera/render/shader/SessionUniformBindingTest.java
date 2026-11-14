@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -40,7 +41,7 @@ final class SessionUniformBindingTest {
         try {
             PackUniformProvider.installRuntimeSettings(null);
             MappedBuffer unset = provider.supplier("waveState", "vec3").get();
-            assertEquals("waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
+            assertEquals("unset:waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
                     "an undeclared name is served Iris's unset zero");
 
             PackUniformProvider.installRuntimeSettings(waves);
@@ -50,10 +51,27 @@ final class SessionUniformBindingTest {
                     "a pipeline built earlier keeps reading the same buffer");
 
             PackUniformProvider.resetSession();
-            assertEquals("waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
+            assertEquals("unset:waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
                     "a session without the declaration serves zero again");
         } finally {
             PackUniformProvider.resetSession();
+        }
+    }
+
+    /**
+     * Iris 1.21.1 never registers its HardcodedCustomUniforms, so a pack that only declares
+     * blindFactor or velocity reads GL's unset zero. The frame state served blindFactor as
+     * blindness, and an unset declaration looked its own name up there.
+     */
+    @Test
+    void anUnsetDeclarationNamesNoFrameValue() {
+        for (String name : new String[] {"blindFactor", "velocity"}) {
+            UniformRegistry.UniformDescriptor unset = UniformRegistry.resolve(name, "float", Map.of());
+            assertEquals("unset:" + name, unset.sourceKey(), name);
+            MappedBuffer buffer = new MappedBuffer(4);
+            buffer.putFloat(0, 1.0f);
+            new PackFrameState().write(unset, "float", buffer);
+            assertEquals(0.0f, buffer.getFloat(0), name + " reads zero");
         }
     }
 }

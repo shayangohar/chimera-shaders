@@ -7,6 +7,20 @@
     "gbuffers_terrain_solid",
     "gbuffers_textured_lit"
   ],
+  "AstraLex_By_LexBoosT_V93.0.zip": [
+    "gbuffers_clouds",
+    "gbuffers_entities_glowing"
+  ],
+  "Auroras Shaders.zip": [
+    "gbuffers_clouds",
+    "gbuffers_entities_glowing"
+  ],
+  "BSLClassic_v10.0.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_clouds",
+    "gbuffers_entities_glowing"
+  ],
   "BSL_v10.1.8.zip": [
     "dh_terrain",
     "dh_water",
@@ -28,6 +42,14 @@
     "gbuffers_terrain_solid",
     "physics_ocean"
   ],
+  "Body Camera Shader - V1.6.2.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_textured_lit"
+  ],
+  "Clarity 1.1.3.zip": [
+    "dh_terrain"
+  ],
   "ComplementaryReimagined_r5.9.3.zip": [
     "clrwl_gbuffers",
     "clrwl_gbuffers_damagedblock",
@@ -48,8 +70,38 @@
     "gbuffers_clouds",
     "gbuffers_entities_glowing"
   ],
+  "Cursed Fog - V1.0.10.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_textured_lit"
+  ],
+  "DrDestens MinecraftShaders v2.1.5.zip": [
+    "dh_terrain",
+    "dh_water"
+  ],
+  "E-LITE shaders 5.1.3.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_entities_glowing"
+  ],
   "Ebin-Resurrected-v1.5.6.zip": [],
+  "EclipseShaders.zip": [
+    "gbuffers_textured_lit"
+  ],
   "Escheridia_V4.1.zip": [
+    "gbuffers_textured_lit"
+  ],
+  "Fantasy Shaders Reimagined v1.11.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_clouds",
+    "gbuffers_entities_glowing"
+  ],
+  "FastPBR_v2.0.zip": [
+    "dh_shadow",
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_clouds",
     "gbuffers_textured_lit"
   ],
   "Glimmer-v1.5.2.zip": [
@@ -58,6 +110,11 @@
     "dh_terrain",
     "dh_water",
     "gbuffers_textured_lit"
+  ],
+  "Hysteria-Shaders-Universal-v1.2.1.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_clouds"
   ],
   "I Like Vanilla v1.5.0b.zip": [
     "clrwl_gbuffers",
@@ -70,11 +127,21 @@
     "gbuffers_clouds",
     "gbuffers_entities_glowing"
   ],
+  "Just Colored Lighting (1.0.2).zip": [
+    "clrwl_gbuffers",
+    "clrwl_gbuffers_translucent",
+    "clrwl_shadow",
+    "dh_generic",
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_textured_lit"
+  ],
   "Kappa_v5.3.zip": [
     "gbuffers_clouds",
     "gbuffers_textured_lit",
     "gbuffers_translucent"
   ],
+  "Lux_v1.3.zip": [],
   "MakeUp-UltraFast-9.6.zip": [
     "dh_terrain",
     "dh_water",
@@ -95,6 +162,10 @@
     "dh_water",
     "gbuffers_textured_lit"
   ],
+  "Nostalgia_v5.1.zip": [
+    "gbuffers_clouds",
+    "gbuffers_textured_lit"
+  ],
   "Pegasus (v 0.8.1).zip": [
     "clrwl_gbuffers",
     "clrwl_gbuffers_translucent",
@@ -104,6 +175,25 @@
     "dh_water",
     "gbuffers_textured_lit",
     "physics_ocean"
+  ],
+  "Pixel-Perfect-1-5-2a.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_entities_glowing",
+    "gbuffers_textured_lit",
+    "shadow",
+    "shadow_basic",
+    "shadow_block",
+    "shadow_cutout",
+    "shadow_entities",
+    "shadow_leash",
+    "shadow_lightning",
+    "shadow_lines",
+    "shadow_tex",
+    "shadow_tex_color",
+    "shadow_text",
+    "shadow_text_bg",
+    "shadow_water"
   ],
   "RedHat_v34.3.1.zip": [
     "gbuffers_textured_lit"
@@ -153,12 +243,31 @@
     "dh_terrain",
     "dh_water"
   ],
+  "Spooklementary_v2.0.4.zip": [
+    "clrwl_gbuffers",
+    "clrwl_gbuffers_translucent",
+    "clrwl_shadow",
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_clouds",
+    "gbuffers_entities_glowing"
+  ],
   "Spring v2 260618.zip": [
     "dh_shadow",
     "dh_terrain",
     "dh_water",
     "gbuffers_clouds",
     "gbuffers_textured_lit"
+  ],
+  "VanillaPlus_v3.3.zip": [
+    "gbuffers_clouds",
+    "gbuffers_textured_lit"
+  ],
+  "Visual-Vibrance-v0.3.5a.zip": [
+    "dh_terrain",
+    "dh_water",
+    "gbuffers_textured_lit",
+    "prepare2"
   ],
   "miniature-shader-2.19.zip": [
     "clrwl_gbuffers",

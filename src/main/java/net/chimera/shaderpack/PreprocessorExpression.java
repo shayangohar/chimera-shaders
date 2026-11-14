@@ -18,10 +18,18 @@ import java.util.regex.Pattern;
  * {@code 0.5} reads 0 and {@code 1.5e1} reads 10. A name no macro defines reads 0, {@code true} and
  * {@code false} included. Division or modulus by zero reads 0. Shrimple sizes its light bins with
  * {@code (LIGHT_SIZE_XZ*LIGHT_SIZE_XZ*LIGHT_SIZE_Y * LIGHT_BIN_SIZE3) < (2048*2048)}.
+ *
+ * <p>JCPP is lenient where a pack writes a malformed condition, and so is this: at a token no
+ * operator takes, the value so far stands and the rest of the line is skipped (Aurora's
+ * {@code #if WATERCOLOR_B = 200} holds for any nonzero WATERCOLOR_B); a group missing its ')' and a
+ * conditional missing its ':' read 0 as a missing operand does, and the token found in their place
+ * ends the expression. Checked against JCPP 1.4.14 itself. Two forms JCPP also reads stay refused:
+ * a character literal and a malformed {@code defined}.</p>
  */
 final class PreprocessorExpression {
     private static final Pattern TOKEN = Pattern.compile(
-            "\\s*(?:([A-Za-z_]\\w*)|(\\.?\\d(?:[eEpP][-+]|[\\w.])*)|(&&|\\|\\||<<|>>|<=|>=|==|!=|[-+*/%<>&^|!~?:()]))");
+            "\\s*(?:([A-Za-z_]\\w*)|(\\.?\\d(?:[eEpP][-+]|[\\w.])*)"
+                    + "|(&&|\\|\\||<<|>>|<=|>=|==|!=|[-+*/%<>&^|!~?:()])|(\\S))");
     private static final Pattern DECIMAL = Pattern.compile("(\\d*)(?:\\.\\d*)?(?:[eE]([-+]?\\d+))?[uUlLfF]*");
     private static final int MAX_TOKENS = 100_000;
 
@@ -35,8 +43,9 @@ final class PreprocessorExpression {
 
     /**
      * An operand JCPP finds missing, as when a macro defined with no body is tested ({@code #if X}
-     * after {@code #define X}). JCPP reports the bad token and the expr() call that wanted the operand
-     * reads 0 without consuming it; at the top, the directive skips the rest of its line.
+     * after {@code #define X}), or a missing ')' or ':'. JCPP reports the bad token and the expr()
+     * call that wanted it reads 0 without consuming it; at the top, the directive skips the rest of
+     * its line.
      */
     private static final class MissingOperand extends RuntimeException {
         MissingOperand() {
@@ -44,7 +53,10 @@ final class PreprocessorExpression {
         }
     }
 
-    /** Whether {@code expression} holds under {@code macros}; throws when it is not one JCPP evaluates. */
+    /**
+     * Whether {@code expression} holds under {@code macros}; throws when it is not one Chimera
+     * evaluates as JCPP does (a function-like macro, a malformed defined, past the size budgets).
+     */
     static boolean evaluate(String expression, Map<String, String> macros) {
         List<String> expanded = expand(lex(expression), macros, new HashSet<>(), new int[1]);
         PreprocessorExpression parser = new PreprocessorExpression(expanded);
@@ -54,7 +66,7 @@ final class PreprocessorExpression {
         } catch (MissingOperand missing) {
             return false;
         }
-        if (parser.index != expanded.size()) throw new IllegalArgumentException("unsupported expression");
+        // Tokens left over are the ones JCPP warns of and skips with the rest of the line.
         return value != 0;
     }
 
@@ -63,12 +75,11 @@ final class PreprocessorExpression {
         Matcher matcher = TOKEN.matcher(text == null ? "" : text);
         int position = 0;
         while (position < matcher.regionEnd()) {
-            if (!matcher.find(position) || matcher.start() != position) {
-                if (text.substring(position).isBlank()) break;
-                throw new IllegalArgumentException("unsupported expression token");
-            }
-            result.add(matcher.group(1) != null ? matcher.group(1)
-                    : matcher.group(2) != null ? matcher.group(2) : matcher.group(3));
+            // Any other character is a token of its own, which no operator takes; only blanks remain.
+            if (!matcher.find(position) || matcher.start() != position) break;
+            if ("'".equals(matcher.group(4))) throw new IllegalArgumentException("character literal in condition");
+            result.add(matcher.group(1) != null ? matcher.group(1) : matcher.group(2) != null ? matcher.group(2)
+                    : matcher.group(3) != null ? matcher.group(3) : matcher.group(4));
             position = matcher.end();
         }
         return result;
@@ -122,7 +133,7 @@ final class PreprocessorExpression {
         long condition = binary(0);
         if (!take("?")) return condition;
         long whenTrue = nested(this::conditional);
-        if (!take(":")) throw new IllegalArgumentException("conditional needs a colon");
+        if (!take(":")) throw new MissingOperand();
         long whenFalse = nested(this::conditional);
         return condition != 0 ? whenTrue : whenFalse;
     }
@@ -203,7 +214,7 @@ final class PreprocessorExpression {
             case "+" -> nested(this::unary);
             case "(" -> {
                 long value = nested(this::conditional);
-                if (!take(")")) throw new IllegalArgumentException("missing closing parenthesis");
+                if (!take(")")) throw new MissingOperand();
                 yield value;
             }
             default -> identifier(token) ? 0 : number(token);

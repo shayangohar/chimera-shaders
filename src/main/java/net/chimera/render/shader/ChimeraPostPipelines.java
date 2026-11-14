@@ -1,9 +1,11 @@
 package net.chimera.render.shader;
 
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.chimera.config.ColorSpace;
 import net.vulkanmod.render.vertex.CustomVertexFormat;
 import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 
+import java.util.Locale;
 import java.util.function.UnaryOperator;
 
 /**
@@ -28,6 +30,24 @@ public final class ChimeraPostPipelines {
     /** Creates the internal forward-Z depth copy pipeline used by pack snapshots. */
     public static GraphicsPipeline createDepthPipeline() {
         return create("chimera_depth");
+    }
+
+    /**
+     * Creates the world resolve that also converts to {@code space} (chimera_color_space), for a
+     * colour space other than sRGB: the space's ordinal selects the conversion.
+     */
+    public static GraphicsPipeline createColorSpace(ColorSpace space) {
+        if (space == ColorSpace.SRGB) throw new IllegalArgumentException("sRGB needs no conversion");
+        return HostPipelineLayout.create("chimera_color_space_" + space.name().toLowerCase(Locale.ROOT),
+                "chimera_color_space", CustomVertexFormat.NONE, UnaryOperator.identity(),
+                source -> colorSpaceSource(source, space));
+    }
+
+    /** The conversion source for {@code space}: its CHIMERA_COLOR_SPACE defined after the version line. */
+    static String colorSpaceSource(String source, ColorSpace space) {
+        int lineEnd = source.indexOf('\n');
+        return source.substring(0, lineEnd + 1) + "#define CHIMERA_COLOR_SPACE " + space.ordinal() + "\n"
+                + source.substring(lineEnd + 1);
     }
 
     /** Creates the host-to-pack scene seed pipeline. */

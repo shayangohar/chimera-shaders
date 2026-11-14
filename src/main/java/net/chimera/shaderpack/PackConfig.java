@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -155,6 +156,19 @@ public final class PackConfig {
          */
         public float cullingRenderMultiplier() {
             return rawValues.containsKey("shadowDistanceRenderMul") ? distanceRenderMultiplier() : -1.0F;
+        }
+
+        /**
+         * The shadow distance a pack forces on the player's Max Shadow Distance, in chunks (Iris
+         * IrisRenderingPipeline.forcedShadowRenderDistanceChunks): empty when the pack sets no
+         * shadowDistanceRenderMul, so the player's setting holds; the pack's distance times its
+         * multiplier, rounded up to chunks, for a multiplier of 0 or more; -1 for a negative one.
+         * Either value locks the setting, and only a forced 0 stops the shadow pass.
+         */
+        public OptionalInt forcedShadowRenderDistanceChunks() {
+            if (!rawValues.containsKey("shadowDistanceRenderMul")) return OptionalInt.empty();
+            float multiplier = distanceRenderMultiplier();
+            return multiplier >= 0.0F ? OptionalInt.of(((int) (distance * multiplier) + 15) / 16) : OptionalInt.of(-1);
         }
 
         /** Iris voxelDistance: the half-size of the box safe-zone shadow culling always draws. */

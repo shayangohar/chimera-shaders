@@ -19,6 +19,7 @@ import net.chimera.shaderpack.PassComputePlan;
 import net.chimera.shaderpack.PostTargetPlan;
 import net.chimera.shaderpack.TargetStep;
 import net.vulkanmod.vulkan.Renderer;
+import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 import net.vulkanmod.vulkan.texture.VulkanImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkCommandBuffer;
@@ -517,10 +518,11 @@ final class PackPostChain {
     void renderIdentityResolve(VkCommandBuffer commandBuffer, VulkanImage hdrColor) {
         ChimeraMainPass.PackRenderState previousState = pass.capturePackRenderState();
         ChimeraMainPass.preparePackFullscreenState();
-        try (var bindings = pass.images.bindProgramImages(pass.compositePipeline, null, hdrColor,
+        GraphicsPipeline resolve = pass.outputResolvePipeline();
+        try (var bindings = pass.images.bindProgramImages(resolve, null, hdrColor,
                 DrawMaterialContext.captureLive())) {
             Renderer.getInstance().beginRendering(pass.targets.compositeRenderPass, pass.targets.compositeFramebuffer);
-            pass.drawFullscreen(commandBuffer, pass.compositePipeline);
+            pass.drawFullscreen(commandBuffer, resolve);
             pass.currentFramebuffer = pass.targets.compositeFramebuffer;
         } finally {
             pass.restorePackRenderState(previousState);

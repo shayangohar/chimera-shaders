@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,7 +60,7 @@ final class ShadowPassTest {
                         && directives.deviations().contains("SHADOW_DIRECTIVE_MALFORMED:shadowLightBlockEntities"),
                 "Iris reads true/1 and false/0 and keeps its default otherwise: " + directives);
         assertEquals(new ShadowCullingPlan.Culler(ShadowCullingPlan.Mode.ADVANCED, 32.0, 0.0),
-                analysis.plan().shadowCulling().entities(192),
+                analysis.plan().shadowCulling().entities(192, 32),
                 "Iris entity frustum: advanced, BoxCuller(shadowDistance * shadowDistanceRenderMul"
                         + " * entityShadowDistanceMul)");
         assertEquals(ShadowCasterDirectives.DEFAULTS, ShadowCasterDirectives.fromProperties(Map.of()),
@@ -406,44 +407,53 @@ final class ShadowPassTest {
 
         ShadowCullingPlan unset = cullingPlan(Map.of(), unitRender);
         assertEquals(ShadowCullingPlan.State.DEFAULT, unset.state(), "no shadow.culling is Iris DEFAULT");
-        assertEquals(new ShadowCullingPlan.Culler(advanced, 128.0, 0.0), unset.terrain(renderDistance),
+        assertEquals(new ShadowCullingPlan.Culler(advanced, 128.0, 0.0), unset.terrain(renderDistance, 32),
                 "DEFAULT without a geometry stage is advanced, BoxCuller(shadowDistance * renderMul)");
-        assertEquals(unset.terrain(renderDistance), unset.entities(renderDistance),
+        assertEquals(unset.terrain(renderDistance, 32), unset.entities(renderDistance, 32),
                 "entityShadowDistanceMul 1 reuses the terrain frustum");
-        assertEquals(new ShadowCullingPlan.Culler(advanced, none, 0.0), unset.terrain(96),
+        assertEquals(new ShadowCullingPlan.Culler(advanced, none, 0.0), unset.terrain(96, 32),
                 "a box at or past the render distance is no box");
         assertEquals(new ShadowCullingPlan.Culler(advanced, none, 0.0),
-                cullingPlan(Map.of(), Map.of()).terrain(renderDistance),
+                cullingPlan(Map.of(), Map.of()).terrain(renderDistance, 32),
                 "renderMul unset (Iris -1) means the player's shadow distance, 32 chunks by default");
+        assertEquals(new ShadowCullingPlan.Culler(advanced, 64.0, 0.0),
+                cullingPlan(Map.of(), Map.of()).terrain(renderDistance, 4),
+                "renderMul unset: the player's Max Shadow Distance, 4 chunks, is the box");
+        assertEquals(new ShadowCullingPlan.Culler(advanced, 64.0, 0.0),
+                cullingPlan(Map.of(), Map.of("entityShadowDistanceMul", "0.25")).entities(renderDistance, 4),
+                "a negative entity multiplier product reads the player's setting too");
+        assertEquals(new ShadowCullingPlan.Culler(advanced, 128.0, 0.0), unset.terrain(renderDistance, 4),
+                "a pack's own multiplier ignores the player's setting");
         assertEquals(new ShadowCullingPlan.Culler(advanced, 0.0, 0.0),
-                cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "0.0")).terrain(renderDistance),
+                cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "0.0")).terrain(renderDistance, 32),
                 "a zero distance keeps Iris's BoxCuller(0)");
-        assertEquals(unset.terrain(renderDistance),
-                cullingPlan(Map.of("shadow.culling", "true"), unitRender).terrain(renderDistance), "true is ADVANCED");
+        assertEquals(unset.terrain(renderDistance, 32),
+                cullingPlan(Map.of("shadow.culling", "true"), unitRender).terrain(renderDistance, 32),
+                "true is ADVANCED");
 
         ShadowCullingPlan distance = cullingPlan(Map.of("shadow.culling", "false"), unitRender);
         assertEquals(new ShadowCullingPlan.Culler(ShadowCullingPlan.Mode.DISTANCE, 128.0, 0.0),
-                distance.terrain(renderDistance), "false culls by distance only");
-        assertEquals(ShadowCullingPlan.Culler.NONE, distance.terrain(96),
+                distance.terrain(renderDistance, 32), "false culls by distance only");
+        assertEquals(ShadowCullingPlan.Culler.NONE, distance.terrain(96, 32),
                 "a distance past the render distance culls nothing");
         assertEquals(ShadowCullingPlan.Culler.NONE,
-                cullingPlan(Map.of("shadow.culling", "false"), Map.of()).terrain(renderDistance),
+                cullingPlan(Map.of("shadow.culling", "false"), Map.of()).terrain(renderDistance, 32),
                 "a negative distance culls nothing");
 
         ShadowCullingPlan safeZone = cullingPlan(Map.of("shadow.culling", "reversed"), Map.of("voxelDistance", "32.0"));
         assertEquals(new ShadowCullingPlan.Culler(ShadowCullingPlan.Mode.SAFE_ZONE, 128.0, 32.0),
-                safeZone.terrain(renderDistance),
+                safeZone.terrain(renderDistance, 32),
                 "reversed: voxelDistance box always drawn, outer box shadowDistance (renderMul -1 taken as 1)");
-        assertEquals(safeZone.terrain(renderDistance),
+        assertEquals(safeZone.terrain(renderDistance, 32),
                 cullingPlan(Map.of("shadow.culling", "safe_zone"),
-                        Map.of("voxelDistance", "32.0")).terrain(renderDistance),
+                        Map.of("voxelDistance", "32.0")).terrain(renderDistance, 32),
                 "safe_zone is reversed");
 
         assertEquals(new ShadowCullingPlan.Culler(advanced, 32.0, 0.0),
                 cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "1.0", "entityShadowDistanceMul", "0.25"))
-                        .entities(renderDistance), "entities: BoxCuller(shadowDistance * renderMul * entityMul)");
+                        .entities(renderDistance, 32), "entities: BoxCuller(shadowDistance * renderMul * entityMul)");
         assertEquals(new ShadowCullingPlan.Culler(advanced, none, 0.0),
-                cullingPlan(Map.of(), Map.of("entityShadowDistanceMul", "0.25")).entities(renderDistance),
+                cullingPlan(Map.of(), Map.of("entityShadowDistanceMul", "0.25")).entities(renderDistance, 32),
                 "a negative entity multiplier product is the player's shadow distance");
         ShadowCullingPlan malformed = cullingPlan(Map.of("shadow.culling", "maybe"), unitRender);
         assertTrue(malformed.state() == ShadowCullingPlan.State.DEFAULT
@@ -454,6 +464,32 @@ final class ShadowPassTest {
     /** The shadow culling plan for these shaders.properties entries and shadow constants. */
     private static ShadowCullingPlan cullingPlan(Map<String, String> properties, Map<String, String> constants) {
         return ShadowCullingPlan.of(properties, new PackConfig.ShadowSettings(2048, 128.0F, constants, List.of()));
+    }
+
+    /** Iris forcedShadowRenderDistanceChunks: a pack's shadowDistanceRenderMul locks Max Shadow Distance. */
+    @Test
+    void forcedShadowDistance() {
+        assertEquals(OptionalInt.empty(), forced(Map.of()), "no multiplier: the player's setting holds");
+        assertEquals(OptionalInt.of(8), forced(Map.of("shadowDistanceRenderMul", "1.0")), "128 blocks is 8 chunks");
+        assertEquals(OptionalInt.of(5), forced(Map.of("shadowDistanceRenderMul", "0.6")),
+                "76.8 blocks truncates to 76, then rounds up to 5 chunks");
+        assertEquals(OptionalInt.of(0), forced(Map.of("shadowDistanceRenderMul", "0.0")),
+                "a zero multiplier forces 0, which stops the shadow pass");
+        assertEquals(OptionalInt.of(-1), forced(Map.of("shadowDistanceRenderMul", "-1.0")),
+                "a negative multiplier locks the setting without a distance");
+
+        assertEquals(12, cullingPlan(Map.of(), Map.of()).distanceInForce(12), "unforced: the player's distance");
+        assertEquals(0, cullingPlan(Map.of(), Map.of()).distanceInForce(0), "the player's 0 stops the shadow pass");
+        assertEquals(8, cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "1.0")).distanceInForce(0),
+                "a forced distance overrides the player's 0");
+        assertEquals(0, cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "0.0")).distanceInForce(32),
+                "a forced 0 stops the shadow pass whatever the player's setting");
+        assertEquals(-1, cullingPlan(Map.of(), Map.of("shadowDistanceRenderMul", "-1.0")).distanceInForce(0),
+                "a negative multiplier never stops it: Iris checks only for 0");
+    }
+
+    private static OptionalInt forced(Map<String, String> constants) {
+        return new PackConfig.ShadowSettings(2048, 128.0F, constants, List.of()).forcedShadowRenderDistanceChunks();
     }
 
     /** The advanced shadow frustum's planes, box and safe zone against known casters. */
@@ -484,7 +520,7 @@ final class ShadowPassTest {
         var boxed = new ShadowCullingFrustum(
                 new ShadowCullingPlan.Culler(advanced, 64.0, 0.0), camera, new Vector3f(1.0F, 0.0F, 0.0F));
         assertTrue(!cube(boxed, 100, 0, -20), "the BoxCuller still bounds the advanced frustum");
-        var zone = new ShadowCullingFrustum(safeZone.terrain(1024), camera,
+        var zone = new ShadowCullingFrustum(safeZone.terrain(1024, 32), camera,
                 new Vector3f(1.0F, 0.0F, 0.0F));
         assertTrue(cube(zone, -20, 0, -20) && zone.forced(-20, 0, -20, -19, 1, -19),
                 "a caster in the safe zone is drawn whatever the view");

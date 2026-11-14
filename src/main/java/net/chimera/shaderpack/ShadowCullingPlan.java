@@ -3,6 +3,7 @@ package net.chimera.shaderpack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 /**
  * The shadow culling Iris ShadowRenderer.createShadowFrustum chooses for a pack, and its
@@ -16,8 +17,8 @@ import java.util.Map;
  *
  * <p>Distances are half-sizes in blocks of Iris's camera-centred BoxCuller.
  * {@code shadowDistanceRenderMul} defaults to -1, and a negative multiplier means the player's
- * shadow render distance, which Chimera does not offer, so Iris's default of 32 chunks stands
- * in for it.</p>
+ * Max Shadow Distance (ChimeraConfig), a per-frame input like the render distance. A multiplier
+ * the pack sets forces its own distance on that setting ({@code forcedDistanceChunks}).</p>
  */
 public record ShadowCullingPlan(
         State state,
@@ -25,11 +26,9 @@ public record ShadowCullingPlan(
         float renderMultiplier,
         float entityMultiplier,
         float voxelDistance,
+        OptionalInt forcedDistanceChunks,
         List<String> deviations
 ) {
-    /** Iris IrisVideoSettings.shadowDistance's default, in chunks. */
-    static final int IRIS_SHADOW_RENDER_DISTANCE_CHUNKS = 32;
-
     /** Iris ShadowCullState. */
     public enum State { DEFAULT, ADVANCED, SAFE_ZONE, DISTANCE }
 
@@ -56,6 +55,7 @@ public record ShadowCullingPlan(
 
     public ShadowCullingPlan {
         state = state == null ? State.DEFAULT : state;
+        forcedDistanceChunks = forcedDistanceChunks == null ? OptionalInt.empty() : forcedDistanceChunks;
         deviations = deviations == null ? List.of() : List.copyOf(deviations);
     }
 
@@ -83,24 +83,39 @@ public record ShadowCullingPlan(
             }
         }
         return new ShadowCullingPlan(state, settings.distance(), settings.cullingRenderMultiplier(),
-                settings.entityDistanceMultiplier(), settings.voxelDistance(), deviations);
+                settings.entityDistanceMultiplier(), settings.voxelDistance(),
+                settings.forcedShadowRenderDistanceChunks(), deviations);
     }
 
-    /** The terrain frustum: shadow sections, and the block entities inside them. */
-    public Culler terrain(int renderDistanceBlocks) {
-        return create(renderMultiplier, renderDistanceBlocks);
+    /**
+     * The shadow distance in force, in chunks: the pack's forced one, else the player's Max Shadow
+     * Distance (Iris IrisVideoSettings.getOverriddenShadowDistance). At 0 there is no shadow pass.
+     */
+    public int distanceInForce(int playerShadowChunks) {
+        return forcedDistanceChunks.orElse(playerShadowChunks);
+    }
+
+    /**
+     * The terrain frustum: shadow sections, and the block entities inside them.
+     * {@code playerShadowChunks} is the player's Max Shadow Distance, which bounds the frustum
+     * when the pack sets no shadowDistanceRenderMul.
+     */
+    public Culler terrain(int renderDistanceBlocks, int playerShadowChunks) {
+        return create(renderMultiplier, renderDistanceBlocks, playerShadowChunks);
     }
 
     /**
      * The entity frustum. Iris reuses the terrain one unless entityShadowDistanceMul is set to
      * something other than 1 and not negative.
      */
-    public Culler entities(int renderDistanceBlocks) {
-        if (entityMultiplier == 1.0F || entityMultiplier < 0.0F) return terrain(renderDistanceBlocks);
-        return create(renderMultiplier * entityMultiplier, renderDistanceBlocks);
+    public Culler entities(int renderDistanceBlocks, int playerShadowChunks) {
+        if (entityMultiplier == 1.0F || entityMultiplier < 0.0F) {
+            return terrain(renderDistanceBlocks, playerShadowChunks);
+        }
+        return create(renderMultiplier * entityMultiplier, renderDistanceBlocks, playerShadowChunks);
     }
 
-    private Culler create(float multiplier, int renderDistanceBlocks) {
+    private Culler create(float multiplier, int renderDistanceBlocks, int playerShadowChunks) {
         if (state == State.DISTANCE) {
             double distance = halfPlaneLength * multiplier;
             if (distance <= 0.0 || distance > renderDistanceBlocks) return Culler.NONE;
@@ -110,7 +125,8 @@ public record ShadowCullingPlan(
         // Iris assumes the multiplier is meant to be 1 when safe-zone culling is on.
         if (safeZone && multiplier < 0.0F) multiplier = 1.0F;
         double distance = (safeZone ? voxelDistance : halfPlaneLength) * multiplier;
-        if (multiplier < 0.0F) distance = IRIS_SHADOW_RENDER_DISTANCE_CHUNKS * 16.0;
+        // Iris ShadowRenderer.createShadowFrustum: a negative multiplier reads the player's setting.
+        if (multiplier < 0.0F) distance = playerShadowChunks * 16.0;
         if (safeZone) {
             return new Culler(Mode.SAFE_ZONE, halfPlaneLength * (double) multiplier, distance);
         }

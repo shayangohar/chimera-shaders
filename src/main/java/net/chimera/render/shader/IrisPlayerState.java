@@ -1,5 +1,6 @@
 package net.chimera.render.shader;
 
+import net.chimera.config.ChimeraConfig;
 import net.chimera.mixin.ChimeraLocalPlayerAccessor;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -53,6 +54,7 @@ final class IrisPlayerState implements FrameValueSource {
     private float constantMood;
     private float lastFrameTime;
     private int renderDistance;
+    private int colorSpace;
     private final float[] bodyVector = new float[3];
     private final int[] date = new int[3];
     private final int[] time = new int[3];
@@ -81,13 +83,14 @@ final class IrisPlayerState implements FrameValueSource {
         return 0.0f;
     }
 
-    /** The HUD, hand, camera and spectator state from the options and game mode. */
+    /** The HUD, hand, camera and spectator state from the options and game mode, and the Color Space setting. */
     private void captureOptions(Minecraft minecraft) {
         this.hideGui = minecraft.options.hideGui;
         this.rightHanded = minecraft.options.mainHand().get() == HumanoidArm.RIGHT;
         CameraType camera = minecraft.options.getCameraType();
         this.firstPerson = camera != CameraType.THIRD_PERSON_BACK && camera != CameraType.THIRD_PERSON_FRONT;
         this.renderDistance = minecraft.options.getEffectiveRenderDistance();
+        this.colorSpace = ChimeraConfig.get().colorSpace().ordinal();
         this.spectator = minecraft.gameMode != null
                 && minecraft.gameMode.getPlayerMode() == GameType.SPECTATOR;
     }
@@ -157,8 +160,8 @@ final class IrisPlayerState implements FrameValueSource {
             case "isSpectator" -> flag(this.spectator);
             case "pi" -> (float) Math.PI;
             case "lastFrameTime" -> this.lastFrameTime;
-            // IrisVideoSettings.colorSpace defaults to SRGB, ordinal 0; Chimera has no colour-space setting.
-            case "currentColorSpace" -> 0;
+            // IrisExclusiveUniforms: the Color Space setting; a supportsColorCorrection pack converts to it.
+            case "currentColorSpace" -> this.colorSpace;
             case "playerBodyVector" -> c < 3 ? this.bodyVector[c] : Double.NaN;
             case "currentDate" -> c < 3 ? this.date[c] : Double.NaN;
             case "currentTime" -> c < 3 ? this.time[c] : Double.NaN;

@@ -1,5 +1,6 @@
 package net.chimera.render;
 
+import net.chimera.config.ChimeraConfig;
 import net.chimera.render.shader.ChimeraTerrainPipelines;
 import net.chimera.render.shader.PackGeometryContext;
 import net.chimera.render.shader.PackUniformProvider;
@@ -429,7 +430,9 @@ final class PackShadowPass {
         ShadowCullingPlan culling = pass.session.shadowCulling;
         if (culling == null) return ShadowCullingFrustum.none();
         int renderDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
-        ShadowCullingPlan.Culler culler = entities ? culling.entities(renderDistance) : culling.terrain(renderDistance);
+        int shadowChunks = ChimeraConfig.get().maxShadowRenderDistance();
+        ShadowCullingPlan.Culler culler = entities ? culling.entities(renderDistance, shadowChunks)
+                : culling.terrain(renderDistance, shadowChunks);
         return new ShadowCullingFrustum(culler, PackUniformProvider.currentCameraViewProjection(new Matrix4f()),
                 PackUniformProvider.currentSunLightVector());
     }
@@ -638,9 +641,21 @@ final class PackShadowPass {
         return usePackShadowRuntime() && pass.session.shadowUse.replacesEntityShadows();
     }
 
-    /** Whether this frame draws a shadow map: the host's fixed path always, the pack's when observed. */
+    /**
+     * Whether this frame draws a shadow map: the host's fixed path always; the pack's when it is
+     * observed and the shadow distance in force is not 0. At 0 Iris skips the shadow pass and its
+     * shadowcomp (ShadowRenderer.renderShadows), while the shadow matrices still follow the light,
+     * as on a frame no one observes.
+     */
     private boolean shadowPassObserved() {
-        return !usePackShadowRuntime() || pass.session.shadowUse.runs();
+        return !usePackShadowRuntime() || (pass.session.shadowUse.runs() && shadowDistanceInForce() != 0);
+    }
+
+    /** The shadow distance in force, in chunks (ShadowCullingPlan.distanceInForce); the player's before a plan. */
+    int shadowDistanceInForce() {
+        ShadowCullingPlan culling = pass.session.shadowCulling;
+        int player = ChimeraConfig.get().maxShadowRenderDistance();
+        return culling == null ? player : culling.distanceInForce(player);
     }
 
     /** Makes newly created shadow images valid shader inputs exactly once. */

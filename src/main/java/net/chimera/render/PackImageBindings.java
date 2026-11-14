@@ -70,7 +70,7 @@ final class PackImageBindings {
             DrawMaterialContext drawContext) {
         ChimeraMainPass.ProgramImages program = this.programImages.get(pipeline);
         if (program == null) {
-            if (pipeline != pass.compositePipeline) return null;
+            if (!pass.outputResolve.owns(pipeline)) return null;
             program = new ChimeraMainPass.ProgramImages("identity", IDENTITY_IMAGES, Set.of());
         }
         return bind(program, colors, fallback, drawContext);

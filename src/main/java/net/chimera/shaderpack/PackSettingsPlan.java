@@ -249,7 +249,7 @@ record PackSettingsPlan(
         });
         result.putAll(PackFeatureFlags.sourceDefines(optionalFeatures));
         // Iris adds the colour spaces, in ColorSpace's order, to the shader and id-map defines of a
-        // pack that sets supportsColorCorrection (ShaderPack); currentColorSpace serves SRGB.
+        // pack that sets supportsColorCorrection (ShaderPack); currentColorSpace serves the setting.
         if (supportsColorCorrection()) {
             result.putAll(COLOR_SPACES);
         }

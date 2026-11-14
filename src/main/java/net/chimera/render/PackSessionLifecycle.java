@@ -653,9 +653,11 @@ final class PackSessionLifecycle {
     private void installTerrainDirectives() {
         pass.session.shadowCulling = pass.packPlan.shadowCulling();
         int renderDistance = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16;
+        int shadowChunks = ChimeraConfig.get().maxShadowRenderDistance();
         LOGGER.debug("[chimera] shadow culling: state={}, terrain={}, entities={} (render distance {}){}",
-                pass.session.shadowCulling.state(), pass.session.shadowCulling.terrain(renderDistance).describe(),
-                pass.session.shadowCulling.entities(renderDistance).describe(), renderDistance,
+                pass.session.shadowCulling.state(),
+                pass.session.shadowCulling.terrain(renderDistance, shadowChunks).describe(),
+                pass.session.shadowCulling.entities(renderDistance, shadowChunks).describe(), renderDistance,
                 pass.session.shadowCulling.deviations().isEmpty() ? "" : " "
                         + pass.session.shadowCulling.deviations());
         ShadowPassUse shadowUse = ShadowPassUse.of(pass.packPlan, pass.session.passComputes);

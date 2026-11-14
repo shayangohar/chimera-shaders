@@ -1,5 +1,6 @@
 package net.chimera.render;
 
+import net.chimera.config.ChimeraConfig;
 import net.chimera.mixin.ChimeraRendererAccessor;
 import net.chimera.render.shader.ChimeraEntityBridge;
 import net.chimera.render.shader.ChimeraPostPipelines;
@@ -130,7 +131,7 @@ public final class ChimeraMainPass implements MainPass {
     Framebuffer currentFramebuffer;
 
     private GraphicsPipeline presentPipeline;
-    GraphicsPipeline compositePipeline;
+    final OutputResolvePipelines outputResolve = new OutputResolvePipelines();
     final PackPostTargets packPostTargets = new PackPostTargets();
     final PackDepthTargets packDepthTargets = new PackDepthTargets();
     /** Immutable target and depth schedule for the active pack variant. */
@@ -606,7 +607,7 @@ public final class ChimeraMainPass implements MainPass {
             VkCommandBuffer commandBuffer,
             VulkanImage source
     ) {
-        GraphicsPipeline resolvePipeline = this.compositePipeline;
+        GraphicsPipeline resolvePipeline = outputResolvePipeline();
         PackRenderState previousState = capturePackRenderState();
         preparePackFullscreenState();
         ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> previous = null;
@@ -922,7 +923,7 @@ public final class ChimeraMainPass implements MainPass {
         // snapshots VRenderSystem globals), so the present draw disables depth
         // test/write at the draw site, not here.
         this.presentPipeline = ChimeraPostPipelines.create("chimera_present");
-        this.compositePipeline = ChimeraPostPipelines.create("chimera_composite");
+        this.outputResolve.create();
     }
 
     public boolean packRuntimeRejected() { return this.session.packPostChainRejected; }
@@ -961,12 +962,18 @@ public final class ChimeraMainPass implements MainPass {
         return shadowPass.packShadowPassActive();
     }
 
+    /** The world resolve into the output, converting to the Color Space setting where Iris does. */
+    GraphicsPipeline outputResolvePipeline() {
+        boolean packRuns = packLoaded() && !packRuntimeRejected();
+        return this.outputResolve.forSpace(OutputResolvePipelines.outputSpace(packRuns,
+                packRuns && this.packPlan.supportsColorCorrection(), ChimeraConfig.get().colorSpace()));
+    }
+
     void cleanUpPipelines() {
         if (this.presentPipeline != null) this.presentPipeline.cleanUp();
-        if (this.compositePipeline != null) this.compositePipeline.cleanUp();
+        this.outputResolve.cleanUp();
         if (this.coverage.sceneSeedPipeline != null) this.coverage.sceneSeedPipeline.cleanUp();
         this.presentPipeline = null;
-        this.compositePipeline = null;
         this.coverage.sceneSeedPipeline = null;
     }
 

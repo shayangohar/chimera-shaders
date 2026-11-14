@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,34 @@ final class SelectorConfigTest {
         assertTrue(!ChimeraConfig.load(file).shadersEnabled()
                         && ChimeraConfig.load(file).shaderPack().isPresent(),
                 "turning shaders off keeps the pack name, as Iris does");
+    }
+
+    @Test
+    void videoSettingsRoundTrip(@TempDir Path root) throws IOException {
+        Path file = root.resolve("config").resolve("chimera.properties");
+        ChimeraConfig fresh = ChimeraConfig.load(file);
+        assertEquals(32, fresh.maxShadowRenderDistance(), "Iris's default distance");
+        assertEquals(ColorSpace.SRGB, fresh.colorSpace(), "Iris's default colour space");
+        fresh.setSelection("BSL_v10.1.8.zip", true);
+        fresh.setMaxShadowRenderDistance(12);
+        fresh.setColorSpace(ColorSpace.DISPLAY_P3);
+        ChimeraConfig reread = ChimeraConfig.load(file);
+        assertEquals(12, reread.maxShadowRenderDistance(), "the distance survives a reload");
+        assertEquals(ColorSpace.DISPLAY_P3, reread.colorSpace(), "the colour space survives a reload");
+        assertEquals("BSL_v10.1.8.zip", reread.shaderPack().orElse(""), "saving a setting keeps the selection");
+        assertTrue(reread.shadersEnabled(), "saving a setting keeps shaders on");
+        String saved = Files.readString(file, StandardCharsets.ISO_8859_1);
+        assertTrue(saved.contains("maxShadowRenderDistance=12"), "Iris's key: " + saved);
+        assertTrue(saved.contains("colorSpace=DISPLAY_P3"), "Iris's key and name: " + saved);
+        reread.setMaxShadowRenderDistance(40);
+        assertEquals(32, reread.maxShadowRenderDistance(), "a set distance keeps to the slider");
+
+        Files.writeString(file, "maxShadowRenderDistance=64\ncolorSpace=WIDE\n", StandardCharsets.ISO_8859_1);
+        ChimeraConfig odd = ChimeraConfig.load(file);
+        assertEquals(32, odd.maxShadowRenderDistance(), "an out-of-range distance keeps to the slider");
+        assertEquals(ColorSpace.SRGB, odd.colorSpace(), "an unknown colour space reads sRGB");
+        Files.writeString(file, "maxShadowRenderDistance=far\n", StandardCharsets.ISO_8859_1);
+        assertEquals(32, ChimeraConfig.load(file).maxShadowRenderDistance(), "an unreadable distance reads 32");
     }
 
     @Test

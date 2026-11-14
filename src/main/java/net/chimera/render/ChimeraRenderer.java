@@ -2,12 +2,14 @@ package net.chimera.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.chimera.ChimeraMod;
+import net.chimera.config.ChimeraConfig;
 import net.chimera.render.shader.ChimeraEntityBridge;
 import net.chimera.render.shader.ChimeraSkyBridge;
 import net.chimera.render.shader.ChimeraTerrainPipelines;
 import net.chimera.render.shader.TerrainVertexUniforms;
 import net.chimera.shaderpack.ParticleDirectives;
 import net.chimera.shaderpack.ScreenOverlayDirectives;
+import net.chimera.shaderpack.ShadowCullingPlan;
 import net.chimera.shaderpack.SkyDirectives;
 import net.chimera.shaderpack.StagedOptions;
 import net.chimera.shaderpack.WeatherDirectives;
@@ -20,6 +22,7 @@ import net.vulkanmod.vulkan.pass.MainPass;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Owns the main-pass takeover lifecycle:
@@ -204,6 +207,7 @@ public final class ChimeraRenderer {
         lines.add("[Chimera] Shaderpack: " + name + PackFailureNotices.label(name));
         LoadedPack loaded = loadedPack();
         if (loaded != null && loaded.path().equals(pack)) lines.add("[Chimera] " + loaded.options().profileInfo());
+        lines.add("[Chimera] Color space: " + ChimeraConfig.get().colorSpace().name());
         return lines;
     }
 
@@ -211,7 +215,7 @@ public final class ChimeraRenderer {
      * F3's line below the game information, Iris's shadow lines in one (IrisRenderingPipeline and
      * ShadowRenderer.addDebugText): the map's size and distance, the sections kept of those that
      * cast (C), and the entities (E) and block entities (BE) drawn; or that the pack uses no shadow
-     * map. Nothing while the world is not pack-rendered.
+     * map, or that the shadow distance in force is 0. Nothing while the world is not pack-rendered.
      */
     public static List<String> shadowDebugLines() {
         if (!packProjectionActive()) return List.of();
@@ -219,8 +223,21 @@ public final class ChimeraRenderer {
         if (!chimeraPass.session.shadowUse.runs() || !shadowMap.isInitialized()) {
             return List.of("", "[Chimera] Shadows: not used by pack");
         }
+        if (chimeraPass.shadowPass.shadowDistanceInForce() == 0) {
+            return List.of("", "[Chimera] Shadows: off, shadow distance 0");
+        }
         return List.of("", "[Chimera] Shadows: " + shadowMap.debugInfo() + ", C: "
                 + ShadowSectionQueue.sectionCounts() + ", " + ChimeraShadowCasters.counts());
+    }
+
+    /**
+     * The shadow distance the loaded pack forces on the player's Max Shadow Distance, for the
+     * settings page; empty with no pack or none forced, as Iris's with no pipeline.
+     */
+    public static OptionalInt forcedShadowDistance() {
+        ShadowCullingPlan culling = chimeraPass != null && chimeraPass.packLoaded()
+                ? chimeraPass.session.shadowCulling : null;
+        return culling == null ? OptionalInt.empty() : culling.forcedDistanceChunks();
     }
 
     /** Applies pending pack work before VulkanMod begins a new main command buffer. */

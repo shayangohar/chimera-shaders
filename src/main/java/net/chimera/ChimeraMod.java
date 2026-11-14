@@ -2,6 +2,7 @@ package net.chimera;
 
 import net.chimera.command.ChimeraCommands;
 import net.chimera.gui.ChimeraKeybinds;
+import net.chimera.gui.ChimeraSettingsPage;
 import net.chimera.gui.ShaderPackScreen;
 import net.chimera.render.ChimeraMaterialReloadListener;
 import net.chimera.render.ChimeraRenderer;
@@ -45,6 +46,7 @@ public final class ChimeraMod {
             event.getRight().addAll(ChimeraRenderer.debugLines());
         });
         ChimeraKeybinds.register(modBus);
+        ChimeraSettingsPage.register();
         PackTemporaryRoots.sweepInBackground();
         modBus.addListener(RegisterClientReloadListenersEvent.class,
                 event -> event.registerReloadListener(ChimeraMaterialReloadListener.live()));

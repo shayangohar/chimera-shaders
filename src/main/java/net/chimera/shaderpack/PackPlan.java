@@ -225,6 +225,14 @@ public record PackPlan(
     }
 
     /**
+     * Whether the pack converts to the player's colour space itself (shaders.properties
+     * supportsColorCorrection): it reads currentColorSpace, and Iris's converter leaves its image alone.
+     */
+    public boolean supportsColorCorrection() {
+        return settings.supportsColorCorrection();
+    }
+
+    /**
      * How the shadow pass culls its casters: Iris's shadow.culling, the shadow distances, and
      * whether the shadow program has a geometry stage.
      */

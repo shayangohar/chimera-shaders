@@ -163,10 +163,19 @@ public final class HostPipelineLayout {
      */
     public static GraphicsPipeline create(String name, String configName, VertexFormat format,
                                           UnaryOperator<String> vertexSource) {
+        return create(name, configName, format, vertexSource, UnaryOperator.identity());
+    }
+
+    /**
+     * As {@link #create(String, String, VertexFormat, UnaryOperator)}, the fragment source passed
+     * through {@code fragmentSource}.
+     */
+    public static GraphicsPipeline create(String name, String configName, VertexFormat format,
+                                          UnaryOperator<String> vertexSource, UnaryOperator<String> fragmentSource) {
         JsonObject json = ChimeraShaderLoader.loadJson(configName + ".json");
         return create(name, format, PackDescriptorLayout.fromJson(json),
                 vertexSource.apply(ChimeraShaderLoader.loadSource(json.get("vertex").getAsString() + ".vsh")),
-                ChimeraShaderLoader.loadSource(json.get("fragment").getAsString() + ".fsh"),
+                fragmentSource.apply(ChimeraShaderLoader.loadSource(json.get("fragment").getAsString() + ".fsh")),
                 UniformSource.HOST_ONLY, false);
     }
 

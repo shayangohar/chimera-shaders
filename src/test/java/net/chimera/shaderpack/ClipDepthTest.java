@@ -30,18 +30,49 @@ final class ClipDepthTest {
     }
 
     /**
+     * A post pass's authored vertex works in GL's range: DrDestens' {@code gl_Vertex * 2 - 1} puts
+     * its quad at z = -1, GL's near plane, which Vulkan clips, so every pass drew nothing and the
+     * frame stayed black. Its main mirrors y, then converts the depth once.
+     */
+    @Test
+    void anAuthoredPostVertexConvertsAfterTheMirror() {
+        String vertex = "#version 120\nvoid main() { gl_Position = gl_Vertex * 2 - 1; }\n";
+        String fragment = "#version 120\nvoid main() { gl_FragColor = vec4(1.0); }\n";
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planProgram(fragment, vertex,
+                UniformRegistry.Stage.POST, null, true).effective(UniformRegistry.Stage.POST);
+        GlslInterfaceScanner.StageInterface vs = GlslInterfaceScanner.scan(vertex, true);
+        GlslInterfaceScanner.StageInterface fs = GlslInterfaceScanner.scan(fragment, false);
+        PostVertexBridge.PostVertexConversion conversion = PostVertexBridge.convertPostVertex(
+                vertex, vs, fs, GlslInterfaceScanner.match(vs, fs), plan);
+        String source = conversion.source();
+        assertTrue(source != null, "post vertex refused: " + conversion.deviations());
+        assertEquals(1, ClipDepth.count(source));
+        assertTrue(source.endsWith("chimeraPostMain(); gl_Position.y = -gl_Position.y; "
+                + ClipDepth.TO_VULKAN + " }\n"), source);
+    }
+
+    /**
      * Every program of a corpus pack (CorpusChecks): its stages before the rasterizer, as converted:
      * at most one conversion, in the last of them, and exactly one where they work in GL's range: a
      * shadow program, the hand and sky draws (their preamble's chimeraHandProjection or
-     * chimeraSkyProjection), and any stage that takes the host's clip position into GL's range
-     * (chimeraGlClip). A glint drawn in the hand converts once too. Returns the paths it checked.
+     * chimeraSkyProjection), any stage that takes the host's clip position into GL's range
+     * (chimeraGlClip), and a post pass's authored vertex. A glint drawn in the hand converts once
+     * too. Returns the paths it checked.
      */
     static int checkPack(Path pack, PackProbe.Analysis analysis, List<String> failures) {
         int paths = 0;
         int converting = 0;
         for (PackProgramPlan plan : analysis.plan().programs()) {
             UniformRegistry.Stage stage = FamilyAdapterRegistry.stageFor(plan.name());
-            if (!plan.executable() || stage == UniformRegistry.Stage.POST || plan.convertedVertex() == null) {
+            if (!plan.executable() || plan.convertedVertex() == null) continue;
+            if (stage == UniformRegistry.Stage.POST) {
+                // Chimera's own fullscreen vertex already writes z = 0, inside both ranges.
+                if (!plan.deviations().contains("POST_VERTEX_AUTHORED_TRANSLATED")) continue;
+                paths++;
+                int total = ClipDepth.count(plan.convertedVertex());
+                if (total != 1) failures.add(pack.getFileName() + " " + plan.name()
+                        + ": authored post vertex converts " + total + " times");
+                else converting++;
                 continue;
             }
             paths++;

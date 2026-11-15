@@ -72,6 +72,7 @@ public final class ChimeraSettingsPage {
      * Iris's Max Shadow Distance, 0 to 32 chunks. A pack that sets shadowDistanceRenderMul forces
      * its distance and locks the slider, as Iris's does: the label and tooltip then name the
      * distance in force, and the handle stops at the track's end for a distance past 32 chunks.
+     * The greyed slider still shows that tooltip (LockableRangeOption).
      */
     private static Option<Integer> shadowDistance() {
         ChimeraConfig config = ChimeraConfig.get();
@@ -79,7 +80,7 @@ public final class ChimeraSettingsPage {
         boolean locked = forced.isPresent();
         // A negative multiplier forces no distance: Iris's culling still reads the player's.
         int inForce = locked && forced.getAsInt() >= 0 ? forced.getAsInt() : config.maxShadowRenderDistance();
-        RangeOption option = new RangeOption(Component.translatable("options.chimera.shadowDistance"),
+        RangeOption option = new LockableRangeOption(Component.translatable("options.chimera.shadowDistance"),
                 0, ChimeraConfig.MAX_SHADOW_RENDER_DISTANCE, 1, chunks -> chunks(locked ? inForce : chunks),
                 chunks -> {
                     // VulkanMod restores a change made before a pack locked the slider (restoreOptionDrafts).

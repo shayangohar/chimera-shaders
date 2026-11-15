@@ -53,6 +53,29 @@ final class UnitZeroSampler {
         if (source == null) return null;
         Unit unit = Unit.of(program);
         if (unit == Unit.FULLSCREEN) source = withCompositeAliases(source, deviations);
+        return readThroughUnit(source, config, deviations, program, unit, IrisSamplerOrder.of(program, false), false);
+    }
+
+    /**
+     * {@code source} of a compute of {@code pass}, with its gdepthtex alias and, where Iris binds
+     * colortex0 to unit 0, each sampler2D neither Iris nor the pack serves read as colortex0.
+     * CompositeRenderer and FinalPassRenderer build their computes as their fullscreen programs,
+     * IrisSamplers.addRenderTargetSamplers with isFullscreenPass true, and so do the setup
+     * computes: Visual Vibrance's prepare2 reads its lightmap sampler as colortex0, still at its
+     * clear colour (an Iris capture, 2026-11-14). A shadowcomp compute registers no colour target,
+     * so its unit 0 holds whichever sampler it registers first (noisetex, a custom texture or a
+     * shadow sampler), which Chimera does not model; its source keeps the sampler.
+     */
+    static String applyCompute(String source, PackConfig.PackConfigData config, List<String> deviations, String pass) {
+        if (source == null) return null;
+        String aliased = withCompositeAliases(source, deviations);
+        IrisSamplerOrder.Order order = IrisSamplerOrder.of(pass, true);
+        if (!order.registers(IrisSamplerOrder.Source.TARGET)) return aliased;
+        return readThroughUnit(aliased, config, deviations, pass, Unit.FULLSCREEN, order, true);
+    }
+
+    private static String readThroughUnit(String source, PackConfig.PackConfigData config, List<String> deviations,
+                                          String program, Unit unit, IrisSamplerOrder.Order order, boolean compute) {
         GlslTree tree = GlslDeclarations.parseOrNull(source);
         if (tree == null || GlslScopedReferences.declaredLocally(tree, unit.texture)) return source;
         String unitType = uniformType(tree, unit.texture);
@@ -62,7 +85,7 @@ final class UnitZeroSampler {
         String result = source;
         for (String name : lineSampler2Ds(tree)) {
             boolean unused = usage.successful() && !usage.liveSamplers().contains(name);
-            if (unused || name.equals(unit.texture) || served(name, config, program)) continue;
+            if (unused || name.equals(unit.texture) || served(name, config, program, order, compute)) continue;
             // The unit's texture is declared once: a second sampler that reads it loses its own declaration.
             if (declared) result = withoutDeclaration(result, name);
             result = GlslScopedReferences.replace(result, Map.of(name, unit.texture));
@@ -138,15 +161,20 @@ final class UnitZeroSampler {
     }
 
     /**
-     * Whether {@code program}'s renderer registers {@code name} (IrisSamplerOrder.of): a built-in
-     * sampler, a customTexture entry, an image, or a raw stage texture, which Iris renames to its own
-     * customtexN and registers in every renderer. A PNG texture.<stage> entry only replaces a
+     * Whether {@code program}'s renderer, registering in {@code order}, registers {@code name}: a
+     * built-in sampler, a customTexture entry, an image, or a raw stage texture, which Iris renames to
+     * its own customtexN and registers in every renderer. A PNG texture.<stage> entry only replaces a
      * registration, so alone it leaves the sampler on unit 0. A name Iris registers but
      * Chimera cannot serve is Chimera's gap, not unit 0.
      */
-    private static boolean served(String name, PackConfig.PackConfigData config, String program) {
-        // shadowcolor2-7 and shadowtexNHW only where Iris binds them; unbound, they read unit 0.
-        if (PackResourcePlan.shadowColorIndex(name) >= 0 || name.matches("shadowtex[01]HW")) {
+    private static boolean served(String name, PackConfig.PackConfigData config, String program,
+                                  IrisSamplerOrder.Order order, boolean compute) {
+        // shadowcolor2-7 and shadowtexNHW only where Iris binds them; unbound, they read unit 0. A
+        // compute has every shadowcolor Iris creates on first use, not only those the shadow pass
+        // renders: Alpha Piscium's composite7 compute reads shadowcolor6, which no program names.
+        int shadowColor = PackResourcePlan.shadowColorIndex(name);
+        if (compute && shadowColor >= 0) return ShadowTargetDirectives.computeHas(shadowColor, config);
+        if (shadowColor >= 0 || name.matches("shadowtex[01]HW")) {
             return ShadowTargetDirectives.bound(name, config);
         }
         PackSettingsPlan settings = config == null ? PackSettingsPlan.empty() : config.settings();
@@ -154,6 +182,6 @@ final class UnitZeroSampler {
         if (PackResourcePlan.rawTextureServes(program, name, "sampler2D", declarations)) return true;
         boolean customTexture = declarations.containsKey("customTexture." + name);
         boolean image = PackResourcePlan.advancedImageName(settings.propertyValues(), name) != null;
-        return IrisSamplerOrder.of(program, false).last(name, image, customTexture) != null;
+        return order.last(name, image, customTexture) != null;
     }
 }

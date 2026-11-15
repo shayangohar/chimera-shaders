@@ -154,6 +154,25 @@ final class PackFrontEndTest {
                 plan.program("composite").deviations().toString());
     }
 
+    /**
+     * A shadowcomp program registers no colour target (Iris ShadowCompositeRenderer.createProgram),
+     * so an unregistered sampler2D there does not read colortex0, as it does in a composite program.
+     */
+    @Test
+    void aShadowcompSamplerIsNotReadAsColortex0(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectories(root.resolve("shaders"));
+        String reader = "#version 120\nuniform sampler2D glow;\nvoid main() {\n/* RENDERTARGETS: 0 */\n"
+                + " gl_FragData[0] = texture2D(glow, vec2(0.5));\n}\n";
+        Files.writeString(shaders.resolve("shadowcomp.fsh"), reader);
+        Files.writeString(shaders.resolve("composite.fsh"), reader);
+        PackPlan plan = PackProbe.analyze(root).plan();
+        assertTrue(plan.program("composite").deviations().contains("SAMPLER_UNIT0_COLORTEX0:glow"),
+                plan.program("composite").deviations().toString());
+        PackProgramPlan shadowcomp = plan.program("shadowcomp");
+        assertTrue(shadowcomp != null && !shadowcomp.deviations().contains("SAMPLER_UNIT0_COLORTEX0:glow"),
+                shadowcomp == null ? "no shadowcomp plan" : shadowcomp.deviations().toString());
+    }
+
     /** Iris raw declarations: words name the dimension; Chimera uploads only an unconverted layout. */
     @Test
     void rawTextureSpecs() {

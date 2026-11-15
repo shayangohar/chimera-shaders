@@ -52,8 +52,14 @@ final class UnitZeroSampler {
     static String apply(String source, PackConfig.PackConfigData config, List<String> deviations, String program) {
         if (source == null) return null;
         Unit unit = Unit.of(program);
-        if (unit == Unit.FULLSCREEN) source = withCompositeAliases(source, deviations);
-        return readThroughUnit(source, config, deviations, program, unit, IrisSamplerOrder.of(program, false), false);
+        IrisSamplerOrder.Order order = IrisSamplerOrder.of(program, false);
+        if (unit == Unit.FULLSCREEN) {
+            source = withCompositeAliases(source, deviations);
+            // A shadowcomp program registers no colour target (ShadowCompositeRenderer.createProgram):
+            // its unit 0 holds whichever sampler it registers first, which Chimera does not model.
+            if (!order.registers(IrisSamplerOrder.Source.TARGET)) return source;
+        }
+        return readThroughUnit(source, config, deviations, program, unit, order, false);
     }
 
     /**

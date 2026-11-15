@@ -527,7 +527,8 @@ public final class GlslTokenRewriter {
         for (int index = 0; index < tokens.size(); index++) {
             GlslLexer.Token token = tokens.get(index);
             if (token.identifier("gl_FragColor")) {
-                tokens.set(index, identifier("chimeraFragColor0"));
+                // Output 0, discarded as gl_FragData[0] is when an empty route gives it no buffer.
+                tokens.set(index, identifier(targetPlan == null ? "chimeraFragColor0" : postOutputName(targetPlan, 0)));
                 continue;
             }
             if (!token.identifier("gl_FragData")) {

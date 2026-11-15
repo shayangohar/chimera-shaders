@@ -107,7 +107,9 @@ public abstract class GraphicsPipelineMrtMixin {
                 integer[index] = IrisColorFormats.integer(formats[index]);
             }
             blends = PackBlendPlan.sharedAttachments(blends, integer);
-            written = SpirvOutputWrites.ALL;
+            // A module that writes no colour masks every attachment alike, as a depth-only shadow
+            // program (Pixel Perfect's) needs; any other mask must cover them all.
+            if (written != 0) written = SpirvOutputWrites.ALL;
         }
         WindowBlendAttachments.fill(attachments, blends, written, this.chimera$window.colorFormats());
         return attachments;

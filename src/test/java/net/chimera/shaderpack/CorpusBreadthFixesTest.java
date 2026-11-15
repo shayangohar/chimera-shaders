@@ -1,9 +1,13 @@
 package net.chimera.shaderpack;
 
+import net.chimera.render.shader.GlslCompiler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.shaderc.Shaderc;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -179,5 +183,93 @@ final class CorpusBreadthFixesTest {
         assertTrue(analysis.plan().shouldAttempt("composite"), "the plan runs composite");
         assertEquals(analysis.plan().shouldAttempt("composite"), analysis.report().shouldAttempt("composite"),
                 "the report agrees with the plan: " + analysis.report().program("composite").deviations());
+    }
+
+    private static final String DEPTH_ONLY_SHADOW = """
+            #version 150 compatibility
+            /* DRAWBUFFERS: */
+            uniform sampler2D gtexture;
+            in vec2 texcoord;
+            void main() { if (texture2D(gtexture, texcoord).a < 0.1) discard; }
+            """;
+
+    /**
+     * Pixel Perfect's shadow program declares {@code /* DRAWBUFFERS: *}{@code /} and only discards
+     * Iris reads an empty route, and its shadow framebuffer for one draws no colour. A
+     * fullscreen or shadowcomp pass refuses it, as Iris's createColorFramebuffer does, and so does a
+     * gbuffers program, which Chimera draws only with a colour attachment. Final keeps output 0, as
+     * Iris never reads its directive. An empty RENDERTARGETS stays malformed: Iris's
+     * Integer.parseInt("") fails on it.
+     */
+    @Test
+    void anEmptyDrawBuffersRouteDrawsAShadowProgramsDepthAlone() {
+        PostTargetPlan shadow = PostTargetPlan.parseShadow("shadow", DEPTH_ONLY_SHADOW, Map.of()).plan();
+        assertEquals(List.of(), shadow.targetSlots());
+        assertTrue(shadow.executable() && shadow.deviations().isEmpty(), shadow.deviations().toString());
+        assertEquals(List.of(), PostTargetPlan.parseShadow("shadow",
+                DEPTH_ONLY_SHADOW.replace("DRAWBUFFERS: */", "DRAWBUFFERS:  \n */"), Map.of()).plan().targetSlots(),
+                "a blank body is empty, as Iris trims it");
+        PostTargetPlan last = PostTargetPlan.parse("final", DEPTH_ONLY_SHADOW).plan();
+        assertTrue(last.executable() && last.targetSlots().equals(List.of(0)), last.deviations().toString());
+        PostTargetPlan writing = PostTargetPlan.parseShadow("shadow",
+                DEPTH_ONLY_SHADOW.replace("discard; }", "discard; gl_FragData[0] = vec4(1.0); }"), Map.of()).plan();
+        assertEquals(List.of(0), writing.discardedOutputs(), "GL drops an output with no draw buffer");
+        assertEquals(List.of(), PostTargetPlan.parseShadow("shadow", "/* DRAWBUFFERS:0 */\n" + DEPTH_ONLY_SHADOW,
+                Map.of()).plan().targetSlots(), "the last directive wins");
+        assertEquals(List.of(1), PostTargetPlan.parseShadow("shadow", DEPTH_ONLY_SHADOW + "/* DRAWBUFFERS:1 */\n",
+                Map.of()).plan().targetSlots(), "the last directive wins");
+        for (PostTargetPlan refused : List.of(PostTargetPlan.parse("composite", DEPTH_ONLY_SHADOW).plan(),
+                PostTargetPlan.parseShadowcomp("shadowcomp", DEPTH_ONLY_SHADOW, null).plan())) {
+            assertTrue(!refused.executable() && refused.deviations().contains("POST_TARGET_ROUTE_EMPTY_UNSUPPORTED")
+                    && !refused.deviations().contains("POST_TARGET_DIRECTIVE_MALFORMED"),
+                    refused.programName() + " " + refused.deviations());
+        }
+        PostTargetPlan renderTargets = PostTargetPlan.parseShadow("shadow",
+                DEPTH_ONLY_SHADOW.replace("DRAWBUFFERS:", "RENDERTARGETS:"), Map.of()).plan();
+        assertTrue(!renderTargets.executable()
+                && renderTargets.deviations().contains("POST_TARGET_DIRECTIVE_MALFORMED"),
+                renderTargets.deviations().toString());
+        GeometryOutputPlan lane = GeometryOutputPlan.parse("shadow_lines", DEPTH_ONLY_SHADOW, Map.of());
+        assertTrue(lane.executable() && lane.targetSlots().isEmpty(), lane.deviations().toString());
+        GeometryOutputPlan gbuffers = GeometryOutputPlan.parse("gbuffers_textured", DEPTH_ONLY_SHADOW, Map.of());
+        assertTrue(!gbuffers.executable() && gbuffers.deviations().contains("GEOMETRY_TARGET_ROUTE_EMPTY_UNSUPPORTED"),
+                gbuffers.deviations().toString());
+    }
+
+    /**
+     * The shadow program and its host-layout lanes run with the empty route, and their fragments write
+     * no colour location, even where the pack writes output 0, which GL drops with no buffer for it.
+     * The shadow pass masks the writes of every attachment a module never stores to
+     * (SpirvOutputWrites), so the program draws depth and each shadowcolor target keeps its contents.
+     */
+    @Test
+    void aDepthOnlyShadowProgramWritesNoShadowColour(@TempDir Path root) throws IOException {
+        List<String> fragments = List.of(DEPTH_ONLY_SHADOW,
+                DEPTH_ONLY_SHADOW.replace("discard; }", "discard; gl_FragData[0] = vec4(1.0); }"),
+                DEPTH_ONLY_SHADOW.replace("discard; }", "discard; gl_FragColor = vec4(1.0); }"));
+        for (int index = 0; index < fragments.size(); index++) {
+            Path shaders = Files.createDirectories(root.resolve("pack" + index).resolve("shaders"));
+            Files.writeString(shaders.resolve("shadow.vsh"), """
+                    #version 150 compatibility
+                    out vec2 texcoord;
+                    void main() { texcoord = gl_MultiTexCoord0.xy; gl_Position = ftransform(); }
+                    """);
+            Files.writeString(shaders.resolve("shadow.fsh"), fragments.get(index));
+            PackPlan plan = PackProbe.analyze(shaders.getParent()).plan();
+            for (String name : List.of("shadow", "shadow_entities", "shadow_lines")) {
+                PackProgramPlan program = plan.program(name);
+                String context = name + " of fragment " + index;
+                assertTrue(program.executable() && program.convertedFragment() != null,
+                        context + " " + program.deviations());
+                ByteBuffer module = GlslCompiler.compile(name + ".fsh", program.convertedFragment(),
+                        Shaderc.shaderc_glsl_fragment_shader, GlslCompiler::optimize);
+                try {
+                    assertEquals(0, SpirvOutputWrites.writtenLocations(module),
+                            context + ": " + program.convertedFragment());
+                } finally {
+                    MemoryUtil.memFree(module);
+                }
+            }
+        }
     }
 }

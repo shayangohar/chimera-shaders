@@ -149,6 +149,15 @@ public final class PostTargetPlan {
             outputSet.add(output.location());
         }
 
+        // An empty route (emptyDrawBuffers) draws depth alone in a shadow program or lane: Iris gives it
+        // a framebuffer with no draw buffers (ShadowRenderTargets.createShadowFramebuffer), and the
+        // shadow pass masks the attachments a module never writes (SpirvOutputWrites). Pixel Perfect's
+        // shadow program only discards. Iris's createColorFramebuffer throws for a fullscreen or
+        // shadowcomp pass, and Chimera draws no gbuffers program without a colour attachment, which
+        // Iris does (GEOMETRY_TARGET_ROUTE_EMPTY_UNSUPPORTED).
+        if (targetSlots.isEmpty() && !FamilyAdapterRegistry.isShadowFamily(programName)) {
+            deviations.add("POST_TARGET_ROUTE_EMPTY_UNSUPPORTED");
+        }
         for (int target : targetSlots) {
             if (target < 0 || target > MAX_TARGET) {
                 deviations.add("POST_TARGET_INDEX_UNSUPPORTED:" + target);
@@ -210,8 +219,12 @@ public final class PostTargetPlan {
 
         Matcher comment = TARGET_COMMENT.matcher(text);
         while (comment.find()) {
-            addDirective(parseCommentTargets(comment.group(1), comment.group(2), deviations), directives,
-                    deviations);
+            List<Integer> parsed = parseCommentTargets(comment.group(1), comment.group(2), deviations);
+            if (parsed.isEmpty() && !emptyDrawBuffers(comment.group(1), comment.group(2))) {
+                deviations.add("POST_TARGET_DIRECTIVE_MALFORMED");
+            } else {
+                directives.add(parsed);
+            }
             directiveSeen = true;
         }
 
@@ -221,12 +234,13 @@ public final class PostTargetPlan {
         return directives;
     }
 
-    private static void addDirective(List<Integer> parsed, List<List<Integer>> directives, List<String> deviations) {
-        if (parsed.isEmpty()) {
-            deviations.add("POST_TARGET_DIRECTIVE_MALFORMED");
-        } else {
-            directives.add(parsed);
-        }
+    /**
+     * {@code /* DRAWBUFFERS: *}{@code /}: Iris reads it as a route with no buffers
+     * (ProgramDirectives.parseDigits of ""). An empty RENDERTARGETS is no route, as Iris's
+     * Integer.parseInt("") fails on it.
+     */
+    private static boolean emptyDrawBuffers(String kind, String body) {
+        return kind.equalsIgnoreCase("DRAWBUFFERS") && body.isBlank();
     }
 
     /** The output locations gl_FragData and gl_FragColor write. */
@@ -355,14 +369,10 @@ public final class PostTargetPlan {
      * earlier ones say, as Iris takes the last DRAWBUFFERS or RENDERTARGETS comment
      * (CommentDirectiveParser, ProgramDirectives). The analyzed source is already branch-resolved.
      * Ebin's DEBUG exit (lib/Exit.glsl) writes DRAWBUFFERS:3 or :0 after the program's own route.
-     * Malformed parses never proxy for a real route.
+     * Malformed parses never proxy for a real route; an empty one is the program's ({@link #emptyDrawBuffers}).
      */
     private static List<Integer> selectDirective(List<List<Integer>> directives) {
-        if (directives == null || directives.isEmpty()) {
-            return List.of(0);
-        }
-        List<Integer> selected = directives.get(directives.size() - 1);
-        return selected == null || selected.isEmpty() ? List.of(0) : selected;
+        return directives.isEmpty() ? List.of(0) : directives.get(directives.size() - 1);
     }
 
     private static List<Integer> parseDigits(String digits, List<String> deviations) {
@@ -376,6 +386,7 @@ public final class PostTargetPlan {
 
     /** DRAWBUFFERS contains digits; RENDERTARGETS contains comma-separated integers. */
     static List<Integer> parseCommentTargets(String kind, String body, List<String> deviations) {
+        if (emptyDrawBuffers(kind, body)) return List.of();
         String trimmed = body.trim();
         if (trimmed.isEmpty() || !trimmed.matches("[0-9,\\s]+")) {
             deviations.add("POST_TARGET_DIRECTIVE_MALFORMED");

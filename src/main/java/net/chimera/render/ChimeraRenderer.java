@@ -7,6 +7,7 @@ import net.chimera.render.shader.ChimeraEntityBridge;
 import net.chimera.render.shader.ChimeraSkyBridge;
 import net.chimera.render.shader.ChimeraTerrainPipelines;
 import net.chimera.render.shader.TerrainVertexUniforms;
+import net.chimera.shaderpack.CullingDirectives;
 import net.chimera.shaderpack.ParticleDirectives;
 import net.chimera.shaderpack.ScreenOverlayDirectives;
 import net.chimera.shaderpack.ShadowCullingPlan;
@@ -338,6 +339,16 @@ public final class ChimeraRenderer {
      */
     public static ParticleDirectives.Ordering packParticleOrdering() {
         return packProjectionActive() ? chimeraPass.packPlan.particleDirectives().ordering() : null;
+    }
+
+    /**
+     * Whether the pack rendering this frame's world turns the camera's frustum culling off (Iris
+     * frustum.culling=false); false when the world is not pack-rendered, as Iris's vanilla pipeline
+     * answers.
+     */
+    public static boolean packDisablesFrustumCulling() {
+        CullingDirectives culling = packProjectionActive() ? chimeraPass.cullingDirectives() : null;
+        return culling != null && !culling.frustumCulling();
     }
 
     /** The installed pack's separateEntityDraws, as Iris's batched entity rendering reads it; false with no pack. */

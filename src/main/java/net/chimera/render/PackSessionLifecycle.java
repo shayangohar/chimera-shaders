@@ -237,6 +237,7 @@ final class PackSessionLifecycle {
         pass.screenOverlays = null;
         pass.skyDirectives = null;
         pass.weatherDirectives = null;
+        pass.cullingDirectives = null;
         pass.packTargetGraph = null;
         pass.packFrameSchedule = PackFrameSchedulePlan.empty();
         pass.packPrograms = null;
@@ -573,6 +574,9 @@ final class PackSessionLifecycle {
         pass.weatherDirectives = pass.packPlan.weatherDirectives();
         LOGGER.debug("[chimera] pack weather: rain.depth={}{}", pass.weatherDirectives.rainDepth(),
                 pass.weatherDirectives.deviations().isEmpty() ? "" : " " + pass.weatherDirectives.deviations());
+        pass.cullingDirectives = pass.packPlan.cullingDirectives();
+        LOGGER.debug("[chimera] pack culling: frustum.culling={}{}", pass.cullingDirectives.frustumCulling(),
+                pass.cullingDirectives.deviations().isEmpty() ? "" : " " + pass.cullingDirectives.deviations());
         ParticleDirectives particles = pass.packPlan.particleDirectives();
         LOGGER.debug("[chimera] pack particle ordering: {}, separateEntityDraws={}{}", particles.ordering(),
                 particles.separateEntityDraws(), particles.deviations().isEmpty() ? "" : " " + particles.deviations());

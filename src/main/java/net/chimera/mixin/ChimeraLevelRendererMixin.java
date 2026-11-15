@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.chimera.render.ChimeraHandRenderer;
 import net.chimera.render.ChimeraMainPass;
 import net.chimera.render.ChimeraRenderer;
+import net.chimera.render.NonCullingFrustum;
 import net.chimera.render.PreSkyPasses;
 import net.chimera.render.shader.ChimeraEntityBridge;
 import net.chimera.render.shader.ChimeraSkyBridge;
@@ -80,6 +81,11 @@ public abstract class ChimeraLevelRendererMixin {
             ChimeraEntityBridge.beginWorldWindow();
             PackUniformProvider.beginFrame(camera, deltaTracker.getGameTimeDeltaPartialTick(false),
                     modelView, projection);
+            // Iris MixinLevelRenderer.iris$setupPipeline: the pack's frustum.culling=false culls
+            // nothing for the sections, entities, block entities and particles renderLevel draws.
+            if (ChimeraRenderer.packDisablesFrustumCulling()) {
+                ((ChimeraLevelRendererAccessor) this).chimera$setCullingFrustum(NonCullingFrustum.INSTANCE);
+            }
         }
     }
 

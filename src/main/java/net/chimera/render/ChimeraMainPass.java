@@ -7,6 +7,7 @@ import net.chimera.render.shader.ChimeraPostPipelines;
 import net.chimera.render.shader.ChimeraTerrainPipelines;
 import net.chimera.render.shader.PackGeometryContext;
 import net.chimera.shaderpack.ConformanceReport;
+import net.chimera.shaderpack.CullingDirectives;
 import net.chimera.shaderpack.GeometryOutputPlan;
 import net.chimera.shaderpack.PackConfig;
 import net.chimera.shaderpack.PackFrameSchedulePlan;
@@ -192,6 +193,8 @@ public final class ChimeraMainPass implements MainPass {
     SkyDirectives skyDirectives;
     /** Whether this pack session's rain and snow write depth (Iris rain.depth). */
     WeatherDirectives weatherDirectives;
+    /** Whether this pack session's camera culls to its view frustum (Iris frustum.culling). */
+    CullingDirectives cullingDirectives;
     /** True after renderLevel opens the internal HDR world target. */
     boolean levelPhase;
     /** Set when vanilla requests a depth clear while no pass is recording. */
@@ -936,6 +939,9 @@ public final class ChimeraMainPass implements MainPass {
 
     /** The loaded pack's sky switches, or null while no pack session is loaded. */
     public SkyDirectives skyDirectives() { return this.skyDirectives; }
+
+    /** The loaded pack's culling switch, or null while no pack session is loaded. */
+    public CullingDirectives cullingDirectives() { return this.cullingDirectives; }
 
     /** The loaded pack's weather switch, or null while no pack session is loaded. */
     public WeatherDirectives weatherDirectives() { return this.weatherDirectives; }

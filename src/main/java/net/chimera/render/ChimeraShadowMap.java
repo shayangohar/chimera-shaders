@@ -652,14 +652,48 @@ public class ChimeraShadowMap {
 
     /** Initial contents must be defined before geometry samples the first shadow frame. */
     public void initializeSampling(VkCommandBuffer commandBuffer) {
+        clearPassTargets(commandBuffer, true);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            clearComputeColors(stack, commandBuffer, true);
+            // Before its first copy the opaque copy reads as a cleared map: Chimera's defined start.
+            clearToFarDepth(stack, commandBuffer, this.opaqueDepth);
+        }
+        // The cleared map has no translucent casters: shadowtex1 is shadowtex0.
+        this.opaqueDepthCurrent = false;
+        this.needsInitialSamplingLayout = false;
+    }
+
+    /**
+     * Clears the map on a frame whose pack shadow pass draws nothing (Max Shadow Distance 0). Iris
+     * clears its shadow targets as every frame opens (IrisRenderingPipeline.beginLevelRendering):
+     * shadowtex0, and both sides of each shadowcolor target that clears every frame
+     * (ClearPassCreator.createShadowClearPasses writes main and alt). ShadowRenderer.renderShadows
+     * then returns before drawing, so receivers find no casters. shadowtex1 keeps the last pass's
+     * copy, as Iris copies it only inside renderShadows. Recorded outside a render pass.
+     */
+    void clearUndrawnFrame(VkCommandBuffer commandBuffer) {
+        clearPassTargets(commandBuffer, false);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            this.alternateColors.forEach((index, image) -> {
+                ShadowTargetDirectives.ColorTarget target = this.targets.color(index);
+                if (target.clear()) PackTargetImages.clearImage(stack, commandBuffer, image, target.clearColor());
+            });
+        }
+    }
+
+    /**
+     * Opens and closes the shadow pass with nothing drawn, so its load ops clear shadowtex0 to the
+     * far plane and each shadowcolor target as colorClears(fullClear) says, as the pass's own opening
+     * does, and leaves the attachments sampleable.
+     */
+    private void clearPassTargets(VkCommandBuffer commandBuffer, boolean fullClear) {
         VulkanImage color = this.shadowFramebuffer.getColorAttachment();
         VulkanImage depth = this.shadowFramebuffer.getDepthAttachment();
         try (MemoryStack stack = MemoryStack.stackPush()) {
             color.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
             depth.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         }
-        PackGeometryContext.beginShadow(this.shadowColors, this.shadowFramebuffer.getDepthAttachment(),
-                colorClears(true));
+        PackGeometryContext.beginShadow(this.shadowColors, depth, colorClears(fullClear));
         try {
             Renderer.getInstance().beginRendering(this.shadowRenderPass, this.shadowFramebuffer);
             Renderer.getInstance().endRenderPass(commandBuffer);
@@ -672,13 +706,7 @@ public class ChimeraShadowMap {
             for (VulkanImage target : this.shadowColors) {
                 target.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             }
-            clearComputeColors(stack, commandBuffer, true);
-            // Before its first copy the opaque copy reads as a cleared map: Chimera's defined start.
-            clearToFarDepth(stack, commandBuffer, this.opaqueDepth);
         }
-        // The cleared map has no translucent casters: shadowtex1 is shadowtex0.
-        this.opaqueDepthCurrent = false;
-        this.needsInitialSamplingLayout = false;
     }
 
     /** Forward [0,1] projection for the fixed VulkanMod fallback pipeline. */

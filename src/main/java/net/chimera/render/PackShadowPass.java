@@ -534,7 +534,37 @@ final class PackShadowPass {
         // Terrain shaders sample the shadow map from their first draw.
         if (this.shadowFrameReady) {
             clearComputeColors();
+            if (shadowDistanceOff()) clearUndrawnMap();
             this.shadowMap.bindShadowTexture();
+        }
+    }
+
+    /**
+     * Whether the pack's shadow pass would run but the shadow distance in force is 0: Iris clears
+     * the map as the frame opens and draws nothing into it (ShadowRenderer.renderShadows).
+     */
+    private boolean shadowDistanceOff() {
+        return usePackShadowRuntime() && pass.session.shadowUse.runs() && shadowDistanceInForce() == 0;
+    }
+
+    /**
+     * Clears the map as Iris clears it each frame (ChimeraShadowMap.clearUndrawnFrame) on a frame
+     * Max Shadow Distance 0 leaves undrawn; without it the last drawn map stays, and receivers read
+     * it through the matrices of the light as it moves on. A clear that fails falls back as the
+     * first-use clear does (prepareShadowForSampling), and the next frame clears the map afresh.
+     */
+    private void clearUndrawnMap() {
+        if (!Renderer.isRecording()) return;
+        if (Renderer.getInstance().getBoundRenderPass() != null) {
+            recordShadowTransitionFallback("undrawn shadow map clear inside a render pass");
+            return;
+        }
+        try {
+            this.shadowMap.clearUndrawnFrame(Renderer.getCommandBuffer());
+        } catch (RuntimeException failure) {
+            // Its layouts may be half moved: initialize the map again next frame.
+            this.shadowMap.invalidateMapSnapshot();
+            recordShadowTransitionFallback(String.valueOf(failure.getMessage()));
         }
     }
 
@@ -645,7 +675,8 @@ final class PackShadowPass {
      * Whether this frame draws a shadow map: the host's fixed path always; the pack's when it is
      * observed and the shadow distance in force is not 0. At 0 Iris skips the shadow pass and its
      * shadowcomp (ShadowRenderer.renderShadows), while the shadow matrices still follow the light,
-     * as on a frame no one observes.
+     * as on a frame no one observes; the map it cleared as the frame opened stays empty
+     * (clearUndrawnMap).
      */
     private boolean shadowPassObserved() {
         return !usePackShadowRuntime() || (pass.session.shadowUse.runs() && shadowDistanceInForce() != 0);

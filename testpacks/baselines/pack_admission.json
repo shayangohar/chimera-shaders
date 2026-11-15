@@ -266,8 +266,7 @@
   "Visual-Vibrance-v0.3.5a.zip": [
     "dh_terrain",
     "dh_water",
-    "gbuffers_textured_lit",
-    "prepare2"
+    "gbuffers_textured_lit"
   ],
   "miniature-shader-2.19.zip": [
     "clrwl_gbuffers",

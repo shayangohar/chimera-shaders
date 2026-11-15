@@ -8,8 +8,9 @@ import java.util.Map;
  * GL's range, and never when they keep the host's, whose matrices already produce Vulkan's depth:
  * <ul>
  *   <li>a vertex stage with nothing after it converts after its authored main: a world stage that
- *   reads a pack projection (WorldClipRange.convert), a shadow stage (ShadowStageBuiltins), and the
- *   hand, sky and hand-glint draws (EntityVertexBridge);</li>
+ *   reads a pack projection (WorldClipRange.convert), a shadow stage (ShadowStageBuiltins), the
+ *   hand, sky and hand-glint draws (EntityVertexBridge), and a post pass's authored vertex
+ *   (PostVertexBridge.convertPostVertex), which has no depth to keep but is clipped below z = 0;</li>
  *   <li>a vertex stage ahead of a geometry or tessellation stage leaves GL's range for it;</li>
  *   <li>a geometry stage converts each vertex it emits (GeometryStageBridge.emitClipRange);</li>
  *   <li>a tessellation evaluation stage converts after its main, and the control stage ahead of it

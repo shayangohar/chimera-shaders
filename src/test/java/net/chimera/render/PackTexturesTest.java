@@ -108,6 +108,20 @@ final class PackTexturesTest {
     }
 
     /**
+     * Iris reads both lightmap names as the game's light texture (CustomTextureData.LightmapMarker).
+     * Pixel Perfect binds minecraft:dynamic/lightmap_1, which 1.21.1 never registers; the game's
+     * lightmap is dynamic/light_map_1. Another namespace keeps its own location.
+     */
+    @Test
+    void eitherLightmapNameReadsTheGameLightmap() {
+        PackGameTexture.Source lightmap = new PackGameTexture.Source("minecraft", "dynamic/light_map_1", null);
+        assertEquals(lightmap, PackGameTexture.Source.parse("minecraft:dynamic/lightmap_1"));
+        assertEquals(lightmap, PackGameTexture.Source.parse("minecraft:dynamic/light_map_1"));
+        assertEquals(new PackGameTexture.Source("other", "dynamic/lightmap_1", null),
+                PackGameTexture.Source.parse("other:dynamic/lightmap_1"));
+    }
+
+    /**
      * A saved pack loads with the renderer, before Minecraft has a TextureManager. A compute reading a
      * game texture is still admitted, and the lookup waits for the bind, as Iris's TextureWrapper does.
      */

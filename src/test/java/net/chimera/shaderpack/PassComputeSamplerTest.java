@@ -46,6 +46,79 @@ final class PassComputeSamplerTest {
     }
 
     /**
+     * A sampler2D Iris does not register reads unit 0, and Iris binds colortex0 there in a fullscreen
+     * pass's computes as in its programs: Visual Vibrance's prepare2 sets its sky light
+     * from {@code texture(lightmap, vec2(0.0, 1.0))}, which an Iris capture shows reading colortex0. A
+     * shadowcomp compute registers no colour target, so its lightmap stays unserved.
+     */
+    @Test
+    void anUnregisteredComputeSamplerReadsColortex0WhereIrisBindsIt(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectory(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("prepare.fsh"), "#version 120\nconst int colortex2Format = RGBA16F;\n"
+                + "void main() {\n/* RENDERTARGETS: 2 */\n gl_FragData[0] = vec4(1.0);\n}\n");
+        String reader = """
+                #version 430
+                layout(local_size_x = 1) in;
+                const ivec3 workGroups = ivec3(1, 1, 1);
+                layout(rgba16f) uniform image2D %s;
+                uniform sampler2D lightmap;
+                void main() { imageStore(%s, ivec2(0), texture(lightmap, vec2(0.0, 1.0))); }
+                """;
+        Files.writeString(shaders.resolve("prepare.csh"), reader.formatted("colorimg2", "colorimg2"));
+        // A setup compute binds colortex0 to unit 0 too (IrisRenderingPipeline.createSetupComputes).
+        Files.writeString(shaders.resolve("setup.csh"), reader.formatted("colorimg2", "colorimg2"));
+        Files.writeString(shaders.resolve("shadowcomp.csh"), reader.formatted("shadowcolorimg0", "shadowcolorimg0"));
+        // Declaring colortex0 as well: both names read the one binding.
+        Files.writeString(shaders.resolve("composite.csh"), reader.formatted("colorimg2", "colorimg2")
+                .replace("uniform sampler2D lightmap;", "uniform sampler2D colortex0;\nuniform sampler2D lightmap;")
+                .replace("vec2(0.0, 1.0))", "vec2(0.0, 1.0)) + texture(colortex0, vec2(0.5))"));
+        PassComputePlan computes = PassComputePlan.build(PackProbe.analyze(root).plan(), shaders);
+        for (String name : List.of("prepare", "setup", "composite")) {
+            PassComputePlan.PassCompute compute = computes.compute(name);
+            assertTrue(compute.supported(), name + " " + compute.deviations());
+            assertTrue(compute.deviations().contains("SAMPLER_UNIT0_COLORTEX0:lightmap"),
+                    name + " " + compute.deviations());
+            assertEquals(List.of(new PassComputePlan.Binding("colortex0", 1, PassComputePlan.Kind.TARGET_SAMPLER, 0,
+                    null, null)), compute.bindings().stream()
+                    .filter(binding -> binding.kind() == PassComputePlan.Kind.TARGET_SAMPLER).toList(), name);
+            String error = PackCompileTest.compileComputeValues(compute.source(), PassComputePlan.VALUES_BLOCK,
+                    Map.of());
+            assertTrue(error == null, name + " compiles: " + error + "\n" + compute.source());
+        }
+        PassComputePlan.PassCompute shadowcomp = computes.compute("shadowcomp");
+        assertTrue(shadowcomp.deviations().contains("PASS_COMPUTE_SAMPLER_UNSUPPORTED:lightmap"),
+                shadowcomp.deviations().toString());
+    }
+
+    /**
+     * With HIGHER_SHADOWCOLOR Iris creates any of eight shadowcolor targets a compute names, though
+     * the shadow pass renders only those a program names: Alpha Piscium's composite7 compute reads
+     * shadowcolor6, which no program does. It is served, so it never reads unit 0's colortex0.
+     */
+    @Test
+    void aComputeShadowColorNoProgramNamesIsNotUnitZero(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectory(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("shaders.properties"), "iris.features.required=HIGHER_SHADOWCOLOR\n");
+        Files.writeString(shaders.resolve("composite.fsh"), "#version 120\nconst int colortex2Format = RGBA16F;\n"
+                + "void main() {\n/* RENDERTARGETS: 2 */\n gl_FragData[0] = vec4(1.0);\n}\n");
+        Files.writeString(shaders.resolve("composite.csh"), """
+                #version 430
+                layout(local_size_x = 1) in;
+                const ivec3 workGroups = ivec3(1, 1, 1);
+                layout(rgba16f) uniform image2D colorimg2;
+                uniform sampler2D shadowcolor6;
+                void main() { imageStore(colorimg2, ivec2(0), texture(shadowcolor6, vec2(0.5))); }
+                """);
+        PassComputePlan.PassCompute compute = PassComputePlan.build(PackProbe.analyze(root).plan(), shaders)
+                .compute("composite");
+        assertTrue(compute.supported(), compute.deviations().toString());
+        assertTrue(compute.deviations().stream().noneMatch(value -> value.startsWith("SAMPLER_UNIT0")),
+                compute.deviations().toString());
+        assertTrue(compute.bindings().stream().anyMatch(binding -> binding.symbol().equals("shadowcolor6")
+                && binding.kind() == PassComputePlan.Kind.SHADOW_COLOR), compute.bindings().toString());
+    }
+
+    /**
      * Iris binds a pass's computes as its program (CompositeRenderer.createComputes): customTexture
      * entries, the stage's textures behind the pass's flippedAtLeastOnce snapshot, and the noise.
      * Alpha Piscium's computes read customTexture.usam_stbnVec1. composite1 writes colortex5, so

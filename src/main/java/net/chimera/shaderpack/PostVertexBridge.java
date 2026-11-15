@@ -157,8 +157,12 @@ final class PostVertexBridge {
             // Post passes keep VulkanMod's negative-height viewport, which maps y = -1 to the
             // last row, so the authored position is mirrored once here. Packs that draw a
             // partial quad and address it by gl_FragCoord (Bliss's exposure texel) need this.
+            // Its depth leaves GL's range too: a pass has no depth attachment, but Vulkan clips
+            // below z = 0, and DrDestens' gl_Vertex * 2 - 1 and Pixel Perfect's
+            // vec4(vaPosition * 2 - 1, 1) put the quad at z = -1, GL's near plane.
             converted = GlslDeclarations.renameMain(converted, "chimeraPostMain");
-            converted += "\nvoid main() { chimeraPostMain(); gl_Position.y = -gl_Position.y; }\n";
+            converted += "\nvoid main() { chimeraPostMain(); gl_Position.y = -gl_Position.y; "
+                    + ClipDepth.TO_VULKAN + " }\n";
             String uniforms = interfacePlan.executableUniforms().isEmpty() ? ""
                     : FragmentConverter.generatedUniformBlock(interfacePlan.executableUniforms(), converted);
             return new PostVertexConversion("#version 460\n" + uniforms + GlslVertexPreambles.FULLSCREEN_VERTEX_INPUTS

@@ -91,6 +91,17 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
                 .hardwareFiltering();
     }
 
+    /**
+     * Whether Iris has shadow colour target {@code index} for a compute: eight with
+     * HIGHER_SHADOWCOLOR, two without (ShadowRenderTargets). It creates one a compute names on first
+     * use (IrisSamplers.addShadowSamplers createIfEmpty, IrisImages.addShadowColorImages getOrCreate),
+     * so a compute's shadowcolor need not be among the targets the shadow pass renders (bound).
+     */
+    static boolean computeHas(int index, PackConfig.PackConfigData config) {
+        boolean higher = config != null && config.settings().hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR);
+        return index >= 0 && index < (higher ? MAX_COLOR_TARGETS : LEGACY_COLOR_TARGETS);
+    }
+
     /** The Vulkan formats of shadowcolor0 to shadowcolor{@code count - 1}. */
     public List<Integer> attachmentFormats(int count) {
         return colors.subList(0, count).stream().map(target -> target.format().vkFormat()).toList();

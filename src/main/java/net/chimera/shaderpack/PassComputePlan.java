@@ -346,7 +346,8 @@ public final class PassComputePlan {
                     work.fail("PASS_COMPUTE_VERSION_UNSUPPORTED");
                 }
                 if (work.failed) return null;
-                String aliased = UnitZeroSampler.withCompositeAliases(prepared.source(), work.deviations);
+                String aliased = UnitZeroSampler.applyCompute(prepared.source(), plan.config(), work.deviations,
+                        work.pass);
                 if (isSetup(work.pass)) aliased = withoutPushedCustomUniforms(aliased, work);
                 ServedUniforms.Compute served = ServedUniforms.computeSource(aliased,
                         name -> UniformRegistry.irisSets(name, plan.runtimeSettings().customDescriptors()));
@@ -465,16 +466,9 @@ public final class PassComputePlan {
             return storageForm(targets.color(target).format().vkFormat(), qualifiers);
         }
 
-        /**
-         * Whether Iris has shadow colour target {@code index}: eight with HIGHER_SHADOWCOLOR, two
-         * without (ShadowRenderTargets). It creates one a compute names on first use
-         * (IrisSamplers.addShadowSamplers createIfEmpty, IrisImages.addShadowColorImages getOrCreate).
-         */
+        /** Whether Iris has shadow colour target {@code index} for a compute (ShadowTargetDirectives.computeHas). */
         private boolean irisShadowColor(int index) {
-            PackConfig.PackConfigData config = plan.config();
-            boolean higher = config != null && config.settings().hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR);
-            return index >= 0 && index < (higher ? ShadowTargetDirectives.MAX_COLOR_TARGETS
-                    : ShadowTargetDirectives.LEGACY_COLOR_TARGETS);
+            return ShadowTargetDirectives.computeHas(index, plan.config());
         }
 
         /**

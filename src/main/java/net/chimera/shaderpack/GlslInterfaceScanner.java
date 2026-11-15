@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 
@@ -327,7 +328,8 @@ public final class GlslInterfaceScanner {
         } catch (GlslParser.ParseFailure failure) {
             return new Parse(GlslLexer.lex(source), List.of(), List.of(DECLARATION_UNSUPPORTED));
         }
-        Map<String, Integer> structSlots = structSlots(tree);
+        Map<String, Integer> constants = constants(tree);
+        Map<String, Integer> structSlots = structSlots(tree, constants);
         List<Statement> statements = new ArrayList<>();
         List<String> deviations = new ArrayList<>();
         for (GlslTree.External external : tree.externals()) {
@@ -336,7 +338,8 @@ public final class GlslInterfaceScanner {
                     : external instanceof GlslTree.InterfaceBlock block ? block.qualifiers() : List.of();
             int[] storage = storageQualifier(tree, qualifiers);
             if (storage == null) continue;
-            Statement statement = statement(tree, external, qualifiers, storage, stage, structSlots, deviations);
+            Statement statement = statement(tree, external, qualifiers, storage, stage, structSlots, constants,
+                    deviations);
             if (statement != null) statements.add(statement);
         }
         return new Parse(tree.tokens(), statements, deviations);
@@ -391,7 +394,7 @@ public final class GlslInterfaceScanner {
     /** The interface statement a declaration makes, or null when it declares none this can read. */
     private static Statement statement(GlslTree tree, GlslTree.External external, List<GlslTree.Qualifier> qualifiers,
                                        int[] storage, Stage stage, Map<String, Integer> structSlots,
-                                       List<String> deviations) {
+                                       Map<String, Integer> constants, List<String> deviations) {
         GlslTree.Declaration declaration = variableDeclaration(tree, external, qualifiers, storage, deviations);
         if (declaration == null) return null;
         String type = typeName(tree, declaration.type());
@@ -407,7 +410,7 @@ public final class GlslInterfaceScanner {
         }
         int start = qualifiers.get(storage[0]).range().start();
         int end = declaration.range().end();
-        List<Declaration> declared = declarators(tree, declaration, start, end, kind);
+        List<Declaration> declared = declarators(tree, declaration, start, end, kind, constants);
         if (declared == null || declared.isEmpty()) {
             deviations.add(DECLARATION_UNSUPPORTED);
             return null;
@@ -456,10 +459,12 @@ public final class GlslInterfaceScanner {
      * size may sit on the type, as in Noble's {@code flat in vec3[9] skyIlluminanceCoefficients}.
      * A per-vertex input's declarator starts with its per-vertex dimension, sized or not
      * ({@code texcoord[]}, Rethinking Voxels' {@code texCoordV[3]}); the size is what follows it.
+     * An unreadable size refuses the statement before it meets the type's: taking the larger of
+     * -1 and a sizeless type's 0 dropped I Like Vanilla's Lidar dimension.
      */
     private static List<Declaration> declarators(GlslTree tree, GlslTree.Declaration declaration, int start, int end,
-                                                 InterfaceType kind) {
-        int typeLength = arrayLength(tree, declaration.type().arrays());
+                                                 InterfaceType kind, Map<String, Integer> constants) {
+        int typeLength = arrayLength(tree, declaration.type().arrays(), constants);
         if (typeLength < 0) return null;
         List<Declaration> declared = new ArrayList<>();
         for (GlslTree.Declarator declarator : declaration.declarators()) {
@@ -468,10 +473,9 @@ public final class GlslInterfaceScanner {
                 if (arrays.isEmpty()) return null;
                 arrays = arrays.subList(1, arrays.size());
             }
-            int length = arrayLength(tree, arrays);
-            if (typeLength > 0 && length != 0) return null;
+            int length = arrayLength(tree, arrays, constants);
+            if (length < 0 || typeLength > 0 && length != 0 || declarator.initializer() != null) return null;
             length = Math.max(length, typeLength);
-            if (length < 0 || declarator.initializer() != null) return null;
             String name = tree.text(declarator.name());
             boolean referenced = referencedOutsideDeclaration(tree.tokens(), name, start, end);
             declared.add(new Declaration(name, kind.type(), kind.interpolation(), kind.input(), kind.output(),
@@ -482,15 +486,57 @@ public final class GlslInterfaceScanner {
 
     /**
      * The length of a type's or a declarator's array sizes: 0 without one, the positive value of
-     * one {@code [N]} whose N is a constant expression of literals ({@link GlslIntConstant}), or -1
-     * for anything else (a named or unsized length, more than one dimension).
+     * one {@code [N]} whose N is a constant expression of literals and the file-scope
+     * {@code constants} ({@link GlslIntConstant}), or -1 for anything else (another name, an
+     * unsized length, more than one dimension).
      */
-    private static int arrayLength(GlslTree tree, List<GlslTree.Range> arrays) {
+    private static int arrayLength(GlslTree tree, List<GlslTree.Range> arrays, Map<String, Integer> constants) {
         if (arrays.isEmpty()) return 0;
         if (arrays.size() > 1) return -1;
         GlslTree.Range array = arrays.get(0);
-        OptionalInt length = GlslIntConstant.value(tree.tokens(), array.start() + 1, array.end() - 1);
+        OptionalInt length = GlslIntConstant.value(tree.tokens(), array.start() + 1, array.end() - 1, constants);
         return length.isPresent() && length.getAsInt() > 0 ? length.getAsInt() : -1;
+    }
+
+    private static final Set<String> CONSTANT_INT_TYPES = Set.of("int", "uint");
+
+    /**
+     * The value of each file-scope {@code const int} or {@code const uint}, in source order: its
+     * initializer read as a constant expression of literals and the constants before it. GL sizes an
+     * array with one: I Like Vanilla declares {@code const int lidarSampleCount = 24} and then the
+     * varying {@code lidarSampleCoords[lidarSampleCount]}.
+     */
+    private static Map<String, Integer> constants(GlslTree tree) {
+        Map<String, Integer> values = new HashMap<>();
+        for (GlslTree.External external : tree.externals()) {
+            if (!(external instanceof GlslTree.Declaration declaration) || declaration.type() == null
+                    || !declaration.type().arrays().isEmpty()
+                    || !CONSTANT_INT_TYPES.contains(typeName(tree, declaration.type()))
+                    || !constQualified(tree, declaration.qualifiers())) {
+                continue;
+            }
+            for (GlslTree.Declarator declarator : declaration.declarators()) {
+                GlslTree.Range initializer = declarator.initializer();
+                if (!declarator.arrays().isEmpty() || initializer == null) continue;
+                GlslIntConstant.value(tree.tokens(), initializer.start(), initializer.end(), values)
+                        .ifPresent(value -> values.put(tree.text(declarator.name()), value));
+            }
+        }
+        return values;
+    }
+
+    /** Qualifiers that are {@code const} and any precision. */
+    private static boolean constQualified(GlslTree tree, List<GlslTree.Qualifier> qualifiers) {
+        boolean constant = false;
+        for (GlslTree.Qualifier qualifier : qualifiers) {
+            String keyword = tree.text(qualifier.keyword());
+            if (keyword.equals("const")) {
+                constant = true;
+            } else if (!isPrecision(keyword)) {
+                return false;
+            }
+        }
+        return constant;
     }
 
     /**
@@ -498,13 +544,13 @@ public final class GlslInterfaceScanner {
      * or an earlier struct, times any array length. A struct with a member this cannot size is
      * left out, so an interface variable of that type is reported unsupported.
      */
-    private static Map<String, Integer> structSlots(GlslTree tree) {
+    private static Map<String, Integer> structSlots(GlslTree tree, Map<String, Integer> constants) {
         Map<String, Integer> result = new HashMap<>();
         for (GlslTree.External external : tree.externals()) {
             if (!(external instanceof GlslTree.Declaration declaration) || declaration.type() == null) continue;
             GlslTree.Struct struct = declaration.type().struct();
             if (struct == null || struct.name() < 0) continue;
-            Integer slots = memberSlots(tree, struct.members(), result);
+            Integer slots = memberSlots(tree, struct.members(), result, constants);
             if (slots != null && slots > 0) result.put(tree.text(struct.name()), slots);
         }
         return result;
@@ -512,7 +558,7 @@ public final class GlslInterfaceScanner {
 
     /** Sum of member locations, or null for a member this cannot size. */
     private static Integer memberSlots(GlslTree tree, List<GlslTree.Declaration> members,
-                                       Map<String, Integer> structs) {
+                                       Map<String, Integer> structs, Map<String, Integer> constants) {
         int total = 0;
         for (GlslTree.Declaration member : members) {
             if (member.type() == null || !member.type().arrays().isEmpty() || member.declarators().isEmpty()
@@ -523,7 +569,7 @@ public final class GlslInterfaceScanner {
             Integer typeSlots = BUILTIN_SLOTS.containsKey(type) ? BUILTIN_SLOTS.get(type) : structs.get(type);
             if (typeSlots == null) return null;
             for (GlslTree.Declarator declarator : member.declarators()) {
-                int length = arrayLength(tree, declarator.arrays());
+                int length = arrayLength(tree, declarator.arrays(), constants);
                 if (length < 0 || declarator.initializer() != null) return null;
                 total += typeSlots * Math.max(length, 1);
             }

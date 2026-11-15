@@ -9,7 +9,8 @@ import java.util.function.LongBinaryOperator;
  * An integral constant expression of literals, read as GL reads an array size: decimal, octal and
  * hexadecimal integer literals with or without {@code u}, parentheses, unary {@code + - ~} and the
  * binary {@code * / % + - << >> & ^ |} with C's precedence. Photon sizes its histogram varying
- * {@code vec4[HISTOGRAM_BINS / 4]}, which reaches translation as {@code vec4[32 / 4]}. A name, a
+ * {@code vec4[HISTOGRAM_BINS / 4]}, which reaches translation as {@code vec4[32 / 4]}. A name reads
+ * only as one of the constants the caller passes (a file-scope {@code const int}); any other name, a
  * float, a comparison, or a value GL leaves undefined (division by zero, a shift outside 0..31, a
  * result outside {@code int}) is not read.
  */
@@ -26,21 +27,23 @@ final class GlslIntConstant {
     }
 
     private final List<GlslLexer.Token> tokens;
+    private final Map<String, Integer> names;
     private int index;
 
-    private GlslIntConstant(List<GlslLexer.Token> tokens) {
+    private GlslIntConstant(List<GlslLexer.Token> tokens, Map<String, Integer> names) {
         this.tokens = tokens;
+        this.names = names;
     }
 
     /**
-     * The value of the significant tokens from {@code from} up to {@code to}, or empty when this
-     * does not read them.
+     * The value of the significant tokens from {@code from} up to {@code to}, where each name in
+     * {@code names} reads as its value, or empty when this does not read them.
      */
-    static OptionalInt value(List<GlslLexer.Token> tokens, int from, int to) {
+    static OptionalInt value(List<GlslLexer.Token> tokens, int from, int to, Map<String, Integer> names) {
         if (from < 0 || to > tokens.size() || from >= to) return OptionalInt.empty();
         List<GlslLexer.Token> significant = tokens.subList(from, to).stream()
                 .filter(GlslLexer.Token::significant).toList();
-        GlslIntConstant parser = new GlslIntConstant(significant);
+        GlslIntConstant parser = new GlslIntConstant(significant, names);
         try {
             long value = parser.binary(0);
             return parser.index == significant.size() ? OptionalInt.of((int) value) : OptionalInt.empty();
@@ -91,6 +94,9 @@ final class GlslIntConstant {
         if (index >= tokens.size()) throw new Unreadable();
         GlslLexer.Token token = tokens.get(index++);
         if (token.kind() == GlslLexer.Kind.NUMBER) return literal(token.text());
+        if (token.kind() == GlslLexer.Kind.IDENTIFIER && names.containsKey(token.text())) {
+            return names.get(token.text());
+        }
         if (token.symbol("-")) return checked(-unary());
         if (token.symbol("+")) return unary();
         if (token.symbol("~")) return ~unary();

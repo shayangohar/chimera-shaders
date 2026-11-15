@@ -419,6 +419,14 @@ public final class InterfacePlanner {
                         ? "SAMPLER_DECLARATION_UNUSED:" + name : unmappedSamplerDeviation(name, stage));
                 continue;
             }
+            // A pack texture takes a colour target's slot only when no program reads the target
+            // (PackSettingsPlan.customSamplerSlots), so GL leaves the target's declaration inactive in
+            // every stage. Strip it in each one, or a stage that keeps it puts two textures on the slot:
+            // with bloom off, Escheridia's unread colortex6 gives slot 10 to voxelFloodfill.
+            if (slotOfAnotherCustomSampler(name, slot, customSamplerSlots) && isSamplerUnused(stripped, name)) {
+                deviations.add("SAMPLER_DECLARATION_UNUSED:" + name);
+                continue;
+            }
             bindings.add(new SamplerBinding(name, slot, type));
             String resource = UniformRegistry.samplerResource(lookup);
             String previousResource = samplerResources.putIfAbsent(slot, resource);
@@ -430,6 +438,13 @@ public final class InterfacePlanner {
             }
         }
         return bindings;
+    }
+
+    /** Whether a pack texture other than {@code name} holds {@code slot}. */
+    private static boolean slotOfAnotherCustomSampler(String name, Integer slot,
+                                                      Map<String, Integer> customSamplerSlots) {
+        return customSamplerSlots != null && customSamplerSlots.entrySet().stream()
+                .anyMatch(custom -> custom.getValue().equals(slot) && !custom.getKey().equals(name));
     }
 
     /** 2D and shadow samplers always bind; 3D samplers bind only to the pack's own textures. */

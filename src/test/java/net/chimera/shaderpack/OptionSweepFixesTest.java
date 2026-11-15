@@ -256,4 +256,49 @@ final class OptionSweepFixesTest {
         assertEquals(List.of("PROGRAM_INTERFACE_DECLARATION_UNSUPPORTED"), GlslInterfaceScanner.scan(
                 fragment.replace("32 / 4", "BINS"), false).deviations());
     }
+
+    /**
+     * I Like Vanilla SSS_LIDAR: composite5 passes {@code lidarSampleCoords[lidarSampleCount]}
+     * after {@code const int lidarSampleCount = 24}. GL reads the file-scope const as the size, so both
+     * stages declare 24 locations. A size this cannot read refuses the statement: on the declarator it
+     * used to become no array at all, and indexing the vec2 failed to compile.
+     */
+    @Test
+    void aFileScopeConstIntSizesAnInterfaceArray() {
+        String vertex = """
+                #version 130
+                const int lidarSampleCount = 24;
+                out vec2 lidarSampleCoords[lidarSampleCount];
+                out vec2 texcoord;
+                void main() {
+                    for (int i = 0; i < lidarSampleCount; i++) lidarSampleCoords[i] = vec2(0.5);
+                    texcoord = gl_MultiTexCoord0.xy;
+                    gl_Position = ftransform();
+                }
+                """;
+        String fragment = """
+                #version 130
+                const int lidarSampleCount = 24;
+                in vec2 lidarSampleCoords[lidarSampleCount];
+                in vec2 texcoord;
+                void main() { gl_FragData[0] = vec4(lidarSampleCoords[int(texcoord.x * 24.0)], 0.0, 1.0); }
+                """;
+        GlslInterfaceScanner.StageInterface vs = GlslInterfaceScanner.scan(vertex, true);
+        GlslInterfaceScanner.StageInterface fs = GlslInterfaceScanner.scan(fragment, false);
+        assertEquals(List.of(), fs.deviations());
+        assertEquals("vec2[24]", vs.output("lidarSampleCoords").typeWithArray());
+        assertEquals(24, fs.input("lidarSampleCoords").slots());
+        GlslInterfaceScanner.ProgramMatch match = GlslInterfaceScanner.match(vs, fs);
+        assertTrue(match.executable(), match.deviations().toString());
+        assertEquals(Map.of("lidarSampleCoords", 0, "texcoord", 24), match.locations());
+        assertEquals(List.of("PROGRAM_INTERFACE_DECLARATION_UNSUPPORTED"), GlslInterfaceScanner.scan(
+                fragment.replace("[lidarSampleCount]", "[sampleCount]"), false).deviations(),
+                "a name that is no file-scope const refuses");
+        GlslInterfaceScanner.StageInterface chained = GlslInterfaceScanner.scan(fragment.replace(
+                "const int lidarSampleCount = 24;",
+                "const highp uint quarter = 6u;\nconst uint lidarSampleCount = quarter * 4u;"), false);
+        assertEquals(24, chained.input("lidarSampleCoords").slots(), chained.deviations().toString());
+        assertEquals(List.of("PROGRAM_INTERFACE_DECLARATION_UNSUPPORTED"), GlslInterfaceScanner.scan(
+                fragment.replace("= 24;", "= int(24.0);"), false).deviations(), "a constructor is not read");
+    }
 }

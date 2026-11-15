@@ -3,6 +3,7 @@ package net.chimera.shaderpack;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,8 +11,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /** Integral constant expressions of literals, as GL reads an array size. */
 final class GlslIntConstantTest {
     private static OptionalInt value(String expression) {
+        return value(expression, Map.of());
+    }
+
+    private static OptionalInt value(String expression, Map<String, Integer> names) {
         List<GlslLexer.Token> tokens = GlslLexer.lex(expression);
-        return GlslIntConstant.value(tokens, 0, tokens.size());
+        return GlslIntConstant.value(tokens, 0, tokens.size(), names);
+    }
+
+    /** A name reads as one of the constants passed in; any other name is not read. */
+    @Test
+    void readsANamedConstantItIsGiven() {
+        Map<String, Integer> names = Map.of("BINS", 32);
+        assertEquals(OptionalInt.of(8), value("BINS / 4", names));
+        assertEquals(OptionalInt.of(-32), value("-BINS", names));
+        assertEquals(OptionalInt.empty(), value("BINS / 4"));
+        assertEquals(OptionalInt.empty(), value("OTHER / 4", names));
+        assertEquals(OptionalInt.empty(), value("BINS()", names));
     }
 
     @Test

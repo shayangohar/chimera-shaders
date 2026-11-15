@@ -414,4 +414,56 @@ final class SweepParityFixesTest {
         assertTrue(analysis.plan().shouldAttempt("composite") && analysis.report().shouldAttempt("composite")
                 && !report.deviations().contains("ADVANCED_RESOURCE_UNSUPPORTED"), report.deviations().toString());
     }
+
+    /**
+     * Escheridia with bloom off: every program declares colortex6 and nothing reads it, so
+     * no slot is kept for it and a custom texture takes colortex6's slot. GL leaves the unread
+     * sampler inactive: it is stripped and the program keeps the texture it reads. Two read
+     * samplers on one slot still refuse.
+     */
+    @Test
+    void anUnreadSamplerGivesItsSlotToTheOneTheProgramReads() {
+        int colortex6 = SelectorNamespace.colorTargetSlot(6);
+        Map<String, Integer> customSlots = Map.of("clouds", colortex6);
+        String unread = """
+                uniform sampler2D colortex6;
+                uniform sampler2D clouds;
+                void main() { gl_FragColor = texture2D(clouds, vec2(0.5)); }
+                """;
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planInternal(unread, UniformRegistry.Stage.POST,
+                true, false, Map.of(), customSlots);
+        assertEquals(List.of(new UniformRegistry.SamplerBinding("clouds", colortex6, "sampler2D")), plan.samplers());
+        assertTrue(plan.deviations().contains("SAMPLER_DECLARATION_UNUSED:colortex6")
+                && !plan.deviations().contains("SAMPLER_SLOT_CONFLICT:" + colortex6), plan.deviations().toString());
+        String both = unread.replace("vec2(0.5));", "vec2(0.5)) + texture2D(colortex6, vec2(0.5));");
+        assertTrue(InterfacePlanner.planInternal(both, UniformRegistry.Stage.POST, true, false, Map.of(),
+                customSlots).deviations().contains("SAMPLER_SLOT_CONFLICT:" + colortex6), "two read samplers refuse");
+    }
+
+    /**
+     * A stage that declares only the unread target gives up its slot too. Kept there, it would sit on
+     * slot 10 beside the fragment's custom texture, and the program would sample whichever texture the
+     * slot resolved to first. Without a custom texture on its slot, a root-level stage still binds an
+     * unread target, as before.
+     */
+    @Test
+    void everyStageGivesUpAnUnreadTargetsSlotToACustomTexture() {
+        int colortex6 = SelectorNamespace.colorTargetSlot(6);
+        String fragment = """
+                uniform sampler2D colortex6;
+                uniform sampler2D clouds;
+                void main() { gl_FragColor = texture2D(clouds, vec2(0.5)); }
+                """;
+        String vertex = """
+                uniform sampler2D colortex6;
+                void main() { gl_Position = vec4(0.0); }
+                """;
+        UniformRegistry.ProgramInterfacePlan plan = InterfacePlanner.planProgram(fragment, vertex, Map.of(),
+                UniformRegistry.Stage.POST, null, false, Map.of(), Map.of("clouds", colortex6));
+        assertEquals(List.of(new UniformRegistry.SamplerBinding("clouds", colortex6, "sampler2D")), plan.samplers(),
+                plan.deviations().toString());
+        assertEquals(List.of(new UniformRegistry.SamplerBinding("colortex6", colortex6, "sampler2D")),
+                InterfacePlanner.planInternal(vertex, UniformRegistry.Stage.POST, true, false, Map.of(), Map.of())
+                        .samplers());
+    }
 }

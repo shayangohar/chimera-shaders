@@ -1,5 +1,6 @@
 package net.chimera.shaderpack;
 
+import net.chimera.shaderpack.options.PendingOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.objectweb.asm.Opcodes;
@@ -329,6 +330,13 @@ final class PackDirectivesTest {
                     """);
             PackPlan plan = PackProbe.analyze(shaders.getParent()).plan();
             assertEquals(define.startsWith("//"), plan.cullingDirectives().frustumCulling(), define);
+        }
+        // BSL's case: World Curvature is off in the source, and the player turns it on.
+        Path off = root.resolve("off");
+        try (PackSource.LoadResult loaded = PackSource.loadResult(off, "minecraft:overworld",
+                new PendingOptions.Drained(Map.of("WORLD_CURVATURE", "true"), false))) {
+            assertTrue(!PackProbe.analyze(off, loaded).plan().cullingDirectives().frustumCulling(),
+                    "the player's option reaches shaders.properties");
         }
     }
 

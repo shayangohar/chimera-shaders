@@ -33,6 +33,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.vulkanmod.render.chunk.TerrainRenderState;
+import net.vulkanmod.render.chunk.WorldRenderer;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -70,6 +71,10 @@ public abstract class ChimeraLevelRendererMixin {
     private static final String RENDER_SKY = "Lnet/minecraft/client/renderer/LevelRenderer;renderSky("
             + "Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;FLnet/minecraft/client/Camera;ZLjava/lang/Runnable;)V";
 
+    /** Whether the last frame culled nothing (chimera$frustumCulling). */
+    @Unique
+    private boolean chimera$culledNothing;
+
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void chimera$beginFrame(DeltaTracker deltaTracker, boolean renderBlockOutline, Camera camera,
                                     GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f modelView,
@@ -77,16 +82,28 @@ public abstract class ChimeraLevelRendererMixin {
         ChimeraHandRenderer.beginFrame();
         FamilyBufferSource.beginLevel();
         PreSkyPasses.beginFrame();
+        boolean cullNothing = false;
         if (ChimeraRenderer.beginLevelSegments()) {
             ChimeraEntityBridge.beginWorldWindow();
             PackUniformProvider.beginFrame(camera, deltaTracker.getGameTimeDeltaPartialTick(false),
                     modelView, projection);
-            // Iris MixinLevelRenderer.iris$setupPipeline: the pack's frustum.culling=false culls
-            // nothing for the sections, entities, block entities and particles renderLevel draws.
-            if (ChimeraRenderer.packDisablesFrustumCulling()) {
-                ((ChimeraLevelRendererAccessor) this).chimera$setCullingFrustum(NonCullingFrustum.INSTANCE);
-            }
+            cullNothing = ChimeraRenderer.packDisablesFrustumCulling();
         }
+        chimera$frustumCulling(cullNothing);
+    }
+
+    /**
+     * Iris MixinLevelRenderer.iris$setupPipeline: a pack's frustum.culling=false culls nothing for
+     * the sections, entities, block entities and particles renderLevel draws. VulkanMod rebuilds its
+     * visible sections only when the camera moves or turns, so a change either way asks for one now.
+     */
+    @Unique
+    private void chimera$frustumCulling(boolean cullNothing) {
+        if (cullNothing) ((ChimeraLevelRendererAccessor) this).chimera$setCullingFrustum(NonCullingFrustum.INSTANCE);
+        if (cullNothing == this.chimera$culledNothing) return;
+        this.chimera$culledNothing = cullNothing;
+        WorldRenderer sections = WorldRenderer.getInstance();
+        if (sections != null) sections.scheduleGraphUpdate();
     }
 
     @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE",

@@ -27,7 +27,10 @@ import java.util.regex.Pattern;
  */
 public final class ShaderSourcePreprocessor {
     private static final int MAX_INCLUDE_DEPTH = 32;
-    private static final int MAX_EXPANDED_FILES = 256;
+    // Iris's preprocessor has no include limit. Complementary Unbound with Euphoria Patches includes
+    // between 257 and 512 files in gbuffers_entities_translucent. The count still bounds a pack that
+    // fans out into empty includes, which the line and character budgets would not catch.
+    private static final int MAX_EXPANDED_FILES = 4096;
     private static final int MAX_EMITTED_LINES = 200_000;
     private static final int MAX_EXPANDED_CHARS = 4 * 1024 * 1024;
     // A directive name ends at the first non-word character, as JCPP tokenizes it: Escheridia closes

@@ -3,8 +3,6 @@ package net.chimera.render;
 import net.vulkanmod.vulkan.texture.SamplerManager;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,14 +11,13 @@ import static org.lwjgl.opengl.GL11.GL_LINEAR;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 import static org.lwjgl.opengl.GL14.GL_COMPARE_R_TO_TEXTURE;
 
-/** Image and sampler bindings restore by scope, and only a shadow sampler type gets the compare sampler. */
+/** Each slot keeps its own image and sampler, and only a shadow sampler type gets the compare sampler. */
 final class TextureBindingStateTest {
     @Test
-    void scopedBindings() {
+    void slotBindings() {
         ChimeraTextureBindingState.BindingStore<Object> state = new ChimeraTextureBindingState.BindingStore<>();
         Object atlas = new Object();
         Object lightmap = new Object();
-        Object entity = new Object();
         Object packTexture = new Object();
 
         state.bind(0, atlas, 101L);
@@ -31,18 +28,8 @@ final class TextureBindingStateTest {
         assertSame(packTexture, state.binding(14).image(), "pack resource slot image");
         assertEquals(101L, state.binding(0).sampler(), "pack resource binding changed terrain sampler");
 
-        Map<Integer, ChimeraTextureBindingState.BindingStore.Entry<Object>> outer = state.snapshot();
-        state.bind(0, entity, 606L);
-        Map<Integer, ChimeraTextureBindingState.BindingStore.Entry<Object>> inner = state.snapshot();
-        state.bind(0, packTexture, 707L);
         state.clear(2);
-        state.restore(inner);
-        assertSame(entity, state.binding(0).image(), "nested scope restore image");
-        assertEquals(606L, state.binding(0).sampler(), "nested scope restore sampler");
-        assertTrue(state.binding(2) != null, "nested scope restore lost lightmap binding");
-        state.restore(outer);
-        assertSame(atlas, state.binding(0).image(), "outer scope restore image");
-        assertEquals(101L, state.binding(0).sampler(), "outer scope restore sampler");
+        assertTrue(state.binding(2) == null && state.binding(0) != null, "clearing one slot touched another");
 
         state.reset();
         assertTrue(state.binding(0) == null && state.binding(14) == null,

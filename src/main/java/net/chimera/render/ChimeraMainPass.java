@@ -76,13 +76,8 @@ public final class ChimeraMainPass implements MainPass {
     final PackImageBindings images = new PackImageBindings(this);
     final PackPipelineLoad load = new PackPipelineLoad(this);
     final OpaqueDepthCapture depth = new OpaqueDepthCapture(this);
-    final MaterialMapRuntime materials = new MaterialMapRuntime(this);
+    final MaterialMapRuntime materials = new MaterialMapRuntime();
     final PackFamilyWindows windows = new PackFamilyWindows(this);
-
-    private static final HandBoundaryPolicy HAND_BOUNDARY_POLICY =
-            new HandBoundaryPolicy(true, true);
-
-    static record HandBoundaryPolicy(boolean loadColor, boolean clearDepth) {}
 
     static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
@@ -336,11 +331,6 @@ public final class ChimeraMainPass implements MainPass {
         Renderer.clearAttachments(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
     }
 
-    /** True while the HDR image is a pack's colortex0. */
-    public boolean packOwnsColortex0() {
-        return this.levelPhase && this.session.packPostChainActive && this.packPostTargets.isConfigured();
-    }
-
     /**
      * Draws the horizon after the world clear and before the sky. Without a gbuffers_skybasic it draws as
      * Iris's SKY_BASIC fallback does (PackHostDraws).
@@ -520,7 +510,7 @@ public final class ChimeraMainPass implements MainPass {
             drawFullscreen(commandBuffer, this.presentPipeline);
             // end the frame with slot 0 on outputColor, as the identity path does; slot 0 may still hold
             // hdrColor from bindAsTexture, and the next world target rebuild would hand the host a dead image
-            if (this.pipelines.finalPipeline != null || this.pipelines.finalPost != null) {
+            if (this.pipelines.finalPost != null) {
                 VTextureSelector.bindTexture(outputColor);
             }
         } finally {
@@ -572,39 +562,18 @@ public final class ChimeraMainPass implements MainPass {
 
     /** Copies the pre-hand depth into depthtex2 before the pack's solid hand draws. */
     public void beginHandSegment() {
-        if (this.levelPhase && this.packDepthTargets.isConfigured()
-                && this.packDepthTargets.plan().depthtex2()) {
-            var commandBuffer = Renderer.getCommandBuffer();
-            Renderer.getInstance().endRenderPass(commandBuffer);
-            if (!this.packDepthTargets.currentAvailable("depthtex2")) {
-                this.packDepthTargets.capturePreHand(commandBuffer, this.targets.hdrFramebuffer.getDepthAttachment());
-            }
-            this.rebindMainTarget();
-            return;
-        }
-        if (!this.packWorldResolved || !this.packDepthTargets.isConfigured()
+        if (!this.levelPhase || !this.packDepthTargets.isConfigured()
                 || !this.packDepthTargets.plan().depthtex2()) {
             return;
         }
         VkCommandBuffer commandBuffer = Renderer.getCommandBuffer();
-        if (Renderer.getInstance().getBoundRenderPass() != null) {
-            Renderer.getInstance().endRenderPass(commandBuffer);
-        }
+        Renderer.getInstance().endRenderPass(commandBuffer);
         if (!this.packDepthTargets.currentAvailable("depthtex2")
                 && !this.packDepthTargets.capturePreHand(commandBuffer,
-                this.targets.hdrFramebuffer == null ? null : this.targets.hdrFramebuffer.getDepthAttachment())) {
+                this.targets.hdrFramebuffer.getDepthAttachment())) {
             LOGGER.warn("[chimera] pack depth graph: fallback=IDENTITY (pre-hand depth conversion failed)");
         }
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            // the world is already resolved into the output: load its colour and give the hand cleared depth
-            RenderPass handPass = HAND_BOUNDARY_POLICY.clearDepth()
-                    ? this.targets.compositeAuxClearDepthRenderPass : this.targets.compositeAuxRenderPass;
-            Renderer.getInstance().beginRendering(handPass,
-                    this.targets.compositeFramebuffer);
-            Renderer.setViewport(0, 0, this.targets.compositeFramebuffer.getWidth(),
-                    this.targets.compositeFramebuffer.getHeight(), stack);
-            VK10.vkCmdSetScissor(commandBuffer, 0, this.targets.compositeFramebuffer.scissor(stack));
-        }
+        this.rebindMainTarget();
     }
 
     /** Whether the pack draws the hand: only in a live pack frame with both hand programs installed. */

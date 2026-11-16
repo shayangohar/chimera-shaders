@@ -524,7 +524,7 @@ final class PackFrameState {
         this.frameTimeCounter = wrapFrameTimeCounter(this.frameTimeCounter + this.frameTime);
     }
 
-    static float quantizedFrameSecondsForTest(long elapsedNanos) {
+    static float quantizedFrameSeconds(long elapsedNanos) {
         return (float) (Math.max(elapsedNanos, 0L) / 1_000_000L) / 1000.0f;
     }
 

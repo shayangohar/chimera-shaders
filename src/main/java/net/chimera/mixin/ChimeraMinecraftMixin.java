@@ -30,8 +30,6 @@ public abstract class ChimeraMinecraftMixin {
 
         if (screen != null) {
             ChimeraRenderer.enterScreenMode();
-        } else {
-            ChimeraRenderer.exitScreenMode();
         }
     }
 }

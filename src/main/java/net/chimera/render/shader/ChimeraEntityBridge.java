@@ -582,10 +582,6 @@ public final class ChimeraEntityBridge {
         return enabled && drawActive;
     }
 
-    public static Family activeFamily() {
-        return activeFamily;
-    }
-
     /** The open draw's pack pipeline, or null when no draw is open. */
     public static GraphicsPipeline pipeline() {
         return isDrawActive() ? activePipeline : null;

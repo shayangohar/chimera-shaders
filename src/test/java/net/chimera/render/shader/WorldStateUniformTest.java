@@ -51,7 +51,7 @@ final class WorldStateUniformTest {
                 "a dimension without fixed time reads the day time");
         assertEquals(3, WorldClock.worldDay(72000L),
                 "world day semantics");
-        assertEquals(0.007f, PackFrameState.quantizedFrameSecondsForTest(7_250_000L),
+        assertEquals(0.007f, PackFrameState.quantizedFrameSeconds(7_250_000L),
                 "frame time millisecond quantization");
     }
 

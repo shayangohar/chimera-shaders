@@ -114,16 +114,16 @@ final class FrameUniformCatalogTest {
         assertFrameFloat(state, buffer, "frameTime", 0.0f, "first frame duration");
         assertFrameFloat(state, buffer, "frameTimeCounter", 0.0f, "first frame counter");
 
-        float stalledFrame = PackFrameState.quantizedFrameSecondsForTest(640_750_000L);
+        float stalledFrame = PackFrameState.quantizedFrameSeconds(640_750_000L);
         state.advanceFrameTime(stalledFrame);
         assertFrameFloat(state, buffer, "frameTime", 0.640f, "uncapped stall duration");
         assertFrameFloat(state, buffer, "frameTimeCounter", 0.640f, "uncapped stall counter");
-        float shortFrame = PackFrameState.quantizedFrameSecondsForTest(16_900_000L);
+        float shortFrame = PackFrameState.quantizedFrameSeconds(16_900_000L);
         state.advanceFrameTime(shortFrame);
         assertFrameFloat(state, buffer, "frameTime", 0.016f, "short frame quantization");
         assertFrameFloat(state, buffer, "frameTimeCounter", stalledFrame + shortFrame,
                 "short frame accumulation");
-        state.advanceFrameTime(PackFrameState.quantizedFrameSecondsForTest(-1L));
+        state.advanceFrameTime(PackFrameState.quantizedFrameSeconds(-1L));
         assertFrameFloat(state, buffer, "frameTime", 0.0f, "negative elapsed duration");
         assertFrameFloat(state, buffer, "frameTimeCounter", stalledFrame + shortFrame,
                 "negative elapsed counter hold");

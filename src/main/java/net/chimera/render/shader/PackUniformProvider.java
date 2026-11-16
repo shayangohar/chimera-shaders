@@ -362,7 +362,7 @@ public final class PackUniformProvider {
         long now = System.nanoTime();
         float deltaSeconds = lastFrameNanos == 0L
                 ? 0.0f
-                : PackFrameState.quantizedFrameSecondsForTest(now - lastFrameNanos);
+                : PackFrameState.quantizedFrameSeconds(now - lastFrameNanos);
         lastFrameNanos = now;
         frameState.beginFogFrame();
         frameState.begin(minecraft, camera, partialTick, modelView, projection, deltaSeconds);

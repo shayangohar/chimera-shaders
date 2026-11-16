@@ -29,10 +29,6 @@ public record TargetSpec(
         deviations = deviations == null ? List.of() : deviations.stream().distinct().sorted().toList();
     }
 
-    public float[] clearColorCopy() {
-        return clearColor.clone();
-    }
-
     @Override
     public float[] clearColor() {
         return clearColor.clone();

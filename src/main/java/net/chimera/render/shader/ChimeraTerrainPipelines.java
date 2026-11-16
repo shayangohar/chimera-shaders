@@ -177,16 +177,8 @@ public final class ChimeraTerrainPipelines {
         setTerrainMode(true);
     }
 
+    /** Hands terrain to the host's format and pipeline. */
     public static void disable() {
-        setTerrainMode(false);
-    }
-
-    /** Hands terrain to the host while the host draws the frame (a screen without a level, a level unload). */
-    public static void suspendForScreens() {
-        if (!initialized) {
-            return;
-        }
-
         setTerrainMode(false);
     }
 

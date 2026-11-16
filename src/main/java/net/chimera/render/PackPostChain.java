@@ -587,12 +587,6 @@ final class PackPostChain {
         ChimeraEntityBridge.setEnabled(false);
         ChimeraSkyBridge.setEnabled(false);
         pass.session.packPostChainActive = false;
-        pass.pipelines.compositePipeline = null;
-        pass.pipelines.compositeSlots = null;
-        pass.pipelines.compositeSamplerNames = List.of();
-        pass.pipelines.finalPipeline = null;
-        pass.pipelines.finalSlots = null;
-        pass.pipelines.finalSamplerNames = List.of();
         pass.pipelines.finalPost = null;
         pass.session.packPostChainRejected = true;
         if (pass.conformanceReport != null) {
@@ -906,12 +900,6 @@ final class PackPostChain {
         pass.session.stageFailures.clear();
         pass.pipelines.finalPost = null;
         pass.session.packFinalExecution = null;
-        pass.pipelines.compositePipeline = null;
-        pass.pipelines.compositeSlots = null;
-        pass.pipelines.compositeSamplerNames = List.of();
-        pass.pipelines.finalPipeline = null;
-        pass.pipelines.finalSlots = null;
-        pass.pipelines.finalSamplerNames = List.of();
         LOGGER.warn("[chimera] pack post chain: fallback=IDENTITY (POST_CHAIN_FAILED)");
     }
 }

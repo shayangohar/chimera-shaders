@@ -53,11 +53,6 @@ public final class MrtPipelineContext {
         SCOPE.set(new Scope(contract(formats, blends), SCOPE.get().pipeline()));
     }
 
-    /** A two-attachment contract: the pack target and the coverage target. */
-    public static void beginGeometry(int targetFormat, int coverageFormat, int deviceMaxColorAttachments) {
-        begin(new int[] {targetFormat, coverageFormat}, deviceMaxColorAttachments);
-    }
-
     /**
      * Ends the contract and any pipeline-creation scope with it, so nothing outlives the pass.
      * GraphicsPipelineMrtMixin closes each creation's scope in a finally, so a creation that throws restores

@@ -248,7 +248,6 @@ final class PackPipelineInstaller {
             pipelines.shadowCutoutPipeline = shadow.pipeline();
         } else {
             pipelines.shadowPipeline = shadow.pipeline();
-            pipelines.shadowSlots = shadow.samplerSlots();
         }
         if (report != null) {
             report.markRuntime(name,
@@ -306,14 +305,7 @@ final class PackPipelineInstaller {
             return;
         }
         (PassComputePlan.isShadowcomp(name) ? pipelines.shadowcompStages : pipelines.postStages).add(post);
-        if (name.equals("composite")) {
-            pipelines.compositePipeline = post.pipeline();
-            pipelines.compositeSlots = post.samplerSlots();
-            pipelines.compositeSamplerNames = post.samplerNames();
-        } else if (name.equals("final")) {
-            pipelines.finalPipeline = post.pipeline();
-            pipelines.finalSlots = post.samplerSlots();
-            pipelines.finalSamplerNames = post.samplerNames();
+        if (name.equals("final")) {
             pipelines.finalPost = post;
         }
         if (report != null) {

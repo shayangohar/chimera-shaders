@@ -871,18 +871,6 @@ final class PackSessionLifecycle {
             return pending;
         }
 
-        boolean hasPending() {
-            return pending != null;
-        }
-
-        Path pendingPath() {
-            return pending == null ? null : pending.path();
-        }
-
-        boolean pendingForced() {
-            return pending != null && pending.forceReload();
-        }
-
         void clear() {
             pending = null;
         }

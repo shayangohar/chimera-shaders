@@ -8,12 +8,9 @@ import net.chimera.shaderpack.PackPipelines;
 import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -21,22 +18,15 @@ import java.util.stream.Stream;
  * no pack pipeline and keeps its host draw.
  */
 final class PackPipelineSet {
-    // composite's and final's pipelines, which postStages also holds
-    GraphicsPipeline compositePipeline;
-    GraphicsPipeline finalPipeline;
     PackPipelines.PackTerrain terrainRoute;
     PackPipelines.PackTerrain waterRoute;
-    int[] compositeSlots;
-    int[] finalSlots;
-    List<String> compositeSamplerNames = List.of();
-    List<String> finalSamplerNames = List.of();
 
     /** Built post programs, sorted into pass order at load. */
     final List<PackPipelines.PackPost> postStages = new ArrayList<>();
     /** The shadowcomp passes' programs, over the shadowcolor targets (PackShadowComposites). */
     final List<PackPipelines.PackPost> shadowcompStages = new ArrayList<>();
 
-    /** The final pass, kept apart because it runs before the hand and GUI draw. */
+    /** The final pass, also in postStages, kept apart because it runs before the hand and GUI draw. */
     PackPipelines.PackPost finalPost;
 
     /** gbuffers_terrain for solid and cutout terrain; null keeps Chimera's terrain pipeline. */
@@ -47,7 +37,6 @@ final class PackPipelineSet {
 
     /** The shadow program, on the shadow pass's terrain; null draws the fixed identity shadow. */
     GraphicsPipeline shadowPipeline;
-    int[] shadowSlots;
     /** shadow_water for the shadow pass's translucent terrain (Iris SHADOW_TRANS); null draws it with shadow. */
     GraphicsPipeline shadowWaterPipeline;
     /** shadow_cutout for the shadow pass's cutout terrain layers (Iris SHADOW_CUTOUT); null draws them with shadow. */
@@ -104,16 +93,10 @@ final class PackPipelineSet {
     PackPipelines.PackSky cloud;
     boolean cloudsDrawNothing;
 
-    /** Destroys every installed pipeline, composite's and final's once although two fields hold them. */
+    /** Destroys every installed pipeline. */
     void destroy() {
-        Set<GraphicsPipeline> postPipelines = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (PackPipelines.PackPost post : postStages) {
-            postPipelines.add(post.pipeline());
-        }
-        shadowcompStages.forEach(post -> postPipelines.add(post.pipeline()));
-        if (compositePipeline != null) postPipelines.add(compositePipeline);
-        if (finalPipeline != null) postPipelines.add(finalPipeline);
-        postPipelines.forEach(GraphicsPipeline::cleanUp);
+        postStages.forEach(post -> post.pipeline().cleanUp());
+        shadowcompStages.forEach(post -> post.pipeline().cleanUp());
         Stream.of(terrainPipeline, waterPipeline, shadowPipeline, shadowWaterPipeline, shadowCutoutPipeline)
                 .filter(Objects::nonNull).forEach(GraphicsPipeline::cleanUp);
         terrainRoute = null;
@@ -136,19 +119,12 @@ final class PackPipelineSet {
     void clear() {
         postStages.clear();
         shadowcompStages.clear();
-        compositePipeline = null;
-        compositeSlots = null;
-        compositeSamplerNames = List.of();
-        finalPipeline = null;
-        finalSlots = null;
-        finalSamplerNames = List.of();
         finalPost = null;
         terrainPipeline = null;
         terrainRoute = null;
         waterPipeline = null;
         waterRoute = null;
         shadowPipeline = null;
-        shadowSlots = null;
         shadowWaterPipeline = null;
         shadowCutoutPipeline = null;
         shadowEntities = null;

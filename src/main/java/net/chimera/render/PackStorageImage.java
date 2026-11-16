@@ -79,7 +79,6 @@ final class PackStorageImage extends VulkanImage {
     private final long allocation;
     private final long view;
     private final int ownFormat;
-    private final int viewType;
     private final Map<Integer, Long> views = new HashMap<>();
     private final int depth;
     private long sampler;
@@ -95,7 +94,6 @@ final class PackStorageImage extends VulkanImage {
             int depth,
             int usage,
             long view,
-            int viewType,
             int formatSize,
             long sampler
     ) {
@@ -103,7 +101,6 @@ final class PackStorageImage extends VulkanImage {
         this.allocation = allocation;
         this.view = view;
         this.ownFormat = format;
-        this.viewType = viewType;
         this.depth = depth;
         this.sampler = sampler;
         setCurrentLayout(VK_IMAGE_LAYOUT_UNDEFINED);
@@ -170,7 +167,7 @@ final class PackStorageImage extends VulkanImage {
             }
             PackStorageImage created = new PackStorageImage(imageId,
                     allocation.get(0), format, extent[0], extent[1], extent[2],
-                    usage, imageView, viewType(spec.dimensions()), spec.format().bytes(), sampler.get(0));
+                    usage, imageView, spec.format().bytes(), sampler.get(0));
             try {
                 viewFormats.forEach(view -> created.views.put(view,
                         ImageViews.createStorage(imageId, viewType(spec.dimensions()), view)));
@@ -218,7 +215,7 @@ final class PackStorageImage extends VulkanImage {
             int required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
                     | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
             if ((properties.optimalTilingFeatures() & required) != required) {
-                throw new IllegalArgumentException("advanced image format lacks sampled/storage/transfer support: "
+                throw new IllegalArgumentException("advanced image format lacks sampled/storage support: "
                         + name + " format=" + format);
             }
         }
@@ -261,33 +258,16 @@ final class PackStorageImage extends VulkanImage {
                 lastAccess(VK_IMAGE_LAYOUT_GENERAL));
     }
 
-    void transitionToGeneral(MemoryStack stack, VkCommandBuffer commandBuffer) {
-        transition(stack, commandBuffer, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
-    }
-
     /**
-     * Moves the image to {@code newLayout} with its own barrier: VulkanMod's helper does not accept GENERAL
-     * as a source layout, and storage images sit in GENERAL between graphics and compute work.
+     * Moves the image to GENERAL with its own barrier: VulkanMod's helper does not accept GENERAL as a source
+     * layout, and storage images sit in GENERAL between graphics and compute work.
      */
-    private void transition(
-            MemoryStack stack,
-            VkCommandBuffer commandBuffer,
-            int newLayout,
-            int destinationStage,
-            int destinationAccess
-    ) {
-        if (commandBuffer == null || getCurrentLayout() == newLayout) return;
-        if (newLayout != VK_IMAGE_LAYOUT_GENERAL
-                && newLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                && newLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            throw new IllegalArgumentException("unsupported advanced image destination layout: " + newLayout);
-        }
+    void transitionToGeneral(MemoryStack stack, VkCommandBuffer commandBuffer) {
         int oldLayout = getCurrentLayout();
-        barrier(stack, commandBuffer, oldLayout, newLayout, lastAccess(oldLayout),
-                new Access(destinationStage, destinationAccess));
-        setCurrentLayout(newLayout);
+        if (commandBuffer == null || oldLayout == VK_IMAGE_LAYOUT_GENERAL) return;
+        barrier(stack, commandBuffer, oldLayout, VK_IMAGE_LAYOUT_GENERAL, lastAccess(oldLayout),
+                lastAccess(VK_IMAGE_LAYOUT_GENERAL));
+        setCurrentLayout(VK_IMAGE_LAYOUT_GENERAL);
     }
 
     /** A pipeline stage and the accesses it makes to the image there. */

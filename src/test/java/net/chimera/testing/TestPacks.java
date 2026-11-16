@@ -1,12 +1,15 @@
 package net.chimera.testing;
 
 import java.io.IOException;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * The packs the tests read: fixture packs and baselines checked into {@code testpacks}, and the
@@ -72,6 +75,30 @@ public final class TestPacks {
             if (target == shard) mine.add(pack);
         }
         return mine;
+    }
+
+    /**
+     * A copy of {@code pack} in {@code folder} with no {@code <pack>.txt} beside it, so it loads at the
+     * pack's defaults. A zip is copied as a file; a folder pack is copied whole, following linked
+     * folders as loading it in place would. An older copy is replaced, not merged into.
+     */
+    public static Path copyWithoutOptions(Path pack, Path folder) throws IOException {
+        Path copy = folder.resolve(pack.getFileName().toString());
+        if (Files.exists(copy, LinkOption.NOFOLLOW_LINKS)) {
+            try (Stream<Path> paths = Files.walk(copy)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path);
+            }
+        }
+        Files.createDirectories(folder);
+        if (!Files.isDirectory(pack)) return Files.copy(pack, copy);
+        try (Stream<Path> paths = Files.walk(pack, FileVisitOption.FOLLOW_LINKS)) {
+            for (Path path : paths.toList()) {
+                Path destination = copy.resolve(pack.relativize(path).toString());
+                if (Files.isDirectory(path)) Files.createDirectories(destination);
+                else Files.copy(path, destination);
+            }
+        }
+        return copy;
     }
 
     private static long size(Path pack) {

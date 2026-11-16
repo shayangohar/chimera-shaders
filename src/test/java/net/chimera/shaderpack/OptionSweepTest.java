@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,9 +96,7 @@ final class OptionSweepTest {
             String variant = request.substring(request.indexOf(':') + 1);
             Path source = packs.stream().filter(path -> path.getFileName().toString().toLowerCase().contains(word))
                     .findFirst().orElseThrow();
-            Path pack = Files.copy(source, OUTPUT.resolve("packs").resolve(source.getFileName()),
-                    StandardCopyOption.REPLACE_EXISTING);
-            text.append(explainVariant(pack, variant));
+            text.append(explainVariant(TestPacks.copyWithoutOptions(source, OUTPUT.resolve("packs")), variant));
         }
         Files.writeString(OUTPUT.resolve("explain.md"), text.toString());
     }
@@ -149,8 +146,7 @@ final class OptionSweepTest {
     /** One pack: its defaults, every variant against them, and a determinism check at the end. */
     private static String sweepPack(Path source) throws Exception {
         // A copy without the player's <pack>.txt beside it, so every variant starts from the pack's defaults.
-        Path pack = Files.copy(source, OUTPUT.resolve("packs").resolve(source.getFileName()),
-                StandardCopyOption.REPLACE_EXISTING);
+        Path pack = TestPacks.copyWithoutOptions(source, OUTPUT.resolve("packs"));
         Outcome defaults = evaluate(pack, Map.of());
         List<Variant> variants;
         Set<String> undeclared = new TreeSet<>();

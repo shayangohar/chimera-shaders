@@ -173,7 +173,10 @@ final class PackFrontEndTest {
                 shadowcomp == null ? "no shadowcomp plan" : shadowcomp.deviations().toString());
     }
 
-    /** Iris raw declarations: words name the dimension; Chimera uploads only an unconverted layout. */
+    /**
+     * Iris raw declarations: words name the dimension; Chimera uploads an unconverted layout, or
+     * 32-bit floats halved into a 16-bit float format.
+     */
     @Test
     void rawTextureSpecs() {
         RawTextureSpec scattering = RawTextureSpec.parse(
@@ -190,7 +193,12 @@ final class PackFrontEndTest {
                 "row alignment: " + odd);
         assertTrue(RawTextureSpec.parse("line.dat TEXTURE_1D RGBA8 16 RGBA UNSIGNED_BYTE").dimensions() == 1,
                 "six words are 1D");
-        for (String unsupported : List.of("a.dat TEXTURE_2D RGB16F 4 4 RGB FLOAT",
+        // Pixel Perfect's colour LUT: 32-bit floats in the file, halved into RGB16F on upload.
+        RawTextureSpec lut = RawTextureSpec.parse("/LUTs/lut.dat TEXTURE_3D RGB16F 65 65 65 RGB FLOAT");
+        assertTrue(lut != null && lut.unsupportedReason() == null && lut.halvesFloats()
+                        && lut.requiredBytes() == 3_295_500L, "Pixel Perfect LUT: " + lut);
+        for (String unsupported : List.of("a.dat TEXTURE_2D RGBA8 4 4 RGBA FLOAT",
+                "a.dat TEXTURE_2D RGBA32F 4 4 RGBA HALF_FLOAT",
                 "a.dat TEXTURE_2D RGBA8 4 4 BGRA UNSIGNED_BYTE", "a.dat TEXTURE_2D R32 4 4 RED UNSIGNED_INT",
                 "a.dat TEXTURE_3D R8 4 4 RED UNSIGNED_BYTE")) {
             RawTextureSpec spec = RawTextureSpec.parse(unsupported);

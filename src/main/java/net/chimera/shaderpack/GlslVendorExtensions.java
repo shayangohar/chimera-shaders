@@ -99,10 +99,13 @@ public final class GlslVendorExtensions {
      * GL_AMD_shader_trinary_minmax as min and max without the device extension, 16-bit stage
      * inputs and outputs as their 32-bit types without storageInputOutput16 ({@link #widenInterfaces}),
      * a sampler chosen by ?: moved out of the call it feeds, as GL drivers accept it (OpaqueSelections),
-     * and any() of boolean vectors joined by || taken per vector, as NVIDIA's does (VectorLogicalOperators).
+     * and three forms NVIDIA's takes: any() of boolean vectors joined by || taken per vector
+     * (VectorLogicalOperators), an array's length read without () (ArrayLengthCalls), and a vector
+     * compared with a number (VectorScalarComparisons).
      */
     public static String forVulkan(String source, PackDevice device) {
-        String lenient = VectorLogicalOperators.distribute(OpaqueSelections.hoist(hoistExtensions(source)));
+        String lenient = VectorScalarComparisons.widen(ArrayLengthCalls.complete(
+                VectorLogicalOperators.distribute(OpaqueSelections.hoist(hoistExtensions(source)))));
         String result = forVulkan(lenient, device.sizedTypes(), device.trinaryMinmax());
         return device.features().contains("storageInputOutput16") ? result : widenInterfaces(result);
     }

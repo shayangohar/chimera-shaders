@@ -10,9 +10,10 @@ import java.util.regex.Pattern;
  * as glTexImage reads them: tightly packed except that each row starts on a 4-byte boundary
  * (Iris TextureUploadHelper sets GL_UNPACK_ALIGNMENT 4).
  *
- * <p>Chimera uploads the formats whose pixel type already is the internal storage, so no value
- * is converted; a three-channel format widens to four with alpha 1, as Vulkan rarely samples
- * three-channel images. Anything else stays {@code PACK_RAW_TEXTURE_UNSUPPORTED}.</p>
+ * <p>Chimera uploads the formats whose pixel type already is the internal storage, and 32-bit
+ * floats into a 16-bit float format, which it halves as glTexImage does (Pixel Perfect's colour
+ * LUT, RGB16F from FLOAT). A three-channel format widens to four with alpha 1, as Vulkan rarely
+ * samples three-channel images. Anything else stays {@code PACK_RAW_TEXTURE_UNSUPPORTED}.</p>
  */
 public record RawTextureSpec(
         String file,
@@ -71,8 +72,23 @@ public record RawTextureSpec(
         Storage storage = storage();
         if (storage == null) return "internal format " + internalFormat;
         if (!pixelFormat.equals(storage.pixelFormat())) return "pixel format " + pixelFormat + " for " + internalFormat;
-        if (!pixelType.equals(storage.pixelType())) return "pixel type " + pixelType + " for " + internalFormat;
+        if (!pixelType.equals(storage.pixelType()) && !halvesFloats()) {
+            return "pixel type " + pixelType + " for " + internalFormat;
+        }
         return null;
+    }
+
+    /** Whether the file holds 32-bit floats that the upload halves into this 16-bit float format. */
+    public boolean halvesFloats() {
+        Storage storage = storage();
+        return storage != null && storage.kind() == Kind.FLOAT && storage.bits() == 16 && pixelType.equals("FLOAT");
+    }
+
+    /** Bytes of one channel in the file: the storage's own, or a 32-bit float the upload halves. */
+    public int fileChannelBytes() {
+        Storage storage = storage();
+        if (storage == null) return 0;
+        return halvesFloats() ? Float.BYTES : storage.bits() / 8;
     }
 
     /** The storage this internal format names, or null when Chimera does not serve it. */
@@ -95,7 +111,7 @@ public record RawTextureSpec(
     /** Bytes of one tightly packed row as the file stores it, before GL's 4-byte row alignment. */
     public int rowBytes() {
         Storage storage = storage();
-        return storage == null ? 0 : width * storage.channels() * storage.bits() / 8;
+        return storage == null ? 0 : width * storage.channels() * fileChannelBytes();
     }
 
     /** Bytes from one row's start to the next in the file (GL_UNPACK_ALIGNMENT 4). */

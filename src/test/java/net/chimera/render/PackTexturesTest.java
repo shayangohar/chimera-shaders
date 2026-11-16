@@ -13,6 +13,7 @@ import org.lwjgl.vulkan.VkPhysicalDeviceProperties;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -75,6 +76,22 @@ final class PackTexturesTest {
         RawTextureSpec halves = RawTextureSpec.parse("lut.dat TEXTURE_1D RGB16F 1 RGB HALF_FLOAT");
         assertArrayEquals(new byte[] {1, 2, 3, 4, 5, 6, 0x00, 0x3C},
                 texels(new byte[] {1, 2, 3, 4, 5, 6}, halves), "half-float 1.0 is 0x3C00");
+    }
+
+    /**
+     * Pixel Perfect's colour LUT (RGB16F from FLOAT): each 32-bit float is halved as glTexImage
+     * converts it, rounding to the nearest half, and alpha 1 is added.
+     */
+    @Test
+    void floatsHalveIntoASixteenBitFloatFormat() {
+        RawTextureSpec lut = RawTextureSpec.parse("lut.dat TEXTURE_2D RGB16F 1 2 RGB FLOAT");
+        ByteBuffer file = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
+        file.putFloat(1.0F).putFloat(0.5F).putFloat(-2.0F);
+        // 1 + 3 * 2^-12 is nearer the next half above 1 (1 + 2^-10, 0x3C01) than 1 itself: it rounds up.
+        file.putFloat(0.25F).putFloat(65504.0F).putFloat(1.0F + 0x3p-12F);
+        assertArrayEquals(new byte[] {
+                0x00, 0x3C, 0x00, 0x38, 0x00, (byte) 0xC0, 0x00, 0x3C,
+                0x00, 0x34, (byte) 0xFF, 0x7B, 0x01, 0x3C, 0x00, 0x3C}, texels(file.array(), lut));
     }
 
     /** Photon's lookup tables: the scattering volume widens to RGBA16F; worley noise stays R8. */

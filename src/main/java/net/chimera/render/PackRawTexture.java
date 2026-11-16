@@ -19,6 +19,7 @@ import org.lwjgl.vulkan.VkSamplerCreateInfo;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.LongBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +32,8 @@ import static org.lwjgl.vulkan.VK10.*;
 
 /**
  * A pack raw texture (Iris GlTexture over CustomTextureData.RawData*): a 1D, 2D or 3D image
- * holding the file's pixels unchanged, three channels widened to four with alpha 1. It uploads
+ * holding the file's pixels unchanged except that 32-bit floats are halved for a 16-bit float
+ * format, as glTexImage converts them, and three channels widen to four with alpha 1. It uploads
  * through VulkanMod's image upload commands, as pack PNG textures do, and stays read-only.
  */
 final class PackRawTexture extends VulkanImage implements PackResourceOwner.LoadedTexture {
@@ -111,18 +113,29 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
         }
     }
 
-    /** The file's rows without GL's 4-byte row padding, three channels widened to four. */
+    /**
+     * The file's rows without GL's 4-byte row padding, 32-bit floats halved for a 16-bit float
+     * format (round to nearest even), three channels widened to four.
+     */
     static ByteBuffer texels(byte[] bytes, RawTextureSpec spec, RawTextureSpec.Storage storage) {
-        int channelBytes = storage.bits() / 8;
-        int texelBytes = storage.uploadedChannels() * channelBytes;
-        int sourceTexel = storage.channels() * channelBytes;
+        int texelBytes = storage.uploadedChannels() * storage.bits() / 8;
+        int sourceTexel = storage.channels() * spec.fileChannelBytes();
+        boolean halves = spec.halvesFloats();
+        ByteBuffer floats = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
         byte[] one = storage.one();
         int rows = spec.extentHeight() * spec.extentDepth();
-        ByteBuffer out = MemoryUtil.memAlloc(rows * spec.width() * texelBytes);
+        ByteBuffer out = MemoryUtil.memAlloc(rows * spec.width() * texelBytes).order(ByteOrder.LITTLE_ENDIAN);
         for (int row = 0; row < rows; row++) {
             int source = row * spec.rowStride();
             for (int x = 0; x < spec.width(); x++) {
-                out.put(bytes, source + x * sourceTexel, sourceTexel);
+                int texel = source + x * sourceTexel;
+                if (halves) {
+                    for (int channel = 0; channel < storage.channels(); channel++) {
+                        out.putShort(Float.floatToFloat16(floats.getFloat(texel + channel * Float.BYTES)));
+                    }
+                } else {
+                    out.put(bytes, texel, sourceTexel);
+                }
                 if (storage.channels() == 3) out.put(one);
             }
         }

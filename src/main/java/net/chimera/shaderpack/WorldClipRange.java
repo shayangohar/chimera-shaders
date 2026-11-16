@@ -17,8 +17,11 @@ import java.util.Set;
  * hand and sky stages do: its clip built-ins take the host matrices into GL's range, and its final
  * clip depth comes back once, after the authored entry point. ftransform() keeps the host's depth
  * exactly: 2z - w and its sum with w are exact while 2z lies within a factor of two of w (Sterbenz),
- * which holds for every window depth from 0.25 on. A stage that reads no pack projection keeps the
- * host's matrices and depth ({@link #HOST}).</p>
+ * which holds for every window depth from 0.25 on. A stage that reads a host clip built-in and no
+ * pack projection keeps the host's matrices and depth ({@link #HOST}). A stage that reads neither
+ * builds its clip position itself, in GL's range as under Iris: I Like Vanilla's isometric
+ * projection scales the view position by constants, and with the host's range Vulkan clipped all
+ * it drew within about 192 blocks in front of the camera.</p>
  */
 enum WorldClipRange {
     HOST,
@@ -35,6 +38,9 @@ enum WorldClipRange {
             "dhProjectionInverse", "dhPreviousProjection");
     /** The legacy built-ins that carry the host's clip depth. */
     private static final List<String> CLIP_BUILTINS = List.of("gl_ProjectionMatrix", "gl_ModelViewProjectionMatrix");
+    /** What a stage reads to take the host's clip depth: the clip built-ins and ftransform(). */
+    private static final Set<String> HOST_CLIP_SOURCES = Set.of("ftransform", "gl_ProjectionMatrix",
+            "gl_ModelViewProjectionMatrix");
     /** Name the authored entry point keeps once the conversion claims {@code main}. */
     static final String AUTHORED_ENTRY = "chimeraAuthoredWorldMain";
     /** Takes a host clip position, or a matrix that produces one, into GL's range: z becomes 2z - w. */
@@ -50,7 +56,8 @@ enum WorldClipRange {
 
     /** The range of a stage that reads {@code source}, without comments or unreachable functions. */
     static WorldClipRange of(String source) {
-        return GlslResourceUsage.referencedValueIdentifiers(source, PACK_PROJECTIONS).isEmpty() ? HOST : GL;
+        return GlslResourceUsage.referencedValueIdentifiers(source, PACK_PROJECTIONS).isEmpty()
+                && GlslTokenRewriter.containsIdentifier(source, HOST_CLIP_SOURCES::contains) ? HOST : GL;
     }
 
     /** {@code host}'s built-in replacements, each clip built-in's expression in this range. */

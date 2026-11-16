@@ -285,14 +285,8 @@ final class PackDescriptorContracts {
         return ordinary.withAdvanced(buffers, images);
     }
 
-    static String bindStorageImages(String source, String program,
-            PackAdvancedResourcePlan advancedResources, ProgramBindingLayout layout) {
-        return bindStorageImages(source, program, advancedResources, layout, 0);
-    }
-
-    static String bindStorageImages(String source, String program,
-            PackAdvancedResourcePlan advancedResources, ProgramBindingLayout layout,
-            int sourceStage) {
+    static String bindStorageImages(String source, PackAdvancedResourcePlan advancedResources,
+            ProgramBindingLayout layout, int sourceStage) {
         if (source == null) throw new PackPipelines.PreparationFailure("source-projection", "STAGE_SOURCE_MISSING");
         if (layout == null) throw new PackPipelines.PreparationFailure("descriptor-contract",
                 "DESCRIPTOR_LAYOUT_MISSING");
@@ -433,7 +427,7 @@ final class PackDescriptorContracts {
     ) {
         PackPipelines.validateSelectorLayout(layout);
         for (var sampler : interfacePlan.samplers()) PackPipelines.requireSelector(sampler.slot());
-        String rewritten = bindStorageImages(source, program, advancedResources, layout, sourceStage);
+        String rewritten = bindStorageImages(source, advancedResources, layout, sourceStage);
         Set<String> advancedNames = advancedSamplerNames(advancedResources, program);
         for (UniformRegistry.SamplerBinding sampler : interfacePlan.samplers()) {
             if (advancedNames.contains(sampler.name())) continue;

@@ -73,8 +73,8 @@ public class BytecodeDiff {
         Map<String, String> aFields = new TreeMap<>();
         List<String> classLiterals = new ArrayList<>();
 
-        collect(b, forward, bSwitch, bMethods, bAccess, bFields, null);
-        collect(a, identity, aSwitch, aMethods, aAccess, aFields, null);
+        collect(b, forward, bSwitch, bMethods, bAccess, bFields);
+        collect(a, identity, aSwitch, aMethods, aAccess, aFields);
         // class literals of remapped types in the before tree change getName() and getSimpleName()
         for (ClassNode c : b.values()) {
             for (MethodNode m : c.methods) {
@@ -308,7 +308,7 @@ public class BytecodeDiff {
 
     static void collect(Map<String, ClassNode> classes, Mapper mp, Map<String, Map<Integer, String>> switches,
                         Map<String, List<String>> methods, Map<String, Set<String>> access,
-                        Map<String, String> fields, Void unused) {
+                        Map<String, String> fields) {
         for (ClassNode c : classes.values()) {
             if (isSwitchMapClass(c)) continue;
             boolean foldedDonor = mp.active && classRules.containsKey(c.name)
@@ -466,9 +466,7 @@ public class BytecodeDiff {
     }
 
     static String constant(Object value, Mapper mp) {
-        if (value instanceof Type t) {
-            return t.getSort() == Type.METHOD ? "T:" + mp.desc(t.getDescriptor()) : "T:" + mp.desc(t.getDescriptor());
-        }
+        if (value instanceof Type t) return "T:" + mp.desc(t.getDescriptor());
         if (value instanceof Handle h) return handle(h, mp);
         if (value instanceof String s) return "\"" + s.replace("\n", "\\n") + "\"";
         return value.getClass().getSimpleName() + ":" + value;

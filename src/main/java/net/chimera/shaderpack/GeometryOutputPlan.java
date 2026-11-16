@@ -56,18 +56,12 @@ public record GeometryOutputPlan(
                     .reduce((left, right) -> left + "," + right).orElse("0");
             text = TARGET_COMMENT.matcher(text).replaceAll("");
             text = "/* RENDERTARGETS: " + canonical + " */\n" + text;
-            PostTargetPlan.ParseResult parsed = PostTargetPlan.parse(programName, text, formats);
-            return from(parsed, parsed.deviations());
         }
-        PostTargetPlan.ParseResult parsed = PostTargetPlan.parse(programName, text, formats);
-        return from(parsed, parsed.deviations());
+        return from(PostTargetPlan.parse(programName, text, formats));
     }
 
-    private static GeometryOutputPlan from(
-            PostTargetPlan.ParseResult parsed,
-            List<String> sourceDeviations
-    ) {
-        List<String> deviations = sourceDeviations.stream()
+    private static GeometryOutputPlan from(PostTargetPlan.ParseResult parsed) {
+        List<String> deviations = parsed.deviations().stream()
                 .map(value -> value.startsWith("FINAL_")
                         ? value : value.replaceFirst("^POST_", "GEOMETRY_"))
                 .distinct().sorted().toList();

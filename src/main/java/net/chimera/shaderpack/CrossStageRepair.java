@@ -183,10 +183,10 @@ final class CrossStageRepair {
         }
 
         /** An output for an input the earlier stage does not declare, zero until that stage writes it. */
-        void declare(GlslTree fragmentTree, Variable input) {
-            GlslTree.Qualifier storage = storage(fragmentTree, input.declaration(), Set.of("in", "varying"));
+        void declare(GlslTree laterTree, Variable input) {
+            GlslTree.Qualifier storage = storage(laterTree, input.declaration(), Set.of("in", "varying"));
             for (GlslTree.Qualifier qualifier : input.declaration().qualifiers()) {
-                declarations.append(qualifier == storage ? outputStorage : fragmentTree.text(qualifier.range()))
+                declarations.append(qualifier == storage ? outputStorage : laterTree.text(qualifier.range()))
                         .append(' ');
             }
             declarations.append(input.type()).append(' ').append(input.name()).append(";\n");

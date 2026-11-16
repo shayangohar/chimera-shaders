@@ -138,11 +138,6 @@ public final class PackSource {
             prepare(known.macros(), known.locked());
         }
 
-        /** Prepares the sources with these macros and no locked names. */
-        public void prepare(Map<String, String> initialMacros) {
-            prepare(initialMacros, Set.of());
-        }
-
         /**
          * Prepares the sources with these macros; locked names keep their values as {@code #define} lines.
          *

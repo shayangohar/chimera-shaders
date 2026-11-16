@@ -309,8 +309,7 @@ final class PackFrameState {
         return component == 0 ? x : component == 1 ? y : z;
     }
 
-    private static void writeDefault(UniformRegistry.DefaultPolicy policy,
-                                     String type, MappedBuffer target) {
+    private static void writeDefault(String type, MappedBuffer target) {
         if (type.equals("mat4")) {
             for (int i = 0; i < 16; i++) {
                 target.putFloat(i * 4, i % 5 == 0 ? 1.0f : 0.0f);
@@ -323,14 +322,8 @@ final class PackFrameState {
             }
             return;
         }
-        float value = switch (policy) {
-            case ONE -> 1.0f;
-            case CLOUD_HEIGHT -> 192.0f;
-            case NEAR_CLIP -> 0.05f;
-            default -> 0.0f;
-        };
         for (int i = 0; i < UniformRegistry.pipelineCount(type); i++) {
-            target.putFloat(i * 4, value);
+            target.putFloat(i * 4, 0.0f);
         }
     }
 
@@ -477,7 +470,7 @@ final class PackFrameState {
         }
         FrameValue value = values.get(name);
         if (value == null) {
-            writeDefault(descriptor.defaultPolicy(), type, target);
+            writeDefault(type, target);
             return;
         }
         int count = Math.min(value.width(), UniformRegistry.pipelineCount(type));

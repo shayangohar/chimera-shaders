@@ -431,8 +431,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan targetPlan = PostTargetPlan.parse("final", simple130).plan();
-        UniformRegistry.ProgramInterface interfacePlan = InterfacePlanner.planPreparedPost(
-                simple130, targetPlan);
+        UniformRegistry.ProgramInterface interfacePlan = InterfacePlanner.planPreparedPost(simple130);
         String converted = FragmentConverter.convertPostFragment(
                 simple130, null, interfacePlan, targetPlan);
         assertTrue(converted != null, "GLSL 130 post conversion failed");
@@ -477,7 +476,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan target = PostTargetPlan.parse("final", simple130).plan();
-        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(simple130, target);
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(simple130);
         String converted = FragmentConverter.convertPostFragment(
                 simple130, shaders.resolve("final.fsh"), plan, target);
         assertTrue(converted != null, "metadata and constant conversion failed");
@@ -502,8 +501,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan unsupportedTarget = PostTargetPlan.parse("final", unsupported).plan();
-        UniformRegistry.ProgramInterface unsupportedPlan = InterfacePlanner.planPreparedPost(
-                unsupported, unsupportedTarget);
+        UniformRegistry.ProgramInterface unsupportedPlan = InterfacePlanner.planPreparedPost(unsupported);
         assertTrue(FragmentConverter.convertPostFragment(
                         unsupported, shaders.resolve("final.fsh"), unsupportedPlan, unsupportedTarget) == null,
                 "unsupported fullscreen varying was converted");

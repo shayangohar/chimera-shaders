@@ -31,7 +31,7 @@ final class TokenTranslationTest {
                 + "    gl_FragColor = vec4(gbufferProjectionInverse[0].x + timeAngle); }\n";
         PostTargetPlan target = PostTargetPlan.parse("local", source).plan();
         UniformRegistry.ProgramInterface plan =
-                InterfacePlanner.planPreparedPost(source, target);
+                InterfacePlanner.planPreparedPost(source);
         assertTrue(!plan.deviations().contains("UNIFORM_IMPLICIT_DECLARATION:timeAngle"),
                 "local timeAngle was misidentified as a catalog uniform");
         assertTrue(plan.executableUniforms().stream()
@@ -60,7 +60,7 @@ final class TokenTranslationTest {
                 }
                 """;
         PostTargetPlan target = PostTargetPlan.parse("composite", source).plan();
-        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source, target);
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source);
         String converted = FragmentConverter.convertPostFragment(
                 source, null, plan, target);
         assertTrue(converted != null, "legacy post source did not convert: " + plan.deviations());
@@ -82,7 +82,7 @@ final class TokenTranslationTest {
                 + "vec3(shadow2D(shadowtex0, vec3(0.0)).x)); }\n";
         PostTargetPlan nestedTarget = PostTargetPlan.parse("nested", nestedShadowSource).plan();
         UniformRegistry.ProgramInterface nestedPlan =
-                InterfacePlanner.planPreparedPost(nestedShadowSource, nestedTarget);
+                InterfacePlanner.planPreparedPost(nestedShadowSource);
         String nested = FragmentConverter.convertPostFragment(
                 nestedShadowSource, null, nestedPlan, nestedTarget);
         assertTrue(nested != null && !nested.contains("shadow2D"),
@@ -93,7 +93,7 @@ final class TokenTranslationTest {
         PostTargetPlan implicitTarget =
                 PostTargetPlan.parse("implicit", implicitUniformSource).plan();
         UniformRegistry.ProgramInterface implicitPlan =
-                InterfacePlanner.planPreparedPost(implicitUniformSource, implicitTarget);
+                InterfacePlanner.planPreparedPost(implicitUniformSource);
         assertTrue(implicitPlan.executableUniforms().stream()
                         .anyMatch(value -> value.name().equals("gbufferProjectionInverse")),
                 "implicit catalog matrix was incorrectly marked unused");
@@ -109,7 +109,7 @@ final class TokenTranslationTest {
                 + "void main() { gl_FragColor = shadow2D(shadowtex0, vec3(0.0)); }\n";
         PostTargetPlan comparisonTarget = PostTargetPlan.parse("comparison", comparisonSource).plan();
         UniformRegistry.ProgramInterface comparisonPlan =
-                InterfacePlanner.planPreparedPost(comparisonSource, comparisonTarget);
+                InterfacePlanner.planPreparedPost(comparisonSource);
         String comparison = FragmentConverter.convertPostFragment(
                 comparisonSource, null, comparisonPlan, comparisonTarget);
         assertTrue(comparison != null && comparison.contains("vec4(texture(shadowtex0"),
@@ -122,7 +122,7 @@ final class TokenTranslationTest {
                 + "uniform sampler2D shadowtex0;\n"
                 + "void main() { gl_FragColor = shadow2DProj(shadowtex0, vec4(0.0)); }\n";
         PostTargetPlan target = PostTargetPlan.parse("composite", source).plan();
-        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source, target);
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source);
         assertTrue(FragmentConverter.convertPostFragment(source, null, plan, target) == null,
                 "projected shadow lookup did not fail closed");
     }
@@ -135,7 +135,7 @@ final class TokenTranslationTest {
                 + "varying vec2 texCoord, unusedUv;\n"
                 + "void main() { gl_FragData[0] = texture2D(colortex0, texCoord); }\n";
         PostTargetPlan target = PostTargetPlan.parse("composite", source).plan();
-        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source, target);
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(source);
         String converted = FragmentConverter.convertPostFragment(source, null, plan, target);
         assertTrue(converted != null, "multi-declaration post source did not convert: " + plan.deviations());
         assertTrue(converted.indexOf("layout(location = 0) out") < converted.indexOf("void main"),

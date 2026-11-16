@@ -112,25 +112,12 @@ public final class UniformRegistry {
         REJECTED
     }
 
-    /** The value written for a uniform that has no live value. */
-    public enum DefaultPolicy {
-        ZERO,
-        ONE,
-        IDENTITY_MATRIX,
-        CLOUD_HEIGHT,
-        NEAR_CLIP,
-        FAR_CLIP,
-        SMOOTH_WETNESS,
-        SMOOTH_EYE_BRIGHTNESS
-    }
-
     /** Catalog entry shared by probing and runtime buffer creation. */
     public record UniformDescriptor(
             String name,
             List<String> acceptedTypes,
             Availability availability,
-            String sourceKey,
-            DefaultPolicy defaultPolicy
+            String sourceKey
     ) {
         public UniformDescriptor {
             if (name == null || name.isBlank()) {
@@ -143,7 +130,6 @@ public final class UniformRegistry {
             acceptedTypes = acceptedTypes.stream().distinct().sorted().toList();
             availability = availability == null ? Availability.LIVE : availability;
             sourceKey = sourceKey == null || sourceKey.isBlank() ? name : sourceKey;
-            defaultPolicy = defaultPolicy == null ? DefaultPolicy.ZERO : defaultPolicy;
         }
 
         /** Bool and int accept each other: Iris sets a bool as an int (ProgramUniforms expects INT for GL_BOOL). */
@@ -497,8 +483,7 @@ public final class UniformRegistry {
         if (name == null || irisServes(name) || !SUPPORTED_TYPES.contains(glslType)) {
             return null;
         }
-        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "unset:" + name,
-                DefaultPolicy.ZERO);
+        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "unset:" + name);
     }
 
     /**
@@ -508,8 +493,7 @@ public final class UniformRegistry {
      */
     static UniformDescriptor disabledDescriptor(String name, String glslType) {
         if (name == null || !SUPPORTED_TYPES.contains(glslType)) return null;
-        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "disabled:" + name,
-                DefaultPolicy.ZERO);
+        return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "disabled:" + name);
     }
 
     /**
@@ -888,18 +872,10 @@ public final class UniformRegistry {
 
     private static void addLive(Map<String, UniformDescriptor> specs, String name,
                                 List<String> types, String sourceKey) {
-        specs.put(name, new UniformDescriptor(name, types, Availability.LIVE,
-                sourceKey, DefaultPolicy.ZERO));
+        specs.put(name, new UniformDescriptor(name, types, Availability.LIVE, sourceKey));
     }
 
     private static void addDefault(Map<String, UniformDescriptor> specs, String name, String type) {
-        addDefault(specs, name, type, DefaultPolicy.ZERO);
-    }
-
-    private static void addDefault(Map<String, UniformDescriptor> specs, String name,
-                                   String type, DefaultPolicy policy) {
-        specs.put(name,
-                new UniformDescriptor(name, List.of(type), Availability.DEFAULTED,
-                name, policy));
+        specs.put(name, new UniformDescriptor(name, List.of(type), Availability.DEFAULTED, name));
     }
 }

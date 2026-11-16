@@ -174,7 +174,7 @@ final class AdvancedImagePlanTest {
         PackAdvancedResourcePlan advanced = plan.advancedResources();
         assertTrue(plan.shouldAttempt("composite"), advanced.deviations().toString());
         String bound = PackDescriptorContracts.bindStorageImages(plan.program("composite").convertedFragment(),
-                "composite", advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
+                advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
         assertTrue(bound.matches("(?s).*layout\\(rgba16f, binding = \\d+\\) uniform image2D screen;.*")
                 && bound.matches("(?s).*layout\\(binding = \\d+\\) uniform sampler2D screenSampler;.*"), bound);
     }
@@ -272,7 +272,7 @@ final class AdvancedImagePlanTest {
         PackProgramPlan composite = plan.program("composite");
         String prepared = composite.stages().get("fragment").source();
         assertTrue(prepared.contains("in vec2 uv;\n\nvoid main()"), prepared);
-        String fragment = PackDescriptorContracts.bindStorageImages(composite.convertedFragment(), "composite",
+        String fragment = PackDescriptorContracts.bindStorageImages(composite.convertedFragment(),
                 advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
         assertTrue(!fragment.contains("image3D light") && !fragment.contains("image3D spare")
                 && !fragment.contains("neverCalled"), fragment);
@@ -310,7 +310,7 @@ final class AdvancedImagePlanTest {
         PackAdvancedResourcePlan advanced = plan.advancedResources();
         assertTrue(plan.shouldAttempt("composite"), advanced.deviations().toString());
         String declaredOnly = PackDescriptorContracts.bindStorageImages(plan.program("composite").convertedFragment(),
-                "composite", advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
+                advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
         assertTrue(!declaredOnly.contains("image2D screen"), declaredOnly);
         assertTrue(!plan.shouldAttempt("composite1")
                 && advanced.deviations().contains("ADVANCED_IMAGE_UNSERVED:composite1:screen"),
@@ -416,7 +416,7 @@ final class AdvancedImagePlanTest {
                         && advanced.viewFormats("csr").equals(Set.of(IrisColorFormats.of("R32I").vkFormat())),
                 advanced.deviations().toString());
         String bound = PackDescriptorContracts.bindStorageImages(plan.program("composite").convertedFragment(),
-                "composite", advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
+                advanced, advanced.bindingLayout("composite"), VK_SHADER_STAGE_FRAGMENT_BIT);
         assertTrue(bound.matches("(?s).*layout\\(r32i, binding = \\d+\\) uniform iimage2D csr;.*"), bound);
         assertEquals(IrisColorFormats.of("R32I").vkFormat(), advanced.bindingLayout("composite").storageImages()
                 .get(0).viewVkFormat());

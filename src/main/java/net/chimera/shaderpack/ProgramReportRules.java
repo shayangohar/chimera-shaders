@@ -91,7 +91,7 @@ final class ProgramReportRules {
         }
         deviations.addAll(relevantTargetDeviations(packConfig, targetResult));
         UniformRegistry.ProgramInterface interfacePlan =
-                interfacePlan(name, fragment, programPlan, targetResult, relaxed, postName);
+                interfacePlan(name, fragment, programPlan, relaxed, postName);
         if (programPlan != null) {
             deviations.addAll(programPlan.deviations());
         }
@@ -300,7 +300,6 @@ final class ProgramReportRules {
             String name,
             String fragment,
             PackProgramPlan programPlan,
-            PostTargetPlan.ParseResult targetResult,
             boolean relaxed,
             boolean postName
     ) {
@@ -309,8 +308,7 @@ final class ProgramReportRules {
             return programPlan.interfacePlan().effective(stage);
         }
         if (postName) {
-            return relaxed ? InterfacePlanner.planPreparedPost(fragment, targetResult.plan())
-                    : InterfacePlanner.planPost(fragment, targetResult.plan());
+            return relaxed ? InterfacePlanner.planPreparedPost(fragment) : InterfacePlanner.planPost(fragment);
         }
         return relaxed ? InterfacePlanner.planPrepared(fragment, stage) : InterfacePlanner.plan(fragment, stage);
     }

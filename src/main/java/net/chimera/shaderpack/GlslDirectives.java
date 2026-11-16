@@ -42,14 +42,6 @@ final class GlslDirectives {
         return lines;
     }
 
-    /** The first {@code #version} line, or null without one. */
-    static Line version(String source) {
-        for (Line line : lines(source)) {
-            if (line.is("version")) return line;
-        }
-        return null;
-    }
-
     private static boolean startsLine(String text, int hash) {
         int index = hash;
         while (index > 0 && (text.charAt(index - 1) == ' ' || text.charAt(index - 1) == '\t')) index--;

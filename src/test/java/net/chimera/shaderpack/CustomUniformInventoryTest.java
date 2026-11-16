@@ -127,8 +127,7 @@ final class CustomUniformInventoryTest {
             }
             served++;
             System.out.println("[chimera] inventory " + label + " served=" + entry.getKey()
-                    + " consumer=" + consumers.getOrDefault(entry.getKey(), "unused")
-                    + " defaultPolicy=" + entry.getValue().defaultPolicy());
+                    + " consumer=" + consumers.getOrDefault(entry.getKey(), "unused"));
         }
         System.out.println("[chimera] inventory " + label + " served=" + served
                 + " refused=" + settings.rejected().size());

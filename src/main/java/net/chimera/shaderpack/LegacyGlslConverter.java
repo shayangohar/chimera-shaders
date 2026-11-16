@@ -360,7 +360,7 @@ public final class LegacyGlslConverter {
                     : PostVertexBridge.convertPostVaryings(src, postVaryingLayout);
         }
         if (ENTITY_VARYING_STAGES.contains(stage)) {
-            return EntityVertexBridge.replaceEntityVaryings(expandModernVaryingLists(src), terrainLayout, "in", false);
+            return EntityVertexBridge.replaceEntityVaryings(src, terrainLayout, "in", false);
         }
         if (src.contains("#version 460")) {
             return convertModernGeometryVaryings(src, terrainLayout);

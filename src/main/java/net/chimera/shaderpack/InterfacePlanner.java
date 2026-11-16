@@ -102,10 +102,7 @@ public final class InterfacePlanner {
     }
 
     /** Plans a post program whose colortex samplers read the post target images, not the seam aliases. */
-    public static ProgramInterface planPost(String source, PostTargetPlan targetPlan) {
-        if (targetPlan == null) {
-            throw new IllegalArgumentException("post target plan is required");
-        }
+    public static ProgramInterface planPost(String source) {
         return planInternal(source, Stage.POST, true, false);
     }
 
@@ -115,10 +112,7 @@ public final class InterfacePlanner {
     }
 
     /** Plans a prepared post source, as {@link #planPost} plans an unprepared one. */
-    public static ProgramInterface planPreparedPost(String source, PostTargetPlan targetPlan) {
-        if (targetPlan == null) {
-            throw new IllegalArgumentException("post target plan is required");
-        }
+    public static ProgramInterface planPreparedPost(String source) {
         return planInternal(source, Stage.POST, true, true);
     }
 

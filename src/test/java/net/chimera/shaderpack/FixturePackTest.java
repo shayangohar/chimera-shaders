@@ -439,7 +439,7 @@ final class FixturePackTest {
         assertTrue(compositePlan.requiresMrt(), "composite must require MRT");
         String converted = FragmentConverter.convertPostFragment(
                 composite, pack.resolve("shaders/composite.fsh"),
-                InterfacePlanner.planPost(composite, compositePlan), compositePlan);
+                InterfacePlanner.planPost(composite), compositePlan);
         assertTrue(converted != null, "multi-target conversion failed");
         assertTrue(converted.contains("layout(location = 0) out vec4 chimeraFragColor0"),
                 "output location 0 is missing");

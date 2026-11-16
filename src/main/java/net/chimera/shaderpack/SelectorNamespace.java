@@ -56,7 +56,8 @@ public final class SelectorNamespace {
     public static final List<Integer> PACK_SELECTOR_SLOTS = packSelectorSlots();
 
     private static List<Integer> packSelectorSlots() {
-        List<Integer> slots = new ArrayList<>(List.of(8, 9, 10, 11, 16, 17, 18, 19, 20, 21));
+        List<Integer> slots = new ArrayList<>(List.of(8, 9, 10, 11));
+        for (int slot = PACK_SLOT_FIRST; slot <= PACK_SLOT_LAST; slot++) slots.add(slot);
         for (int slot = PACK_EXTENDED_FIRST; slot < DH_DEPTH_SLOT; slot++) slots.add(slot);
         return List.copyOf(slots);
     }

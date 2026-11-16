@@ -1,5 +1,6 @@
 package net.chimera.shaderpack;
 
+import net.chimera.shaderpack.options.PendingOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.objectweb.asm.Opcodes;
@@ -296,6 +297,46 @@ final class PackDirectivesTest {
             assertTrue(!screenOverlay(malformed, key)
                             && malformed.deviations().contains("SCREEN_OVERLAY_DIRECTIVE_MALFORMED:" + key),
                     "an unexpected " + key + " keeps Iris's default and is reported: " + malformed);
+        }
+    }
+
+    /**
+     * Iris's frustum.culling defaults to on. BSL turns it off under World Curvature, from an
+     * #ifdef in shaders.properties, so the option's value decides it.
+     */
+    @Test
+    void frustumCullingFollowsTheDirective(@TempDir Path root) throws IOException {
+        assertEquals(CullingDirectives.DEFAULTS, CullingDirectives.fromProperties(Map.of()), "on unless a pack says");
+        assertTrue(!CullingDirectives.fromProperties(Map.of("frustum.culling", "false")).frustumCulling());
+        CullingDirectives malformed = CullingDirectives.fromProperties(Map.of("frustum.culling", "off"));
+        assertTrue(malformed.frustumCulling()
+                        && malformed.deviations().contains("CULLING_DIRECTIVE_MALFORMED:frustum.culling"),
+                "an unexpected value keeps Iris's default and is reported: " + malformed);
+        for (String define : List.of("//#define WORLD_CURVATURE", "#define WORLD_CURVATURE")) {
+            Path shaders = Files.createDirectories(root.resolve(define.startsWith("//") ? "off" : "on")
+                    .resolve("shaders"));
+            Files.writeString(shaders.resolve("shaders.properties"),
+                    "#ifdef WORLD_CURVATURE\nfrustum.culling=false\n#endif\n");
+            Files.writeString(shaders.resolve("final.fsh"), "#version 120\n" + define + """
+
+                    uniform sampler2D colortex0;
+                    void main() {
+                    #ifdef WORLD_CURVATURE
+                        gl_FragColor = vec4(1.0);
+                    #else
+                        gl_FragColor = texture2D(colortex0, vec2(0.5));
+                    #endif
+                    }
+                    """);
+            PackPlan plan = PackProbe.analyze(shaders.getParent()).plan();
+            assertEquals(define.startsWith("//"), plan.cullingDirectives().frustumCulling(), define);
+        }
+        // BSL's case: World Curvature is off in the source, and the player turns it on.
+        Path off = root.resolve("off");
+        try (PackSource.LoadResult loaded = PackSource.loadResult(off, "minecraft:overworld",
+                new PendingOptions.Drained(Map.of("WORLD_CURVATURE", "true"), false))) {
+            assertTrue(!PackProbe.analyze(off, loaded).plan().cullingDirectives().frustumCulling(),
+                    "the player's option reaches shaders.properties");
         }
     }
 

@@ -27,6 +27,10 @@ public interface ChimeraLevelRendererAccessor {
     @Accessor("cullingFrustum")
     Frustum chimera$cullingFrustum();
 
+    /** GameRenderer prepares a new one before each renderLevel, so a frustum set here lasts one frame. */
+    @Accessor("cullingFrustum")
+    void chimera$setCullingFrustum(Frustum frustum);
+
     /** Guard reads with the set's own monitor, as LevelRenderer does. */
     @Accessor("globalBlockEntities")
     Set<BlockEntity> chimera$globalBlockEntities();

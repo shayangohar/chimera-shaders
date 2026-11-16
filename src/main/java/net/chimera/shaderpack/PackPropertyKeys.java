@@ -29,13 +29,13 @@ final class PackPropertyKeys {
             "shadowTranslucent", "shadowEntities", "shadowPlayer", "shadowBlockEntities",
             "shadowLightBlockEntities", "underwaterOverlay", "vignette", "sun", "moon", "stars", "sky",
             "supportsColorCorrection", "voxelizeLightBlocks", "separateEntityDraws", "rain.depth", "screen",
-            "sliders");
+            "sliders", "frustum.culling");
 
     /** ShaderProperties keys Iris 1.21.1 reads that Chimera does not apply. */
     private static final Set<String> IRIS_ONLY_NAMES = Set.of(
             "dhClouds", "dynamicHandLight", "backFace.solid", "backFace.cutout", "backFace.cutoutMipped",
             "backFace.translucent", "allowConcurrentCompute", "beacon.beam.depth",
-            "frustum.culling", "occlusion.culling", "skipAllRendering", "dhShadow.enabled",
+            "occlusion.culling", "skipAllRendering", "dhShadow.enabled",
             "prepareBeforeShadow", "fallbackTex", "weather");
     private static final List<String> IRIS_ONLY_PREFIXES = List.of("scale.");
 

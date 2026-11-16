@@ -24,7 +24,8 @@ final class PropertyKeyReportTest {
         for (String applied : List.of("clouds", "blend.composite", "screen.MAIN", "screen", "sliders",
                 "profile.HIGH", "vignette", "shadowTranslucent", "particles.ordering", "image.voxels",
                 "size.buffer.colortex1", "uniform.float.x", "shadow.culling", "shadow.enabled",
-                "separateEntityDraws", "voxelizeLightBlocks", "rain.depth", "supportsColorCorrection")) {
+                "separateEntityDraws", "voxelizeLightBlocks", "rain.depth", "supportsColorCorrection",
+                "frustum.culling")) {
             assertNull(PackPropertyKeys.unread(applied), applied);
         }
         // Source const names: Iris reads them only as const directives, so neither reader takes them here.

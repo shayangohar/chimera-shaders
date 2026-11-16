@@ -219,6 +219,11 @@ public record PackPlan(
         return ScreenOverlayDirectives.fromProperties(settings.propertyValues());
     }
 
+    /** Whether the camera culls what lies outside its view frustum (Iris frustum.culling, default on). */
+    public CullingDirectives cullingDirectives() {
+        return CullingDirectives.fromProperties(settings.propertyValues());
+    }
+
     /** Where particles draw against the deferred passes (Iris particles.ordering and its older keys). */
     public ParticleDirectives particleDirectives() {
         return settings.particleDirectives();

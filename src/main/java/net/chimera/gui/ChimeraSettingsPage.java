@@ -28,20 +28,21 @@ import java.util.OptionalInt;
  * this needs no mixin.
  *
  * <p>Reforged shows a page's name as literal text, so it arrives translated, styled with a legacy
- * formatting code in the brand gold (the icon's amber). The blocks are untitled, as VulkanMod's own
- * are. Values stay unstyled: VulkanMod greys a locked option's value itself.</p>
+ * formatting code in the brand red, the nearest of the sixteen legacy colours to the logo's crimson.
+ * The blocks are untitled, as VulkanMod's own are. Values stay unstyled: VulkanMod greys a locked
+ * option's value itself.</p>
  */
 public final class ChimeraSettingsPage {
     private static final ResourceLocation ICON =
             ResourceLocation.fromNamespaceAndPath(ChimeraMod.MOD_ID, "textures/gui/settings_icon.png");
     /** The brand colour as a legacy code, for the page name Reforged takes as text. */
-    private static final String BRAND = "§6";
+    private static final String BRAND = "§c";
 
     private ChimeraSettingsPage() {}
 
     /** Adds Chimera's entry to VulkanMod's options screen. */
     public static void register() {
-        Component name = Component.literal("Chimera").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+        Component name = Component.literal("Chimera").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
         ModSettingsRegistry.INSTANCE.addModEntry(new ModSettingsEntry(name, () -> ICON,
                 ChimeraSettingsPage::pages, () -> {}));
     }

@@ -8,6 +8,8 @@ version = "${version}"
 displayName = "Chimera"
 description = "Shaderpack pipeline for VulkanMod - Iris-class shaders on Vulkan."
 authors = "shayangohar"
+# Shown in NeoForge's mods list. The lettering is light, for that screen's dark panel.
+logoFile = "chimera_logo.png"
 
 [[mixins]]
 config = "chimera.mixins.json"

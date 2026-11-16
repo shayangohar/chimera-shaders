@@ -131,6 +131,35 @@ final class PackSourceEdgesTest {
     }
 
     /**
+     * Iris sets no limit on how many files a program includes. Complementary Unbound with Euphoria
+     * Patches includes more than 256 in gbuffers_entities_translucent, which then fell back to
+     * vanilla. Includes that fan out into thousands of empty files still stop, since the line and
+     * character budgets never see them.
+     */
+    @Test
+    void aProgramMayIncludeHundredsOfFilesButNotARunawayFanOut(@TempDir Path root) throws IOException {
+        Files.createDirectories(root.resolve("lib"));
+        Files.writeString(root.resolve("lib/part.glsl"), "float part = 1.0;\n");
+        List<String> lines = new ArrayList<>(List.of("#version 120"));
+        for (int index = 0; index < 600; index++) lines.add("#include \"/lib/part.glsl\"");
+        lines.add("void main() {}");
+        ShaderSourcePreprocessor.Result many = ShaderSourcePreprocessor.prepare(root, root.resolve("main.fsh"),
+                String.join("\n", lines), Map.of());
+        assertTrue(many.successful(), String.valueOf(many.deviations()));
+
+        Files.writeString(root.resolve("lib/fan0.glsl"), "");
+        for (int level = 1; level <= 12; level++) {
+            String below = "#include \"/lib/fan" + (level - 1) + ".glsl\"\n";
+            Files.writeString(root.resolve("lib/fan" + level + ".glsl"), below + below);
+        }
+        ShaderSourcePreprocessor.Result fanOut = ShaderSourcePreprocessor.prepare(root, root.resolve("main.fsh"),
+                "#version 120\n#include \"/lib/fan12.glsl\"\nvoid main() {}", Map.of());
+        assertFalse(fanOut.successful());
+        assertTrue(fanOut.deviations().contains("SOURCE_EXPANSION_BUDGET_EXCEEDED"),
+                String.valueOf(fanOut.deviations()));
+    }
+
+    /**
      * Iris's JCPP lexes a quote as a string or character literal, in a skipped branch too, so a
      * comment mark after one is text: the apostrophe in {@code don't} keeps the {@code /*} from
      * hiding the #endif, and a #define with a quoted comment mark takes no lines. JCPP gives these

@@ -20,12 +20,17 @@ final class ArrayLengthCalls {
     /** {@code source} with each {@code array.length} not followed by a call written {@code array.length()}. */
     static String complete(String source) {
         if (source == null || !BARE_LENGTH.matcher(source).find()) return source;
-        GlslTree tree;
         try {
-            tree = GlslTree.parse(source);
-        } catch (GlslParser.ParseFailure failure) {
+            return completeAll(GlslTree.parse(source));
+        } catch (RuntimeException unreadable) {
+            // A source the parser cannot follow goes to the compiler as written.
             return source;
         }
+    }
+
+    /** The tree's source with each array's bare length written as a call. */
+    private static String completeAll(GlslTree tree) {
+        String source = tree.source();
         List<GlslLexer.Token> tokens = tree.tokens();
         List<GlslTree.Edit> edits = new ArrayList<>();
         for (int index = 0; index < tokens.size(); index++) {

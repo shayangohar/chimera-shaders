@@ -73,4 +73,11 @@ final class ArrayLengthCallsTest {
                 """;
         assertEquals(source, ArrayLengthCalls.complete(source));
     }
+
+    /** A source the lexer or parser cannot follow (an unclosed comment) goes to the compiler as written. */
+    @Test
+    void anUnreadableSourceStays() {
+        String source = "const float a[2] = float[2](0.0, 1.0);\nint n = a.length; /* unclosed";
+        assertEquals(source, ArrayLengthCalls.complete(source));
+    }
 }

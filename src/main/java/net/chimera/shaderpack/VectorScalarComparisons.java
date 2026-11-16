@@ -25,11 +25,12 @@ final class VectorScalarComparisons {
     private static final Pattern UINT_LITERAL = Pattern.compile("(?:0[xX][0-9a-fA-F]+|\\d+)[uU]?");
     /**
      * The tokens that can stand before a comparison's left operand, or after its right one, without
-     * joining it: == and != bind looser than arithmetic and relations, tighter than these. GlslLexer
-     * reads ^^ as two ^ tokens, which bind tighter, so a comparison beside ^^ stays as written.
+     * joining it: == and != bind looser than arithmetic, shifts and relations, tighter than these
+     * operators. GlslLexer reads ^^ as two ^ tokens, and &=, |= and ^= each as the operator and =.
      */
-    private static final Set<String> BEFORE = Set.of("(", ",", "=", "?", ":", "&&", "||", ";", "{", "}", "return");
-    private static final Set<String> AFTER = Set.of(")", ",", ";", "?", ":", "&&", "||");
+    private static final Set<String> BEFORE = Set.of("(", ",", "=", "?", ":", "&", "^", "|", "&&", "||", ";", "{",
+            "}", "return");
+    private static final Set<String> AFTER = Set.of(")", ",", ";", "?", ":", "&", "^", "|", "&&", "||");
 
     /** One side of a comparison: its first and last tokens, and its vector type when it is a vector. */
     private record Operand(int first, int last, String vector) {}
@@ -37,12 +38,17 @@ final class VectorScalarComparisons {
     /** {@code source} with each number compared to a vector written as that vector. */
     static String widen(String source) {
         if (source == null || !source.contains("==") && !source.contains("!=")) return source;
-        GlslTree tree;
         try {
-            tree = GlslTree.parse(source);
-        } catch (GlslParser.ParseFailure failure) {
+            return widenAll(GlslTree.parse(source));
+        } catch (RuntimeException unreadable) {
+            // Every stage passes here: one the parser cannot follow goes to the compiler as written.
             return source;
         }
+    }
+
+    /** The tree's source with each number compared to a vector written as that vector. */
+    private static String widenAll(GlslTree tree) {
+        String source = tree.source();
         List<GlslLexer.Token> tokens = tree.tokens();
         List<GlslTree.Edit> edits = new ArrayList<>();
         for (int index = 0; index < tokens.size(); index++) {

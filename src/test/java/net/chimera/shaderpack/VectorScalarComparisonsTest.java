@@ -25,7 +25,8 @@ final class VectorScalarComparisonsTest {
                     bool other = mc_Entity != -2.0, tall = same(ivec2(mc_Entity.xy));
                     // A terrain program reads mc_Entity through Chimera's vertex bridge.
                     bool bridged = (vec3(entityValue(), 0.0)==1.), level = 3 != vec2(entityValue());
-                    if (other && tall || bridged || level) normal = -normal;
+                    bool either = mc_Entity == 1. ^^ tall ^^ 2. != mc_Entity;
+                    if (other && tall || bridged || level || either) normal = -normal;
                     gl_Position = vec4(normal, 1.0);
                 }
                 """;
@@ -33,7 +34,8 @@ final class VectorScalarComparisonsTest {
         assertTrue(widened.contains("normal = (mc_Entity==vec3(1.)) ?")
                 && widened.contains("bool other = mc_Entity != vec3(-2.0), tall")
                 && widened.contains("return ivec2(-1) == cell;")
-                && widened.contains("bool bridged = (vec3(entityValue(), 0.0)==vec3(1.)), level = vec2(3) != vec2("),
+                && widened.contains("bool bridged = (vec3(entityValue(), 0.0)==vec3(1.)), level = vec2(3) != vec2(")
+                && widened.contains("bool either = mc_Entity == vec3(1.) ^^ tall ^^ vec3(2.) != mc_Entity;"),
                 widened);
         assertNull(PackCompileTest.compile(source, true), "the stage must compile as Iris's driver compiles it");
     }
@@ -90,6 +92,13 @@ final class VectorScalarComparisonsTest {
                     color = vec4(a || b || c || d || e ? 1.0 : 0.0);
                 }
                 """;
+        assertEquals(source, VectorScalarComparisons.widen(source));
+    }
+
+    /** A source the lexer or parser cannot follow (an unclosed comment) goes to the compiler as written. */
+    @Test
+    void anUnreadableSourceStays() {
+        String source = "layout(location = 0) in vec3 v;\nbool b = v == 1.0; /* unclosed";
         assertEquals(source, VectorScalarComparisons.widen(source));
     }
 

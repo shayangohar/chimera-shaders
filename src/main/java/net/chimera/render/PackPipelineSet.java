@@ -21,7 +21,7 @@ import java.util.stream.Stream;
  * no pack pipeline and keeps its host draw.
  */
 final class PackPipelineSet {
-    /** Pack programs swapped onto the resolve/present seams; null = identity. */
+    // composite's and final's pipelines, which postStages also holds
     GraphicsPipeline compositePipeline;
     GraphicsPipeline finalPipeline;
     PackPipelines.PackTerrain terrainRoute;
@@ -31,21 +31,21 @@ final class PackPipelineSet {
     List<String> compositeSamplerNames = List.of();
     List<String> finalSamplerNames = List.of();
 
-    /** All successfully built post programs, sorted by deterministic pass order. */
+    /** Built post programs, sorted into pass order at load. */
     final List<PackPipelines.PackPost> postStages = new ArrayList<>();
     /** The shadowcomp passes' programs, over the shadowcolor targets (PackShadowComposites). */
     final List<PackPipelines.PackPost> shadowcompStages = new ArrayList<>();
 
-    /** The final pass is retained separately because it runs before hand/GUI composition. */
+    /** The final pass, kept apart because it runs before the hand and GUI draw. */
     PackPipelines.PackPost finalPost;
 
-    /** Pack geometry program (gbuffers_terrain) on the terrain path; null = chimera's terrain pipeline. */
+    /** gbuffers_terrain for solid and cutout terrain; null keeps Chimera's terrain pipeline. */
     GraphicsPipeline terrainPipeline;
 
-    /** Pack water program on the host translucent terrain path; null = host/chimera fallback. */
+    /** gbuffers_water on the host translucent terrain path; null keeps the default pipeline. */
     GraphicsPipeline waterPipeline;
 
-    /** Pack shadow program on the shadow terrain path; null means fixed identity shadow. */
+    /** The shadow program, on the shadow pass's terrain; null draws the fixed identity shadow. */
     GraphicsPipeline shadowPipeline;
     int[] shadowSlots;
     /** shadow_water for the shadow pass's translucent terrain (Iris SHADOW_TRANS); null draws it with shadow. */
@@ -60,16 +60,15 @@ final class PackPipelineSet {
     /** shadow_block, for block entities' models in the shadow pass; null leaves them to shadow_entities. */
     PackPipelines.PackEntity shadowBlock;
 
-    /** Pack world-entity program on the guarded delayed model batch. */
+    // the family bridge's lanes (InstalledLanes)
     PackPipelines.PackEntity entity;
 
-    /** Pack translucent world-entity program on the guarded delayed model batch. */
     PackPipelines.PackEntity translucentEntity;
 
-    /** Pack spider-eyes program (Iris EYES and ENTITY_TRANSLUCENT_EMISSIVE) on the delayed model batch. */
+    /** The spider-eyes program (Iris EYES and ENTITY_TRANSLUCENT_EMISSIVE). */
     PackPipelines.PackEntity spiderEyes;
 
-    /** Pack block-entity program on the guarded delayed model batch. */
+    /** gbuffers_block, for block entities' models. */
     PackPipelines.PackEntity block;
 
     /** gbuffers_block_translucent: block entities' translucent models (Iris BE_TRANSLUCENT). */
@@ -78,29 +77,25 @@ final class PackPipelineSet {
     /** gbuffers_block on the block layout: falling blocks and moving pistons (Iris MOVING_BLOCK). */
     PackPipelines.PackEntity movingBlock;
 
-    /** Pack damaged-block program on the guarded block draw lane. */
+    /** The block breaking overlay's program. */
     PackPipelines.PackEntity damagedBlock;
 
-    /** The translucent-entity and block-translucent programs on Iris's GLYPH text layout (TEXT, TEXT_BE). */
+    // the translucent-entity and block-translucent programs on Iris's GLYPH text layout (TEXT, TEXT_BE)
     PackPipelines.PackEntity translucentEntityText;
     PackPipelines.PackEntity blockTranslucentText;
 
-    /** Pack first-person hand program on the guarded hand draw window. */
     PackPipelines.PackHand hand;
 
-    /** Pack first-person water program on the guarded hand draw window. */
     PackPipelines.PackHand handWater;
 
-    /** Pack particle program on the host particle draw window. */
     PackPipelines.PackParticle particle;
 
-    /** Pack translucent particle program on the host translucent particle window. */
     PackPipelines.PackParticle translucentParticle;
 
     /** gbuffers_beaconbeam on the beam's widened block layout (Iris BEACON). */
     PackPipelines.PackParticle beaconBeam;
 
-    /** Pack programs of the installed host-layout lanes (weather, lines, glint, lightning, ...). */
+    /** Programs of the installed host-layout lanes, such as weather, lines, glint and lightning. */
     final EnumMap<ChimeraEntityBridge.Family, PackPipelines.PackParticle> hostLayout =
             new EnumMap<>(ChimeraEntityBridge.Family.class);
 
@@ -109,10 +104,7 @@ final class PackPipelineSet {
     PackPipelines.PackSky cloud;
     boolean cloudsDrawNothing;
 
-    /**
-     * Destroys every installed pipeline. A post program installed as composite or final is one
-     * pipeline, destroyed once.
-     */
+    /** Destroys every installed pipeline, composite's and final's once although two fields hold them. */
     void destroy() {
         Set<GraphicsPipeline> postPipelines = Collections.newSetFromMap(new IdentityHashMap<>());
         for (PackPipelines.PackPost post : postStages) {
@@ -190,13 +182,13 @@ final class PackPipelineSet {
             case ENTITY_TRANSLUCENT -> this.translucentEntity;
             case SPIDER_EYES -> this.spiderEyes;
             case BLOCK -> this.block;
-            // Block-entity models and text draw in gbuffers_block_translucent's own target window.
+            // block-entity models and text draw in gbuffers_block_translucent's own target window
             case BLOCK_TRANSLUCENT -> this.blockTranslucent != null ? this.blockTranslucent : this.blockTranslucentText;
             case MOVING_BLOCK -> this.movingBlock;
             case DAMAGED_BLOCK -> this.damagedBlock;
             case HAND -> this.hand == null ? null : this.hand.primary();
             case HAND_WATER -> this.handWater == null ? null : this.handWater.primary();
-            // The shadow pass owns the shadow map's attachments; casters open no window.
+            // the shadow pass owns the shadow map's attachments, so casters open no window there
             case SHADOW_ENTITIES -> this.shadowEntities;
             case SHADOW_BLOCK -> this.shadowBlock;
             default -> null;
@@ -211,7 +203,7 @@ final class PackPipelineSet {
         return lane == null ? null : lane.outputPlan();
     }
 
-    /** A particle, beacon-beam or host-layout lane retains its own authored output contract. */
+    /** The program of a particle, beacon-beam or host-layout lane. */
     private PackPipelines.PackParticle particlePipeline(ChimeraEntityBridge.Family family) {
         return switch (family) {
             case PARTICLE -> this.particle;

@@ -14,7 +14,7 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * blend.<program> outside the world programs, as Iris 1.21.1 applies it: CompositeRenderer gives
+ * {@code blend.<program>} outside the world programs, as Iris 1.21.1 applies it: CompositeRenderer gives
  * a begin, prepare, deferred or composite pass its program-level mode on every buffer and ignores
  * per-buffer directives; FinalPassRenderer always draws unblended; shadow programs blend each
  * buffer as directed over their ProgramId default, blending off.

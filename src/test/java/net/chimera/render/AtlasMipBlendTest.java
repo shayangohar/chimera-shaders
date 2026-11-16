@@ -6,9 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Atlas mip levels follow Sodium's alpha-weighted blend, as Iris setups build them (texels are ABGR).
- * The short-grass chain is the one Iris 1.8.14 with Sodium 0.8.13 uploaded for SPBR's short_grass.png,
- * read from the Reverie night capture's block atlas (2026-11-04).
+ * Atlas mip levels follow Sodium's alpha-weighted blend, as Iris with Sodium builds them (texels are ABGR).
+ * The short-grass chain is the one Iris 1.8.14 with Sodium 0.8.13 uploads for SPBR's short_grass.png.
  */
 final class AtlasMipBlendTest {
     /** SPBR short_grass.png's opaque texels, row by row; every other texel is fully transparent. */

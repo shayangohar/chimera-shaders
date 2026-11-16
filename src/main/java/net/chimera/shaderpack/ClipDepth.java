@@ -3,21 +3,22 @@ package net.chimera.shaderpack;
 import java.util.Map;
 
 /**
- * The one conversion of a clip position's depth from GL's range, [-w, w], to Vulkan's, [0, w], and
- * the stage that runs it. Every path to the rasterizer runs it exactly once when its stages work in
- * GL's range, and never when they keep the host's, whose matrices already produce Vulkan's depth:
+ * Converts a clip position's depth from GL's range, [-w, w], to Vulkan's, [0, w].
+ *
+ * A path to the rasterizer converts exactly once when its stages work in GL's range, and never when they
+ * keep the host's range, whose matrices already produce Vulkan's depth. The last stage on the path converts:
  * <ul>
- *   <li>a vertex stage with nothing after it converts after its authored main: a world stage that
- *   projects in GL's range (WorldClipRange.convert), a shadow stage (ShadowStageBuiltins), the
- *   hand, sky and hand-glint draws (EntityVertexBridge), and a post pass's authored vertex
- *   (PostVertexBridge.convertPostVertex), which has no depth to keep but is clipped below z = 0;</li>
- *   <li>a vertex stage ahead of a geometry or tessellation stage leaves GL's range for it;</li>
- *   <li>a geometry stage converts each vertex it emits (GeometryStageBridge.emitClipRange);</li>
- *   <li>a tessellation evaluation stage converts after its main, and the control stage ahead of it
- *   leaves GL's range for it (TessellationStageBridge).</li>
+ *   <li>a vertex stage with nothing after it, after its authored main: a world stage projecting in GL's
+ *   range (WorldClipRange.convert), a shadow stage (ShadowStageBuiltins), the hand, sky and hand-glint
+ *   draws (EntityVertexBridge), and a post pass's authored vertex stage (PostVertexBridge.convertPostVertex),
+ *   which has no depth to keep but is clipped below z = 0;</li>
+ *   <li>a geometry stage, on each vertex it emits (GeometryStageBridge.emitClipRange);</li>
+ *   <li>a tessellation evaluation stage, after its main (TessellationStageBridge).</li>
  * </ul>
- * Converting twice halves every depth a later pass rebuilds; missing it puts the near half of the
- * view in front of the near plane.
+ * Stages ahead of a geometry or tessellation stage hand on GL's range.
+ *
+ * Converting twice halves every depth a later pass rebuilds; missing it puts the near half of the view in
+ * front of the near plane.
  */
 final class ClipDepth {
     /** The conversion of the stage's final clip position. */

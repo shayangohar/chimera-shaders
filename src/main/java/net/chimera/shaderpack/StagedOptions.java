@@ -13,10 +13,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The options a loaded pack was staged with: everything the pack declares with the stored values
- * (the option file and the settings screen's pending changes), the values applied to its sources
- * (stored values with JVM overrides on top), the JVM overrides it does not declare (left to the
- * preprocessor as locked macros), and the programs the matching profile switches off.
+ * The options a loaded pack was staged with.
+ *
+ * {@code pack} holds everything the pack declares, with the stored values: the option file plus the
+ * settings screen's pending changes. {@code applied} is what its sources were edited with, the stored values
+ * with JVM overrides on top. {@code undeclared} holds the JVM overrides the pack does not declare, left to the
+ * preprocessor as locked macros, and {@code disabledPrograms} the programs the matching profile switches off.
  */
 public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<String, String> undeclared,
                             Set<String> disabledPrograms, boolean optionFileReadable) {
@@ -49,11 +51,12 @@ public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<St
     }
 
     /**
-     * Brings {@code <pack>.txt} in line with the stored values, as Iris rewrites it after every load:
-     * the non-default values only, and no file when there are none. JVM overrides are never written.
-     * A pack that declares no options (one whose sources could not be read), a pack with a source file
-     * that could not be read (Iris refuses such a pack before writing), or an option file that could
-     * not be parsed, leaves the file alone: values for options it could not see are never dropped.
+     * Brings {@code <pack>.txt} in line with the stored values, as Iris rewrites it after every load: only
+     * non-default values, and no file when there are none. JVM overrides are never written.
+     *
+     * The file is left alone when the pack declares no options, when one of its source files could not be
+     * read (Iris refuses such a pack before writing), or when the option file could not be parsed, so values
+     * for options Chimera could not see are never dropped.
      */
     public void saveOptionFile(Path packPath) throws IOException {
         boolean noOptions = pack.options().toggles().isEmpty() && pack.options().choices().isEmpty();

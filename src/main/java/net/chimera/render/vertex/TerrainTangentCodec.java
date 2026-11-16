@@ -1,16 +1,14 @@
 package net.chimera.render.vertex;
 
 /**
- * Packs a terrain quad's texture tangent into the spare fourth byte of its
- * normal word, so the modern terrain format keeps its stride.
+ * Packs a terrain quad's texture tangent into the spare fourth byte of its normal word, so the modern terrain
+ * format keeps its stride.
  *
- * <p>The tangent lies in the face plane, so it is one angle around the
- * normal from the same reference the terrain shader builds
- * ({@code cross(axis, N)}, axis +Y, or +X on up/down faces), plus Iris's
- * handedness. The byte is {@code handedness * (1 + step)} with 64 steps per
- * turn: block faces land on exact quarter turns, rotated models within 2.9
- * degrees. Zero means "no quad tangent", which the shader reads as the
- * reference itself with handedness +1, the pre-codec behaviour.</p>
+ * The tangent lies in the face plane, so it is one angle around the normal from the reference the terrain
+ * shader builds ({@code cross(axis, N)}, axis +Y, or +X on up and down faces), plus Iris's handedness. The
+ * byte is {@code handedness * (1 + step)} with 64 steps per turn: block faces land on exact quarter turns,
+ * rotated models within 2.9 degrees. Zero means no quad tangent, which the shader reads as the reference
+ * itself with handedness +1.
  */
 public final class TerrainTangentCodec {
     public static final int STEPS = 64;

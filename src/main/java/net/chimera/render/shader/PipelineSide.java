@@ -6,12 +6,13 @@ import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 import net.vulkanmod.vulkan.shader.Pipeline;
 
 /**
- * What Chimera keeps on one VulkanMod GraphicsPipeline (ChimeraPipelineSideMixin): the attachment
- * contract its variants render into and its blends in VulkanMod's own render passes
- * (MrtPipelineContext), the output locations its fragment stage writes, the blend its draws report
- * as blendFunc (IrisDrawState), and its geometry stage (GeometryStageModules). It lives as long as
- * the pipeline does; the pipeline's cleanUp destroys the geometry module. A pack load writes it on
- * the render thread, before VulkanMod creates the pipeline's later variants there.
+ * What Chimera keeps on one VulkanMod GraphicsPipeline (ChimeraPipelineSideMixin): the attachment contract
+ * its variants render into and its blends in VulkanMod's own render passes (MrtPipelineContext), the output
+ * locations its fragment stage writes, the blend its draws report as blendFunc (IrisDrawState), and its
+ * geometry stage (GeometryStageModules).
+ *
+ * It lives as long as the pipeline; the pipeline's cleanUp destroys the geometry module. A pack load writes
+ * it on the render thread, before VulkanMod creates the pipeline's later variants there.
  */
 public final class PipelineSide {
     /** A GraphicsPipeline, through ChimeraPipelineSideMixin. */
@@ -30,7 +31,6 @@ public final class PipelineSide {
     /** The pack geometry stage's shader module, or 0 without one. */
     long geometryModule;
 
-    /** {@code pipeline}'s side. */
     static PipelineSide of(GraphicsPipeline pipeline) {
         return ((Holder) (Object) pipeline).chimera$side();
     }

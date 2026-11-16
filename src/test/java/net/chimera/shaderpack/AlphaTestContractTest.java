@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The terrain alpha-test contract: how each family's alpha rejection is planned and converted. */
 final class AlphaTestContractTest {
-    // The terrain plans depend on the CHIMERA instance's options, as at runtime.
+    // the terrain plans depend on the CHIMERA instance's options, as at runtime
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.ROUTES.apply();
@@ -34,9 +34,9 @@ final class AlphaTestContractTest {
     }
 
     /**
-     * Entity programs test against the host render type's threshold per draw
-     * (Iris iris_currentAlphaTest); a pack alphaTest directive fixes it. The
-     * injected source must compile, and an output-less fragment stays authored.
+     * Entity programs test against the host render type's threshold per draw (Iris's
+     * iris_currentAlphaTest); a pack alphaTest directive fixes it. An output-less fragment keeps its
+     * authored source.
      */
     @Test
     void entityAlphaTest() {
@@ -61,7 +61,7 @@ final class AlphaTestContractTest {
                 "pack alphaTest directive does not fix the entity test");
 
         // Iris tests only gl_FragData[0] or gl_FragColor (CommonTransformer): a modern output, or
-        // a fragment indexing other buffers only, keeps its authored main.
+        // a fragment indexing other buffers only, keeps its authored main
         String modern = "#version 460\nlayout(location = 0) out vec4 albedo;\n"
                 + "void main() { albedo = vec4(1.0, 0.0, 0.0, 0.05); }\n";
         String otherBuffer = "#version 120\nvoid main() { gl_FragData[1] = vec4(1.0); }\n";
@@ -69,8 +69,8 @@ final class AlphaTestContractTest {
                         && dynamic.injectDrawTest(otherBuffer).equals(otherBuffer),
                 "a fragment Iris leaves untested was tested");
 
-        // Iris ENTITIES_ALPHA (AlphaTests.VERTEX_ALPHA): a negative reference tests the vertex alpha,
-        // which the entity vertex bridge forwards once the fragment reads it.
+        // Iris's ENTITIES_ALPHA (AlphaTests.VERTEX_ALPHA): a negative reference tests the vertex alpha,
+        // which the entity vertex bridge forwards once the fragment reads it
         String vertexAlpha = dynamic.injectDrawTest(legacy, true);
         assertTrue(vertexAlpha.contains(UniformRegistry.ENTITY_ALPHA_REFERENCE + " < 0.0 ? !(gl_FragData[0].a > "
                         + PackAlphaTestPlan.VERTEX_ALPHA_VARYING + ")"), "vertex-alpha test: " + vertexAlpha);
@@ -88,8 +88,8 @@ final class AlphaTestContractTest {
                         "alphaTest.gbuffers_entities", "off"))).injectDrawTest(legacy).equals(legacy),
                 "alphaTest off still injected an entity test");
 
-        // The shadow program tests against the per-layer reference the shadow
-        // pass sets (0.1 solid/cutout, 0 translucent); alphaTest.shadow fixes it.
+        // the shadow program tests against the per-layer reference the shadow pass sets
+        // (0.1 solid and cutout, 0 translucent); alphaTest.shadow fixes it
         PackAlphaTestPlan shadow = PackAlphaTestPlan.forProgram("shadow", settings(Map.of()));
         assertTrue(shadow.mode() == PackAlphaTestPlan.Mode.DYNAMIC_SHADOW && shadow.active()
                         && shadow.injectDrawTest(legacy).contains("if (" + UniformRegistry.ENTITY_ALPHA_REFERENCE
@@ -161,8 +161,8 @@ final class AlphaTestContractTest {
 
     /**
      * Iris draws text backgrounds with TEXT_BG, which tests ONE_TENTH_ALPHA per draw unless the
-     * pack's alphaTest replaces it. The plan injects every program's test as its mode says, not
-     * by a list of families, which left text_bg untested.
+     * pack's alphaTest replaces it. The plan injects every program's test as its mode says, so
+     * text_bg is tested too.
      */
     @Test
     void textBackgroundsTestPerDraw(@TempDir Path root) throws Exception {
@@ -186,7 +186,7 @@ final class AlphaTestContractTest {
 
     /**
      * The alpha test reads the colour the program wrote, so it runs before the NaN guard rewrites the
-     * outputs, as in Iris, which tests the written alpha (audit GD4). Planning injects the test first,
+     * outputs, as in Iris, which tests the written alpha. Planning injects the test first,
      * then the converter appends the guard to main.
      */
     @Test
@@ -258,7 +258,8 @@ final class AlphaTestContractTest {
             assertTrue(plan.mode() == PackAlphaTestPlan.Mode.FIXED && plan.function().equals(function)
                     && plan.reference() == 0.5F, "fixed alpha function rejected: " + function);
         }
-        // Iris's names are exact; GL_ALWAYS is the one GL_ spelling it takes. A third part is ignored.
+        // Iris's names are exact; GL_ALWAYS is the one GL_ spelling it takes
+        // a third part is ignored
         assertTrue(PackAlphaTestPlan.forProgram("gbuffers_terrain", settings(Map.of(
                 "alphaTest.gbuffers_terrain", "GL_ALWAYS 0"))).function().equals("ALWAYS"), "GL_ALWAYS");
         assertTrue(PackAlphaTestPlan.forProgram("gbuffers_terrain", settings(Map.of(
@@ -271,7 +272,7 @@ final class AlphaTestContractTest {
                 "gbuffers_terrain", settings(Map.of("alphaTest.gbuffers_terrain", "false")));
         assertTrue(falseValue.mode() == PackAlphaTestPlan.Mode.OFF && falseValue.configured(),
                 "false was not accepted");
-        // A directive Iris rejects keeps the key's own test (ShaderProperties: logged, no override).
+        // a directive Iris rejects keeps the key's own test (ShaderProperties: logged, no override)
         for (String rejected : List.of("LESS", "ALWAYS", "Off", "GL_GREATER 0.5", "greater 0.5", "GREATER x")) {
             PackAlphaTestPlan kept = PackAlphaTestPlan.forProgram(
                     "gbuffers_terrain", settings(Map.of("alphaTest.gbuffers_terrain", rejected)));
@@ -385,9 +386,8 @@ final class AlphaTestContractTest {
     }
 
     /**
-     * BSL material terrain must survive the full path that crashed the
-     * game session: MATERIAL_FORMAT=1 activates explicit-gradient atlas
-     * sampling, which previously reached shaderc untranslated.
+     * BSL's material terrain converts and compiles under MATERIAL_FORMAT=1, which turns on
+     * explicit-gradient atlas sampling; texture2DGradARB must not reach shaderc untranslated.
      */
     @Test
     @Tag("packs")
@@ -415,8 +415,8 @@ final class AlphaTestContractTest {
                     "BSL parallax overwrite missed the explicit-gradient atlas helper");
             assertTrue(!bslFragment.contains("textureGrad(chimeraTexture, newCoord, dcdx, dcdy)"),
                     "raw explicit-gradient albedo sample remains outside the helper");
-            // Stitched material companions share the atlas topology, so their explicit-gradient reads
-            // take the same atlas helper as albedo.
+            // stitched material companions share the atlas layout, so their explicit-gradient reads
+            // take the same atlas helper as albedo
             assertTrue(bslFragment.contains("chimeraAtlasSampleGrad(normals,")
                             && !bslFragment.contains("textureGrad(normals,"),
                     "material normal explicit-gradient reads left the atlas helper");

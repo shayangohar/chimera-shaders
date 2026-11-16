@@ -5,21 +5,20 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 /**
- * One derivation of where the sun, the moon and the light are in a frame, shared by the pack
- * uniforms and by the shadow matrix so a caster and a receiver cannot disagree about the light.
+ * One derivation of where the sun, the moon and the light are in a frame, shared by the pack uniforms and the
+ * shadow matrix, so a caster and a receiver cannot disagree about the light.
  *
- * <p>Ported from Iris through the Vitrail reference, whose {@code celestial} transform is the sky
- * renderer's own, moved forward so a pack can read the result before the host applies it. The
- * angles are host attributes sampled at the frame's partial tick, which is why an option, a
- * datapack or a dimension that moves the sky moves the shadows with it.
+ * As in Iris's CelestialUniforms, the transform is the sky renderer's own, applied ahead of the sky so a pack
+ * can read the result before the host draws it. The angles are host attributes sampled at the frame's
+ * partial tick, so an option, a datapack or a dimension that moves the sky moves the shadows with it.
  *
- * <p>The pack's {@code sunPathRotation} turns the whole frame about the view's Z axis.
- * Chimera's own {@code sunPathOffset} shifts the angle itself, before that turn.
+ * The pack's {@code sunPathRotation} turns the whole frame about the view's Z axis. Chimera's own
+ * {@code sunPathOffset} shifts the angle itself, before that turn.
  */
 final class CelestialSnapshot {
-    /** The quarter turn the sky places a body with, carried in the format's reference. */
+    /** The quarter turn about Y the sky places a body with. */
     private static final float QUARTER_TURN_DEGREES = -90.0F;
-    /** Positions stay unnormalised: a body sits a hundred units out, as the format expects. */
+    /** Positions stay unnormalised: a body sits a hundred units out, as in Iris. */
     private static final float CELESTIAL_LENGTH = 100.0F;
 
     private static final Matrix4f SCRATCH = new Matrix4f();
@@ -28,15 +27,14 @@ final class CelestialSnapshot {
     private CelestialSnapshot() {}
 
     /**
-     * The pack-facing angle in turns: the raw attribute plus the quarter turn, wrapped once.
-     * One step of wrapping, not a modulus, so a value just outside the range lands where the
-     * reference lands rather than a turn away.
+     * The pack-facing angle in turns: the raw angle plus a quarter turn, wrapped by a single step as Iris's
+     * getSunAngle does, so a value just outside the range lands where Iris puts it.
      */
     static float angle01(float angleDegrees) {
         return wrapped(angleDegrees) / 360.0F;
     }
 
-    /** Whether the sun, not the moon, is the body that lights the world at this raw angle. */
+    /** Whether the sun lights the world at this raw angle, rather than the moon. */
     static boolean isDay(float sunAngleDegrees) {
         return wrapped(sunAngleDegrees) < 180.0F;
     }
@@ -51,11 +49,7 @@ final class CelestialSnapshot {
         return angle;
     }
 
-    /**
-     * Eye-space sun or moon position, unnormalised, at the frame's offset angle.
-     * The angle is where the body is in the sky; the view is what makes the result readable by a
-     * pack that samples the same sky the player sees.
-     */
+    /** Eye-space sun or moon position, unnormalised, at the frame's offset angle. */
     static void position(Matrix4f gbufferModelView, float sunPathRotation, float offsetDegrees,
                          float angleDegrees, Vector3f dest) {
         SCRATCH.set(gbufferModelView)
@@ -67,10 +61,7 @@ final class CelestialSnapshot {
         dest.set(VECTOR.x, VECTOR.y, VECTOR.z);
     }
 
-    /**
-     * Eye-space up: the same quarter turn, and deliberately not the sky angle, because this one is
-     * where up is, not where the sun is.
-     */
+    /** Eye-space up: the sky's quarter turn without the sky angle, as Iris's upPosition. */
     static void upPosition(Matrix4f gbufferModelView, Vector3f dest) {
         SCRATCH.set(gbufferModelView).rotateY((float) Math.toRadians(QUARTER_TURN_DEGREES));
         VECTOR.set(0.0F, CELESTIAL_LENGTH, 0.0F, 0.0F);
@@ -79,8 +70,8 @@ final class CelestialSnapshot {
     }
 
     /**
-     * World-space unit light direction for the shadow matrix, without the model view: the shadow
-     * caster is built from this and the pack sees the same body through {@link #position}.
+     * World-space unit light direction for the shadow matrix: {@link #position}'s rotation without the model
+     * view, so the shadow caster and the pack see the same body.
      */
     static void lightVector(float sunPathRotation, float offsetDegrees, float angleDegrees,
                             Vector3f dest) {
@@ -95,9 +86,11 @@ final class CelestialSnapshot {
 
     /**
      * The shadow caster's rotation, built as Iris's {@code ShadowMatrices.createBaselineModelViewMatrix}
-     * builds it: a quarter turn about X, the sky angle about Z, then the sun path about X. Its view
-     * Z axis is {@link #lightVector}, and it stays defined with the light straight overhead, where a
-     * look-at with a fixed up vector has no basis. Iris's sky angle is the raw angle in turns.
+     * builds it: a quarter turn about X, the sky angle about Z, then the sun path about X. Iris turns its
+     * shadow angle back into the raw sky angle there, which this takes in degrees.
+     *
+     * Its view Z axis is {@link #lightVector}, and it stays defined with the light straight overhead, where a
+     * look-at with a fixed up vector has no basis.
      */
     static void shadowRotation(float sunPathRotation, float offsetDegrees, float angleDegrees,
                                Matrix4f dest) {

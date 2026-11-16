@@ -1,10 +1,10 @@
 package net.chimera.gui.options;
 
 /**
- * The slider being dragged, and the one being edited from the keyboard. The screen ends either at
- * the right moment: a drag on the mouse release (vanilla stops tracking held buttons while a
- * screen is open), a keyboard edit before Apply, Done or a page change reads the queue, or
- * without a commit before Cancel empties it.
+ * The slider being dragged and the one being edited from the keyboard, so the screen can end either at the
+ * right moment. A drag ends on the mouse release, which the screen sees while vanilla stops tracking held
+ * buttons. A keyboard edit commits before Apply, Done or a page change reads the queue, and ends without a
+ * commit before Cancel empties it.
  */
 final class SliderControl {
     private SliderCell dragging;

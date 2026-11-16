@@ -10,27 +10,26 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The Iris shader keys Chimera serves on the host's own vertex layout, in the main pass and the
- * shadow pass (Iris MixinGameRenderer's shader overrides). Each lane owns its draws at
- * BufferUploader.drawWithShader (ChimeraBufferUploaderMixin): the host mesh, draw call and raster
- * state stay, and only the program and its targets change. This table answers which lane a draw
- * belongs to by its host shader and format, which pack program serves it, the Iris rendering
- * phase it draws in and the alpha test of its Iris ShaderKey.
+ * The Iris shader keys Chimera serves on the host's own vertex layout, in the main and shadow passes (Iris
+ * MixinGameRenderer's shader overrides). A lane takes its draws at BufferUploader.drawWithShader
+ * (ChimeraBufferUploaderMixin): the host mesh, draw call and raster state stay, and only the program and its
+ * targets change. Each lane names its host shaders and format, the pack program that serves it, the Iris
+ * rendering phase it draws in and the alpha test of its Iris ShaderKey.
  *
- * <p>Depth-only main-pass shaders Iris also maps (the water mask, the dragon rays' depth) write no
- * colour, so their host draw is equivalent and they are not main-pass lanes. In the shadow pass
- * every draw writes the shadow map, so the water mask draws with SHADOW_BASIC. Iris BEACON draws
- * on the block layout widened to TERRAIN, so beacon beams are a family lane
- * (ChimeraEntityBridge.Family.BEACON_BEAM), batched on the widened layout where they are written.</p>
+ * Depth-only main-pass shaders Iris also maps (the water mask, the dragon rays' depth) write no colour, so
+ * the host draw is equivalent and they have no main-pass lane. In the shadow pass every draw writes the
+ * shadow map, so the water mask draws with SHADOW_BASIC. Iris BEACON draws on the block layout widened to
+ * TERRAIN, so beacon beams are a family lane (ChimeraEntityBridge.Family.BEACON_BEAM), batched on the
+ * widened layout where they are written.
  */
 public enum HostLayoutLane {
     /** Iris WEATHER: rain and snow, drawn with the particle shader inside renderSnowAndRain. */
     WEATHER(ChimeraEntityBridge.Family.WEATHER, "gbuffers_weather", DefaultVertexFormat.PARTICLE,
             PackRenderingPhase.RAIN_SNOW, Pass.WEATHER, AlphaTest.ONE_TENTH, "particle"),
     /**
-     * Iris LINES: block outlines, fishing lines, hitboxes and other line draws. Each reports the
-     * phase of the Iris wrapper it was written in; the block outline, written outside every wrapper,
-     * reports NONE (ChimeraEntityBridge.hostLaneWritePhase).
+     * Iris LINES: block outlines, fishing lines, hitboxes and other line draws. Each reports the phase of the
+     * Iris wrapper it was written in; the block outline, written outside every wrapper, reports NONE
+     * (ChimeraEntityBridge.hostLaneWritePhase).
      */
     LINE(ChimeraEntityBridge.Family.LINE, "gbuffers_line", DefaultVertexFormat.POSITION_COLOR_NORMAL,
             PackRenderingPhase.NONE, Pass.WORLD, AlphaTest.OFF, "rendertype_lines"),
@@ -49,23 +48,19 @@ public enum HostLayoutLane {
     /** Iris TEXT_BG: text and name-tag backgrounds, with gbuffers_entities_translucent's chain. */
     TEXT_BG(ChimeraEntityBridge.Family.TEXT_BG, "text_bg", DefaultVertexFormat.POSITION_COLOR_LIGHTMAP,
             PackRenderingPhase.ENTITIES, Pass.WORLD, AlphaTest.ONE_TENTH, Shaders.TEXT_BACKGROUND),
-    /*
-     * Iris TEXTURED and TEXTURED_COLOR: world draws with position_tex and position_tex_color outside
-     * the sky phases, where Iris picks the sky keys instead (ChimeraEntityBridge.currentPass). The
-     * world border is vanilla's one such draw; it reports WORLD_BORDER, the phase Iris sets around it.
-     */
+    // Iris TEXTURED and TEXTURED_COLOR: position_tex and position_tex_color world draws outside the sky
+    // phases, where Iris picks the sky keys instead (ChimeraEntityBridge.currentPass)
+    // the world border is vanilla's one such draw; it reports WORLD_BORDER, the phase Iris sets around it
     TEXTURED(ChimeraEntityBridge.Family.TEXTURED, "gbuffers_textured", DefaultVertexFormat.POSITION_TEX,
             PackRenderingPhase.WORLD_BORDER, Pass.WORLD, AlphaTest.NON_ZERO, "position_tex"),
     TEXTURED_COLOR(ChimeraEntityBridge.Family.TEXTURED_COLOR, "textured_color", DefaultVertexFormat.POSITION_TEX_COLOR,
             PackRenderingPhase.WORLD_BORDER, Pass.WORLD, AlphaTest.ONE_TENTH, "position_tex_color"),
-    /*
-     * The shadow pass. Shadow lanes report ENTITIES, the phase Iris ShadowRenderer holds for
-     * entities; Iris reports BLOCK_ENTITIES for a block entity's own draws (sign text here), which
-     * only the family lanes follow (ChimeraEntityBridge.writePhase). Iris cancels beacon beams,
-     * which stay out of the shadow map. Glint has no shadow lane either: Iris 1.21.1 keys glint to
-     * GLINT in every pass, so in the shadow pass its main program draws into the gbuffers, not the
-     * shadow map, and Chimera drops those draws (ChimeraEntityBridge.dropsHostDraw).
-     */
+    // shadow lanes report ENTITIES, the phase Iris ShadowRenderer holds for entities
+    // Iris reports BLOCK_ENTITIES for a block entity's own draws (sign text here); only the family lanes
+    // follow that (ChimeraEntityBridge.writePhase)
+    // Iris cancels beacon beams in the shadow pass, so they stay out of the shadow map
+    // glint has no shadow lane: Iris keys glint to GLINT in every pass, so its shadow-pass draw would write
+    // the gbuffers instead of the shadow map; Chimera drops it (ChimeraEntityBridge.dropsHostDraw)
     /** Iris SHADOW_LINES: fishing lines and hitboxes, the shadow program widened like gbuffers_basic. */
     SHADOW_LINES(ChimeraEntityBridge.Family.SHADOW_LINES, "shadow_lines", DefaultVertexFormat.POSITION_COLOR_NORMAL,
             PackRenderingPhase.ENTITIES, Pass.SHADOW, AlphaTest.OFF, "rendertype_lines"),
@@ -94,7 +89,7 @@ public enum HostLayoutLane {
             DefaultVertexFormat.POSITION_TEX_COLOR, PackRenderingPhase.ENTITIES, Pass.SHADOW, AlphaTest.ONE_TENTH,
             "position_tex_color");
 
-    /** The 1.21.1 shaders several lanes share. */
+    /** Minecraft 1.21.1 shaders several lanes share. */
     private static final class Shaders {
         static final String[] GLINT = {"rendertype_glint", "rendertype_glint_translucent", "rendertype_entity_glint",
                 "rendertype_entity_glint_direct", "rendertype_armor_entity_glint"};
@@ -102,18 +97,17 @@ public enum HostLayoutLane {
                 "rendertype_text_background_see_through"};
     }
 
-    /** Where a lane's draws happen. */
     public enum Pass {
         WORLD,
-        /** LevelRenderer.renderSnowAndRain. */
+        /** Inside LevelRenderer.renderSnowAndRain. */
         WEATHER,
-        /** First person: drawn under the hand projection, only while the hand renders. */
+        /** First person, under the hand projection, only while the hand renders. */
         HAND,
         /** The pack shadow pass's caster window (ChimeraShadowCasters). */
         SHADOW
     }
 
-    /** Iris AlphaTests of the lane's ShaderKey. */
+    /** Alpha tests of Iris ShaderKeys. */
     private enum AlphaTest {
         OFF(0.0F),
         NON_ZERO(IrisShaderKeys.NON_ZERO_ALPHA),
@@ -158,7 +152,7 @@ public enum HostLayoutLane {
         return format;
     }
 
-    /** The host shaders, by name, whose draws this lane takes. */
+    /** Names of the host shaders whose draws this lane takes. */
     public List<String> shaders() {
         return shaders;
     }
@@ -168,10 +162,12 @@ public enum HostLayoutLane {
     }
 
     /**
-     * The Iris rendering phase (renderStage) of this lane's draws. A world lane's batch held by the
-     * level's buffer source draws in the phase of the Iris wrapper it was written in instead
-     * (ChimeraEntityBridge.hostLaneWritePhase): ENTITIES in an entity's render, BLOCK_ENTITIES in a
-     * block entity's, NONE elsewhere.
+     * The Iris rendering phase (renderStage) of this lane's draws; a hand lane takes the hand's solid or
+     * translucent phase.
+     *
+     * A world lane's batch held by the level's buffer source draws in the phase of the Iris wrapper it was
+     * written in instead (ChimeraEntityBridge.hostLaneWritePhase): ENTITIES in an entity's render,
+     * BLOCK_ENTITIES in a block entity's, NONE elsewhere.
      */
     public PackRenderingPhase phase() {
         if (pass == Pass.HAND) {
@@ -181,24 +177,24 @@ public enum HostLayoutLane {
         return phase;
     }
 
-    /** The discard threshold of the lane's Iris ShaderKey, or 0 for AlphaTests.OFF. */
+    /** The discard threshold of the lane's Iris ShaderKey, or 0 with no alpha test. */
     public float alphaReference() {
         return alphaTest.reference;
     }
 
     /**
-     * A format without texture coordinates reads white: Iris registers its white pixel under tex,
-     * texture, gtexture, gcolor and colortex0 (IrisSamplers.addLevelSamplers). Chimera binds it on
-     * unit 0, where its lanes read the albedo.
+     * A format without texture coordinates reads white: Iris registers its white pixel under tex, texture,
+     * gtexture, gcolor and colortex0 (IrisSamplers.addLevelSamplers). Chimera binds it on unit 0, where its
+     * lanes read the albedo.
      */
     public boolean whiteAlbedo() {
         return !format.contains(VertexFormatElement.UV0);
     }
 
     /**
-     * A format without light coordinates reads a white lightmap: Iris registers its white pixel
-     * under lightmap for a key with no light input (IrisSamplers.addLevelSamplers), and every lane
-     * key that has UV2 lights by the lightmap. Iris LIGHTNING is FULLBRIGHT besides.
+     * A format without light coordinates reads a white lightmap: Iris registers its white pixel under
+     * lightmap for a key with no light input (IrisSamplers.addLevelSamplers), and every lane key that has
+     * UV2 lights by the lightmap. Iris LIGHTNING is also FULLBRIGHT.
      */
     public boolean whiteLightmap() {
         return !format.contains(VertexFormatElement.UV2);

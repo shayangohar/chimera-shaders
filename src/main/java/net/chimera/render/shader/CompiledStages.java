@@ -10,15 +10,16 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The SPIR-V of the stages compiled this session, by shader kind, pack treatment and the source's
- * SHA-256: a module is a function of those alone, so a stored one is never stale. A program drawn
- * in several vertex layouts binds the same fragment source in each (Complementary compiled its hand
- * fragment stage four times per load), and a dimension the session visited before compiles the
- * same sources again, as Iris's TransformPatcher keeps its transformed sources across pipeline
- * rebuilds. The modules least recently used go once the store passes its byte budget.
+ * The SPIR-V of the stages compiled this session, keyed by shader kind, pack treatment and the source's
+ * SHA-256. A module depends on those alone, so a stored one is never stale.
+ *
+ * A program drawn in several vertex layouts binds the same fragment source in each (Complementary's hand
+ * fragment stage appears four times per load), and a dimension the session visited before compiles the same
+ * sources again; Iris's TransformPatcher likewise keeps its transformed sources across pipeline rebuilds. The
+ * least recently used modules go once the store passes its byte budget.
  */
 public final class CompiledStages {
-    /** About three of Complementary's dimension variants; a load reports the store's size. */
+    /** About three of Complementary's dimension variants; each load reports the store's size. */
     static final long SESSION_BUDGET = 64L << 20;
     private static final CompiledStages SESSION = new CompiledStages(SESSION_BUDGET);
 
@@ -39,7 +40,7 @@ public final class CompiledStages {
         return SESSION.moduleOf(kind, packModule, source, compile);
     }
 
-    /** Ends a load: how many stages it compiled and reused, and what the store holds. */
+    /** Ends a load, reporting how many stages it compiled and reused and what the store holds. */
     public static String endLoad() {
         return SESSION.report();
     }
@@ -67,7 +68,7 @@ public final class CompiledStages {
         return module;
     }
 
-    /** The counts since the last report, which starts them again, and the store's size. */
+    /** The counts since the last report, which resets them, and the store's size. */
     synchronized String report() {
         String counts = String.format(Locale.ROOT, "%d compiled, %d reused; the session keeps %d modules, %.1f MB",
                 compiled, reused, modules.size(), bytes / (1024.0 * 1024.0));

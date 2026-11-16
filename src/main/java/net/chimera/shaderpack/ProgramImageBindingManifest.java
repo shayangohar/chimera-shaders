@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Finalized image descriptors and their explicit, program-scoped execution resolvers. */
+/** A program's image descriptors, each with the resource it binds. */
 public record ProgramImageBindingManifest(List<Entry> entries) {
     /** What an entry binds; TARGET_IMAGE is a colour target a post pass stores to as colorimgN. */
     public enum Kind { COLOR_TARGET, DEPTH_TARGET, SHADOW_DEPTH, SHADOW_COLOR,
@@ -100,7 +100,7 @@ public record ProgramImageBindingManifest(List<Entry> entries) {
         return descriptor.type() == 1 || descriptor.type() == 3;
     }
 
-    /** Exact bijection against the actual builder inventory, before native allocation. */
+    /** Checks the built layout's image descriptors against the entries one to one, before anything is allocated. */
     public void verify(List<PackAdvancedResourcePlan.DescriptorBinding> actual) {
         Map<String, Entry> remaining = entriesByBinding();
         for (var descriptor : actual) {

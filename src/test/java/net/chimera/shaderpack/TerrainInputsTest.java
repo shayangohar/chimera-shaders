@@ -97,7 +97,7 @@ final class TerrainInputsTest {
                         && source.contains("return " + projectionName
                                 + " * ModelViewMat * chimeraEntityVertexValue();"),
                 family + " explicit MVP and ftransform disagree");
-        // No 1.21.1 host draw carries a model offset: the pose places the vertices.
+        // no 1.21.1 host draw carries a model offset: the pose places the vertices
         assertTrue(source.contains("return vec4(Position, 1.0);"), family + " host position");
         assertTrue(source.contains("mat4 textureMatrix = TextureMat;")
                         && source.contains("light1 = (lightMatrix * vec4(vec2(UV2), 0.0, 1.0)).xy;")
@@ -127,10 +127,10 @@ final class TerrainInputsTest {
     }
 
     /**
-     * Iris hands packs at_midBlock as four unnormalized signed bytes: the offset to the block's
-     * centre in 1/64 blocks, then its light emission. Solas voxelizes each block at
-     * gl_Vertex + at_midBlock / 64.0; Chimera's helper had already divided by 64, so blocks landed
-     * on voxel boundaries, neighbours raced into one voxel, and Solas's lights flickered.
+     * Iris hands packs at_midBlock as four unnormalised signed bytes: the offset to the block's
+     * centre in 1/64 blocks, then its light emission. Solas voxelises each block at
+     * gl_Vertex + at_midBlock / 64.0, so an offset already divided by 64 would put blocks on voxel
+     * boundaries, where neighbours race into one voxel.
      */
     @Test
     void midBlockInputs(@TempDir Path root) throws IOException {
@@ -174,12 +174,10 @@ final class TerrainInputsTest {
     }
 
     /**
-     * Iris reads oldLighting and separateAo (both default off). Without oldLighting it meshes
-     * terrain and fluids unshaded: ClientLevel.getShade sees shaded = false; Chimera kept
-     * Minecraft's face shading, so Solas's walls and ceiling rendered at 0.5-0.8 of Iris's
-     * brightness. With separateAo it keeps the tint in RGB and carries the light pipeline's
-     * brightness in alpha; Chimera multiplied it into RGB and gave packs a constant AO word
-     * nobody read, so BSL, Complementary, Bliss, Photon and Solas darkened corners twice.
+     * Iris reads oldLighting and separateAo, both off by default. Without oldLighting it meshes
+     * terrain and fluids unshaded: ClientLevel.getShade sees shaded = false. With separateAo it keeps
+     * the tint in RGB and carries the light pipeline's brightness in alpha, so a pack that applies
+     * that AO itself does not darken corners twice.
      */
     @Test
     void terrainShadingDirectives() {
@@ -213,9 +211,9 @@ final class TerrainInputsTest {
     }
 
     /**
-     * Iris scales every block's shade brightness by the pack's ambientOcclusionLevel
-     * (BlockStateBase.getShadeBrightness, 1 - level * (1 - original)). Chimera kept full ambient
-     * occlusion, so Spring's and Alpha Piscium's level 0 and Ebin's 0.65 darkened corners anyway.
+     * Iris scales every block's shade brightness by the pack's ambientOcclusionLevel, as
+     * 1 - level * (1 - original) in BlockStateBase.getShadeBrightness. Spring and Alpha Piscium set
+     * level 0, Ebin 0.65.
      */
     @Test
     void ambientOcclusionLevel(@TempDir Path root) throws IOException {
@@ -259,7 +257,7 @@ final class TerrainInputsTest {
 
     @Test
     void separateAoColour() throws IOException {
-        // Iris XHFPTerrainVertex: ColorABGR.withAlpha(tint, brightness) instead of mulRGB.
+        // as Iris's XHFPTerrainVertex: ColorABGR.withAlpha(tint, brightness), not mulRGB
         assertEquals(0xCC3F7FFF, SeparateAoColor.rgba(1.0F, 0.5F, 0.25F, 0.8F),
                 "a vertex keeps its tint and carries the brightness in alpha");
         assertEquals(0xFF3F7FFF, SeparateAoColor.rgba(1.0F, 0.5F, 0.25F, 1.0004F),

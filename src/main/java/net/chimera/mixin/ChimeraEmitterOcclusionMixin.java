@@ -16,10 +16,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Lets a light-emitting block darken its neighbours' ambient occlusion in the terrain Chimera
- * meshes for a pack, as vanilla and Sodium 0.8.13 under Iris do (EmitterOcclusion). Packs are tuned
- * against that: Mellow's recess beside a glowing block came out 1.85 times brighter under
- * VulkanMod's rule. VulkanMod's own meshes, with no pack, keep its rule.
+ * Lets a light-emitting block darken its neighbours' ambient occlusion in the terrain Chimera meshes for a
+ * pack, as vanilla and Sodium under Iris do (EmitterOcclusion). Packs are tuned against that; under
+ * VulkanMod's rule a recess beside a glowing block comes out far too bright in packs such as Mellow.
+ * VulkanMod's own meshes, with no pack, keep its rule.
  */
 @Mixin(value = LightDataAccess.class, remap = false)
 public abstract class ChimeraEmitterOcclusionMixin {
@@ -29,7 +29,7 @@ public abstract class ChimeraEmitterOcclusionMixin {
     @Inject(method = "compute", at = @At("RETURN"), cancellable = true, require = 1)
     private void chimera$emitterOcclusion(int x, int y, int z, CallbackInfoReturnable<Integer> result,
                                           @Local BlockState state) {
-        // The emission VulkanMod tests (LightDataAccess's lu).
+        // the emission VulkanMod tests (LightDataAccess's lu)
         if (LightEmission.of(state) == 0 || !ChimeraTerrainPipelines.vanillaSectionCompile()) return;
         result.setReturnValue(EmitterOcclusion.occluding(result.getReturnValueI(),
                 state.getShadeBrightness(this.world, this.pos)));

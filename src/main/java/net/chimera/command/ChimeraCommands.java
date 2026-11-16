@@ -22,7 +22,6 @@ import java.util.List;
 public final class ChimeraCommands {
     private ChimeraCommands() {}
 
-    /** Registers {@code /chimera}; NeoForge hands client commands over in RegisterClientCommandsEvent. */
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("chimera")
                 .then(Commands.literal("pack")
@@ -96,9 +95,8 @@ public final class ChimeraCommands {
     }
 
     /**
-     * Saves a pack loaded from the shaderpacks folder as the selection, as the selector screen
-     * does. A pack loaded by an explicit path outside that folder cannot be named in the config,
-     * so the saved selection is left as it was.
+     * Saves a pack from the shaderpacks folder as the selection, as the selector screen does. The config
+     * names only packs in that folder, so a pack loaded from elsewhere leaves the saved selection alone.
      */
     private static void rememberSelection(Path pack, boolean enabled) {
         Path root = shaderpacksRoot();
@@ -108,7 +106,7 @@ public final class ChimeraCommands {
                 ChimeraConfig.get().setSelection(pack.getFileName().toString(), enabled);
             }
         } catch (IOException failure) {
-            // Not in the shaderpacks folder: nothing to remember.
+            // an unresolvable path is not in the shaderpacks folder; nothing to remember
         }
     }
 

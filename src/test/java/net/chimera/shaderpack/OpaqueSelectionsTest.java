@@ -28,7 +28,7 @@ final class OpaqueSelectionsTest {
                 + " : texelFetch(texDiffuseRT, ivec2(0), 0)).rgb"), hoisted);
     }
 
-    /** A conditional of values, or of opaque names inside a longer expression, is GLSL already. */
+    /** A conditional of values is legal GLSL, so it stays. */
     @Test
     void anyOtherConditionalStays() {
         String source = DECLARATIONS + """

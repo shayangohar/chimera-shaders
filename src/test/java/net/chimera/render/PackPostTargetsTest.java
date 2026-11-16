@@ -51,13 +51,13 @@ final class PackPostTargetsTest {
         Map<Integer, Integer> formats = Map.of(4, 37, 7, 109);
         PostTargetPlan formatted = PostTargetPlan.parse(
                 "composite", "/* RENDERTARGETS: 0,4,7 */", formats).plan();
-        assert formatted.outputFormats().equals(List.of(37, 37, 109)); // colortex0 undeclared: RGBA8, as Iris
+        assert formatted.outputFormats().equals(List.of(37, 37, 109)); // colortex0 undeclared: RGBA8, as in Iris
     }
 
     /**
      * Rethinking Voxels' prepare passes do not run, so the chain drops colortex8, which its
-     * terrain reads. The terrain reads the image colortex8 holds, as under Iris; the resolver
-     * found no image and the game crashed (RESOURCE_BINDING_UNAVAILABLE:gbuffers_terrain:Sampler22).
+     * terrain reads. The terrain reads the image colortex8 holds, as under Iris; with no image its
+     * bind would fail (RESOURCE_BINDING_UNAVAILABLE).
      */
     @Test
     void worldProgramsReadWhatADroppedTargetHolds() {
@@ -78,7 +78,7 @@ final class PackPostTargetsTest {
      * Glimmer's prepare2 builds colortex7's mips (its sky), and its translucents and composite3
      * read them with textureLod. Iris resets a target's filter only after final
      * (FinalPassRenderer.resetRenderTarget), so the chain is still sampled through its mips in
-     * every later window and in final. Chimera reset it as each window opened.
+     * every later window and in final.
      */
     @Test
     void mipSamplingLastsUntilTheFrameEnds() {
@@ -94,9 +94,9 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Reforged 0.3.5 sets a viewport's y from the bound framebuffer's height. Pegasus draws its sky
-     * into colortex6 at a third of the screen and composite2 into colortex9 at a tenth; bound to
-     * colortex0's full-size stand-in, both passes drew below their images and the sky came out black.
+     * Reforged sets a viewport's y from the bound framebuffer's height. Pegasus draws its sky into
+     * colortex6 at a third of the screen and composite2 into colortex9 at a tenth; bound to colortex0's
+     * full-size stand-in, both passes would draw below their images and leave the sky black.
      */
     @Test
     void aPostPassBindsAStandInOfItsOwnSize() throws IOException {
@@ -117,8 +117,8 @@ final class PackPostTargetsTest {
         assertEquals(1080, PackPostTargets.standIn(standIns, hdr).getHeight(), "an HDR image no target matches");
         assertEquals(3, standIns.size(), "the window replaces the HDR image, so its stand-in is not kept");
 
-        // prepare binds the first attachment's stand-in before setViewport reads its height, and
-        // cleanUp drops the stand-ins with the images they were built on.
+        // prepare binds the first attachment's stand-in before setViewport reads its height
+        // cleanUp drops the stand-ins with the images they were built on
         ClassNode targets = MixinBytecode.nativeClass("net/chimera/render/PackPostTargets");
         List<String> prepare = calls(targets, "prepare");
         int bound = Collections.indexOfSubList(prepare, List.of("PackPostTargets$PostAttachments.first",
@@ -130,8 +130,8 @@ final class PackPostTargetsTest {
 
     /**
      * A post stage that throws aborts only its own step: the frame stays open, so the passes after
-     * it still record and the frame still commits. Closing the frame stays the window's
-     * abort, which turns the pack off.
+     * it still record and the frame still commits. Only the window's abort closes the frame, and it
+     * turns the pack off.
      */
     @Test
     void aFailedStepLeavesTheFrameOpen() throws IOException {
@@ -166,7 +166,7 @@ final class PackPostTargetsTest {
     void temporalGeometryTarget() {
         PackTemporalState frame = new PackTemporalState();
         frame.beginFrame(true);
-        frame.seedCurrent(6); // Geometry material output, before the first post window.
+        frame.seedCurrent(6); // geometry material output, before the first post window
         frame.requireFrameStarted();
         assertTrue(frame.currentAvailable(6), "post boundary discarded geometry target 6");
         boolean duplicateRejected = false;
@@ -186,10 +186,9 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Persistence comes only from the pack's clear contract. A nonzero
-     * target cleared every frame stays nonpersistent even when a pass
-     * reads it before writing it; the same shape with
-     * colortexNClear=false persists; every target is cleared on its first frame (PostTargetSides).
+     * Persistence comes only from the pack's clear declaration. A nonzero target cleared every frame does
+     * not persist even when a pass reads it before writing it; with colortexNClear=false the same shape
+     * persists. Every target is cleared on its first frame (PostTargetSides).
      */
     @Test
     void declarationDrivenPersistence(@TempDir Path root) throws Exception {

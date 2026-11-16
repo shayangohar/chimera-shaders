@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Small lossless lexer for the token rewrites used by the pack bridge. */
+/** Lossless GLSL lexer: rendering the tokens gives back the source, comments and whitespace included. */
 final class GlslLexer {
     /** One shared string per ASCII symbol, so single-character tokens allocate nothing. */
     private static final String[] SINGLE_CHARACTERS = singleCharacters();
@@ -48,8 +48,8 @@ final class GlslLexer {
     }
 
     /**
-     * The latest token lists. A program's planning passes each lex the source they are handed, and
-     * many hand on the same text unchanged.
+     * The eight most recently used token lists, shared since they are immutable. A program's planning passes
+     * each lex the source they are handed, and many hand on the same text unchanged.
      */
     private static final Map<String, List<Token>> RECENT = new LinkedHashMap<>(16, 0.75F, true) {
         @Override
@@ -69,7 +69,6 @@ final class GlslLexer {
         return List.copyOf(tokens);
     }
 
-    /** The one token that starts at {@code index}, classified by its first characters. */
     private static Token tokenAt(String input, int index) {
         char current = input.charAt(index);
         if (Character.isWhitespace(current)) {
@@ -174,9 +173,8 @@ final class GlslLexer {
     }
 
     /**
-     * Blanks comment text but keeps every offset and line break, so a match on the result can edit
-     * the original source. A commented line such as {@code // layout(triangles, ccw) in;} must never
-     * be the line an edit finds.
+     * Blanks comment text but keeps every offset and line break, so a match on the result can edit the original
+     * source and never lands on a commented line such as {@code // layout(triangles, ccw) in;}.
      */
     static String maskComments(String source) {
         StringBuilder masked = new StringBuilder(source.length());
@@ -194,10 +192,9 @@ final class GlslLexer {
     }
 
     /**
-     * Replaces each comment with one space, scanning left to right so whichever comment starts
-     * first wins. Removing block comments before line comments misreads Bliss's
-     * {@code x = viewPos.z;//*viewPos.z*...} as a block that swallows kilobytes of live code.
-     * An unterminated block comment runs to the end, as GLSL treats it.
+     * Replaces each comment with one space, scanning left to right so the comment that starts first wins.
+     * Removing block comments before line comments would read Bliss's {@code x = viewPos.z;//*viewPos.z*...}
+     * as a block that swallows live code. An unterminated block comment runs to the end of the source.
      */
     static String stripComments(String source) {
         if (source == null) return "";
@@ -261,9 +258,10 @@ final class GlslLexer {
     }
 
     /**
-     * The operator at {@code index}: the longest of {@code <<= >>= == != <= >= && || ++ -- += -= *=
-     * /= %= << >> ::}, else the single character. Every symbol of every pack source passes through
-     * here, so it is decided from the next characters instead of trying each operator in turn.
+     * The operator at {@code index}: the longest of
+     * {@code <<= >>= == != <= >= && || ++ -- += -= *= /= %= << >> ::}, else the single character. Every symbol
+     * of every pack source passes through here, so it is decided from the next characters instead of by trying
+     * each operator in turn.
      */
     private static String operatorAt(String source, int index) {
         char first = source.charAt(index);

@@ -18,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Iris serves alphaTestRef as the program's current alpha-test reference
  * (IrisInternalUniforms, CapturedRenderingState.getCurrentAlphaTest), and its core transformers
- * rename the name to iris_currentAlphaTest. Glimmer, Escheridia, Ebin, Mellow and RenderPearl
- * read it; Chimera refused every program that did.
+ * rename the name to iris_currentAlphaTest.
  */
 final class AlphaTestReferenceTest {
     private static final String READER = """
@@ -54,7 +53,7 @@ final class AlphaTestReferenceTest {
                 "the injected test reuses the served declaration: " + injected);
     }
 
-    /** Terrain draws and a shadow vertex read the reference; a post program still refuses it. */
+    /** Terrain draws and a shadow vertex read the reference; a post program refuses it. */
     @Test
     void worldProgramsReadItAndPostProgramsRefuseIt(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));

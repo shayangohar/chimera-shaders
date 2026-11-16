@@ -11,17 +11,14 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Immutable, bounded runtime settings for one pack session.
+ * A pack's custom uniforms and variables from {@code shaders.properties}, compiled into {@link PackExpression}
+ * programs.
  *
- * <p>Holds the pack's authored custom values: the declarations it wrote in
- * {@code shaders.properties}, compiled into {@link PackExpression programs}, ordered so a value
- * that reads another reads a resolved one, and evaluated once per frame into the storage the
- * uniform writer serves. Session state, which is the smoothing, lives in {@link Session} and is
- * dropped on reload.
+ * Values are ordered so one that reads another reads a resolved value, and are evaluated once per frame into the
+ * storage the uniform writer serves. Smoothing state lives in {@link Session} and is dropped on reload.
  *
- * <p>A declaration may take a name Chimera only kept as a placeholder for it. It may not take a
- * genuine engine input: those are the host's to answer, and a pack that redefines one is broken
- * rather than accommodated. Anything else is the pack's own name and is admitted as it stands.
+ * A declaration may take a name Chimera only keeps as a placeholder. It may not take an engine input's name: the
+ * host answers those, and a declaration that redefines one is refused.
  */
 public final class PackRuntimeSettings {
     private final List<Value> values;
@@ -89,11 +86,10 @@ public final class PackRuntimeSettings {
         Map<String, Declaration> byName = declarationsByName(declarations);
         Map<String, ParsedValue> parsed = new TreeMap<>();
         Set<String> rejected = new TreeSet<>();
-        // Iris logs a value it cannot parse and declares nothing, so a program that reads the
-        // name runs with it unset (zero). Bliss's `uniform.float.sandStorm = 0.0;` is one: its
-        // dependents are still refused, but shaders see the name as Iris leaves it.
+        // Iris logs a value it cannot parse and declares nothing, so shaders read that name as zero;
+        // Bliss's `uniform.float.sandStorm = 0.0;` is one; its dependents are still refused
         Set<String> dropped = new TreeSet<>();
-        // A declared value types every reference to it; anything else is the host's input.
+        // a declared value sets the width of every reference to it; any other name is a host input
         PackExpression.Widths widths = name -> {
             Declaration declared = byName.get(name);
             return declared != null ? width(declared.type()) : UniformRegistry.expressionWidth(name);
@@ -142,9 +138,8 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * Compiles one declaration. It is refused for a type the language does not serve, a genuine
-     * engine input's name, an expression that does not parse or has another width, or a
-     * dependency nothing serves.
+     * Compiles one declaration, or refuses it for an unserved type, an engine input's name, an expression that does
+     * not parse or has the wrong width, or a dependency nothing serves.
      */
     private static Compiled compile(Declaration declaration, PackExpression.Constants constants,
                                     PackExpression.Widths widths, Set<String> declared) {
@@ -218,8 +213,9 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * A host vector or matrix the expression reads whose components the host does not serve to
-     * expressions. The declaration cannot mean what it says, so it is refused, not zeroed.
+     * A host vector or matrix the expression reads whose components the host does not serve to expressions.
+     *
+     * A declaration that reads one is refused, since evaluating it against zeros would not mean what it says.
      */
     private static String unreadable(PackExpression.Program program, Set<String> declared) {
         for (String dependency : program.dependencies()) {
@@ -258,17 +254,17 @@ public final class PackRuntimeSettings {
         return customDescriptors;
     }
 
-    /** Declaration names that could not be compiled: they must not be served as a value. */
+    /** Refused declaration names; none of them is served as a value. */
     public Set<String> rejected() {
         return rejected;
     }
 
-    /** The first storage slot of a value; a vector's components follow it in order. */
+    /** A value's first storage slot, or -1; a vector's components follow it in order. */
     public int indexOf(String name) {
         return indices.getOrDefault(name, -1);
     }
 
-    /** Per-session storage: one smoothing state per value, one slot per value. */
+    /** Per-session storage: one smoothing state per value, one slot per component. */
     public static final class Session {
         private final PackExpression.State[] states;
         private final double[] scratch;
@@ -294,15 +290,15 @@ public final class PackRuntimeSettings {
         }
 
         /**
-         * Declarations whose expression produced a non-finite result, with the context of the
-         * first frame that happened on. A failure here is never silent: it is reported once, and
-         * the value is served as computed, as Iris serves it.
+         * Values whose expression gave a non-finite result, with the context of the first frame it happened on.
+         *
+         * Each is kept once; the value is still served as computed, as Iris serves it.
          */
         public Map<String, String> failures() {
             return Map.copyOf(this.failures);
         }
 
-        /** Drops every accumulator and value, as a pack reload must. */
+        /** Drops every accumulator and value, for a pack reload. */
         public void reset() {
             for (PackExpression.State state : this.states) {
                 state.reset();
@@ -319,9 +315,9 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * Evaluates every valid custom value once, in dependency order, before any program's uniform
-     * block is written. A value that reads another reads this frame's result, and a value that
-     * smooths folds one frame of its own call site's state.
+     * Evaluates every valid custom value once, in dependency order, before any program's uniform block is written.
+     *
+     * A value that reads another reads this frame's result; a smoothing call advances its own state by one frame.
      */
     public void evaluate(PackExpression.Inputs engine, Session session, float frameDelta) {
         if (session == null) {
@@ -337,25 +333,25 @@ public final class PackRuntimeSettings {
                 double result = session.lanes[lane];
                 int slot = base + lane;
                 if (!Double.isFinite(result)) {
-                    // Served as Iris serves it, to the uniform and to the values that read it:
-                    // RenderPearl's fog density divides by its Fog setting, and at 0 Iris's
-                    // infinity means no fog. Named once, with its expression and inputs.
+                    // served as Iris serves it, to the uniform and to the values that read it;
+                    // RenderPearl's fog density divides by its Fog setting, and Iris's infinity at 0 means no fog
+                    // recorded once per value, with its expression and inputs
                     session.failures.putIfAbsent(value.name(),
                             value.name() + (value.width() > 1 ? "." + "xyzw".charAt(lane) : "")
                                     + " is " + result + " at frame " + session.frames + ": "
                                     + value.program().source() + ", inputs " + context(value, inputs));
                 }
                 session.scratch[slot] = result;
-                // An int past float's 24 bits stays exact: RenderPearl's packedView at 1366x768
-                // is 50333014, which a float rounds to 50333016, a width of 1368. Both arms are
-                // double: an int and a float arm make the conditional a float (JLS 15.25).
+                // an int past float's 24 bits stays exact: RenderPearl's packedView at 1366x768 is 50333014,
+                // which a float rounds to 50333016, a width of 1368
+                // both arms are double; an int arm beside a float arm makes the conditional a float (JLS 15.25)
                 boolean integral = value.type().equals("int") || value.type().equals("bool");
                 session.output[slot] = integral ? (double) (int) result : (double) (float) result;
             }
         }
     }
 
-    /** The scalar inputs one expression read, as the values the failure saw them. */
+    /** The inputs one expression read, as the failing evaluation saw them. */
     private static String context(Value value, PackExpression.Inputs inputs) {
         TreeMap<String, Double> named = new TreeMap<>();
         for (String name : value.program().dependencies()) {
@@ -386,8 +382,8 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * One authored declaration. {@code exposed} is whether shaders see it: {@code uniform.} lines
-     * do, {@code variable.} lines are the pack's own working values.
+     * One authored declaration. {@code uniform.} lines are {@code exposed} to shaders; {@code variable.} lines are
+     * the pack's own working values.
      */
     record Declaration(boolean exposed, String type, String name, String expression) {
         Declaration {
@@ -423,8 +419,8 @@ public final class PackRuntimeSettings {
         boolean valid = value != null && !rejected.contains(name);
         if (valid) {
             for (String dependency : value.program().dependencies()) {
-                // A dependency refused at parse time is still declared, so the host must not
-                // answer for it: its dependents are refused too, never evaluated against a zero.
+                // a dependency refused at parse time is still declared, so the host does not answer for it;
+                // its dependents are refused too
                 ParsedValue dependencyValue = parsed.get(dependency);
                 if (rejected.contains(dependency) || (dependencyValue != null
                         && !resolve(dependency, parsed, rejected, visiting, resolved, order,

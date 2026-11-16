@@ -6,20 +6,21 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The storage blocks of a prepared source, read from the parse tree, and the binding rewrite for
- * the storage buffer bridge. Prepared sources hold no macros, so a block's qualifiers
- * are the ones its declaration spells.
+ * Storage blocks of a prepared source, read from the parse tree, and the rewrite of their bindings. Prepared
+ * sources hold no macros, so a block's qualifiers are the ones its declaration spells.
  */
 final class GlslStorageBufferParser {
     private static final Set<String> MEMORY_QUALIFIERS = Set.of(
             "readonly", "writeonly", "coherent", "volatile", "restrict");
 
     /**
-     * One storage block. {@code laidOut} is whether Vulkan lays it out as GL does: std430, std140,
-     * or no packing qualifier, which glslang lays out std430 for Vulkan in every stage alike, as GL
-     * lays out an unqualified (shared) block alike in every program. Shrimple qualifies none of its
-     * blocks. Explicit shared or packed has no Vulkan layout. A block with no {@code layout(...)} at
-     * all is not laid out and has no binding (-1).
+     * One storage block. {@code laidOut} means Vulkan lays it out as GL does: std430, std140 or no packing
+     * qualifier. glslang lays an unqualified block out std430 for Vulkan in every stage, as GL lays out an
+     * unqualified (shared) block alike in every program; Shrimple qualifies none of its blocks. Explicit
+     * {@code shared} or {@code packed} has no Vulkan layout.
+     *
+     * {@code originalBinding} is -1 without a readable binding. A block with no {@code layout(...)} at all
+     * has none and is not laid out.
      */
     record Block(
             String blockName,
@@ -29,7 +30,7 @@ final class GlslStorageBufferParser {
             List<String> accessNames
     ) {}
 
-    /** One storage block's node and the layout qualifier directly before its memory qualifiers. */
+    /** A storage block and the layout qualifier directly before its memory qualifiers, or null. */
     private record Declared(GlslTree.InterfaceBlock block, GlslTree.Qualifier layout) {}
 
     private GlslStorageBufferParser() {}
@@ -42,8 +43,7 @@ final class GlslStorageBufferParser {
             String instanceName = block.instances().isEmpty() ? "" : tree.text(block.instances().get(0).name());
             List<String> accessNames = accessNames(tree, block, instanceName);
             if (declared.layout() == null) {
-                // A block without layout is inventory-only. The caller will
-                // report it as unsupported rather than inventing a binding.
+                // listed but not laid out, so the caller reports it instead of inventing a binding
                 result.add(new Block(tree.text(block.name()), instanceName, -1, false, accessNames));
                 continue;
             }

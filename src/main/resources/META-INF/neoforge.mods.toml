@@ -8,7 +8,7 @@ version = "${version}"
 displayName = "Chimera"
 description = "Shaderpack pipeline for VulkanMod - Iris-class shaders on Vulkan."
 authors = "shayangohar"
-# Shown in NeoForge's mods list. The lettering is light, for that screen's dark panel.
+# light lettering for the mods list's dark panel
 logoFile = "chimera_logo.png"
 
 [[mixins]]
@@ -28,11 +28,9 @@ versionRange = "[1.21.1,1.21.2)"
 ordering = "NONE"
 side = "CLIENT"
 
-# The Vulkan host renderer, VulkanMod Reforged; Chimera mixes into it, so it loads first.
-# Every Chimera mixin into Reforged's internals must apply, so the range is the one Reforged build
-# Chimera was built and tested on. Any other build (0.3.0 and 0.3.5 differ in the hooks), a later
-# one, or another mod with the vulkanmod id then meets NeoForge's dependency screen instead of a
-# crash at launch.
+# VulkanMod Reforged, the host renderer; loads first since Chimera mixes into it
+# pinned to the one build Chimera's mixins target; any other build gets NeoForge's dependency screen
+# instead of a crash at launch
 [[dependencies.chimera]]
 modId = "vulkanmod"
 type = "required"

@@ -1,9 +1,7 @@
 #version 460
-// Chimera terrain vertex stage.
-// Consumes the extended terrain layout: VulkanMod's compressed position/light,
-// colour and UV prefix plus material attributes at locations 3 and 4. The
-// draw's base instance encodes the section's offset within its area;
-// ChunkOffset, the area origin relative to the camera, is a push constant.
+// extended terrain layout: VulkanMod's compressed position/light, colour and UV, plus material
+// attributes at locations 3 and 4; the base instance encodes the section's offset in its area, and
+// ChunkOffset, the area origin relative to the camera, is a push constant
 
 layout(binding = 0) uniform ViewUBO {
     mat4 MVP;
@@ -31,19 +29,19 @@ const float UV_SCALE = 1.0 / 32768.0;
 const vec3 POSITION_SCALE = vec3(1.0 / 2048.0);
 
 vec3 sectionOffset() {
-    // Three bytes: x in bits [0..8), z in bits [8..16), y in bits [16..24)
+    // three bytes: x in bits [0..8), z in bits [8..16), y in bits [16..24)
     return vec3(bitfieldExtract(ivec3(gl_InstanceIndex) >> ivec3(0, 16, 8), 0, 8));
 }
 
 vec4 fetchLightmap(uint packedLight) {
-    // Block light lives in bits [4..8), sky light in bits [12..16)
+    // block light in bits [4..8), sky light in bits [12..16)
     int blockLevel = int((packedLight >> 4u) & 0xFu);
     int skyLevel = int((packedLight >> 12u) & 0xFu);
     return texelFetch(LightMap, ivec2(blockLevel, skyLevel), 0);
 }
 
-// Watertight across sections and areas, as the pack preamble's chimeraWorldPosition: the exact
-// section-local position plus the area's whole-block offset, then the shared camera fraction.
+// watertight across sections and areas, as the pack preamble's chimeraWorldPosition: exact
+// section-local position plus the area's whole-block offset, then the shared camera fraction
 vec3 cameraRelativePosition() {
     vec3 areaBlocks = round(ChunkOffset + ChimeraCameraFraction.xyz);
     precise vec3 blocks = fma(vec3(inPositionLight.xyz), POSITION_SCALE, sectionOffset()) + areaBlocks;
@@ -51,8 +49,8 @@ vec3 cameraRelativePosition() {
     return position;
 }
 
-// The pack preamble's chimeraTexCoord0Value: the word's step toward the quad's centre, taken back
-// less one sub-texel, so the coordinate sits just inside its sprite.
+// as the pack preamble's chimeraTexCoord0Value: the word's step toward the quad's centre, less one
+// sub-texel, so the coordinate sits just inside its sprite
 vec2 texCoord() {
     vec2 stepUp = vec2(greaterThan(inUV, uvec2(0x7FFFu))) * 2.0 - 1.0;
     return vec2(inUV & 0x7FFFu) * UV_SCALE - stepUp * ChimeraTexCoordShrink.xy;
@@ -66,8 +64,8 @@ void main() {
 
     vec4 baseColor = inColor;
 #ifdef CHIMERA_SEPARATE_AO
-    // separateAo meshes carry the light pipeline's brightness in alpha (Iris); terrain
-    // vertex alpha is otherwise always 1, so fold it into RGB and keep the block opaque.
+    // separateAo meshes carry brightness in alpha, as under Iris; terrain alpha is otherwise 1,
+    // so fold it into RGB and keep the block opaque
     baseColor = vec4(baseColor.rgb * baseColor.a, 1.0);
 #endif
     outVertexColor = baseColor * fetchLightmap(uint(inPositionLight.w));

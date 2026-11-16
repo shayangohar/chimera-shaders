@@ -10,10 +10,11 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The NVIDIA leniencies reach the stages the bridges emit, not only hand-written sources: Body
- * Camera's terrain compares mc_Entity, which the terrain bridge reads as a constructor, with a
- * number (VectorScalarComparisons), and Pixel Perfect's composites loop to an array's bare length
- * (ArrayLengthCalls). Each program compiles as Iris's driver compiles it.
+ * The NVIDIA leniencies also apply to the stages the bridges emit.
+ *
+ * Body Camera's terrain compares mc_Entity, which the terrain bridge reads as a constructor, with a number
+ * (VectorScalarComparisons). Pixel Perfect's composites loop to an array's bare length (ArrayLengthCalls).
+ * Each program compiles as the NVIDIA driver compiles it under Iris.
  */
 final class NvidiaLeniencyPackTest {
     @Test

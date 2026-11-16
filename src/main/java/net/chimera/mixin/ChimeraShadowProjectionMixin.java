@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.nio.FloatBuffer;
 
 /**
- * Stores the shadow pass's projections unchanged, as upstream VulkanMod stored every projection.
- * Reforged maps each projection's depth from GL's [-1,1] onto Vulkan's [0,1], but the shadow
- * programs map their legacy clip depth themselves and the fixed shadow projection is already
- * [0,1]: mapped twice, every shadow depth landed about 78 blocks behind its caster. The shadow
- * draws (Chimera's, Reforged's renderSectionLayer, RenderSystem.setProjectionMatrix for casters)
- * all apply their projection here; vanilla's own copy of the matrix is untouched.
+ * Stores the shadow pass's projections unchanged, as upstream VulkanMod stores every projection. Reforged
+ * maps each projection's depth from GL's [-1,1] onto Vulkan's [0,1], but the shadow programs map their
+ * legacy clip depth themselves and the fixed shadow projection is already [0,1]. Mapped twice, every shadow
+ * depth would land far behind its caster. All shadow draws apply their projection here: Chimera's,
+ * Reforged's renderSectionLayer, and RenderSystem.setProjectionMatrix for casters. Vanilla's own copy of the
+ * matrix is untouched.
  */
 @Mixin(value = VRenderSystem.class, remap = false)
 public abstract class ChimeraShadowProjectionMixin {

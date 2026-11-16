@@ -5,9 +5,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
 /**
- * A cell that names something and shows its value in a box on the right: a toggle, a choice, or the
- * profile. The label is cut to leave room for the box, and turns warm yellow while the option has
- * a pending change.
+ * A cell that names something and shows its value in a box on the right: a toggle, a choice or the profile.
+ * The label is cut to leave room for the box, and turns warm yellow while the option has a pending change.
  */
 abstract class ValueCell extends OptionCell {
     static final Component SET_TO_DEFAULT = Component.translatable("options.chimera.setToDefault")

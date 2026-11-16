@@ -13,16 +13,16 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_VIEW_TYPE_2D;
 import static org.lwjgl.vulkan.VK10.vkDestroyImageView;
 
 /**
- * Views of target images in other formats of their texel size, for a storage binding that declares
- * one: NVIDIA and Mesa drivers read the same bits through the format the shader names, though GL
- * leaves a qualifier that differs from the image unit's format undefined, and Alpha
- * Piscium's begin2_b clears its R32UI colortex9 as rgba8. Such a target is created mutable
- * (ChimeraMutableImageMixin) and owns one storage view per format until it is freed.
+ * Views of target images in other formats of the same texel size, for a storage binding that declares one.
+ * GL leaves a format qualifier that differs from the image unit's format undefined, but NVIDIA and Mesa
+ * drivers read the same bits through the format the shader names, and Alpha Piscium's begin2_b clears its
+ * R32UI colortex9 as rgba8. Such a target is created mutable (ChimeraMutableImageMixin) and owns one storage
+ * view per extra format until it is freed.
  */
 public final class TargetFormatViews {
-    /** Per thread: MemoryManager.createImage is shared, and only this thread's allocation is the target. */
+    /** Per thread, since MemoryManager.createImage is shared and only this thread's allocation is the target. */
     private static final AllocationScope<Boolean> MUTABLE = new AllocationScope<>();
-    // Render thread only: targets are created, bound and freed while the frame is recorded.
+    // render thread only: targets are created, bound and freed while the frame is recorded
     private static final Map<VulkanImage, Map<Integer, Long>> VIEWS = new IdentityHashMap<>();
 
     private TargetFormatViews() {}
@@ -45,7 +45,7 @@ public final class TargetFormatViews {
                 }
             }
         } catch (RuntimeException failure) {
-            // Nothing has recorded a use of the new image yet, so it and its views go now.
+            // nothing has recorded a use of the new image yet, so it and its views can go now
             views.values().forEach(view -> vkDestroyImageView(Vulkan.getVkDevice(), view, null));
             image.free();
             throw failure;

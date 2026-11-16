@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A compile error names the translated line, and the authored line that reads the same where one
- * does: RedHat's DIRTY_LENS error reads pack_final.fsh:518, which no author has.
+ * A compile error names the translated line, and the authored line that reads the same where there is one,
+ * since a location such as pack_final.fsh:518 points into no file the pack ships.
  */
 final class CompileErrorLocationTest {
     private static final String TRANSLATED = String.join("\n",

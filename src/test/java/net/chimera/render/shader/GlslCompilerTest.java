@@ -24,7 +24,7 @@ final class GlslCompilerTest {
         PackDevice.set(PackDevice.offline("nvidia").withExtensions(List.of(extensions)));
     }
 
-    /** Bliss's composite outgrew the 64 KB stack shaderc's CharSequence overloads encode into. */
+    /** Bliss's composite is larger than the 64 KB stack that shaderc's CharSequence overloads encode into. */
     @Test
     void compilesASourceLargerThanTheThreadStack() {
         String source = "#version 450\n" + "// a pack stage's worth of source\n".repeat(4096)
@@ -48,7 +48,7 @@ final class GlslCompilerTest {
                 failure.getMessage());
     }
 
-    /** NVIDIA's driver crashed building RenderPearl's deferred1, whose SPIR-V needed an extension it lacks. */
+    /** NVIDIA's driver crashes building a module that needs an extension the device lacks (RenderPearl's deferred1). */
     @Test
     void refusesAModuleNeedingAnExtensionTheDeviceWasCreatedWithout() {
         String source = """

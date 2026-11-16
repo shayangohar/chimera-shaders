@@ -5,15 +5,15 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Which skipped programs change what renders: a chat line names those, and the log warns
- * of them. A program the pack switched off, one Iris would not run here either, or one only another
- * mod's renderer runs changes nothing, so its skip is expected and stays in debug.log.
+ * Which skipped programs change what renders. A chat line names those and the log warns of them. Skipping a
+ * program the pack switched off, one Iris would not run here either, or one only another mod's renderer runs
+ * changes nothing, so the skip is expected and stays in debug.log.
  */
 public final class SkippedPrograms {
     /** The report labels that say a skip changes nothing Iris would draw here. */
     private static final List<String> EXPECTED = List.of(
             "PROGRAM_DISABLED:",             // the pack switched the program off
-            "IRIS_PROGRAM_UNUSED:",          // Iris never runs it here: another mod's (Colorwheel, Physics Mod)
+            "IRIS_PROGRAM_UNUSED:",          // another mod's, like Colorwheel or Physics Mod; Iris never runs it
             "IRIS_FALLBACK_SOURCE_ONLY",     // Iris reads it only as another program's fallback source
             "TERRAIN_LAYER_MERGED_BY_HOST:", // the host draws the layer with gbuffers_terrain
             "MISSING_FRAGMENT_SOURCE",       // no fragment stage, so Iris builds no program from it
@@ -27,13 +27,13 @@ public final class SkippedPrograms {
 
     private SkippedPrograms() {}
 
-    /** True when skipping {@code row}'s program changes nothing Iris would draw here. */
+    /** Whether skipping {@code row}'s program changes nothing Iris would draw here. */
     public static boolean expected(ConformanceReport.ProgramReport row) {
         return expected(row.name(), row.deviations());
     }
 
     static boolean expected(String name, Collection<String> deviations) {
-        // Distant Horizons' programs run only under Distant Horizons, which Chimera does not host.
+        // Distant Horizons' programs run only under Distant Horizons, which Chimera does not host
         if (name.startsWith("dh_")) return true;
         return deviations.stream().anyMatch(deviation -> EXPECTED.stream().anyMatch(deviation::startsWith));
     }

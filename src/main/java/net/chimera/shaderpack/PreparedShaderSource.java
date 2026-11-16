@@ -3,9 +3,9 @@ package net.chimera.shaderpack;
 import java.util.List;
 
 /**
- * One immutable source snapshot produced by the shared pack preprocessor.
- * Paths are relative to the pack shader root so this value is safe to use in
- * deterministic reports and tests.
+ * One stage's source after the pack preprocessor.
+ *
+ * The path is relative to the pack's shader root, with forward slashes, so reports and tests stay deterministic.
  */
 public record PreparedShaderSource(
         String stage,

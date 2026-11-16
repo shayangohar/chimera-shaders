@@ -5,13 +5,11 @@ import java.util.regex.Pattern;
 /**
  * Load-time proof that an authored program writes nothing.
  *
- * Packs switch a family off by discarding every fragment in the selected
- * branch (BSL gbuffers_clouds with CLOUDS != 3, Complementary with
- * CLOUD_STYLE_DEFINE != 50). Iris executes such a program and draws
- * nothing. The proof reads prepared sources, whose inactive preprocessor
- * branches are already removed: the fragment main must begin with an
- * unconditional discard, and neither stage may write images, storage
- * buffers or atomics, which are the only effects a discarded draw keeps.
+ * Packs switch a family off by discarding every fragment in the selected branch (BSL's gbuffers_clouds with
+ * CLOUDS != 3, Complementary with CLOUD_STYLE_DEFINE != 50); Iris runs such a program and it draws nothing.
+ * The proof reads prepared sources, whose inactive preprocessor branches are already removed. The fragment
+ * main must begin with an unconditional discard, and neither stage may write images, storage buffers or
+ * atomics, the only effects a discarded draw keeps.
  */
 public final class AuthoredOutput {
     private static final Pattern DISCARDING_MAIN = Pattern.compile(

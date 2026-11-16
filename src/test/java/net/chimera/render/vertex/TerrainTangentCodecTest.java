@@ -9,27 +9,26 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Terrain at_tangent must be the quad's texture U direction with Iris's
- * handedness, not a tangent synthesized from the normal: the synthesized one
- * is a quarter turn off on up/down faces and wrong on rotated textures, which
- * sends pack parallax marching the wrong way.
+ * Terrain at_tangent is the quad's texture U direction with Iris's handedness. A tangent synthesized
+ * from the normal is a quarter turn off on up and down faces and wrong on rotated textures, which sends
+ * pack parallax marching the wrong way.
  */
 final class TerrainTangentCodecTest {
     @Test
     void quadTangents() {
-        // Minecraft top face: corners (0,1,0) (0,1,1) (1,1,1) (1,1,0) with U along +X.
+        // Minecraft top face: corners (0,1,0) (0,1,1) (1,1,1) (1,1,0) with U along +X
         checkQuad("up", 0, 1, 0,
                 new float[] {0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0},
                 1, 0, 0);
-        // North face (-Z): U runs along -X, V down.
+        // north face (-Z): U runs along -X, V down
         checkQuad("north", 0, 0, -1,
                 new float[] {1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0},
                 -1, 0, 0);
-        // East face (+X): U runs along -Z.
+        // east face (+X): U runs along -Z
         checkQuad("east", 1, 0, 0,
                 new float[] {1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0},
                 0, 0, -1);
-        // Mirrored UVs keep the direction and flip the handedness.
+        // mirrored UVs keep the direction and flip the handedness
         int normal = ChimeraEntityVertexData.pack(0, 0, -1, 0);
         int mirrored = ChimeraEntityVertexData.tangent(0, 0, -1, false,
                 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1);
@@ -38,13 +37,13 @@ final class TerrainTangentCodecTest {
                 "mirrored UV handedness lost: " + decodedMirror[3]);
         requireNear(decodedMirror, mirrored, "mirrored UV direction");
 
-        // A texture rotated 45 degrees on a north face stays within one step.
+        // a texture rotated 45 degrees on a north face stays within one step
         float r = (float) Math.sqrt(0.5);
         int rotated = ChimeraEntityVertexData.pack(-r, r, 0, 1);
         float[] decodedRotated = TerrainTangentCodec.decode(TerrainTangentCodec.encode(normal, rotated));
         requireNear(decodedRotated, rotated, "rotated texture direction");
 
-        // Byte 0 and an unset word reproduce the reference tangent.
+        // byte 0 and an unset word reproduce the reference tangent
         float[] reference = TerrainTangentCodec.decode(normal);
         assertTrue(Math.abs(reference[0] + 1.0f) < 1.0e-4f && reference[3] == 1.0f,
                 "zero code does not reproduce the reference tangent");
@@ -54,15 +53,15 @@ final class TerrainTangentCodecTest {
 
     /**
      * The builder stores each quad's face normal from its diagonals, as Iris does. VulkanMod's
-     * fluid renderer passes packed normal 0, which a pack would normalize into NaN water
+     * fluid renderer passes packed normal 0, which a pack would normalise into NaN water
      * lighting; its block renderer passes the facing axis as unit bytes (1/127 once unpacked).
      */
     @Test
     void storesFaceNormals() {
-        // Water top face, Minecraft corner order (counter-clockwise from above), no host normal.
+        // water top face, Minecraft corner order (counter-clockwise from above), no host normal
         checkStoredNormal(new float[][] {{0, 0.875f, 0}, {0, 0.875f, 1}, {1, 0.875f, 1}, {1, 0.875f, 0}},
                 0, new float[] {0, 1, 0});
-        // Block east face with VulkanMod's VertexUtil.packNormal(1, 0, 0).
+        // block east face with VulkanMod's VertexUtil.packNormal(1, 0, 0)
         checkStoredNormal(new float[][] {{1, 1, 1}, {1, 0, 1}, {1, 0, 0}, {1, 1, 0}},
                 0x000001, new float[] {1, 0, 0});
     }
@@ -112,7 +111,7 @@ final class TerrainTangentCodecTest {
         float dot = decoded[0] * ChimeraEntityVertexData.unpack(tangent, 0)
                 + decoded[1] * ChimeraEntityVertexData.unpack(tangent, 1)
                 + decoded[2] * ChimeraEntityVertexData.unpack(tangent, 2);
-        // One codec step is 5.6 degrees; round-to-nearest stays within half of it.
+        // one codec step is 5.6 degrees; round-to-nearest stays within half of it
         assertTrue(dot > Math.cos(Math.toRadians(3.0)) * 0.99f, message + ": dot=" + dot);
     }
 }

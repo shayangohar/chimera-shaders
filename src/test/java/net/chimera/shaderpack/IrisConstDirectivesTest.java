@@ -12,9 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's const directives (ConstDirectiveParser, ProgramSet.locateDirectives). Chimera read them
- * from vertex stages and from programs Iris never loads, in name order, and only when nothing but
- * a // comment followed the semicolon. The pack-wide directives come from programs the pack keeps.
+ * Iris's const directives (ConstDirectiveParser, ProgramSet.locateDirectives), read from the
+ * fragment stages of the programs Iris loads, in Iris's order, whatever follows the semicolon.
+ * The pack-wide directives come from programs the pack keeps.
  */
 final class IrisConstDirectivesTest {
     @Test
@@ -67,8 +67,8 @@ final class IrisConstDirectivesTest {
     }
 
     /**
-     * Iris's pack-wide directives (PackDirectives.acceptDirectivesFrom). Chimera read the half-lives
-     * from option defaults, dropped drynessHalflife, and scanned noiseTextureResolution in every stage.
+     * Iris's pack-wide directives (PackDirectives.acceptDirectivesFrom): drynessHalflife writes the
+     * wetness half-life, and the dryness half-life keeps its default.
      */
     @Test
     void drynessHalflifeWritesTheWetnessHalfLifeAsIrisDoes() {

@@ -22,8 +22,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 /**
- * Initializes and finalizes the appended entity vertex elements: EntityIds, MidTexCoord and Tangent,
- * and Normal where the format appends one (ChimeraVertexFormats.appendsNormal, EXTENDED_GLYPH).
+ * Writes the entity vertex elements Chimera appends: EntityIds, MidTexCoord and Tangent, plus Normal where
+ * the format appends one, as EXTENDED_GLYPH does (ChimeraVertexFormats.appendsNormal). Defaults go in as
+ * each vertex starts; MidTexCoord, Tangent and any face normal are filled per polygon once its last corner
+ * is written.
  */
 @Mixin(BufferBuilder.class)
 public abstract class ChimeraBufferBuilderMixin {
@@ -73,7 +75,7 @@ public abstract class ChimeraBufferBuilderMixin {
         chimera$extraMask = maskOf(format, "EntityIds")
                 | maskOf(format, "MidTexCoord")
                 | maskOf(format, "Tangent");
-        // Iris GLYPH: text writes no normal, and Iris writes (0, 1, 0) in its place.
+        // Iris's GLYPH format: text writes no normal, so Iris writes (0, 1, 0) in its place
         chimera$appendedNormal = ChimeraVertexFormats.appendsNormal(format);
         if (chimera$appendedNormal) {
             chimera$extraMask |= maskOf(format, "Normal");
@@ -124,10 +126,8 @@ public abstract class ChimeraBufferBuilderMixin {
     }
 
     /**
-     * The vanilla builder validates its element mask when the next vertex
-     * starts. The appended attributes are written directly because they are
-     * Chimera-owned data, so mark only those elements complete before that
-     * validation runs. Host attributes keep their normal validation.
+     * The vanilla builder checks its element mask when the next vertex starts. The appended elements are
+     * written directly, so only they are marked complete before that check; host elements are still checked.
      */
     @Inject(method = "endLastVertex", at = @At("HEAD"), require = 1)
     private void chimera$completeAppendedElements(CallbackInfo callback) {

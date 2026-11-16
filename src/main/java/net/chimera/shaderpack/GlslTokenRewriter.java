@@ -8,31 +8,27 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Rewrites for the legacy-to-Vulkan GLSL bridge. The function and declaration rewrites read and
- * edit the parse tree: unreachable functions, main's prologue and epilogue, reserved
- * parameter names, uniform declarator lists and global consts. The rest stay token rewrites,
- * because the tree holds expressions as token ranges:
- * <ul>
- *   <li>renaming a name everywhere it is spelled, which built-ins and the authored entry point
- *       need whatever scope they appear in ({@link #replaceIdentifiers}), and a sampler named like
- *       a lookup function, which only its calls tell apart ({@link #renameSamplerIdentifier});</li>
- *   <li>rewriting calls and their arguments: texture lookups, bounded texelFetch and legacy
- *       shadow lookups, innermost first;</li>
- *   <li>replacing {@code gl_FragData[N]} subscripts with the outputs they write;</li>
- *   <li>deciding whether a const initializer is a constant expression;</li>
- *   <li>asking whether, or how often, a name is spelled ({@link #containsIdentifier}).</li>
- * </ul>
+ * Rewrites for the legacy-to-Vulkan GLSL bridge.
+ *
+ * The function and declaration rewrites edit the parse tree: unreachable functions, main's prologue and
+ * epilogue, reserved parameter names, uniform declarator lists and global consts. The rest work on tokens,
+ * since the tree holds expressions as token ranges.
+ *
+ * The token rewrites rename a name wherever it is spelled, as built-ins and the authored entry point need
+ * ({@link #replaceIdentifiers}), or a sampler named like a lookup function, which only its calls tell apart
+ * ({@link #renameSamplerIdentifier}). They also rename legacy texture calls, inline legacy shadow lookups,
+ * replace {@code gl_FragData[N]} with the outputs it writes, test whether a const initializer is a constant
+ * expression, and ask whether or how often a name is spelled ({@link #containsIdentifier}).
  */
 public final class GlslTokenRewriter {
     private GlslTokenRewriter() {}
 
     /**
-     * Blanks complete unreachable function definitions while preserving line
-     * breaks. Source positions remain stable for compiler diagnostics and the
-     * later declaration rewrites cannot leave dead resource references behind.
-     * Directive lines inside a blanked function stay: a #define there holds for
-     * the rest of the file (Complementary defines WATER_FOG_MULT_M in an unused
-     * GetWaterFog and uses it later, where the identical redefinition is folded).
+     * Blanks unreachable function definitions but keeps their line breaks, so compiler line numbers hold and
+     * later declaration rewrites see no dead resource references.
+     *
+     * Directive lines inside a blanked function stay, since a {@code #define} there holds for the rest of the
+     * file: Complementary defines {@code WATER_FOG_MULT_M} in an unused {@code GetWaterFog} and uses it later.
      */
     static String removeUnreachableFunctions(
             String source, GlslResourceUsage.Analysis usage
@@ -85,9 +81,8 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Renames a sampler identifier without renaming a function with the same
-     * spelling.  The OptiFine atlas sampler is commonly named {@code texture},
-     * which collides with the GLSL texture lookup function.
+     * Renames a sampler but not a call spelled the same. OptiFine's atlas sampler is often named
+     * {@code texture}, like the GLSL lookup function.
      */
     static String renameSamplerIdentifier(String source, String sampler, String replacement) {
         if (source == null || sampler == null || replacement == null || sampler.equals(replacement)) {
@@ -135,7 +130,7 @@ public final class GlslTokenRewriter {
         return GlslLexer.render(tokens);
     }
 
-    /** Vulkan GLSL reserves 'sampler'; legacy GL permits it as a function parameter name. */
+    /** Vulkan GLSL reserves {@code sampler}; legacy GL allows it as a function parameter name. */
     static String renameReservedSamplerParameters(String source) {
         if (source == null || !source.contains("sampler")) return source;
         if (!GlslResourceUsage.analyze(source).successful()) return source;
@@ -157,19 +152,17 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Converts legacy shadow lookups to inline expressions on the sampler's type: a sampler
-     * parameter's own type inside its function (BSL's texture2DShadow(sampler2DShadow, vec3)
-     * helper), else the declared uniform's in {@code samplerTypes}.
+     * Converts legacy shadow lookups to inline expressions on the sampler's type: a sampler parameter's own
+     * type inside its function, as in BSL's {@code texture2DShadow(sampler2DShadow, vec3)} helper, else the
+     * declared uniform's in {@code samplerTypes}.
      */
     static String rewriteShadowCalls(String source, Map<String, String> samplerTypes) {
         List<GlslLexer.Token> tokens = new ArrayList<>(GlslLexer.lex(source));
         GlslTree tree = GlslTree.parse(source);
-        // A program may define a function under one of these names (Solas's and BSL's own
-        // texture2DShadow); its calls and its definition are the program's, left to GLSL's overload
-        // resolution as Iris leaves them, not legacy lookups.
+        // Solas and BSL define their own texture2DShadow; a function the program defines under one of these
+        // names keeps its calls, left to GLSL overload resolution as Iris leaves them
         Set<String> userDefined = userDefinedFunctions(tree, LEGACY_SHADOW_CALLS);
-        // Work from the innermost calls outward. This keeps nested legacy
-        // lookups valid when the outer coordinate expression is rendered.
+        // innermost calls first, so a nested lookup is already rewritten when the outer one renders its coordinate
         for (int index = tokens.size() - 1; index >= 0; index--) {
             GlslLexer.Token token = tokens.get(index);
             if (token.kind() != GlslLexer.Kind.IDENTIFIER || !LEGACY_SHADOW_CALLS.contains(token.text())
@@ -191,7 +184,7 @@ public final class GlslTokenRewriter {
 
     private static final Set<String> LEGACY_SHADOW_CALLS = Set.of("shadow2D", "shadow2DLod", "texture2DShadow");
 
-    /** The inline expression replacing the legacy shadow call at {@code call}, whose arguments end at {@code close}. */
+    /** The inline expression for the legacy shadow call at {@code call}, whose arguments close at {@code close}. */
     private static String legacyShadowExpression(List<GlslLexer.Token> tokens, int call, int close,
                                                  Map<String, String> samplerTypes, GlslTree tree) {
         String function = tokens.get(call).text();
@@ -233,9 +226,8 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Wraps the one real GLSL main function and appends statements after the
-     * authored body. The lexer and resource analysis make comments, strings,
-     * helper functions, and identifiers containing "main" irrelevant.
+     * Renames the authored main and calls it from a generated main that runs {@code epilogue} afterwards, so
+     * the epilogue runs even when the authored body returns early.
      */
     static String appendMainEpilogue(String source, String epilogue) {
         if (source == null || epilogue == null || epilogue.isBlank()) return source;
@@ -251,8 +243,8 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Appends statements at the end of the one real GLSL main function's body, as glsl-transformer's
-     * appendMainFunctionBody does for Iris: a {@code return} earlier in main skips them.
+     * Appends statements at the end of main's body, as glsl-transformer's appendMainFunctionBody does for
+     * Iris, so a {@code return} earlier in main skips them.
      */
     static String appendMainBody(String source, String statements) {
         if (source == null || statements == null || statements.isBlank()) return source;
@@ -262,12 +254,10 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Splits {@code [layout(...)] [writeonly] uniform T a, b[2], c = x;} into
-     * one declaration per name. GLSL gives each declarator the same qualifiers
-     * and type, so this changes nothing a shader can observe; it lets every
-     * per-name rewriter (bindings, advanced images, the shadowcomp translator)
-     * find each declaration. Solas declares its two floodfill images in one
-     * statement. Interface blocks are left alone.
+     * Splits {@code [layout(...)] [writeonly] uniform T a, b[2], c = x;} into one declaration per name.
+     * GLSL gives each declarator the same qualifiers and type, so a shader sees no change, and every per-name
+     * rewriter (bindings, advanced images, the shadowcomp translator) can find each declaration. Solas declares
+     * its two floodfill images in one statement. Interface blocks and struct-typed lists are left alone.
      */
     public static String splitUniformDeclarators(String source) {
         if (source == null || !source.contains("uniform") || !source.contains(",")) return source;
@@ -280,7 +270,7 @@ public final class GlslTokenRewriter {
                     .noneMatch(value -> tree.text(value.keyword()).equals("uniform"))) {
                 continue;
             }
-            // The qualifiers and type, as written, start every declaration of the list.
+            // each split declaration starts with the qualifiers and type as written
             String prefix = tree.text(new GlslTree.Range(declaration.range().start(),
                     declaration.type().range().end()));
             StringBuilder split = new StringBuilder();
@@ -294,11 +284,11 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Desktop GL drivers accept a global {@code const} whose initializer is
-     * not a constant expression (a uniform, a plain global, a user function);
-     * Vulkan GLSL rejects it. Drop {@code const} from exactly those
-     * declarations, following dependencies until nothing changes, so every
-     * truly constant global keeps it (array sizes and other consts need it).
+     * Drops {@code const} from globals whose initializer is not a constant expression, such as one reading a
+     * uniform, a plain global or a user function. Desktop GL drivers accept these and Vulkan GLSL refuses them.
+     *
+     * Dependencies are followed until nothing changes, so every truly constant global keeps {@code const} for
+     * the array sizes and other consts that need it.
      */
     static String relaxNonConstantGlobals(String source) {
         if (source == null || !source.contains("const")) return source;
@@ -314,7 +304,7 @@ public final class GlslTokenRewriter {
         return edits.isEmpty() ? source : tree.print(edits);
     }
 
-    /** Every file-scope {@code const} declaration, with its names and initializer token ranges, in source order. */
+    /** Every file-scope {@code const} declaration in source order, with its names and initializer ranges. */
     private static List<ConstDeclaration> globalConstDeclarations(GlslTree tree) {
         List<ConstDeclaration> declarations = new ArrayList<>();
         for (GlslTree.External external : tree.externals()) {
@@ -378,7 +368,7 @@ public final class GlslTokenRewriter {
             }
             String name = token.text();
             if (call) {
-                // Constructors and built-in functions fold; a user function never does.
+                // constructors and built-in functions fold; a user function never does
                 if (userFunctions.contains(name)) return false;
                 continue;
             }
@@ -390,7 +380,7 @@ public final class GlslTokenRewriter {
 
     private record ConstDeclaration(int keyword, List<String> names, List<int[]> initializers) {}
 
-    /** Inserts statements at the start of the one real GLSL main body (Iris prependMainFunctionBody). */
+    /** Inserts statements at the start of main's body, as Iris does with prependMainFunctionBody. */
     static String prependMainPrologue(String source, String prologue) {
         if (source == null || prologue == null || prologue.isBlank()) return source;
         GlslTree tree = GlslTree.parse(source);
@@ -424,7 +414,7 @@ public final class GlslTokenRewriter {
         return main;
     }
 
-    /** Returns a source-safe identifier that is absent from the token stream. */
+    /** {@code base} with underscores appended until no identifier in the source spells it. */
     static String uniqueIdentifier(String source, String base) {
         String candidate = base == null || base.isBlank() ? "chimeraGenerated" : base;
         Set<String> identifiers = new HashSet<>();
@@ -527,7 +517,7 @@ public final class GlslTokenRewriter {
         for (int index = 0; index < tokens.size(); index++) {
             GlslLexer.Token token = tokens.get(index);
             if (token.identifier("gl_FragColor")) {
-                // Output 0, discarded as gl_FragData[0] is when an empty route gives it no buffer.
+                // output 0, discarded like gl_FragData[0] when an empty route gives it no buffer
                 tokens.set(index, identifier(targetPlan == null ? "chimeraFragColor0" : postOutputName(targetPlan, 0)));
                 continue;
             }

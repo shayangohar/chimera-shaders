@@ -31,10 +31,9 @@ import static org.lwjgl.util.vma.Vma.vmaDestroyImage;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * A pack raw texture (Iris GlTexture over CustomTextureData.RawData*): a 1D, 2D or 3D image
- * holding the file's pixels unchanged except that 32-bit floats are halved for a 16-bit float
- * format, as glTexImage converts them, and three channels widen to four with alpha 1. It uploads
- * through VulkanMod's image upload commands, as pack PNG textures do, and stays read-only.
+ * A pack raw texture, as Iris's GlTexture over CustomTextureData.RawData*: a 1D, 2D or 3D image of the file's
+ * pixels. 32-bit floats are halved for a 16-bit float format, as glTexImage converts them, and three channels
+ * widen to four with alpha 1. It uploads through VulkanMod's image upload commands, as pack PNG textures do.
  */
 final class PackRawTexture extends VulkanImage implements PackResourceOwner.LoadedTexture {
     /** Vulkan formats by kind and bits, for one, two and four channels. */
@@ -102,8 +101,8 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
             try {
                 texture.upload(pixels, spec, storage.uploadedChannels() * storage.bits() / 8);
             } catch (RuntimeException failure) {
-                // No owner holds the texture yet (audit RD6). Once the copy is recorded, a command
-                // buffer VulkanMod may submit later reads the image, so it is left alive then.
+                // no owner holds the texture yet; once the copy is recorded, a command buffer VulkanMod
+                // may submit later reads the image, so it is left alive
                 if (!texture.uploadRecorded) texture.free();
                 throw failure;
             }
@@ -172,7 +171,7 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
                     format, VK_IMAGE_ASPECT_COLOR_BIT);
             int address = clamp ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT;
             int vkFilter = linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-            // Iris GlTexture: no mipmaps, LOD pinned to 0, no bias.
+            // as Iris's GlTexture: no mipmaps, LOD pinned to 0, no bias
             VkSamplerCreateInfo samplerInfo = VkSamplerCreateInfo.calloc(stack)
                     .sType$Default()
                     .magFilter(vkFilter)

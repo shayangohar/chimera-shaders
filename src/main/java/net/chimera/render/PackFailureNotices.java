@@ -18,14 +18,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * What a pack lost, told once per distinct failure, as Iris tells a failed load: a chat
- * line that names the pack and the program or pass, says whether Chimera skipped it or the pack fell
- * back to vanilla, and ends with Copy Info. A line found before a player is in a world waits for one,
- * as Iris's does (MixinClientPacketListener.handleLogin). The current pack's failures also feed
- * /chimera pack status.
+ * Tells the player what a pack lost, as Iris tells a failed load: a chat line that names the pack and the
+ * program or pass, says whether Chimera skipped it or the pack fell back to vanilla, and ends with Copy Info
+ * and report links. A line raised before the player is in a world waits for one, as Iris's does
+ * (MixinClientPacketListener.handleLogin). The current pack's failures also feed /chimera pack status.
  *
- * <p>A failure is recorded where it happens, on any thread, and published once the load or frame
- * that found it has its report: publishing queues its line, and the client tick posts it.
+ * A failure is recorded where it happens, on any thread, and published once the load or frame that found it
+ * has its report: publishing queues its line, and the client tick posts it.
  */
 public final class PackFailureNotices {
     /** What a failure did to the frame. */
@@ -39,8 +38,8 @@ public final class PackFailureNotices {
     }
 
     /**
-     * One failure: the pack, the program or pass it struck, the phase it struck in, what it did, a
-     * one-line reason, the text Copy Info copies, and the exception behind it, if one was thrown.
+     * One failure: the pack, the program or pass it struck, the phase it struck in, what it did, a one-line
+     * reason, the text Copy Info copies, and the exception behind it, if one was thrown.
      */
     public record Failure(String pack, String subject, String phase, Outcome outcome, String reason, String info,
                           Throwable cause) {
@@ -55,12 +54,12 @@ public final class PackFailureNotices {
             this(pack, subject, phase, outcome, reason, info, null);
         }
 
-        /** One program's skip, or one fallback, whatever phase found it: a load records it once. */
+        /** One program's skip, or one fallback, whatever phase found it; a load records it once. */
         String key() {
             return pack + '\n' + subject + '\n' + outcome;
         }
 
-        /** The skip told: a later load tells the same program's skip again only for a new reason. */
+        /** A later load tells the same program's skip again only for a new reason. */
         String toldKey() {
             return key() + '\n' + reason;
         }
@@ -71,17 +70,17 @@ public final class PackFailureNotices {
     }
 
     /**
-     * One chat line: its text, whether it says the pack stopped (red) or not (yellow), the text its
-     * Copy Info copies (null for a line without one), and its report file (null without one).
+     * One chat line: its text, whether it says the pack stopped (red) or not (yellow), the text its Copy Info
+     * copies, and its report file; info and report are null for a line without them.
      */
     record Line(String text, boolean severe, String info, Path report) {}
 
-    /** Writes a failure's report file, and keeps the user out of what is shared (PackFailureReport). */
+    /** Writes a failure's report file and keeps the user's name out of what is shared (PackFailureReport). */
     public interface Reporter {
-        /** Writes {@code failure}'s report; null when it could not be written. */
+        /** Null when the report could not be written. */
         Path write(Failure failure);
 
-        /** {@code text} with no user in it. */
+        /** {@code text} without the user's name or home folder. */
         String redact(String text);
     }
 
@@ -93,7 +92,7 @@ public final class PackFailureNotices {
     private static final Object LOCK = new Object();
     /** Recorded and not yet published. */
     private static final List<Failure> pending = new ArrayList<>();
-    /** Skips told this game, by program and reason (Failure.toldKey): a skip is told once. */
+    /** Failures told this game (Failure.toldKey); a skip is told once per reason. */
     private static final Set<String> announced = new HashSet<>();
     /** The current pack's failures, for the status command. */
     private static final List<Failure> current = new ArrayList<>();
@@ -106,14 +105,14 @@ public final class PackFailureNotices {
 
     private PackFailureNotices() {}
 
-    /** Sets who writes each told failure's report (the main pass, as it starts). */
+    /** Set by the main pass as it starts. */
     public static void setReporter(Reporter value) {
         reporter = value;
     }
 
     /**
-     * A load of {@code pack} begins, from {@code shadersDir}: the status command lists this load's
-     * failures from now on. A skip told before is not told again; a whole-pack failure is.
+     * A load of {@code pack} begins, from {@code shadersDir}; the status command lists this load's failures
+     * from now on. A skip told before is not told again; a whole-pack failure is.
      */
     public static void beginLoad(String pack, Path shadersDir) {
         synchronized (LOCK) {
@@ -138,12 +137,13 @@ public final class PackFailureNotices {
     }
 
     /**
-     * Records a failure for the next publish to tell. Within a load the first record of a program's
-     * skip wins: a build failure, with its compiler's message, before the load's report says the
-     * program did not run. A skip told before, for the same reason, is not told again. A whole-pack
-     * failure, which the player sees, is told each time, and takes in its load's skips of the pack,
-     * the root cause, whether told before or not: "skipped X" beside "fell back to vanilla" would
-     * contradict it.
+     * Records a failure for the next publish to tell. Within a load the first record of a program's skip
+     * wins, so a build failure with its compiler message beats the load report's later "did not run". A skip
+     * told before for the same reason is not told again.
+     *
+     * A whole-pack failure, which the player sees, is told every time. It takes in its load's skips of the
+     * pack, told before or not, since they are the root cause and a separate "skipped X" line beside "fell
+     * back to vanilla" would contradict it.
      */
     public static void record(Failure failure) {
         synchronized (LOCK) {
@@ -157,8 +157,8 @@ public final class PackFailureNotices {
                 if (!announced.contains(failure.toldKey())) pending.add(failure);
                 return;
             }
-            // This load's skips are in current; a pack change's, after its rollback began another
-            // load, wait in pending alone (publish keeps them).
+            // this load's skips are in current; those of a pack change whose rollback began another load wait
+            // only in pending, where publish keeps them
             Set<Failure> skips = new LinkedHashSet<>();
             current.stream().filter(skip -> isSkipOf(skip, failure.pack())).forEach(skips::add);
             pending.stream().filter(skip -> isSkipOf(skip, failure.pack())).forEach(skips::add);
@@ -179,15 +179,15 @@ public final class PackFailureNotices {
     }
 
     /**
-     * Writes each failure recorded since the last publish its report, and queues its line: at most
-     * {@link #LINES_PER_PUBLISH}, the rest folded into one line. Call once the load or frame that
-     * found them has its conformance report, which each report carries.
+     * Writes a report for each failure recorded since the last publish and queues its line, at most
+     * {@link #LINES_PER_PUBLISH} with the rest folded into one. Call once the load or frame that found them
+     * has its conformance report, which each report carries.
      */
     public static void publish() {
         List<Failure> told;
         synchronized (LOCK) {
-            // Another pack's skips belong to a load that did not finish: a pack change rolled back,
-            // whose failed-load notice takes them in.
+            // another pack's skips belong to a load that did not finish, a rolled-back pack change, whose
+            // failed-load notice takes them in
             String running = currentPack == null ? "?" : currentPack;
             told = pending.stream()
                     .filter(failure -> failure.outcome() != Outcome.SKIPPED || failure.pack().equals(running))
@@ -205,7 +205,7 @@ public final class PackFailureNotices {
                 Path report = writer == null ? null : writer.write(failure);
                 if (index < shown) lines.add(line(failure, report, writer));
             } catch (RuntimeException untold) {
-                // Publishing runs inside failure handlers: telling must never fail the handler.
+                // publishing runs inside failure handlers, so telling must never fail the handler
                 LOGGER.warn("[chimera] cannot tell the failure of {}: {}", failure.subject(), untold.toString());
             }
         }
@@ -239,15 +239,15 @@ public final class PackFailureNotices {
     }
 
     /**
-     * What F3 and the shader pack screen add after {@code pack}'s name: " (fallback)" when the pack
-     * fell back to vanilla or did not load, as Iris's label says, " (N skipped)" when Chimera skipped
-     * programs of it this load, and nothing otherwise.
+     * What F3 and the shader pack screen add after {@code pack}'s name: " (fallback)" when the pack fell back
+     * to vanilla or did not load, as Iris's label says, " (N skipped)" when Chimera skipped programs of it
+     * this load, and nothing otherwise.
      */
     public static String label(String pack) {
         int skipped = 0;
         for (Failure failure : current()) {
             if (!failure.pack().equals(pack)) continue;
-            // A failed dimension variant leaves the last one running: only the whole pack's counts.
+            // a failed dimension variant leaves the last one running; only the whole pack's load failure counts
             if (failure.outcome() == Outcome.VANILLA
                     || failure.outcome() == Outcome.LOAD_FAILED && failure.subject().equals("pack")) {
                 return " (fallback)";
@@ -273,8 +273,8 @@ public final class PackFailureNotices {
     }
 
     /**
-     * One failure's chat line. Its Copy Info names the {@code report} file, and {@code writer}
-     * keeps the user out of what it copies; either may be null.
+     * One failure's chat line. Its Copy Info names the {@code report} file, and {@code writer} keeps the
+     * user's name out of the line and what it copies; either may be null.
      */
     static Line line(Failure failure, Path report, Reporter writer) {
         String info = failure.info() + (report == null ? "" : "\nReport: chimera/reports/" + report.getFileName());
@@ -294,9 +294,8 @@ public final class PackFailureNotices {
     }
 
     /**
-     * A line as chat shows it, ending with Iris's Copy Info link (underlined and blue, it copies the
-     * line's info, and hovering says so) and a link that opens its report. Built on the client
-     * thread, where the chat classes are ready.
+     * A line as chat shows it, ending with Iris's blue, underlined Copy Info link and a link that opens its
+     * report. Built on the client thread, where the chat classes are ready.
      */
     static Component component(Line line) {
         MutableComponent text = Component.literal(line.text())

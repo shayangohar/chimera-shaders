@@ -11,15 +11,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Immutable load-time target and depth graph. It is the only place where a
- * post program's logical reads, writes, extents, formats, and side schedule
- * are interpreted together.
+ * The pack's colour targets and depth snapshots, planned at load: each target's size, format and clear policy,
+ * what each post program reads and writes at which extent, and which side of each target every pass uses.
  */
 public final class PackTargetGraphPlan {
-    /** Keep the graph range identical to the post target parser. */
     public static final int MAX_TARGET = PostTargetPlan.MAX_TARGET;
     public static final int LOGICAL_ATTACHMENT_LIMIT = 8;
-    /** A declared format the device cannot render keeps its range as RGBA16F, not the 8-bit default. */
+    /** RGBA16F, for a declared format the device cannot render; it keeps more range than the 8-bit default. */
     private static final int DEVICE_FALLBACK_FORMAT = 97;
 
     private final List<TargetSpec> targets;
@@ -29,7 +27,7 @@ public final class PackTargetGraphPlan {
     private final int maxAttachments;
     /** Targets a world (gbuffers) program samples; the world draws before any post step. */
     private final Set<Integer> geometryReads;
-    /** Which side every pass, the world and final read and write each target from (PackFlipPlan). */
+    /** Which side of each target every pass, the world and final read and write. */
     private final PackFlipPlan flips;
     private final String snapshot;
     private final String fingerprint;
@@ -69,9 +67,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * Builds the graph with the already-resolved resource plan. Standard
-     * target aliases must allocate the same logical target that the resource
-     * plan exposes; pack-texture overrides must not allocate an unused target.
+     * Builds the graph against the resolved resource plan: a sampler reads the target the plan resolves it to, and
+     * one a pack texture overrides allocates no target.
      */
     public static PackTargetGraphPlan build(
             List<PackProgramPlan> programs,
@@ -91,9 +88,9 @@ public final class PackTargetGraphPlan {
                          int deviceMaxImageDimension) {}
 
     /**
-     * What the session's pass computes bind: the colour targets they read or write and the depth
-     * snapshots they read. Iris creates a target a compute names (IrisImages.addRenderTargetImages:
-     * createIfUnsure) and gives computes the composite depth samplers (CompositeRenderer.createComputes).
+     * What the session's pass computes bind: the colour targets they read or write and the depth snapshots they
+     * read. Iris's IrisImages creates any target a compute names, and its CompositeRenderer gives computes the
+     * composite depth samplers.
      */
     public record ComputeUse(Set<Integer> targets, Set<String> depthReads) {
         public static final ComputeUse NONE = new ComputeUse(Set.of(), Set.of());
@@ -103,7 +100,7 @@ public final class PackTargetGraphPlan {
     public static PackTargetGraphPlan build(List<PackProgramPlan> programs, PackConfig.PackConfigData config,
                                             PackResourcePlan resources, Limits limits, ComputeUse computes) {
         int deviceMaxColorAttachments = limits.deviceMaxColorAttachments();
-        // A shadowcomp pass routes over the shadowcolor targets (PackShadowComposites), not these.
+        // shadowcomp passes use the shadowcolor targets (PackShadowComposites), so they stay out of this graph
         GraphInputs inputs = new GraphInputs(
                 programs == null ? List.of() : programs.stream()
                         .filter(value -> value != null && !PassComputePlan.isShadowcomp(value.name())).toList(),
@@ -150,7 +147,6 @@ public final class PackTargetGraphPlan {
         }
     }
 
-    /** Which side every pass, the world and final read and write each target from. */
     public PackFlipPlan flips() {
         return flips;
     }
@@ -214,8 +210,7 @@ public final class PackTargetGraphPlan {
                 used.add(target);
             }
         }
-        // Resource identity resolution can recognize targets beyond this backend's
-        // capability. Such references remain diagnostic inputs, never allocations.
+        // resource resolution can name targets past MAX_TARGET; those stay deviations and are never allocated
         used.removeIf(target -> target < 0 || target > MAX_TARGET);
         return used;
     }
@@ -255,7 +250,7 @@ public final class PackTargetGraphPlan {
                 deviations.add("POST_TARGET_FORMAT_DEVICE_UNSUPPORTED:" + target);
                 format = DEVICE_FALLBACK_FORMAT;
             }
-            // Target 0 is the HDR image, cleared each frame to its fog-colour default (ChimeraMainPass).
+            // target 0 is the HDR image, which the main pass clears each frame to the fog colour by default
             float[] clearColor = target == 0 ? setting.clearColorCopy() : setting.irisClearColor(target, null);
             preliminary.put(target, new TargetSpec(target, format, width, height,
                     setting.clear(), clearColor, !setting.clear(), false, false,
@@ -266,8 +261,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * One post program's step: what it reads and writes, and at which extent. Which side of each
-     * target it reads and writes is the flip plan's.
+     * One post program's step: what it reads and writes, and at which extent. The flip plan decides which side of
+     * each target it uses.
      */
     private static TargetStep step(
             GraphInputs inputs,
@@ -288,8 +283,7 @@ public final class PackTargetGraphPlan {
         Set<Integer> referencedTargets = new TreeSet<>(outputs);
         referencedTargets.addAll(reads);
         executable &= targetsSupported(inputs, referencedTargets, stepDeviations);
-        // Iris generates mips for every directive whose target exists,
-        // read by this program or not; an unallocated target has nothing to mip.
+        // Iris mips every directive target that exists, whether this program reads it or not
         List<Integer> mipmapTargets = post.mipmappedTargets().stream().filter(preliminary::containsKey).toList();
         if (executable) mipmappedTargets.addAll(mipmapTargets);
         if (outputs.size() > Math.min(LOGICAL_ATTACHMENT_LIMIT, Math.max(1, inputs.deviceMaxColorAttachments()))) {
@@ -310,10 +304,10 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The targets a post program's directive names but its shader never writes. Iris flips every
-     * draw buffer of a composite pass (CompositeRenderer), written or not, so the pass leaves such a
-     * target with its other side's content. Bloop's composite names colortex13 and writes it only
-     * with Distant Horizons; the flip is what drops the frame's water refraction.
+     * The targets a post program's directive names but its shader never writes. Iris's CompositeRenderer flips
+     * every draw buffer of a composite pass, written or not, so the pass leaves such a target with its other side's
+     * content. Bloop's composite names colortex13 but writes it only with Distant Horizons, and that flip drops
+     * the frame's water refraction.
      */
     private static List<Integer> unwrittenTargets(PostTargetPlan post, List<Integer> writes,
                                                   List<String> stepDeviations) {
@@ -327,8 +321,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The color targets a post program samples, and those it binds as colorimgN, ascending: Iris
-     * binds that the image the pass samples (IrisImages.addRenderTargetImages).
+     * The colour targets a post program samples or binds as colorimgN, ascending; Iris binds colorimgN to the
+     * image the pass samples.
      */
     private static List<Integer> readTargets(GraphInputs inputs, PackProgramPlan program) {
         List<Integer> reads = new ArrayList<>(TargetImages.referenced(program));
@@ -398,10 +392,9 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The allocated targets with their schedule-derived flags. Persistence is declaration-driven:
-     * a target persists across frames only when the pack says it is not cleared every frame
-     * (colortexNClear=false); every target is cleared on the first frame (PostTargetSides). A target
-     * has an alt side when the flip plan flips or writes it.
+     * The allocated targets with their schedule flags. A target persists across frames only when the pack sets
+     * {@code colortexNClear=false}, and every target is cleared on the first frame (PostTargetSides). A target has
+     * an alt side when the flip plan flips or writes it.
      */
     private static List<TargetSpec> finalTargets(
             Map<Integer, TargetSpec> preliminary,
@@ -410,8 +403,7 @@ public final class PackTargetGraphPlan {
     ) {
         List<TargetSpec> targets = new ArrayList<>();
         for (TargetSpec source : preliminary.values()) {
-            // Target 0 is reseeded from the HDR identity source every frame and reinitialized by
-            // geometry, so graph-level persistence must not apply to it.
+            // target 0 is reseeded from the HDR image every frame, so graph persistence does not apply to it
             boolean persistent = source.index() != 0 && source.persistent();
             targets.add(new TargetSpec(source.index(), source.format(), source.width(), source.height(),
                     source.clear(), source.clearColorCopy(), persistent,
@@ -464,7 +456,7 @@ public final class PackTargetGraphPlan {
                 try {
                     result.add(Integer.parseInt(deviation.substring(marker, end)));
                 } catch (NumberFormatException ignored) {
-                    // The parser already reported the malformed declaration.
+                    // the parser already reported the malformed declaration
                 }
             }
         }
@@ -503,10 +495,10 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The targets a post program's shader writes. One that certainly writes nothing leaves all its
-     * directive targets unwritten, so they flip with no content change, as in Iris, whose clear of
-     * both sides makes the flip neutral: Rethinking Voxels' prepare1 and prepare2 name colortex3
-     * and only discard. Read as written, the flip handed prepare3 last frame's colour there.
+     * The targets a post program's shader writes. One that certainly writes nothing leaves all its directive
+     * targets unwritten, so they flip with no content change, as in Iris, where clearing both sides makes the flip
+     * neutral. Rethinking Voxels' prepare1 and prepare2 name colortex3 and only discard; counting them as writers
+     * would hand prepare3 last frame's colour there.
      */
     private static List<Integer> outputTargets(PostTargetPlan plan) {
         if (plan.writesNoOutput() && !plan.isFinal() && !plan.targetSlots().isEmpty()) return List.of();

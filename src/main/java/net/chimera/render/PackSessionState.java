@@ -10,33 +10,31 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * One pack session's flags, once-only logs and plans that no owner closes: everything that must
- * not outlive the session. PackSessionLifecycle.cleanUpPackVariant replaces it whole
- * (ChimeraMainPass.session), so a field added here starts each session clear. A field left out of
- * a reset list is how state went stale before (pre-merge audit D4: shadowSegmentObserved and
- * passComputes were never reset).
+ * One pack session's flags, once-only logs and plans that no owner closes. PackSessionLifecycle's
+ * cleanUpPackVariant replaces it whole, so a field added here starts each session clear with no reset
+ * list to forget.
  *
- * <p>Kept out on purpose: what must outlive the cleanup (packFrameUnsupported, which renderVanilla
- * sets before it cleans up; the conformance report a failure's report reads after it), the plan
- * and the resource owners, which close in order, and per-frame flags, which each frame resets.</p>
+ * Kept out on purpose: what must outlive the cleanup (packFrameUnsupported, which renderVanilla sets
+ * before it cleans up, and the conformance report a failure's report reads after it), the plan and the
+ * resource owners, which close in order, and per-frame flags, which each frame resets.
  */
 final class PackSessionState {
-    // Main pass
-    /** Pack pipelines are loaded once a session and kept until it ends. */
+    // main pass
+    /** Set once the session's pipelines are installed; they stay until it ends. */
     boolean packPipelinesLoaded;
     boolean packPostChainActive;
-    /** Target images may be needed by geometry even when no post pass is installed. */
+    /** The target images exist; geometry may need them even with no post pass installed. */
     boolean packTargetResourcesReady;
-    /** Set only when the target graph itself cannot be configured. */
+    /** Set when the target graph cannot be configured, or a runtime failure turns the pack off. */
     boolean packPostChainRejected;
     boolean packStorageInitializationLogged;
-    /** Suppresses the secondary frame-not-started flood until the next pack session. */
+    /** PACK_TARGET_FRAME_NOT_STARTED is logged once per session. */
     boolean packTargetFrameNotStartedLogged;
     boolean packTranslucentSuspendLogged;
     /** The loaded pack's pass computes, as its analysis translated them. */
     PassComputePlan passComputes = PassComputePlan.empty();
 
-    // Shadow pass
+    // shadow pass
     /** Set once the caster pass failed; the shadow map keeps its terrain for the rest of the session. */
     boolean shadowCastersFailed;
     /** Iris's shadow culling for this pack session (shadow.culling and the shadow distances). */
@@ -44,19 +42,19 @@ final class PackSessionState {
     /** Who observes the pack's shadow pass, and so whether it draws (Iris's ShadowRenderer rule). */
     ShadowPassUse shadowUse = ShadowPassUse.ALWAYS;
     boolean shadowSegmentObserved;
-    /** Prevents an invalid shadow resource from producing per-frame warnings. */
+    /** A shadow resource fallback is warned about once per session. */
     boolean shadowTransitionFallbackLogged;
-    /** Runtime report/log marker for the host's unique opaque/cutout policy. */
+    /** The shadow cutout layer's path, merged into opaque or separate, is reported once per session. */
     boolean shadowCutoutDispositionLogged;
-    /** Programs whose routed shadow sampler was already reported once. */
+    /** Programs whose compare shadow sampler was already logged. */
     final Set<String> loggedShadowSamplerPrograms = new HashSet<>();
 
-    // Post chain
-    /** All discovered post programs, including static fallback stages. */
+    // post chain
+    /** The session's post stages in run order, uninstalled and compute-only ones included. */
     final List<PackPostChain.PackPostExecution> packPostExecution = new ArrayList<>();
-    /** Identity-boundary diagnostics are emitted once per pack session. */
+    /** Stages whose identity boundary was logged, once per session. */
     final Set<String> packPostBoundaryLogged = new HashSet<>();
-    /** The stages that threw while recording this pack session, which now run as identity. */
+    /** Stages that threw while recording this session; they run as identity. */
     final PostStageFailures stageFailures = new PostStageFailures();
     PackPostChain.PackPostExecution packFinalExecution;
 }

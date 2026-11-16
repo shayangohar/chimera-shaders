@@ -8,23 +8,22 @@ import java.util.Optional;
 
 import static org.lwjgl.vulkan.VK10.*;
 
-/** Owns the pass's material-map companions: creates the owner, and pumps its builds at a safe seam. */
+/** Creates the pass's material-map owner and pumps its builds at the frame boundary. */
 final class MaterialMapRuntime {
     private final ChimeraMainPass pass;
 
-    /** Resource-pack material images and flat fallbacks, retained for the renderer lifetime. */
+    /** Lives as long as the renderer; null until the first pump or pack install creates it. */
     MaterialMapOwner materialMapOwner;
 
     MaterialMapRuntime(ChimeraMainPass pass) {
         this.pass = pass;
     }
 
-    /** Renderer-lifetime material owner for the atlas mixin; null before first use. */
     public MaterialMapOwner materialMaps() {
         return this.materialMapOwner;
     }
 
-    /** Creates the material owner once on the render thread; later installs only ensure it. */
+    /** Creates the owner on first call; render thread only. */
     void ensureMaterialMapOwner() {
         if (this.materialMapOwner == null) {
             this.materialMapOwner = MaterialMapOwner.create();
@@ -32,9 +31,8 @@ final class MaterialMapRuntime {
     }
 
     /**
-     * Builds queued atlas companions at the safe frame-boundary seam.
-     * Material maps are independent of shader-pack state, so this runs even
-     * when no pack is installed. Never throws out of the frame boundary.
+     * Builds queued companions at the frame boundary. Material maps do not depend on the shader pack, so this
+     * runs with no pack installed too. Never throws.
      */
     public void pumpMaterialMapBuilds() {
         try {
@@ -54,8 +52,8 @@ final class MaterialMapRuntime {
                     return Optional.empty();
                 }
             };
-            // One recording for every companion write of the pump: animated maps write each mip
-            // level of each changed slot, and alone each write waited on the GPU (TextureUploadBatch).
+            // one recording for every companion write of the pump; animated maps write every mip level of each
+            // changed slot, and each write alone would wait on the GPU
             MaterialCompanionPixels.UPLOADS.open();
             try {
                 this.materialMapOwner.pumpPendingBuilds(lookup, MaterialCompanionPixels::decodeNative,

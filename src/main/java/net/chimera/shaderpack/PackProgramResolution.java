@@ -2,7 +2,7 @@ package net.chimera.shaderpack;
 
 import java.util.List;
 
-/** One deterministic answer for a requested standard program family. */
+/** The program chosen for one requested name, and how far down the fallback chain it sits. */
 record PackProgramResolution(
         String requestedProgram,
         String selectedProgram,

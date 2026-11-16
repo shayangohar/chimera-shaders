@@ -11,42 +11,33 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Gives every uninitialized function-scope variable of a plain data type an
- * {@code OpConstantNull} initializer, and turns every plain-data
- * {@code OpUndef} into an {@code OpConstantNull}. Module-scope private globals
- * and the vertex, geometry and fragment stages' outputs, built-ins aside, get
- * the same initializer.
+ * Gives every uninitialized function-scope variable of a plain data type an {@code OpConstantNull}
+ * initializer, and turns every plain-data {@code OpUndef} into an {@code OpConstantNull}. Module-scope
+ * private globals and the vertex, geometry and fragment stages' outputs, built-ins aside, get the same
+ * initializer.
  *
- * <p>GLSL leaves such locals undefined. The GL drivers packs are authored
- * against start them at zero, and packs read them before writing them
- * (Complementary's {@code parallaxTexDepth} feeds its first POM test). A
- * Vulkan driver keeps whatever the register held, so the pack's branch
- * changes with unrelated GPU state. Zero is the value those packs were
- * authored and tested with. Opaque types (images, samplers) are left alone;
- * they cannot be null-initialized and are never read uninitialized.</p>
+ * GLSL leaves such locals undefined. The GL drivers packs are written against start them at zero, and packs
+ * read them before writing them; Complementary's {@code parallaxTexDepth} feeds its first POM test this way.
+ * A Vulkan driver keeps whatever the register held, so the pack's branch changes with unrelated GPU state.
+ * Opaque types such as images and samplers are left alone, since they cannot be null-initialized and are
+ * never read uninitialized.
  *
- * <p>Pack modules reach this pass already optimized, and the optimizer's SSA
- * rewrite has replaced a read of a local nothing wrote with {@code OpUndef}.
- * The driver may then pick any value: Ebin's held-light {@code falloff}, unset
- * outside the light's radius, became {@code max(torch, undef)}, NVIDIA folded
- * that to the slightly negative torch level, and {@code pow} of it turned the
- * water NaN, then black. The null constant is the zero the variable would have
- * started at.</p>
+ * Pack modules reach this pass already optimized, and the optimizer's SSA rewrite replaces a read of a local
+ * nothing wrote with {@code OpUndef}, for which the driver may pick any value. Ebin's held-light
+ * {@code falloff}, unset outside the light's radius, becomes {@code max(torch, undef)}; NVIDIA can fold that
+ * to a slightly negative torch level, and {@code pow} of it turns the water NaN and black. The null constant
+ * is the zero the variable would have started at.
  *
- * <p>An output a path never writes is zero under NVIDIA's GL compiler too.
- * Escheridia's composite5 returns before writing its reflection history over the
- * sky. Iris leaves those pixels black; a Vulkan driver wrote whatever its
- * registers held there, and the reprojected history spread it as bright
- * single-colour specks along every edge against the sky.</p>
+ * An output a path never writes is zero under NVIDIA's GL compiler too. Escheridia's composite5 returns
+ * before writing its reflection history over the sky. Iris leaves those pixels black; a Vulkan driver writes
+ * whatever its registers held, and the reprojected history spreads it as bright specks along the sky's edges.
  *
- * <p>A variable every path writes whole before anything can read it keeps no
- * initializer ({@link SpirvWrittenFirst}): a GLSL initializer is such a write,
- * so the zero is never seen, under GL or here. The null still costs: NVIDIA then
- * fills the variable per invocation. BSL's shadowcomp copies two colour tables
- * (75 vec3) into private globals this way, and zeroing them first took its
- * dispatch from 0.2 ms to 33 ms on an RTX card. In BSL's world programs the
- * optimizer makes such tables locals stored after a branch; zeroing those made
- * each terrain draw ten times slower with multicoloured block light on.</p>
+ * A variable every path writes whole before anything can read it keeps no initializer
+ * ({@link SpirvWrittenFirst}). A GLSL initializer is such a write, so the zero is never seen, under GL or
+ * here, and the null would still cost, since NVIDIA fills the variable per invocation. BSL's shadowcomp
+ * copies two colour tables into private globals this way, and zeroing them first makes its dispatch many
+ * times slower. Its world programs hold such tables as locals stored after a branch, where zeroing slows
+ * every terrain draw with multicoloured block light on.
  */
 public final class SpirvLocalInitializer {
     private static final int MAGIC = 0x07230203;
@@ -70,12 +61,12 @@ public final class SpirvLocalInitializer {
     private static final int STORAGE_OUTPUT = 3;
     private static final int STORAGE_PRIVATE = 6;
     private static final int STORAGE_FUNCTION = 7;
-    /** Vertex, Geometry and Fragment: the stages whose outputs a GL driver starts at zero here. */
+    /** The vertex, geometry and fragment execution models, whose outputs a GL driver starts at zero. */
     private static final Set<Integer> OUTPUT_STAGES = Set.of(0, 3, 4);
 
     private SpirvLocalInitializer() {}
 
-    /** Returns the transformed module, or the input when nothing needs an initializer. */
+    /** The rewritten module, or {@code spirv} itself when nothing needs an initializer. */
     public static ByteBuffer apply(ByteBuffer spirv) {
         int[] words = toWords(spirv);
         int[] result = apply(words);
@@ -162,9 +153,9 @@ public final class SpirvLocalInitializer {
         }
 
         /**
-         * The pointee of the uninitialized variable at {@code at} when it takes a null initializer:
-         * a plain function local or private global, or a plain output of a stage whose outputs
-         * start at zero, built-ins aside, that is not written whole first. Null otherwise.
+         * The pointee of the uninitialized variable at {@code at} when it takes a null initializer, else null.
+         * It must be plain data, not written whole first, and a function local, a private global, or an
+         * output of a stage whose outputs start at zero, built-ins aside.
          */
         private Integer initializable(int at) {
             if ((words[at] & 0xFFFF) != OP_VARIABLE || words[at] >>> 16 != 4) return null;
@@ -181,7 +172,7 @@ public final class SpirvLocalInitializer {
          * Every word after the header, with each initializable variable given a null initializer,
          * each plain undef made a null constant, and the null constants function variables need
          * placed before the first function. A module-level variable's constant goes just ahead of
-         * it, unless one is already declared there.
+         * it, unless one is already declared.
          */
         private List<Integer> initializedBody() {
             List<Integer> inserted = new ArrayList<>();

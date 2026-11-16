@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 /**
  * The pack's program sources and everything they {@code #include}, as the option scan sees them.
  *
- * <p>The scan starts from every file named like a program in the shaders root and in each dimension
+ * The scan starts from every file named like a program in the shaders root and in each dimension
  * folder, and follows every {@code #include} line whatever condition surrounds it, since includes
  * are resolved before the preprocessor runs. Paths are pack-relative with a leading slash; a target
  * starting with a slash resolves from the shaders root, any other from the including file's folder.
@@ -148,7 +148,7 @@ final class SourceGraph {
             try {
                 directory = folder.isEmpty() ? shadersRoot : shadersRoot.resolve(folder);
             } catch (InvalidPathException invalid) {
-                // A dimension.properties folder name that is no path here (a*b on Windows) names nothing.
+                // a dimension.properties folder name that is no valid path here (a*b on Windows) names nothing
                 return;
             }
             if (!Files.isDirectory(directory)) return;

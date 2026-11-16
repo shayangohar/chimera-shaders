@@ -6,12 +6,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Iris's colorimgN: colour target N as a storage image, the texture the program samples as
- * colortexN (IrisImages.addRenderTargetImages, the flip state before the pass). Chimera binds it in
- * the prepare, deferred and composite passes, as pass computes bind it (PassComputePlan), and in
- * the hand programs, which draw in their own lane runs (PackFamilyWindows) that hold the target for
- * them. Iris also gives it to the other gbuffers programs and to final, where Chimera still refuses
- * it.
+ * Iris's colorimgN: colour target N as a storage image, the texture the program samples as colortexN
+ * (IrisImages.addRenderTargetImages, with the flip state before the pass).
+ *
+ * Chimera binds it in the prepare, deferred and composite passes, as pass computes bind it
+ * (PassComputePlan), and in the hand programs, whose own lane runs (PackFamilyWindows) hold the target for
+ * them. Iris also gives it to the other gbuffers programs and to final, where Chimera refuses it.
  */
 public final class TargetImages {
     private static final Pattern SYMBOL = Pattern.compile("colorimg(1[0-5]|[0-9])");

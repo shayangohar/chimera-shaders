@@ -11,18 +11,19 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
- * The threads a pack load shares its independent work among: planning each program, compiling
- * each shader stage. There is one fewer worker than the machine has processors, so the render
- * thread, the integrated server and the chunk builders keep one, and at most {@link #MAX_WORKERS}.
- * With one or two processors the work stays on the calling thread. The pool starts on first use;
- * its threads are daemons and idle between loads.
+ * The threads a pack load shares its independent work among, such as planning each program or compiling each
+ * shader stage.
+ *
+ * There is one worker fewer than the machine has processors, at most {@link #MAX_WORKERS}, so the render thread,
+ * the integrated server and the chunk builders keep one. With one or two processors the work stays on the calling
+ * thread. The pool starts on first use; its threads are daemons and idle between loads.
  */
 public final class PackWorkers {
     /** Past eight a load gains little: a few large programs set its length, and each worker holds parse trees. */
     static final int MAX_WORKERS = 8;
     /**
-     * In game, from the processors. A test JVM, one of many forks, gets its share from the build
-     * ({@code chimera.packWorkers}), so the forks together do not oversubscribe the machine.
+     * From the processors in game. Each forked test JVM gets its share from the build through
+     * {@code chimera.packWorkers}, so the forks together do not oversubscribe the machine.
      */
     private static final int WORKERS = Integer.getInteger("chimera.packWorkers",
             workersFor(Runtime.getRuntime().availableProcessors()));
@@ -79,7 +80,7 @@ public final class PackWorkers {
         }
     }
 
-    /** Daemon workers that resolve classes as the thread that started the pool does (the mod's loader). */
+    /** Daemon workers that resolve classes through the starting thread's loader, which is the mod's. */
     private static ForkJoinPool newPool(int workers) {
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         AtomicInteger count = new AtomicInteger();

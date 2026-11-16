@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The Iris-parity defects the 27-pack option sweep found: each runs in Iris, and Chimera refused it. */
+/** Forms real packs use that run in Iris; Chimera runs each as Iris does. */
 final class SweepParityFixesTest {
     /** Mellow writes texture.composite.colortex3=/img/smaaArea.png; Iris drops the leading slash. */
     @Test
@@ -94,9 +94,9 @@ final class SweepParityFixesTest {
     }
 
     /**
-     * A gbuffers or shadow program registers colortex4 and up only (IrisSamplers.addRenderTargetSamplers,
+     * Iris registers only colortex4 and up in a gbuffers or shadow program (IrisSamplers.addRenderTargetSamplers,
      * startIndex 4), and depthtex0-2 without gdepthtex. Kappa's gbuffers_particles reads gcolor, which
-     * therefore reads unit 0: the particle's albedo texture.
+     * therefore reads unit 0, the particle's albedo texture.
      */
     @Test
     void anUnregisteredSampler2DInAWorldProgramReadsTheAlbedo(@TempDir Path root) throws IOException {
@@ -117,10 +117,10 @@ final class SweepParityFixesTest {
                 && !renamed.contains("gdepthtex"), renamed);
         assertTrue(renamed.contains("texture2D(gaux1, uv)") && renamed.contains("texture2D(depthtex1, uv)"), renamed);
         assertEquals(List.of("SAMPLER_UNIT0_ALBEDO:gcolor", "SAMPLER_UNIT0_ALBEDO:gdepthtex"), deviations);
-        // The renderer picks the unit (IrisSamplerOrder.of): begin is a fullscreen pass, dh_* a world one.
+        // the Iris renderer picks the unit (IrisSamplerOrder.of): begin is a fullscreen pass, dh_* a world one
         assertEquals(UnitZeroSampler.Unit.FULLSCREEN, UnitZeroSampler.Unit.of("begin1"));
         assertEquals(UnitZeroSampler.Unit.WORLD, UnitZeroSampler.Unit.of("dh_terrain"));
-        // A parameter named gtexture would capture the rename, so the source stays as written.
+        // a parameter named gtexture would capture the rename, so the source stays as written
         List<String> captured = new ArrayList<>();
         String kept = UnitZeroSampler.apply("""
                 uniform sampler2D gcolor;
@@ -170,7 +170,7 @@ final class SweepParityFixesTest {
         List<PackResourceBinding> bindings = plan.resources().bindings("composite");
         assertEquals(2, bindings.size(), bindings.toString());
         for (PackResourceBinding binding : bindings) {
-            // Two registrations: dhDepthTex with its alias dhDepthTex0, and dhDepthTex1 (IrisSamplers).
+            // Iris's IrisSamplers registers two: dhDepthTex with its alias dhDepthTex0, and dhDepthTex1
             boolean first = binding.sampler().equals("dhDepthTex0");
             assertEquals(first ? SelectorNamespace.DH_DEPTH_SLOT : SelectorNamespace.DH_DEPTH1_SLOT, binding.slot(),
                     binding.toString());
@@ -226,7 +226,7 @@ final class SweepParityFixesTest {
     /**
      * Mellow's and superDuperVanilla's core-profile gbuffers_clouds draw nothing at their defaults.
      * Iris runs them and no cloud shows; Chimera skips the host cloud draw. Nothing is left to
-     * convert, so the report must not call the program unconverted modern GLSL and a fallback.
+     * convert, so the report calls the program neither unconverted modern GLSL nor a fallback.
      */
     @Test
     void aCloudProgramThatDrawsNothingRuns(@TempDir Path root) throws IOException {
@@ -278,11 +278,12 @@ final class SweepParityFixesTest {
     }
 
     /**
-     * RedHat's composite and Spring's composite6, composite7 and final read centerDepthSmooth. Iris
-     * rewrites a fullscreen pass's uniform declaration into its smoothed texture and each reference
-     * into the texture's centre (CompositeDepthTransformer); a world program keeps an unset uniform.
-     * The pass samples the texture in GENERAL, where its compute kernel keeps it: a shader-read
-     * descriptor made VulkanMod transition it, which threw and dropped Insanity's depth of field to vanilla.
+     * RedHat and Spring read centerDepthSmooth in fullscreen passes. Iris rewrites a fullscreen pass's
+     * uniform declaration into its smoothed texture and each reference into the texture's centre
+     * (CompositeDepthTransformer); a world program keeps an unset uniform.
+     *
+     * The pass samples the texture in GENERAL, the layout its compute kernel keeps it in; a shader-read
+     * descriptor would make VulkanMod transition it, which throws.
      */
     @Test
     void fullscreenPassesReadTheSmoothedCentreDepth(@TempDir Path root) throws IOException {
@@ -339,8 +340,9 @@ final class SweepParityFixesTest {
         assertTrue(PackConditionals.evaluate("0x10 == 16 && 010 == 8 && -SIZE < ~0", macros));
         assertTrue(PackConditionals.evaluate("SELF", macros), "a macro does not expand inside itself");
         assertThrows(IllegalArgumentException.class, () -> PackConditionals.evaluate("F(1)", macros));
-        // JCPP reads a missing operand as 0 at the expr() call that wanted it, and at the top the
-        // directive is false: a macro defined with no body expands to nothing.
+        // a macro defined with no body expands to nothing
+        // JCPP reads a missing operand as 0 at the expr() call that wanted it
+        // a directive whose top-level operand is missing is false
         Map<String, String> empty = Map.of("EMPTY", "", "SIZE", "64");
         assertTrue(PackConditionals.evaluate("SIZE >", empty), "SIZE > 0");
         assertFalse(PackConditionals.evaluate("EMPTY", empty));
@@ -416,10 +418,9 @@ final class SweepParityFixesTest {
     }
 
     /**
-     * Escheridia with bloom off: every program declares colortex6 and nothing reads it, so
-     * no slot is kept for it and a custom texture takes colortex6's slot. GL leaves the unread
-     * sampler inactive: it is stripped and the program keeps the texture it reads. Two read
-     * samplers on one slot still refuse.
+     * Escheridia with bloom off declares colortex6 in every program and reads it in none, so no slot is
+     * kept for it and a custom texture takes colortex6's slot. GL leaves the unread sampler inactive: it is
+     * stripped and the program keeps the texture it reads. Two read samplers on one slot still refuse.
      */
     @Test
     void anUnreadSamplerGivesItsSlotToTheOneTheProgramReads() {
@@ -443,8 +444,7 @@ final class SweepParityFixesTest {
     /**
      * A stage that declares only the unread target gives up its slot too. Kept there, it would sit on
      * slot 10 beside the fragment's custom texture, and the program would sample whichever texture the
-     * slot resolved to first. Without a custom texture on its slot, a root-level stage still binds an
-     * unread target, as before.
+     * slot resolved to first. Without a custom texture on its slot, a stage still binds an unread target.
      */
     @Test
     void everyStageGivesUpAnUnreadTargetsSlotToACustomTexture() {

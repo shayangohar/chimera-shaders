@@ -20,13 +20,13 @@ import java.util.TreeSet;
  * Every shader one pack compiles in {@link PackCompileTest}: each prepared stage, input variant
  * and compute, by key ({@code gbuffers_terrain.vsh}, {@code gbuffers_hand [hand input variant
  * ...].vsh}), with a hash of its converted source and of its SPIR-V (for a graphics stage, the
- * optimized module the game builds). The baseline
- * {@code testpacks/baselines/converted/<pack>.json} holds both as "source spirv"; a change in
- * either names the key. GLSL front-end migrations (EPIC-715) must keep both, except where a
- * commit names a fix. With {@code chimera.snapshot.spirvOnly} only SPIR-V must match: full macro
- * expansion rewrites the source text the compiler would expand the same way.
+ * optimized module the game builds).
  *
- * <p>Each run writes the sources to {@code build/converted-output/current/<pack>/}; a key that
+ * The baseline {@code testpacks/baselines/converted/<pack>.json} holds both as "source spirv"; a
+ * change in either names the key. With {@code chimera.snapshot.spirvOnly} only SPIR-V must match,
+ * for a change such as full macro expansion that rewrites the source but compiles the same.
+ *
+ * Each run writes the sources to {@code build/converted-output/current/<pack>/}; a key that
  * matches its baseline is also copied to {@code baseline/}, so a later change diffs against it.
  */
 final class ConvertedOutputSnapshot {
@@ -42,7 +42,7 @@ final class ConvertedOutputSnapshot {
         this.pack = pack;
     }
 
-    /** One compiled shader: its source, and its SPIR-V's hash (null when it failed to compile). */
+    /** Records one compiled shader; {@code spirvHash} is null when it failed to compile. */
     void record(String key, String source, String spirvHash) {
         String sourceHash = shortHash(source);
         String previous = hashes.put(key, sourceHash + " " + (spirvHash == null ? "failed" : spirvHash));

@@ -9,9 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Terrain texture coordinates as Iris's terrain vertex holds them: the word ChimeraExtVertexBuilder
  * writes, decoded as the terrain preamble's chimeraTexCoord0Value does, puts a sprite's edge one
- * sub-texel inside the sprite. The measured case (noble cave white dots.rdc, a 2048x1024 block atlas):
- * a quad's low v edge at row 432 carried vanilla's inward shrink of half a 1/32768 step, VulkanMod's
- * truncating word dropped it, and the edge sat on the boundary under a transparent sprite.
+ * sub-texel inside the sprite.
+ *
+ * Vanilla shrinks a quad's edge inward by half a 1/32768 step. VulkanMod's truncating word drops that
+ * shrink and leaves the edge on the sprite boundary.
  */
 final class TerrainTexCoordTest {
     private static final double STEP = 1.0 / 32768.0;
@@ -41,7 +42,7 @@ final class TerrainTexCoordTest {
         assertEquals(bottom - SUB_TEXEL, decode(centroid, bottom), 1e-9);
     }
 
-    /** chimeraTexCoord0Value: the 15-bit word less the step that bit 15 records, taken back less one sub-texel. */
+    /** As chimeraTexCoord0Value decodes: the 15-bit word moved one sub-texel inward, the way bit 15 points. */
     private static double decode(float centroid, float coordinate) {
         int word = ChimeraExtVertexBuilder.encodeTexture(centroid, coordinate) & 0xFFFF;
         double stepUp = word > 0x7FFF ? 1.0 : -1.0;

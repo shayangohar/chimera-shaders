@@ -9,12 +9,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Iris's shader-pack feature flags ({@code iris.features.required} and {@code iris.features.optional}),
- * kept as Iris keeps them, over the features Chimera provides. Iris reads shaders.properties with
- * {@code IRIS_FEATURE_<flag>} defined for every flag it can provide, defines it in program sources for
- * each optional flag the pack lists that it provides (spelled as the pack wrote it), and refuses a pack
- * that requires one it cannot provide. A flag whose feature Chimera lacks stays undefined, so a pack
- * takes the path it takes without that feature instead of one Chimera cannot run.
+ * Iris's shader-pack feature flags, {@code iris.features.required} and {@code iris.features.optional}, checked
+ * against the features Chimera provides.
+ *
+ * Iris reads shaders.properties with {@code IRIS_FEATURE_<flag>} defined for every flag it can provide. Program
+ * sources get it for each optional flag the pack lists and Iris provides, spelled as the pack wrote it. A pack
+ * that requires a flag Iris cannot provide is refused. A flag whose feature Chimera lacks stays undefined, so the
+ * pack takes its path without that feature.
  */
 public final class PackFeatureFlags {
     static final String TESSELLATION_SHADERS = "TESSELLATION_SHADERS";
@@ -22,17 +23,16 @@ public final class PackFeatureFlags {
     static final String SEPARATE_HARDWARE_SAMPLERS = "SEPARATE_HARDWARE_SAMPLERS";
 
     /**
-     * The Iris 1.21.1 features (FeatureFlags) Chimera provides as Iris does. Not provided:
-     * TESSELLATION_SHADERS and CAN_DISABLE_WEATHER. A name Iris 1.21.1 does not know is never
-     * provided, as Iris refuses a pack that requires one.
+     * The Iris 1.21.1 FeatureFlags Chimera provides, apart from CUSTOM_IMAGES. TESSELLATION_SHADERS and
+     * CAN_DISABLE_WEATHER are not provided. A name Iris does not know is never provided, as Iris refuses a pack
+     * that requires one.
      */
     static final Set<String> PROVIDED = Set.of("PER_BUFFER_BLENDING", "COMPUTE_SHADERS", "ENTITY_TRANSLUCENT",
             "REVERSED_CULLING", "BLOCK_EMISSION_ATTRIBUTE", "SSBO", HIGHER_SHADOWCOLOR, SEPARATE_HARDWARE_SAMPLERS);
     /**
-     * Custom images run only where Chimera can produce them, so program sources see this flag per
-     * pack once that is known ({@link PackEngineDefines#forCustomImages}). shaders.properties always
-     * sees it, as under Iris, so the pack declares its images. A pack that requires it still loads;
-     * the programs that need images fall back.
+     * Custom images run only where Chimera can produce them, so program sources see this flag per pack once that
+     * is known ({@link PackEngineDefines#forCustomImages}). shaders.properties always sees it, as under Iris, so the
+     * pack declares its images. A pack that requires it still loads, and the programs that need images fall back.
      */
     static final String CUSTOM_IMAGES = "CUSTOM_IMAGES";
     private static final String PREFIX = "IRIS_FEATURE_";
@@ -48,10 +48,9 @@ public final class PackFeatureFlags {
     }
 
     /**
-     * The feature macros shaders.properties is read with. Iris defines every usable flag there,
-     * listed by the pack or not (ShaderPack: FeatureFlags.isUsable), custom images included: a pack
-     * declares its image.* entries under {@code IRIS_FEATURE_CUSTOM_IMAGES}, as Ebin does for its
-     * flood-fill light volume, and the programs that then lack an image fall back one by one.
+     * The feature macros shaders.properties is read with. Iris defines every usable flag there, listed by the pack
+     * or not (FeatureFlags.isUsable), custom images included. Ebin, for one, declares its flood-fill light volume
+     * under {@code IRIS_FEATURE_CUSTOM_IMAGES}; programs that then lack an image fall back one by one.
      */
     static Map<String, String> propertyMacros() {
         return PROPERTY_MACROS;
@@ -76,7 +75,7 @@ public final class PackFeatureFlags {
         return missing;
     }
 
-    /** Whether the pack lists {@code flag} as required or optional: Iris's active features (ShaderPack.hasFeature). */
+    /** Whether the pack lists {@code flag} as required or optional, as Iris's ShaderPack.hasFeature reads. */
     static boolean active(Collection<String> required, Collection<String> optional, String flag) {
         return required.stream().anyMatch(value -> canonical(value).equals(flag))
                 || optional.stream().anyMatch(value -> canonical(value).equals(flag));
@@ -88,7 +87,7 @@ public final class PackFeatureFlags {
         return words.isEmpty() ? words : Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
-    /** The flag's Iris name; Iris also takes the old misspelling TESSELATION_SHADERS. */
+    /** The flag's Iris name; Iris also takes the misspelling TESSELATION_SHADERS. */
     private static String canonical(String flag) {
         String name = flag.toUpperCase(Locale.ROOT);
         return name.equals("TESSELATION_SHADERS") ? "TESSELLATION_SHADERS" : name;

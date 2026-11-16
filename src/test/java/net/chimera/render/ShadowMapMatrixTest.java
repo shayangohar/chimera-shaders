@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Matrix and snapshot-state checks for the pack shadow contract. */
+/** The shadow map's projections and light view, and which map snapshot its receivers may read. */
 final class ShadowMapMatrixTest {
     @Test
     void projectionRanges() {
@@ -18,8 +18,7 @@ final class ShadowMapMatrixTest {
         Matrix4f host = new Matrix4f();
         ChimeraShadowMap.createLightProjection(legacy, 256.0f, near, far, false);
         ChimeraShadowMap.createLightProjection(host, 256.0f, near, far, true);
-        // Iris 1.10.7 shadowProjection for shadowDistance 256, read from a
-        // RenderDoc capture of BSL: 1/256 across, -2/256.05 and -0.218512 in depth.
+        // Iris's shadowProjection for shadowDistance 256: 1/256 across, -2/256.05 and -0.218512 in depth
         assertNear(1.0f / 256.0f, legacy.m00(), "Iris shadow half extent is shadowDistance");
         assertNear(-0.00781097f, legacy.m22(), "Iris shadow depth scale");
         assertNear(-0.21851201f, legacy.m32(), "Iris shadow depth offset");
@@ -36,7 +35,7 @@ final class ShadowMapMatrixTest {
     /**
      * A pack's shadowMapFov selects Iris's perspective shadow projection, written as
      * ShadowMatrices.createPerspectiveMatrix writes it: ShadowMatrices' NEAR (-100.05) and FAR (156)
-     * planes, and 1 in the last column's w. Iris's own fov=90 test still expects older planes.
+     * planes, and 1 in the last column's w. Iris's own fov=90 test expects other planes.
      */
     @Test
     void shadowMapFovSelectsIrisPerspective() {
@@ -62,7 +61,7 @@ final class ShadowMapMatrixTest {
         Matrix4f rotation = irisRotation(-40.0f, 20.0f);
         Vector3f light = new Matrix4f(rotation).invert().transformDirection(new Vector3f(0.0f, 0.0f, 1.0f));
         ChimeraShadowMap map = new ChimeraShadowMap();
-        // With the default interval of 2, a camera whose coordinates leave remainder 1 needs no shift.
+        // with the default interval of 2, a camera whose coordinates leave remainder 1 needs no shift
         map.updateLight(rotation, 1.0, 65.0, 3.0, 12);
         Matrix4f view = new Matrix4f(map.getLightView());
         Matrix4f projection = new Matrix4f(map.getPackLightProjection());
@@ -72,8 +71,8 @@ final class ShadowMapMatrixTest {
         Vector3f point = new Vector3f(7.25f, -3.5f, 19.0f);
         Vector3f reconstructed = inverseRoundTrip.transformPosition(new Vector3f(point));
         assertVectorNear(point, reconstructed, "inverse shadow V/P cancellation");
-        // Like Iris's shadowModelView: no translation, and view z is the
-        // distance toward the sun, so casters above a receiver are nearer.
+        // as in Iris's shadowModelView: no translation, and view z is the distance toward the sun,
+        // so casters above a receiver are nearer
         assertVectorNear(new Vector3f(), view.getTranslation(new Vector3f()), "light view translation");
         assertVectorNear(new Vector3f(0.0f, 0.0f, 1.0f), view.transformDirection(new Vector3f(light)),
                 "light view depth axis");
@@ -101,7 +100,7 @@ final class ShadowMapMatrixTest {
                 assertVectorNear(reference, shadowSpace, "snapped shadow view moved a world point within one cell");
             }
         }
-        // Iris's own arithmetic, Java's truncating remainder included, for one negative camera.
+        // Iris's own arithmetic, Java's truncating remainder included, for one negative camera
         Matrix4f expected = new Matrix4f(rotation).translate(
                 (float) (10.3 % 2.0) - 1.0f, (float) (64.2 % 2.0) - 1.0f, (float) (-5.7 % 2.0) - 1.0f);
         ChimeraShadowMap map = new ChimeraShadowMap();
@@ -111,8 +110,8 @@ final class ShadowMapMatrixTest {
 
     @Test
     void cameraOriginCompensation() {
-        // Large world coordinates retain sub-block motion until the final local
-        // delta is converted to float, matching the section-relative renderer.
+        // large world coordinates keep sub-block motion until the final local delta goes to float,
+        // as in the section-relative renderer
         double mapX = 30_000_000.25;
         double mapY = 64.75;
         double mapZ = -20_000_000.125;
@@ -141,8 +140,7 @@ final class ShadowMapMatrixTest {
     void snapshotPublicationAndInvalidation() {
         ChimeraShadowMap map = new ChimeraShadowMap();
         assertTrue(!map.hasMapSnapshot(), "new shadow map must not advertise a snapshot");
-        // init() creates image handles and sets this flag. Model that resource
-        // generation without creating Vulkan objects in this pure state test.
+        // init() creates the image handles and sets this flag; invalidating stands in for it without Vulkan
         map.invalidateMapSnapshot();
         assertTrue(map.needsInitialSamplingLayout(), "new shadow map must require a clear");
 

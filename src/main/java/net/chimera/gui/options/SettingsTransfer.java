@@ -45,9 +45,9 @@ final class SettingsTransfer {
     }
 
     /**
-     * Asks where to export and writes the pack's applied settings there: what its option file holds
-     * now, so changes not yet applied stay out. An all-default pack exports an empty file; an option
-     * file that cannot be parsed exports nothing, so the dialog's default (that file) is never emptied.
+     * Asks where to export and writes the pack's applied settings there: what its option file holds now, so
+     * changes not yet applied stay out. An all-default pack exports an empty file. An option file that cannot
+     * be parsed exports nothing, so the dialog's default target, that same file, is never emptied.
      */
     static void export(Path packPath) {
         run(() -> {

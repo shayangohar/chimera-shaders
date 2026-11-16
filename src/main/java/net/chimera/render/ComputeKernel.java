@@ -65,10 +65,11 @@ import static org.lwjgl.vulkan.VK10.vkDestroyShaderModule;
 import static org.lwjgl.vulkan.VK10.vkUpdateDescriptorSets;
 
 /**
- * One compute pipeline and what it binds each frame in flight: a descriptor set and a
- * host-visible uniform block. Values are written while a frame records, so a block shared across
- * frames in flight could change under an earlier frame's dispatch. Binding i has
- * {@code descriptorTypes[i]}; the uniform block, when there is one, takes the binding after them.
+ * One compute pipeline and what it binds for each frame in flight: a descriptor set and a host-visible uniform
+ * block. Values are written while a frame records, so a block shared across frames in flight could change under
+ * an earlier frame's dispatch.
+ *
+ * Binding i has {@code descriptorTypes[i]}; the uniform block, when there is one, takes the binding after them.
  */
 final class ComputeKernel implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -119,9 +120,9 @@ final class ComputeKernel implements AutoCloseable {
     }
 
     /**
-     * Slots for every frame VulkanMod can have in flight. The kernel lives for the pack session, and
-     * the player can raise the frame queue size within it; slots sized to the count at build would
-     * then hand one slot to two frames still in flight, rewriting a set and block the other uses.
+     * Slots for every frame VulkanMod can have in flight. The kernel lives for the pack session, and the player
+     * can raise the frame queue size within it; slots sized to the count at build would then hand one slot to two
+     * frames still in flight, rewriting a set and block the other uses.
      */
     static int slotCount(int framesInFlight) {
         return Math.max(Math.max(1, framesInFlight), Config.MAX_FRAME_QUEUE_SIZE);
@@ -145,7 +146,7 @@ final class ComputeKernel implements AutoCloseable {
     /** The work group size the compiled module declares, as Iris reads it from GL; null when it declares none. */
     int[] localSize() { return localSize == null ? null : localSize.clone(); }
 
-    /** This frame slot's fence has signalled, so its set and block are free to rewrite. */
+    /** The current frame's slot; its fence has signalled, so its set and block are free to rewrite. */
     FrameSlot currentFrame() { return frames[currentFrameIndex()]; }
 
     int currentFrameIndex() { return Renderer.getCurrentFrame() % frames.length; }
@@ -304,7 +305,7 @@ final class ComputeKernel implements AutoCloseable {
 
     /**
      * The module, freed by the caller; null, with the error logged, when compilation fails.
-     * gl_MaxComputeWorkGroupSize is the device's limit, as a GL driver on it reports.
+     * gl_MaxComputeWorkGroupSize is the device's limit, as a GL driver on that device reports it.
      */
     private static ByteBuffer compileSpirv(String label, String source) {
         try {

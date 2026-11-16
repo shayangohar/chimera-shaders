@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.Map;
 
-/** Read-only access to the pinned TextureManager texture registry. */
+/** TextureManager's textures by location, for reading only. */
 @Mixin(TextureManager.class)
 public interface ChimeraTextureManagerAccessor {
     @Accessor("byPath")

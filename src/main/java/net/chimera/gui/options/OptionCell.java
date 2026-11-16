@@ -13,10 +13,9 @@ import net.minecraft.sounds.SoundEvents;
 import java.util.Optional;
 
 /**
- * One cell of an option row. Its row places it every frame and decides whether the mouse is over
- * it: by column, across the row's full height, as Iris does. A cell with keyboard focus counts as
- * hovered. Mouse presses reach a cell through its row and never focus it; keys reach it once the
- * arrow keys have focused it.
+ * One cell of an option row. The row places it every frame and decides whether the mouse is over it: by
+ * column, across the row's full height, as Iris does. A cell with keyboard focus counts as hovered. Mouse
+ * presses reach a cell through its row and never focus it; keys reach it once the arrow keys focus it.
  */
 abstract class OptionCell extends AbstractWidget {
     static final int HEIGHT = 22;
@@ -31,7 +30,6 @@ abstract class OptionCell extends AbstractWidget {
         this.context = context;
     }
 
-    /** Hovered by the mouse or focused by the keyboard. */
     final boolean hot() {
         return rowHovered || isFocused();
     }

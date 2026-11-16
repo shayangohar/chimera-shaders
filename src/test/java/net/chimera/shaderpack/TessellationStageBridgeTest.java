@@ -23,9 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class TessellationStageBridgeTest {
     /**
-     * A plan holds its between stages as one BetweenStages, checked once when it is made (it refuses
-     * a lone tessellation stage, audit FD2), and reads each stage through it; a plan without them
-     * has none (proposal 4).
+     * A plan holds its between stages as one BetweenStages, which refuses a lone tessellation stage
+     * when made, and reads each stage through it; a plan without them holds BetweenStages.NONE.
      */
     @Test
     void aPlanHoldsItsBetweenStagesAsOne() {
@@ -40,14 +39,14 @@ final class TessellationStageBridgeTest {
                 null, List.of(), true);
         assertEquals(BetweenStages.NONE, plain.betweenStages());
         assertNull(plain.convertedTessControl());
-        // The check itself: a lone control or evaluation stage cannot be made.
+        // a lone control or evaluation stage cannot be made
         assertThrows(IllegalArgumentException.class, () -> new BetweenStages("control", null, null));
         assertThrows(IllegalArgumentException.class, () -> new BetweenStages(null, "evaluation", null));
     }
 
     /**
      * Per-patch varyings are not carried between the tessellation stages, so the scan refuses a
-     * patch in or patch out, array or not. Read per vertex, an array one took the wrong shape.
+     * patch in or patch out, array or not; read per vertex, an array one would take the wrong shape.
      */
     @Test
     void aPatchVaryingIsRefusedArrayOrNot() {
@@ -143,7 +142,7 @@ final class TessellationStageBridgeTest {
     /**
      * The control stage reads the vertex outputs' locations and writes its own, packed by name; the
      * evaluation stage reads those and writes the fragment inputs' locations, an integer flat. Only
-     * the evaluation stage, the last before the rasterizer, converts GL's clip depth, and only it
+     * the evaluation stage, the last before the rasteriser, converts GL's clip depth, and only it
      * reads the host's projection, so only it declares the view block. Its winding is reversed.
      */
     @Test
@@ -217,7 +216,7 @@ final class TessellationStageBridgeTest {
     /**
      * Shrimple's DISPLACE_TESSELATION projects the hand in its evaluation stage, which reads the
      * draw's own projection in GL's clip range from the host's Projection block, as the hand's vertex
-     * stage does; a terrain stage reads the view block's MVP. Such a hand fell back before.
+     * stage does; a terrain stage reads the view block's MVP.
      */
     @Test
     void aHandEvaluationStageProjectsWithTheHandsOwnProjection() {
@@ -237,8 +236,8 @@ final class TessellationStageBridgeTest {
      * A tessellated hand in a pack, projected in its evaluation stage as Shrimple's DISPLACE_TESSELATION
      * does: admitted, its evaluation stage declaring the entity family's uniform block where it reads a
      * uniform and the host's Projection block, and the whole descriptor set matching every stage as
-     * the runtime checks it (PackPipelines.prepareLayout). Declaring the terrain lanes' block there
-     * stopped the game at launch (DESCRIPTOR_LAYOUT_MISMATCH:ChimeraTerrainPackUniforms).
+     * the runtime checks it (PackPipelines.prepareLayout). The terrain lanes' block there would fail
+     * that check with DESCRIPTOR_LAYOUT_MISMATCH:ChimeraTerrainPackUniforms.
      */
     @Test
     void aTessellatedHandsDescriptorsServeEveryStage(@TempDir Path root) throws IOException {
@@ -306,8 +305,8 @@ final class TessellationStageBridgeTest {
 
     /**
      * The hand's entity preamble declares the host's Normal, so a pack varying of that name is
-     * renamed. The rename skipped the tessellation stages: the vertex wrote the renamed output
-     * while the control stage still read Normal[], the pair did not match and the hand fell back.
+     * renamed, in the tessellation stages too; a control stage still reading Normal[] would not
+     * match the vertex stage's renamed output.
      */
     @Test
     void aVaryingNamedLikeAHostInputPairsThroughTheTessellationStages(@TempDir Path root) throws IOException {
@@ -367,9 +366,9 @@ final class TessellationStageBridgeTest {
     }
 
     /**
-     * A commented layout above the real one took the swap, and the real one kept GL's ccw: every
-     * tessellated triangle faced the other way. An order in a second layout statement kept GL's
-     * beside the cw the first gained, and the stage failed to compile.
+     * A commented layout taking the swap would leave the real one on GL's ccw and flip every
+     * tessellated triangle; an order left in a second layout statement beside the first's cw would
+     * not compile.
      */
     @Test
     void theWindingSwapReadsOnlyLiveLayoutsAndEveryOrderInThem() {
@@ -403,8 +402,8 @@ final class TessellationStageBridgeTest {
     }
 
     /**
-     * A storage-buffer rewrite that fails on one tessellation stage leaves no pair: BetweenStages
-     * refuses a lone stage, and the half pair threw from the reports and failed the whole pack.
+     * A storage-buffer rewrite that fails on one tessellation stage leaves no pair, since BetweenStages
+     * refuses a lone stage; a half pair would throw from the reports and fail the whole pack.
      */
     @Test
     void aHalfConvertedTessellationPairIsNoPair() {

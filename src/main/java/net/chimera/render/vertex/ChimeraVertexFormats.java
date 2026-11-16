@@ -18,7 +18,7 @@ import static org.lwjgl.vulkan.VK10.VK_FORMAT_R32G32_SFLOAT;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_SNORM;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_UNORM;
 
-/** Vertex formats owned by Chimera rather than by the host renderer. */
+/** Chimera's own vertex formats: the extended terrain layouts and the widened family layouts. */
 public final class ChimeraVertexFormats {
     public static final VertexFormatElement MATERIAL_ID =
             new VertexFormatElement(3, 0, VertexFormatElement.Type.INT,
@@ -34,31 +34,31 @@ public final class ChimeraVertexFormats {
     public static final VertexFormatElement ENTITY_IDS =
             VertexFormatElement.register(16, 0, VertexFormatElement.Type.SHORT,
                     VertexFormatElement.Usage.GENERIC, 1);
-    /** Polygon center UV written by the entity buffer bridge. */
+    /** The polygon's centre UV, written by the entity buffer bridge. */
     public static final VertexFormatElement MID_TEX_COORD =
             VertexFormatElement.register(17, 0, VertexFormatElement.Type.FLOAT,
                     VertexFormatElement.Usage.GENERIC, 1);
-    /** Packed normalized tangent frame written by the entity buffer bridge. */
+    /** The packed tangent frame, written by the entity buffer bridge. */
     public static final VertexFormatElement TANGENT =
             VertexFormatElement.register(18, 0, VertexFormatElement.Type.INT,
                     VertexFormatElement.Usage.GENERIC, 1);
 
-    /** Modern terrain mid-UV, stored as two unsigned normalized atlas words. */
+    /** The modern terrain quad's centre UV, as two unsigned words in 1/32768 steps. */
     public static final VertexFormatElement TERRAIN_MID_TEX_COORD =
             new VertexFormatElement(5, 0, VertexFormatElement.Type.USHORT,
                     VertexFormatElement.Usage.UV, 2);
-    /** Signed 1/64-block local midpoint offset used by the modern material bridge. */
+    /** Signed byte offsets to the block's centre in 1/64 blocks, with the light emission in the fourth byte. */
     public static final VertexFormatElement TERRAIN_MID_BLOCK =
             new VertexFormatElement(6, 0, VertexFormatElement.Type.INT,
                     VertexFormatElement.Usage.GENERIC, 1);
-    /** Normalized normal word used to derive a deterministic tangent fallback. */
+    /** The packed face normal, with the quad's tangent frame in the fourth byte (TerrainTangentCodec). */
     public static final VertexFormatElement TERRAIN_TANGENT_FRAME =
             new VertexFormatElement(7, 0, VertexFormatElement.Type.BYTE,
                     VertexFormatElement.Usage.NORMAL, 4);
 
     /**
-     * VulkanMod's COMPRESSED_TERRAIN prefix (position and light, colour, UV), which its
-     * CompressedVertexBuilder writes, followed by the material attributes: 24 bytes.
+     * VulkanMod's COMPRESSED_TERRAIN prefix (position and light, colour, UV), which its CompressedVertexBuilder
+     * writes, followed by the material attributes: 24 bytes.
      */
     public static final VertexFormat EXTENDED_COMPRESSED_TERRAIN =
             VertexFormat.builder()
@@ -70,7 +70,7 @@ public final class ChimeraVertexFormats {
                     .build();
 
     /**
-     * Modern terrain/water layout: 36 bytes. Iris's separateAo needs no word of its own; the
+     * The modern terrain and water layout: 36 bytes. Iris's separateAo needs no word of its own, since the
      * light pipeline's brightness rides in the colour's alpha.
      */
     public static final VertexFormat MODERN_COMPRESSED_TERRAIN =
@@ -124,18 +124,17 @@ public final class ChimeraVertexFormats {
     }
 
     /**
-     * Iris IrisVertexFormats.GLYPH: text keeps POSITION_COLOR_TEX_LIGHTMAP and gains a
-     * normal, computed per glyph quad, ahead of the pack-visible attributes. World text,
-     * sign text and text drawn in the hand (maps) all use it.
+     * Iris IrisVertexFormats.GLYPH: text keeps POSITION_COLOR_TEX_LIGHTMAP and gains a normal, computed per
+     * glyph quad, ahead of the pack-visible attributes. World text, sign text and text drawn in the hand
+     * (maps) all use it.
      */
     public static final VertexFormat EXTENDED_GLYPH = appendMaterialInputs(
             DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, true);
     /**
-     * Host BLOCK followed by the pack-visible attributes: the chunk render types of falling blocks
-     * and moving pistons, which Iris extends to IrisVertexFormats.TERRAIN outside chunk meshes. Its
-     * elements match EXTENDED_GLYPH's, so VertexFormat.equals cannot tell the two apart; Chimera
-     * compares formats by identity, and their identical vertex inputs are harmless where a map does
-     * merge them.
+     * Host BLOCK followed by the pack-visible attributes: the chunk render types of falling blocks and moving
+     * pistons, which Iris extends to IrisVertexFormats.TERRAIN outside chunk meshes. Its elements match
+     * EXTENDED_GLYPH's, so VertexFormat.equals cannot tell the two apart. Chimera compares formats by
+     * identity, and their vertex inputs are identical, so a map that merges them does no harm.
      */
     public static final VertexFormat EXTENDED_BLOCK = appendMaterialInputs(DefaultVertexFormat.BLOCK);
     private static final VertexFormat EXTENDED_HAND_MAP_BACKGROUND = appendMaterialInputs(
@@ -143,14 +142,14 @@ public final class ChimeraVertexFormats {
     private static final Map<VertexFormat, VertexFormat> HAND_FORMATS = handFormatsInOrder();
 
     /**
-     * Native hand models, item quads, map text and map background keep distinct prefixes. The
-     * order is fixed because each hand variant is named by its position, as pack_gbuffers_hand_N.
+     * Native hand models, item quads, map text and map background keep distinct prefixes. The order is fixed
+     * because each hand variant is named by its position, as pack_gbuffers_hand_N.
      */
     public static Map<VertexFormat, VertexFormat> handFormats() {
         return HAND_FORMATS;
     }
 
-    /** Map.of iterates in an order randomized per JVM start, which renamed the variants per session. */
+    /** Insertion-ordered: Map.of's order varies per JVM start and would rename the variants between sessions. */
     private static Map<VertexFormat, VertexFormat> handFormatsInOrder() {
         Map<VertexFormat, VertexFormat> formats = new LinkedHashMap<>();
         formats.put(DefaultVertexFormat.NEW_ENTITY, EXTENDED_ENTITY);
@@ -171,8 +170,8 @@ public final class ChimeraVertexFormats {
     }
 
     /**
-     * The Vulkan format of each element of family format {@code format}, by location. Reforged's
-     * vertex translator rejects the family scalars (MidTexCoord is declared a generic float), so
+     * The Vulkan format of each element of family format {@code format}, by location. Reforged's vertex
+     * translator rejects the family scalars (MidTexCoord is declared a generic float), so
      * ChimeraEntityVertexInputMixin describes family formats from this list instead.
      */
     public static int[] vulkanInputFormats(VertexFormat format) {
@@ -187,7 +186,7 @@ public final class ChimeraVertexFormats {
             case "UV0", "MidTexCoord" -> VK_FORMAT_R32G32_SFLOAT;
             case "UV1", "UV2" -> VK_FORMAT_R16G16_SINT;
             case "EntityIds" -> VK_FORMAT_R16G16B16A16_UINT;
-            // Normal is three bytes plus a pad byte; the tangent frame packs four.
+            // Normal is three bytes plus a pad byte; the tangent frame packs four
             case "Normal", "Tangent" -> VK_FORMAT_R8G8B8A8_SNORM;
             default -> throw new IllegalArgumentException("unsupported family attribute " + attribute);
         };
@@ -199,9 +198,9 @@ public final class ChimeraVertexFormats {
     }
 
     /**
-     * True when a quad of {@code format} takes its face normal: the layouts Iris extends (TERRAIN,
-     * ENTITY and GLYPH) while the level renders (MixinBufferBuilder fillExtendedData,
-     * ImmediateState.isRenderingLevel). A triangle keeps its normals.
+     * True when a quad of {@code format} takes its face normal: the layouts Iris extends (TERRAIN, ENTITY and
+     * GLYPH) while the level renders (MixinBufferBuilder fillExtendedData, ImmediateState.isRenderingLevel). A
+     * triangle keeps its normals.
      */
     public static boolean takesFaceNormal(VertexFormat format, boolean renderingLevel) {
         return renderingLevel && (format == EXTENDED_BLOCK || format == EXTENDED_ENTITY || format == EXTENDED_GLYPH);

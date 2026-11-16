@@ -17,7 +17,10 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Pure material planner gates: selectors, stage gating, resource identity, and manifest kind. */
+/**
+ * Material planning: selectors, the stages that bind material maps, resource identity and manifest
+ * kind. Also compact target directives, entity output plans and the unset isElytraFlying.
+ */
 final class MaterialPlanTest {
     /** VK_SHADER_STAGE_VERTEX_BIT; the Vulkan bindings are compile-only for main sources. */
     private static final int VK_SHADER_STAGE_VERTEX_BIT = 1;
@@ -71,7 +74,7 @@ final class MaterialPlanTest {
         assertEquals(74, SelectorNamespace.DH_DEPTH_SLOT, "the DH depth selectors follow the extended slots");
         assertEquals(75, SelectorNamespace.DH_DEPTH1_SLOT);
         assertEquals(76, SelectorNamespace.CENTER_DEPTH_SLOT, "the centre depth selector closes the range");
-        // The ten slots between the host's own come first, so a pack within them keeps its slots.
+        // the ten slots between the host's own come first, so a pack within them keeps its slots
         assertEquals(List.of(8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 42),
                 SelectorNamespace.PACK_SELECTOR_SLOTS.subList(0, 11));
         assertEquals(42, SelectorNamespace.PACK_SELECTOR_SLOTS.size());
@@ -82,7 +85,7 @@ final class MaterialPlanTest {
 
     @Test
     void stageGating() {
-        // Iris registers normals and specular in every gbuffers and shadow program (addLevelSamplers).
+        // Iris registers normals and specular in every gbuffers and shadow program (addLevelSamplers)
         for (UniformRegistry.Stage stage : List.of(
                 UniformRegistry.Stage.GEOMETRY, UniformRegistry.Stage.TRANSLUCENT,
                 UniformRegistry.Stage.ENTITY, UniformRegistry.Stage.BLOCK,
@@ -138,7 +141,7 @@ final class MaterialPlanTest {
         PackProgramPlan composite = analysis.plan().program("composite");
         assertTrue(composite != null, "material fixture composite is missing");
         // Iris binds material maps only to world programs: in a fullscreen pass both names stay on
-        // unit 0 and read colortex0.
+        // unit 0 and read colortex0
         assertTrue(composite.deviations().contains("SAMPLER_UNIT0_COLORTEX0:normals")
                         && composite.deviations().contains("SAMPLER_UNIT0_COLORTEX0:specular"),
                 "post material declarations do not read colortex0: " + composite.deviations());
@@ -195,16 +198,10 @@ final class MaterialPlanTest {
                 "explicit-gradient sampling was not translated: " + converted);
     }
 
-    // ------------------------------------------------------------------
-    // Compact directive parsing, entity output plans, slots,
-    // and the unset isElytraFlying.
-    // ------------------------------------------------------------------
-
     @Test
     void compactDirectiveParsing() {
-        // Complementary-authored shape after branch resolution: the
-        // unconditional 036 route plus the surviving guarded 0364 route.
-        // The last surviving route wins, matching Iris authoring order.
+        // Complementary's shape after branch resolution: the unconditional 036 route, then the
+        // guarded 0364 one that survived; the last route wins, as in Iris
         GeometryOutputPlan reflectionsOff = GeometryOutputPlan.parse("gbuffers_entities",
                 "#version 120\n/* DRAWBUFFERS:036 */\ngl_FragData[2] = vec4(0.0);\n",
                 Map.of());
@@ -214,36 +211,35 @@ final class MaterialPlanTest {
                         + "/* DRAWBUFFERS:0364 */\ngl_FragData[3] = vec4(0.0);\n",
                 Map.of());
         assertEquals(List.of(0, 3, 6, 4), reflectionsOn.targetSlots(), "surviving 0364 wins");
-        // A report containing 36/364/367/1367 as targets is a parser failure.
+        // 36, 364, 367 or 1367 as a target would mean the digits were read as one number
         for (String bad : List.of("36", "364", "367", "1367")) {
             assertTrue(!reflectionsOn.targetSlots().contains(Integer.decode(bad)),
                     "impossible target " + bad + " leaked into the plan");
         }
-        // Length never decides: a shorter later route replaces a longer default.
+        // length never decides: a shorter later route replaces a longer default
         GeometryOutputPlan narrowed = GeometryOutputPlan.parse("gbuffers_entities",
                 "#version 120\n/* DRAWBUFFERS:0364 */\n/* DRAWBUFFERS:036 */\n", Map.of());
         assertEquals(List.of(0, 3, 6), narrowed.targetSlots(), "later route wins over longer");
-        // Divergent survivors are no conflict either: Iris takes the last.
+        // divergent survivors are no conflict either: Iris takes the last
         GeometryOutputPlan divergent = GeometryOutputPlan.parse("gbuffers_entities",
                 "#version 120\n/* DRAWBUFFERS:036 */\n/* DRAWBUFFERS:05 */\n", Map.of());
         assertEquals(List.of(0, 5), divergent.targetSlots(), "divergent latest wins");
         assertTrue(divergent.deviations().stream().noneMatch(value -> value.startsWith("GEOMETRY_")),
                 "divergent survivors refused the program: " + divergent.deviations());
-        // Comma-separated list form stays a list of targets.
+        // the comma-separated form stays a list of targets
         GeometryOutputPlan listed = GeometryOutputPlan.parse("gbuffers_entities",
                 "#version 120\n/* RENDERTARGETS: 0,3,6 */\n", Map.of());
         assertEquals(List.of(0, 3, 6), listed.targetSlots(), "list targets kept");
-        // Post plan keeps the same rule.
+        // a post plan follows the same rule
         PostTargetPlan post = PostTargetPlan.parse("composite1",
                 "/* DRAWBUFFERS:036 */\n", Map.of()).plan();
         assertEquals(List.of(0, 3, 6), post.targetSlots(), "post compact digits");
     }
 
     /**
-     * The m87_entity fixture's gbuffers_entities plans its material maps as servable bindings and
-     * keeps the executable single-target shape. Descriptor identity: the guarded family contract
-     * must carry the host transform blocks at bindings 0/1 with the converted preambles' fields,
-     * which the host fills by name, at the preambles' std140 sizes.
+     * The entity fixture's gbuffers_entities plans its material maps as servable bindings and keeps
+     * one target. Its family contract carries the host transform blocks at bindings 0 and 1 with the
+     * converted preambles' fields, which the host fills by name, at the preambles' std140 sizes.
      */
     @Test
     void entityFixturePlan() throws Exception {
@@ -266,7 +262,6 @@ final class MaterialPlanTest {
         assertTrue(plan.deviations().stream().noneMatch(value ->
                         value.contains("MATERIAL_MAP_DEFERRED") || value.contains("NOT_MAPPED")),
                 "entity material deviations: " + plan.deviations());
-        // Single-output family plan keeps the executable single-target shape.
         assertTrue(plan.geometryOutputPlan() != null
                         && plan.geometryOutputPlan().targetSlots().equals(List.of(0)),
                 "entity single-target plan missing");
@@ -286,13 +281,12 @@ final class MaterialPlanTest {
                 "Projection stage");
 
         List<UBO> blocks = HostPipelineLayout.uniformBuffers(ordinary.layout(), (name, type) -> () -> null);
-        // The fragment block carries the per-draw host alpha-test reference.
+        // the fragment block carries the per-draw host alpha-test reference
         assertTrue(plan.interfacePlan().uniforms().stream()
                         .anyMatch(u -> u.name().equals(UniformRegistry.ENTITY_ALPHA_REFERENCE)),
                 "entity program lacks the host alpha-test reference uniform");
-        // VulkanMod computes the std140 size from the declared fields; the
-        // converted preamble declares the same layout, so the blocks must match
-        // the host 160B/64B contract or the descriptor would misdescribe it.
+        // VulkanMod sizes a block from its declared fields and the converted preamble declares the
+        // same layout; any size but the host's 160 and 64 bytes would misdescribe the descriptor
         assertEquals(160, sizeOf(blocks, UniformRegistry.DYNAMIC_TRANSFORMS_BINDING),
                 "DynamicTransforms std140 size");
         assertEquals(64, sizeOf(blocks, UniformRegistry.PROJECTION_BINDING),
@@ -324,8 +318,8 @@ final class MaterialPlanTest {
                         .noneMatch(value -> value.startsWith("SAMPLER_SLOT_CONFLICT")),
                 "entity shadow slot conflict: "
                         + plan.interfacePlan().effective(UniformRegistry.Stage.ENTITY).deviations());
-        // Two images as in Iris: shadowtex0 has every caster, shadowtex1 only
-        // those drawn before translucent terrain.
+        // two images as in Iris: shadowtex0 has every caster, shadowtex1 only those drawn before
+        // translucent terrain
         PackResourceBinding depth0 = binding(shadow.plan().resources().bindings("gbuffers_entities"),
                 "shadowtex0");
         PackResourceBinding depth1 = binding(shadow.plan().resources().bindings("gbuffers_entities"),
@@ -411,7 +405,7 @@ final class MaterialPlanTest {
         String source = vertex.source();
         assertTrue(source.contains("out flat vec3 tangentFrame"),
                 "flat qualifier lost: " + source);
-        // The pack's world matrices stay its uniforms, as the glint lane over this entity reads them.
+        // the pack's world matrices stay its uniforms, as the glint lane over this entity reads them
         assertTrue(source.contains("gbufferModelViewInverse * vec4(1.0)") && !source.contains("inverse(ModelViewMat)"),
                 "entity lane must read the pack's gbufferModelViewInverse: " + source);
         assertTrue(!source.contains("chimeraEntityCameraPosition"),
@@ -480,8 +474,8 @@ final class MaterialPlanTest {
     void elytraUniformIsUnset() {
         assertTrue(UniformRegistry.descriptor("isElytraFlying") == null,
                 "isElytraFlying is not an Iris 1.21.1 uniform");
-        // The entity fragment conversion requires the paired vertex layout, so both stages come
-        // from one snippet pair.
+        // the entity fragment conversion needs the paired vertex layout, so both stages come from
+        // one snippet pair
         UniformRegistry.ProgramInterfacePlan plan = InterfacePlanner.planProgram(
                 ELYTRA_SNIPPET, ELYTRA_VERTEX_SNIPPET, UniformRegistry.Stage.ENTITY, null, true);
         UniformRegistry.ProgramInterface fragment = plan.effective(UniformRegistry.Stage.ENTITY);

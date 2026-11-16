@@ -13,13 +13,13 @@ import java.util.regex.Pattern;
 /**
  * One pack source file with the option each line declares, read the way OptiFine and Iris read it.
  *
- * <p>Every line is judged on its own. A {@code #define NAME} (or a commented-out one) is a toggle
- * candidate; it only becomes an option when some file it shares an include group with tests it in a
- * plain {@code #ifdef NAME} or {@code #ifndef NAME} line, never in {@code #if}. A
- * {@code #define NAME value // ... [a b c]} is a choice. A {@code const} declaration counts only for
- * the names the format makes configurable, and an int or float one only with a value list.
+ * Every line is judged on its own. A {@code #define NAME}, commented out or not, is a toggle candidate;
+ * it becomes an option only when some file in the pack tests it in a plain {@code #ifdef NAME} or
+ * {@code #ifndef NAME} line, never in {@code #if}. A {@code #define NAME value // ... [a b c]} is a
+ * choice. A {@code const} declaration counts only for the names the format makes configurable, and an
+ * int or float one only with a value list.
  *
- * <p>Applying values edits these lines and nothing else: a toggle is commented in or out, a define
+ * Applying values edits these lines and nothing else: a toggle is commented in or out, a define
  * choice is rewritten, and a const keeps its declaration with the value after the equals sign
  * replaced.
  */
@@ -92,8 +92,8 @@ final class AnnotatedSource {
 
     private static String edit(ShaderOption option, String line, OptionValues values) {
         if (option instanceof ShaderOption.Toggle toggle) {
-            // A toggle at its default keeps its line: every declaring line already holds the
-            // default, since locations with different defaults never merge into one option.
+            // a toggle at its default keeps its line; every declaring line already holds the default,
+            // since locations with different defaults never merge into one option
             return values.toggle(toggle.name()).map(on -> toggle.kind() == ShaderOption.Kind.DEFINE
                     ? editToggleDefine(line, on)
                     : editConst(line, toggle.defaultText(), Boolean.toString(on))).orElse(line);
@@ -189,7 +189,7 @@ final class AnnotatedSource {
             return Optional.of(new ShaderOption.Toggle(name, ShaderOption.Kind.DEFINE,
                     Optional.of(cursor.remainder().trim()), !commentedOut));
         }
-        // Only a toggle may be commented out; a value needs whitespace before it.
+        // only a toggle may be commented out; a value needs whitespace before it
         if (!spaced || commentedOut) return Optional.empty();
         String value = cursor.takeWordOrNumber();
         if (value == null) return Optional.empty();

@@ -6,19 +6,17 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Where a pack draws particles against its deferred passes, read from shaders.properties as Iris
- * ShaderProperties reads it and resolved as IrisRenderingPipeline resolves it:
- * <ul>
- *   <li>A key starting {@code particles.ordering} names {@code before}, {@code mixed} or
- *       {@code after}; any other value leaves the ordering unset.</li>
- *   <li>{@code separateEntityDraws}, true or false, sets mixed.</li>
- *   <li>{@code particles.before.deferred = true} sets before while nothing else has.</li>
- *   <li>Left unset, particles draw after, or mixed with separateEntityDraws. Iris tests for deferred
- *       programs there, but its deferred array always has 100 slots, so every pack passes.</li>
- * </ul>
- * Iris applies the keys in the order they first appear, each with its last value
- * (OrderBackedProperties). superDuperVanilla's {@code particles.ordering = after} is undone by the
- * {@code separateEntityDraws} below it.
+ * Where a pack draws particles against its deferred passes, read from shaders.properties as Iris's
+ * ShaderProperties reads it and resolved as IrisRenderingPipeline resolves it.
+ *
+ * A key starting {@code particles.ordering} names {@code before}, {@code mixed} or {@code after}; any other value
+ * leaves the ordering unset. {@code separateEntityDraws}, true or false, sets mixed.
+ * {@code particles.before.deferred = true} sets before while nothing else has. Left unset, particles draw after,
+ * or mixed with separateEntityDraws. Iris tests for deferred programs there, but its deferred array always has
+ * 100 slots, so every pack passes.
+ *
+ * Iris's OrderBackedProperties applies the keys in the order they first appear, each with its last value, so
+ * superDuperVanilla's {@code particles.ordering = after} is undone by the {@code separateEntityDraws} below it.
  */
 public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws, List<String> deviations) {
     /** A pack's particles with no ordering keys: all after the deferred passes. */
@@ -27,7 +25,7 @@ public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws,
     private static final String BEFORE_DEFERRED = "particles.before.deferred";
     private static final String SEPARATE_ENTITY_DRAWS = "separateEntityDraws";
 
-    /** Iris ParticleRenderingSettings, without UNSET, which resolves before a frame draws. */
+    /** Iris's ParticleRenderingSettings without UNSET, which resolves before a frame draws. */
     public enum Ordering {
         BEFORE, MIXED, AFTER;
 
@@ -84,7 +82,7 @@ public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws,
         return new ParticleDirectives(ordering, separate, deviations);
     }
 
-    /** Iris's UNSET is a valid name too; it leaves the ordering to the default. */
+    /** The named ordering, or null for Iris's UNSET or an unknown name, which leave it to the default. */
     private static Ordering named(String value, List<String> deviations) {
         String name = value.toUpperCase(Locale.ROOT);
         if (name.equals("UNSET")) return null;

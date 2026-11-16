@@ -8,15 +8,16 @@ import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 
 /**
- * The camera frustum of a pack that sets {@code frustum.culling=false}: every box is visible, as in
- * Iris's NonCullingFrustum, which MixinLevelRenderer puts in LevelRenderer.cullingFrustum. Entities,
- * particles and NeoForge's block entity check ask {@link #isVisible}. VulkanMod culls sections and
- * its block entities through the VFrustum its FrustumMixin gives every Frustum instead
- * ({@link FrustumMixed#customFrustum}). That one is built from this frustum's identity matrices,
- * so it would keep only a box around the camera; this frustum hands out one that culls nothing.
+ * The camera frustum of a pack that sets {@code frustum.culling=false}: every box is visible, as with Iris's
+ * NonCullingFrustum, which its MixinLevelRenderer puts in LevelRenderer.cullingFrustum. Entities, particles
+ * and NeoForge's block entity check ask {@link #isVisible}.
+ *
+ * VulkanMod culls sections and its block entities through the VFrustum its FrustumMixin gives every Frustum
+ * ({@link FrustumMixed#customFrustum}). Built from this frustum's identity matrices, that one would keep only
+ * a box around the camera, so this frustum hands out one that culls nothing.
  */
 public final class NonCullingFrustum extends Frustum implements FrustumMixed {
-    /** Holds no camera state ({@link #prepare}), so one serves every frame. */
+    /** Holds no camera state, so one serves every frame. */
     public static final NonCullingFrustum INSTANCE = new NonCullingFrustum();
 
     private final VFrustum sections = new Everything();
@@ -26,10 +27,10 @@ public final class NonCullingFrustum extends Frustum implements FrustumMixed {
     }
 
     /**
-     * Keeps the camera at the origin. VulkanMod leaves vanilla's setupRender body running, which
-     * copies this frustum and moves the copy until its camera cube is inside the planes
-     * (LevelRenderer.offsetFrustum). With identity planes and a camera off the 8-block grid, that loop
-     * would never end; at the origin it ends at once. Nothing here reads the camera.
+     * Keeps the camera at the origin. VulkanMod leaves vanilla's setupRender body running, which copies this
+     * frustum and moves the copy until its camera cube is inside the planes (LevelRenderer.offsetFrustum).
+     * With identity planes and a camera off the 8-block grid that loop would never end; at the origin it ends
+     * at once. Nothing here reads the camera.
      */
     @Override
     public void prepare(double camX, double camY, double camZ) {
@@ -45,7 +46,7 @@ public final class NonCullingFrustum extends Frustum implements FrustumMixed {
         return sections;
     }
 
-    /** A VFrustum that finds every box inside: the section graph, its areas and block entities draw them all. */
+    /** A VFrustum with every box inside, so the section graph, its areas and block entities draw everything. */
     private static final class Everything extends VFrustum {
         @Override
         public VFrustum offsetToFullyIncludeCameraCube(int offset) {

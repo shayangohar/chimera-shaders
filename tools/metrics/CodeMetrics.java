@@ -46,10 +46,10 @@ import java.util.stream.Stream;
  * also carry a reason to stay over its limit. {@code record} rewrites the baseline from the sources
  * and keeps each recorded reason.
  *
- * <p>A file of {@link #WARN_FILE_LINES} lines or more only warns. Its length is a prompt to look,
- * not a verdict: a file earns a split when it does two jobs, not when it reaches a number.
+ * A file of {@link #WARN_FILE_LINES} lines or more only warns, as a prompt to look; a file earns a
+ * split when it does two jobs.
  *
- * <p>Usage: {@code CodeMetrics check|record <baseline> <source root>...}
+ * Usage: {@code CodeMetrics check|record <baseline> <source root>...}
  */
 public final class CodeMetrics {
     static final int MAX_COMPLEXITY = 15;
@@ -129,7 +129,7 @@ public final class CodeMetrics {
             }
             int body = unit.getTypeDecls().isEmpty() ? source.length()
                     : (int) positions.getStartPosition(unit, unit.getTypeDecls().get(0));
-            // Lines as wc -l counts them: a final newline ends the last line rather than starting one.
+            // lines as wc -l counts them: a final newline ends the last line rather than starting one
             int lineCount = source.endsWith("\n") ? lines.length - 1 : lines.length;
             files.add(new SourceFile(path, path.contains("src/test/"), lineCount, longLines, qualifiedNames[0],
                     tokens(source.substring(body))));

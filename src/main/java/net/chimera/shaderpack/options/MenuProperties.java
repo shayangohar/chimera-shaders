@@ -21,7 +21,7 @@ import java.util.Set;
  * The menu entries of shaders.properties: {@code screen}, {@code screen.<id>},
  * {@code screen.columns}, {@code screen.<id>.columns}, {@code sliders} and {@code profile.<name>}.
  *
- * <p>These come from the file as written, not preprocessed: a properties reader takes {@code #if}
+ * These come from the file as written, without preprocessing. A properties reader takes {@code #if}
  * lines for comments, so when a key appears in several branches the last one wins, as in OptiFine
  * and Iris. Lists split on runs of spaces.
  */
@@ -52,7 +52,7 @@ public record MenuProperties(
         Path file = shadersRoot.resolve("shaders.properties");
         if (!Files.isRegularFile(file)) return empty();
         try {
-            // Iris reads shaders.properties as ISO-8859-1, which never fails on a stray byte.
+            // Iris reads shaders.properties as ISO-8859-1, which never fails on a stray byte
             return parse(Files.readString(file, StandardCharsets.ISO_8859_1));
         } catch (IOException unreadable) {
             return empty();
@@ -79,7 +79,7 @@ public record MenuProperties(
         try {
             properties.load(reader);
         } catch (IOException | IllegalArgumentException malformed) {
-            // Whatever loaded before the bad line stays, as the properties reader leaves it.
+            // whatever loaded before the bad line stays, as the properties reader leaves it
         }
         return ordered;
     }

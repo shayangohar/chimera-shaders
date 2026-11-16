@@ -3,13 +3,14 @@ package net.chimera.render;
 import com.mojang.blaze3d.platform.NativeImage;
 
 /**
- * The colour Iris setups load an atlas sprite's fully transparent texels with. Sodium, which Iris
- * requires, recolours each to the sprite's mean colour as the sprite loads: the alpha-weighted mean
- * of its texels decoded from sRGB, encoded back. Vanilla and VulkanMod keep the image's own colour.
- * No draw shows it without a pack, since those texels are discarded or blend to nothing, and on a
- * mipmapped atlas VulkanMod's mip generator recolours them again. A pack can read it: Pegasus
- * colours particle light (PARTICLES_LPV) from the particle atlas's first texel, a transparent one,
- * and its particles lit nothing in black.
+ * The colour Iris setups load an atlas sprite's fully transparent texels with. Sodium, which Iris requires,
+ * recolours each to the sprite's mean colour as the sprite loads: the alpha-weighted mean of its texels,
+ * decoded from sRGB and encoded back. Vanilla and VulkanMod keep the image's own colour.
+ *
+ * No draw shows it without a pack, since those texels are discarded or blend to nothing, and on a mipmapped
+ * atlas VulkanMod's mip generator recolours them again. A pack can read it: Pegasus colours particle light
+ * (PARTICLES_LPV) from the particle atlas's first texel, which is transparent, so with black there its
+ * particles light nothing.
  */
 public final class SpriteTransparentTexels {
     private SpriteTransparentTexels() {}

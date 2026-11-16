@@ -3,28 +3,21 @@ package net.chimera.render;
 import java.util.List;
 
 /**
- * One animated material map in an atlas slot: its frame schedule, each
- * frame's logical mip chain, and a ticker that mirrors Minecraft 1.21.1's
- * {@code SpriteContents.Ticker}, so the map runs in lockstep with the atlas
- * it belongs to.
+ * One animated material map in an atlas slot: its frame schedule, each frame's mip chain, and a ticker that
+ * mirrors Minecraft's {@code SpriteContents.Ticker}, so the map keeps step with its atlas.
  *
- * <p>Game semantics, copied rather than approximated: the first schedule
- * entry shows first; every atlas tick adds one sub-frame; reaching the
- * entry's time moves to the next entry (wrapping) and restarts the count.
- * A non-interpolated map redraws only when the frame index changes. An
- * interpolated map also redraws on every other tick while the next entry
- * shows a different frame. Every redraw writes every mip level, each from
- * that frame's own level. Pure CPU state: no GPU, no natives.</p>
+ * The first schedule entry shows first. Each atlas tick adds one sub-frame; reaching the entry's time moves to
+ * the next entry, wrapping, and restarts the count. A map redraws when the frame index changes, and an
+ * interpolated map also redraws on every tick while the next entry shows a different frame. A redraw writes
+ * every mip level from that frame's own level.
  *
- * <p>Iris parity: Iris 1.21.1 runs with Sodium 0.8.13, whose
- * {@code SpriteContentsInterpolationMixin} replaces vanilla's interpolation:
- * {@code ColorMixer.mix} on the colour channels with the current frame's
- * weight {@code 1 - subFrame / time} as a byte, and the current frame's
- * alpha. Its "animate only visible textures" skips the upload of a sprite
- * off screen; a map off screen cannot be seen, so that is not mirrored.</p>
+ * Interpolation follows Sodium's {@code SpriteContentsInterpolationMixin}, which Iris runs with:
+ * {@code ColorMixer.mix} on the colour channels, weighted by the current frame's {@code 1 - subFrame / time}
+ * as a byte, and the current frame's alpha. Sodium's "animate only visible textures" is not mirrored, since a
+ * map off screen changes nothing visible.
  */
 final class MaterialAnimation {
-    /** One schedule entry: which frame of the strip to show, and for how many ticks. */
+    /** Frame of the strip to show, and for how many ticks. */
     record Frame(int index, int time) {}
 
     private final List<Frame> frames;
@@ -53,9 +46,8 @@ final class MaterialAnimation {
     }
 
     /**
-     * Advances one atlas tick. Returns true when the slot must be redrawn:
-     * the frame index changed, or the map interpolates between two different
-     * frames.
+     * Advances one atlas tick. True when the slot must be redrawn: the frame index changed, or the map
+     * interpolates between two different frames.
      */
     boolean tick() {
         subFrame++;
@@ -70,14 +62,14 @@ final class MaterialAnimation {
         return changed || (interpolate && currentIndex() != nextIndex());
     }
 
-    /** The logical pixels the slot shows now at {@code level}. */
+    /** Logical pixels the slot shows now at {@code level}. */
     int[] level(int level) {
         int[] current = frameLevels[currentIndex()][level];
         if (!interpolate || currentIndex() == nextIndex()) {
             return current;
         }
         int[] next = frameLevels[nextIndex()][level];
-        // Sodium ColorU8.normalizedFloatToByte: the current frame's weight as a byte.
+        // the current frame's weight as a byte, as Sodium's ColorU8.normalizedFloatToByte converts it
         int weight = (int) ((1.0f - (float) subFrame / (float) frames.get(frame).time()) * 255.0f) & 0xFF;
         int[] mixed = new int[current.length];
         for (int i = 0; i < current.length; i++) {
@@ -86,7 +78,7 @@ final class MaterialAnimation {
         return mixed;
     }
 
-    /** Sodium ColorMixer.mix: every channel weighted by {@code weight / 255}, rounded as Sodium rounds. */
+    /** Sodium's {@code ColorMixer.mix}: each channel weighted by {@code weight / 255}, rounded as Sodium rounds. */
     private static int mix(int current, int next, int weight) {
         long redBlue = (current & 0x00FF00FFL) * weight + (next & 0x00FF00FFL) * (255 - weight);
         long greenAlpha = (current & 0xFF00FF00L) * weight + (next & 0xFF00FF00L) * (255 - weight);

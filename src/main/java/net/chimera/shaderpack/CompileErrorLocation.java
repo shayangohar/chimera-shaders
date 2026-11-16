@@ -12,11 +12,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Where a compile error sits, for a failure notice's Copy Info. shaderc names the
- * translated stage Chimera compiled (pack_final.fsh:518), which no pack author has. The notice
- * quotes that line, and names the authored lines that read the same, when there are a few: RedHat's
- * redefined lenscolor reads the same at mainlens.glsl:18 and :79. Chimera's translation keeps no
- * line map, so a line it rewrote names no file.
+ * Where a compile error sits, for a failure notice's Copy Info.
+ *
+ * shaderc names a line of the translated stage, such as {@code pack_final.fsh:518}, which no pack author has.
+ * The notice quotes that line and, when only a few authored lines read the same, names them as well. The
+ * translation keeps no line map, so a line Chimera rewrote names no file.
  */
 public final class CompileErrorLocation {
     /** shaderc's report of an error: {@code <unit>:<line>: error: <message>}. */
@@ -32,9 +32,8 @@ public final class CompileErrorLocation {
     private CompileErrorLocation() {}
 
     /**
-     * The Copy Info lines for {@code compilerMessage}, the error shaderc gave for {@code source}:
-     * the message, the translated line it names, and the authored files and lines under
-     * {@code shadersDir} that read the same, when a few do.
+     * Copy Info lines for shaderc's error on {@code source}: the message, the translated line it names, and
+     * the authored lines under {@code shadersDir} that read the same, when a few do.
      */
     public static String describe(String compilerMessage, String source, Path shadersDir) {
         String message = compilerMessage == null ? "" : compilerMessage.strip();
@@ -57,9 +56,8 @@ public final class CompileErrorLocation {
     }
 
     /**
-     * The authored files and lines under {@code shadersDir} whose text is {@code translated}'s, as
-     * {@code relative/path:line} joined by "or"; null when none or more than {@link #MOST_MATCHES}
-     * are, or the line is too short to tell.
+     * Authored lines under {@code shadersDir} that read as {@code translated} does, as {@code relative/path:line}
+     * joined by "or". Null when none or more than {@link #MOST_MATCHES} match, or the line is too short to tell.
      */
     static String authoredLine(String translated, Path shadersDir) {
         String wanted = translated.strip();

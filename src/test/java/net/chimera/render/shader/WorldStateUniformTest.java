@@ -34,7 +34,7 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Live world-state uniform semantics and custom scalars. */
+/** World-state uniforms, the celestial frame, matrix history and custom uniform expressions. */
 final class WorldStateUniformTest {
     @Test
     void fixturePack() throws Exception {
@@ -56,19 +56,18 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * The celestial frame is one derivation: the pack-facing angles and positions, the up
-     * direction, and the shadow light vector must all come from the same host sample, or a shadow
-     * caster and a shadow receiver disagree about where the light is.
+     * The celestial frame is one derivation: the pack-facing angles and positions, the up direction
+     * and the shadow light vector all come from the same host sample, or a shadow caster and a shadow
+     * receiver disagree about where the light is.
      *
-     * <p>The angles are the host's own sky attribute plus the quarter turn the sky places a body
-     * with, so an instance that moves the sky moves the shadows with it. The eye-space positions
-     * are that same frame carried by the model view, which is what makes them yaw and pitch
-     * invariant as a world direction.
+     * The angles are the host's own sky attribute plus the quarter turn the sky places a body with, so
+     * an instance that moves the sky moves the shadows with it. The eye-space positions are that same
+     * frame carried by the model view, so as world directions they do not change with yaw or pitch.
      */
     @Test
     void celestialAngles() {
-        // Four controlled times: the raw host sky angle, the pack-facing angle it becomes, and
-        // whether the sun is the body that lights the world.
+        // four controlled times: the raw host sky angle, the pack-facing angle it becomes,
+        // and whether the sun is the body that lights the world
         assertNear(0.0f, CelestialSnapshot.angle01(-90.0F), 1.0e-6f,
                 "the bottom of the wrap lands on zero, as the reference carries it");
         assertNear(0.25f, CelestialSnapshot.angle01(0.0f), 1.0e-6f,
@@ -87,7 +86,7 @@ final class WorldStateUniformTest {
 
     @Test
     void celestialLightVectors() {
-        // The light each controlled time produces, in the world the shadow matrix is built from.
+        // the light each controlled time produces, in the world the shadow matrix is built from
         Vector3f world = new Vector3f();
         CelestialSnapshot.lightVector(0.0f, 0.0f, 0.0f, world);
         assertVectorNear(0.0f, 1.0f, 0.0f, world, "noon light must be overhead");
@@ -96,7 +95,7 @@ final class WorldStateUniformTest {
         CelestialSnapshot.lightVector(0.0f, 0.0f, 270.0f, world);
         assertVectorNear(1.0f, 0.0f, 0.0f, world, "sunset light must lie opposite the sunrise");
 
-        // The pack's sun path is a spatial turn of the frame, not a phase added to time.
+        // the pack's sun path is a spatial turn of the frame, not a phase added to time
         CelestialSnapshot.lightVector(-40.0f, 0.0f, 0.0f, world);
         assertNear((float) Math.cos(Math.toRadians(40.0)), world.y, 1.0e-4f,
                 "the pack's sun path must tilt the noon light off the vertical");
@@ -107,8 +106,8 @@ final class WorldStateUniformTest {
 
     @Test
     void celestialEyePositions() {
-        // Pack/host agreement: the eye-space position is the world light carried by the view, so
-        // the two agree at every controlled time and under any camera yaw and pitch.
+        // the eye-space position is the world light carried by the view, so pack and host agree
+        // at every controlled time and under any camera yaw and pitch
         Matrix4f modelView = celestialCamera();
         Matrix4f inverse = new Matrix4f(modelView).invert();
         Matrix4f turned = new Matrix4f()
@@ -147,7 +146,7 @@ final class WorldStateUniformTest {
                 "pack sun angle must be the host sky angle plus the quarter turn");
         assertNear(0.25f, writtenFloat(state, "shadowAngle"), 1.0e-6f,
                 "noon shadow angle must follow the sun");
-        // Off the 8-bit grid, as Iris serves the level's sky colour unrounded.
+        // off the 8-bit grid, as Iris serves the level's sky colour unrounded
         verifyWrittenVec3(state, "skyColor", new Vector3f(0.3001f, 0.5003f, 0.7007f),
                 "sky colour must be the host's sampled colour, unrounded");
         verifyWrittenVec3(state, "upPosition", expectedUp,
@@ -163,9 +162,9 @@ final class WorldStateUniformTest {
         Matrix4f modelView = celestialCamera();
         Matrix4f inverse = new Matrix4f(modelView).invert();
         PackFrameState state = noonState(modelView);
-        // Receiver consistency at every controlled time, under a straight path and a turned one:
-        // the position the pack reads is the world light the matrix is built from, carried by the
-        // view, and the shadow angle follows the body that actually lights the world.
+        // at every controlled time, on a straight and a turned sun path, the position the pack reads
+        // is the world light the matrix is built from, carried by the view
+        // the shadow angle follows the body that lights the world
         for (float[] sunPath : new float[][] {{0.0f, 0.0f}, {-40.0f, 4.0f}}) {
             state.installSunPath(sunPath[0], sunPath[1]);
             for (float[] time : new float[][] {{0.0f, 0.0f}, {90.0f, 90.0f},
@@ -184,8 +183,8 @@ final class WorldStateUniformTest {
                 assertVectorNear(state.sunLightVector().x, state.sunLightVector().y,
                         state.sunLightVector().z, carried,
                         "pack light position left the shadow light at raw " + time[0]);
-                // The caster rotation (Iris's construction) looks along the same light. Raw 0 with
-                // a straight path is the sun overhead, where a fixed-up look-at had no basis.
+                // the caster rotation, built as Iris builds it, looks along the same light
+                // raw 0 on a straight path puts the sun overhead, where a fixed-up look-at has no basis
                 Vector3f depthAxis = state.shadowLightRotation()
                         .transformDirection(new Vector3f(state.sunLightVector()));
                 assertVectorNear(0.0f, 0.0f, 1.0f, depthAxis,
@@ -249,7 +248,7 @@ final class WorldStateUniformTest {
         int swamp = biomeId("minecraft", "swamp");
         assertNear(1.0f, (float) swamps.evaluate((name, component) -> swamp, swamps.newState(), 0.05f),
                 1.0e-6f, "Bliss's isSwamps names the swamp by its Iris number");
-        // A later biome a pack names is a number no 1.21.1 biome reads, as Iris's dropped uniform reads 0.
+        // a later biome a pack names is a number no 1.21.1 biome reads, as Iris's dropped uniform reads 0
         PackExpression.Program pale = PackExpression.parse("if(in(biome, BIOME_PALE_GARDEN), 1, 0)",
                 BiomeIds.constants());
         for (int biome = 0; biome < 64; biome++) {
@@ -273,11 +272,11 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * The pack-authored language at the values the pinned packs depend on. Complementary's
-     * {@code eyeBrightnessM} smooths the raw sky brightness over its full nought-to-two-hundred-
-     * and-forty range and its cave factor clamps against the result, so a synthetic fifteen put
-     * that clamp outside its own domain; BSL's {@code timeBrightness} is a half-rectified sine of
-     * the raw world time and its {@code timeAngle} is the raw time over the day.
+     * The pack expression language at the values packs depend on. Complementary's
+     * {@code eyeBrightnessM} smooths the raw sky brightness over its full 0 to 240 range and its cave
+     * factor clamps against the result, so a brightness scaled to 15 would put that clamp outside its
+     * domain. BSL's {@code timeBrightness} is a half-rectified sine of the raw world time and its
+     * {@code timeAngle} is the raw time over the day.
      */
     @Test
     void derivedLanguage() {
@@ -300,8 +299,8 @@ final class WorldStateUniformTest {
             rising = value;
         }
 
-        // Two declarations under one id keep their own accumulators, which Complementary needs:
-        // eyeBrightnessM and eyeBrightnessM2 both smooth under id 4 with different half lives.
+        // two declarations under one id keep their own accumulators, which Complementary needs:
+        // eyeBrightnessM and eyeBrightnessM2 both smooth under id 4 with different half lives
         PackExpression.Program fast = PackExpression.parse(
                 "smooth(4, eyeBrightness.y / 240.0, 2, 2)", BiomeIds.constants());
         PackExpression.Program slow = PackExpression.parse(
@@ -315,8 +314,8 @@ final class WorldStateUniformTest {
         assertTrue(fastRise > slowRise,
                 "two call sites under one smoothing id must not share an accumulator");
 
-        // BSL: timeAngle is the raw world time over the day, so noon is a quarter and midnight
-        // is three quarters; timeBrightness is the half-rectified sine of its turn.
+        // BSL's timeAngle is the raw world time over the day, so noon is a quarter and midnight
+        // three quarters; timeBrightness is the half-rectified sine of its turn
         assertNear(0.0f, (float) smoothedValue("worldTime / 24000", 0.0, 1, 0.05f), 1.0e-6f,
                 "sunrise time angle");
         assertEquals(0.25f, (float) smoothedValue("worldTime / 24000", 6000.0, 1, 0.05f), "noon time angle");
@@ -332,8 +331,8 @@ final class WorldStateUniformTest {
         assertNear(0.0f, (float) smoothedValue(brightness, 18000.0, 1, 0.05f), 1.0e-4f,
                 "time brightness at midnight");
 
-        // The named biome constants, the biome input they are compared against, and the math the
-        // packs reach for, all in one expression.
+        // the named biome constants, the biome input they are compared against, and the math
+        // the packs reach for, in one expression
         String biomeTest = "if(in(biome, BIOME_GROVE, BIOME_DESERT), 1, 0) * clamp(sqrt(16.0), 0.0, 3.0)";
         PackExpression.Program biome = PackExpression.parse(biomeTest, BiomeIds.constants());
         PackExpression.State biomeState = biome.newState();
@@ -354,7 +353,7 @@ final class WorldStateUniformTest {
     /**
      * Iris's six smooth overloads, resolved as its ExpressionResolver resolves them: a number-literal
      * first argument is the id where an id form fits, one fade time serves both directions, and a
-     * missing half life is 1. superDuperVanilla's {@code smooth(eyeBrightness.y / 240, 15)} was refused.
+     * missing half life is 1. superDuperVanilla calls {@code smooth(eyeBrightness.y / 240, 15)}.
      */
     @Test
     void smoothOverloads() {
@@ -383,7 +382,7 @@ final class WorldStateUniformTest {
         }
     }
 
-    /** One frame of a smoothing chain, for the values the packs write. */
+    /** {@code source} after {@code frames} frames at a constant input, from a fresh state. */
     private static double smoothedValue(String source, double input, int frames, float delta) {
         PackExpression.Program program = PackExpression.parse(source, BiomeIds.constants());
         PackExpression.State state = program.newState();
@@ -404,10 +403,9 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * Previous-frame matrices must track the previous presented world
-     * frame: the first frame seeds previous from current, later frames
-     * shift current into previous, a stationary camera converges, and a
-     * fresh session restarts the sequence instead of leaking old matrices.
+     * Previous-frame matrices track the previous presented world frame. The first frame seeds previous
+     * from current, later frames shift current into previous, a stationary camera converges, and a new
+     * session restarts the sequence without the old matrices.
      */
     @Test
     void previousMatrixRotation() {
@@ -440,7 +438,7 @@ final class WorldStateUniformTest {
                 "previous pack projection must be the first frame, not the current one");
         assertMatrixNear(secondPackProjection, state.projectionForTest(),
                 "current pack projection must be converted once");
-        // DHCompat without Distant Horizons serves the gbuffer projection and its derivations.
+        // DHCompat without Distant Horizons serves the gbuffer projection and its derivations
         for (String[] pair : new String[][] {{"dhProjection", "gbufferProjection"},
                 {"dhProjectionInverse", "gbufferProjectionInverse"},
                 {"dhPreviousProjection", "gbufferPreviousProjection"}}) {
@@ -540,8 +538,8 @@ final class WorldStateUniformTest {
             assertNear(1.0f, farClip.z / farClip.w, 2.0e-5f,
                     "host forward-Z far plane must map to one");
             rendered.m20(0.003f).m21(-0.002f);
-            // Captured projections can include the camera's bob/tilt. The
-            // conversion must preserve these terms instead of rebuilding FOV.
+            // a captured projection can carry the camera's bob and tilt
+            // the conversion keeps these terms and does not rebuild the FOV
             rendered.mul(new Matrix4f().rotateX(0.009f).rotateZ(-0.004f));
 
             PackFrameState state = new PackFrameState();
@@ -654,8 +652,8 @@ final class WorldStateUniformTest {
                 "entity shader lost the pack projection uniform");
         assertTrue(converted.source().contains("mat4 gbufferProjectionInverse;"),
                 "entity shader lost the pack inverse projection uniform");
-        // The stage reads the pack projection, so it runs in GL's clip range (WorldClipRange):
-        // gl_ProjectionMatrix is the raster projection taken into that range.
+        // the stage reads the pack projection, so it runs in GL's clip range (WorldClipRange)
+        // gl_ProjectionMatrix is the raster projection taken into that range
         assertTrue(converted.source().contains("chimeraGlClip(ProjMat) * chimeraEntityVertexValue()"),
                 "host gl_ProjectionMatrix no longer uses the raster projection");
         assertTrue(converted.source().contains("gbufferProjection * chimeraEntityVertexValue()"),

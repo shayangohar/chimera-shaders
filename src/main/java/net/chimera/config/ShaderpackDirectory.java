@@ -10,11 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-/**
- * The game's {@code shaderpacks} folder and what counts as a pack in it, shared by the selector
- * screen, the {@code /chimera pack} commands and startup. A pack is what Iris accepts: a
- * {@code .zip} file, or a folder that contains a {@code shaders} folder.
- */
+/** The game's {@code shaderpacks} folder and what counts as a pack in it. */
 public final class ShaderpackDirectory {
     private ShaderpackDirectory() {}
 
@@ -26,7 +22,7 @@ public final class ShaderpackDirectory {
         return gameDirectory.resolve("shaderpacks").normalize();
     }
 
-    /** Iris's {@code isValidShaderpack}: a zip, or a folder holding a shaders folder. */
+    /** Iris's {@code isValidShaderpack}: a {@code .zip} file, or a folder holding a {@code shaders} folder. */
     public static boolean isValidPack(Path path) {
         if (path == null) return false;
         if (Files.isDirectory(path)) {
@@ -36,7 +32,7 @@ public final class ShaderpackDirectory {
                 && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip");
     }
 
-    /** Pack file and folder names in the folder, sorted case-insensitively. */
+    /** Pack names in {@code root}, sorted case-insensitively; empty when the folder is missing. */
     public static List<String> list(Path root) throws IOException {
         if (!Files.isDirectory(root)) {
             return List.of();
@@ -49,7 +45,7 @@ public final class ShaderpackDirectory {
         }
     }
 
-    /** The pack with exactly this file or folder name in {@code root}, if it is one. */
+    /** The pack with exactly this name directly in {@code root}, if there is one. */
     public static Optional<Path> resolve(Path root, String name) {
         if (name == null || name.isBlank() || name.contains("/") || name.contains("\\")
                 || name.equals(".") || name.equals("..")) {

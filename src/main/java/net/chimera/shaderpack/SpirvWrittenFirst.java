@@ -11,18 +11,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The variables a module writes whole before anything can read them, so their starting value is
- * never seen: a store of the whole variable comes before every other instruction naming it on
- * every path, which is to say it dominates them. A local is judged in its own function. A private
- * global or output is judged in the module's only entry point, where a call counts as a read when
- * another function names the variable, and a return or an emit reads every output. A geometry
- * stage's outputs are undefined after an emit, which GeometryStageBridge's wrapper covers by
- * storing them back; this only decides which start from zero.
+ * The variables a module writes whole before anything can read them, so their starting value is never seen:
+ * a store of the whole variable dominates every other instruction naming it. A local is judged in its own
+ * function. A private global or output is judged in the module's only entry point, where a call counts as a
+ * read when another function names the variable, and a return or an emit reads every output. A geometry
+ * stage's outputs are undefined after an emit, and GeometryStageBridge's wrapper stores them back; this only
+ * decides which start from zero.
  *
- * <p>A GLSL initializer is such a store. glslang writes it where the variable is declared, a
- * global's at the top of main, and the optimizer may then turn a global into a local and leave its
- * store after a branch: BSL's world programs store their light-colour and offset tables after the
- * short-circuit test of an earlier initializer.</p>
+ * A GLSL initializer is such a store. glslang writes it where the variable is declared, a global's at the
+ * top of main, and the optimizer may then turn a global into a local and leave its store after a branch.
+ * BSL's world programs store their light-colour and offset tables after the short-circuit test of an earlier
+ * initializer.
  */
 final class SpirvWrittenFirst {
     private static final int OP_FUNCTION = 54;
@@ -98,7 +97,7 @@ final class SpirvWrittenFirst {
     private void recordModuleNames(Function function) {
         for (List<Integer> block : function.blocks()) {
             for (int at : block) {
-                // An emit in a helper reads every output, so a call that reaches it does too.
+                // an emit in a helper reads every output, so a call that reaches it does too
                 int opcode = words[at] & 0xFFFF;
                 if (opcode == OP_EMIT_VERTEX || opcode == OP_EMIT_STREAM_VERTEX) namedElsewhere.addAll(outputs());
                 for (int i = at + 1; i < at + (words[at] >>> 16); i++) {
@@ -117,7 +116,7 @@ final class SpirvWrittenFirst {
         return kind == STORAGE_FUNCTION || entry && (kind == STORAGE_PRIVATE || kind == STORAGE_OUTPUT);
     }
 
-    /** Adds each variable {@code function} judges that a whole store of it dominates every other use. */
+    /** Adds each variable {@code function} judges whose other uses a whole store of it dominates. */
     private void judge(Function function, Set<Integer> written) {
         if (function.blocks().isEmpty()) return;
         boolean entry = soleEntry(function);
@@ -143,8 +142,8 @@ final class SpirvWrittenFirst {
     }
 
     /**
-     * What an entry point's instruction reads unnamed: a call, globals other functions name; a
-     * return or a geometry stage's emit, every output, which the emit sends as its vertex.
+     * What an entry point's instruction reads without naming it. A call reads the globals other functions
+     * name. A return reads every output, and so does a geometry stage's emit, which sends them as its vertex.
      */
     private Set<Integer> impliedReads(int opcode) {
         if (opcode == OP_FUNCTION_CALL) return namedElsewhere;

@@ -4,10 +4,7 @@ import net.chimera.shaderpack.PostTargetPlan;
 
 import java.util.Arrays;
 
-/**
- * Small render-thread state machine for previous-frame validity. Physical
- * images remain owned by PackPostTargets and PackDepthTargets.
- */
+/** Which of PackPostTargets' targets hold valid content this frame and the last; the images stay its own. */
 public final class PackTemporalState {
     private static final int TARGET_COUNT = PostTargetPlan.MAX_TARGET + 1;
     private final boolean[] current = new boolean[TARGET_COUNT];

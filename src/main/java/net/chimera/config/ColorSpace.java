@@ -1,9 +1,8 @@
 package net.chimera.config;
 
 /**
- * The display colour spaces Iris 1.8.14 converts the finished world image to (Iris ColorSpace,
- * in its order, so the saved names match). {@link #SRGB} leaves the image alone; the others
- * re-encode it for a wide-gamut display (ChimeraMainPass.outputResolvePipeline).
+ * Display colour spaces for the finished world image, named and ordered as Iris's ColorSpace so saved
+ * values match. {@link #SRGB} leaves the image alone; the others re-encode it for a wide-gamut display.
  */
 public enum ColorSpace {
     SRGB("sRGB"),
@@ -18,7 +17,6 @@ public enum ColorSpace {
         this.displayName = displayName;
     }
 
-    /** The name the settings page shows. */
     public String displayName() {
         return displayName;
     }

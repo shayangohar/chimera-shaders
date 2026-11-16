@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** A single OptiFine-style shader program loaded from a pack. */
+/** One pack program's stage sources, as loaded and, once preprocessed, as prepared. */
 public record PackProgram(
         String name,
         String fragmentSource,
@@ -41,7 +41,6 @@ public record PackProgram(
                 : Collections.unmodifiableMap(new TreeMap<>(preparedSources));
     }
 
-    /** Prepared source is used by probing and runtime conversion when present. */
     public String executableFragmentSource() {
         return preparedFragmentSource != null ? preparedFragmentSource : fragmentSource;
     }
@@ -51,8 +50,8 @@ public record PackProgram(
     }
 
     /**
-     * The geometry and tessellation stages whose files sit beside the fragment stage and that Iris
-     * runs between the vertex and fragment stages. A program another resolves to takes them along.
+     * The geometry and tessellation stages beside the fragment file that Iris runs between the vertex and fragment
+     * stages. A program that resolves to this one runs them too.
      */
     public List<String> geometryStages(boolean tessellation) {
         return geometryStageFiles().keySet().stream()
@@ -75,8 +74,8 @@ public record PackProgram(
     }
 
     /**
-     * The prepared sources of the stages Iris runs between the vertex and fragment stages, by stage
-     * name: the geometry stage, and the tessellation stages when {@code tessellation}.
+     * Prepared sources of the stages Iris runs between the vertex and fragment stages, by stage name: geometry,
+     * and the tessellation stages when {@code tessellation}.
      */
     public Map<String, String> preparedGeometryStages(boolean tessellation) {
         Map<String, String> sources = new TreeMap<>();
@@ -89,9 +88,8 @@ public record PackProgram(
     }
 
     /**
-     * Whether Iris runs a stage of this name between the vertex and fragment stages
-     * (ProgramSet.readProgramSource): the geometry stage whenever its file exists, the
-     * tessellation stages only when the pack enables TESSELLATION_SHADERS.
+     * Whether Iris's ProgramSet.readProgramSource runs a stage of this name between the vertex and fragment
+     * stages: geometry whenever its file exists, tessellation only when the pack enables TESSELLATION_SHADERS.
      */
     public static boolean runsBetweenStages(String stage, boolean tessellation) {
         return stage.equals("geometry") || tessellation && (stage.equals("tess_control")

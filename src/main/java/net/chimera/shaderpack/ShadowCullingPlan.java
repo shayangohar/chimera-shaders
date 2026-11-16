@@ -6,19 +6,17 @@ import java.util.Map;
 import java.util.OptionalInt;
 
 /**
- * The shadow culling Iris ShadowRenderer.createShadowFrustum chooses for a pack, and its
- * distances. The pack decides it once per session; the render distance, which Iris reads every
- * frame, is the only per-frame input.
+ * The shadow culling Iris's ShadowRenderer.createShadowFrustum chooses for a pack, and its distances. The
+ * pack decides it once per session; the render distance and the player's Max Shadow Distance are read every
+ * frame.
  *
- * <p>{@code shadow.culling} in shaders.properties: {@code false} culls by distance only,
- * {@code true} uses the advanced frustum, {@code reversed} or {@code safe_zone} the safe-zone
- * frustum. Unset means advanced, or distance only when the shadow program has a geometry stage
- * (Iris assumes voxelization).</p>
+ * {@code shadow.culling} in shaders.properties: {@code false} culls by distance only, {@code true} uses the
+ * advanced frustum, {@code reversed} or {@code safe_zone} the safe-zone frustum. Unset means advanced, or
+ * distance only when the shadow program has a geometry stage, which Iris takes as voxelization.
  *
- * <p>Distances are half-sizes in blocks of Iris's camera-centred BoxCuller.
- * {@code shadowDistanceRenderMul} defaults to -1, and a negative multiplier means the player's
- * Max Shadow Distance (ChimeraConfig), a per-frame input like the render distance. A multiplier
- * the pack sets forces its own distance on that setting ({@code forcedDistanceChunks}).</p>
+ * Distances are half-sizes in blocks of Iris's camera-centred BoxCuller. {@code shadowDistanceRenderMul}
+ * defaults to -1, and a negative multiplier means the player's Max Shadow Distance (ChimeraConfig). A
+ * multiplier the pack sets forces its own distance on that setting ({@code forcedDistanceChunks}).
  */
 public record ShadowCullingPlan(
         State state,
@@ -29,7 +27,7 @@ public record ShadowCullingPlan(
         OptionalInt forcedDistanceChunks,
         List<String> deviations
 ) {
-    /** Iris ShadowCullState. */
+    /** Iris's ShadowCullState. */
     public enum State { DEFAULT, ADVANCED, SAFE_ZONE, DISTANCE }
 
     /** The frustum Iris builds: NonCullingFrustum, BoxCullingFrustum, Advanced or SafeZone. */
@@ -64,9 +62,8 @@ public record ShadowCullingPlan(
     }
 
     /**
-     * The culling for a pack whose shadow program has a geometry stage when {@code voxelization}:
-     * Iris then culls an unset {@code shadow.culling} by distance only (ShadowRenderer's
-     * packHasVoxelization).
+     * {@code voxelization} is set when the shadow program has a geometry stage; Iris then culls an unset
+     * {@code shadow.culling} by distance only (ShadowRenderer's packHasVoxelization).
      */
     public static ShadowCullingPlan of(Map<String, String> properties, PackConfig.ShadowSettings settings,
                                        boolean voxelization) {
@@ -78,7 +75,7 @@ public record ShadowCullingPlan(
                 case "false" -> state = State.DISTANCE;
                 case "true" -> state = State.ADVANCED;
                 case "reversed", "safe_zone" -> state = State.SAFE_ZONE;
-                // Iris logs an unrecognized value and keeps the default.
+                // Iris logs an unrecognised value and keeps the default
                 default -> deviations.add("SHADOW_CULLING_DIRECTIVE_MALFORMED:" + value.trim());
             }
         }
@@ -88,8 +85,8 @@ public record ShadowCullingPlan(
     }
 
     /**
-     * The shadow distance in force, in chunks: the pack's forced one, else the player's Max Shadow
-     * Distance (Iris IrisVideoSettings.getOverriddenShadowDistance). At 0 there is no shadow pass.
+     * The shadow distance in force, in chunks: the pack's forced one, else the player's Max Shadow Distance,
+     * as in Iris's IrisVideoSettings.getOverriddenShadowDistance. At 0 there is no shadow pass.
      */
     public int distanceInForce(int playerShadowChunks) {
         return forcedDistanceChunks.orElse(playerShadowChunks);
@@ -122,16 +119,16 @@ public record ShadowCullingPlan(
             return new Culler(Mode.DISTANCE, distance, 0.0);
         }
         boolean safeZone = state == State.SAFE_ZONE;
-        // Iris assumes the multiplier is meant to be 1 when safe-zone culling is on.
+        // Iris takes a negative multiplier as 1 under safe-zone culling
         if (safeZone && multiplier < 0.0F) multiplier = 1.0F;
         double distance = (safeZone ? voxelDistance : halfPlaneLength) * multiplier;
-        // Iris ShadowRenderer.createShadowFrustum: a negative multiplier reads the player's setting.
+        // a negative multiplier reads the player's setting, as in ShadowRenderer.createShadowFrustum
         if (multiplier < 0.0F) distance = playerShadowChunks * 16.0;
         if (safeZone) {
             return new Culler(Mode.SAFE_ZONE, halfPlaneLength * (double) multiplier, distance);
         }
-        // At or past the render distance Iris builds no BoxCuller. A zero distance keeps its
-        // BoxCuller(0) too: Iris's CullEverythingFrustum there is overwritten by the advanced one.
+        // at or past the render distance Iris builds no BoxCuller
+        // a zero distance keeps BoxCuller(0): Iris overwrites its CullEverythingFrustum with the advanced one
         double box = distance >= renderDistanceBlocks ? Double.POSITIVE_INFINITY : distance;
         return new Culler(Mode.ADVANCED, box, 0.0);
     }

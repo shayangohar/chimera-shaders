@@ -6,11 +6,7 @@ import com.google.gson.JsonParser;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Reads chimera's own shader assets (GLSL sources and pipeline JSON configs)
- * from /assets/chimera/shaders/. Mirrors the access pattern of the host's
- * ShaderLoadUtil but scoped to our namespace so we never touch its files.
- */
+/** Reads Chimera's own shader assets (GLSL sources and pipeline JSON) from /assets/chimera/shaders/. */
 public abstract class ChimeraShaderLoader {
     public static final String SHADERS_ROOT = "/assets/chimera/shaders/";
 

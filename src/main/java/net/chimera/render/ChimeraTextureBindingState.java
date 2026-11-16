@@ -8,11 +8,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Keeps pack sampler overrides separate from VulkanMod image identity.
+ * Pack sampler overrides per selector slot, kept apart from the images VulkanMod shares.
  *
- * <p>The host render path owns an image and its sampler. Pack draws therefore use this
- * short-lived selector-side override instead of changing the shared image: a descriptor reading a
- * slot samples the overridden image with the recorded sampler, and any other image with its own.</p>
+ * The host render path owns an image and its sampler, so pack draws record an override here instead of changing
+ * the image: a descriptor reading a slot samples the recorded image with the recorded sampler, and any other
+ * image with its own.
  */
 public final class ChimeraTextureBindingState {
     private static final BindingStore<VulkanImage> STORE = new BindingStore<>();
@@ -50,7 +50,7 @@ public final class ChimeraTextureBindingState {
         }
     }
 
-    /** Records the normal image sampler for a pack selector slot. */
+    /** Records {@code image} with its own sampler for a pack selector slot. */
     public static void markPackBinding(int slot, VulkanImage image) {
         if (image == null) {
             clearPackBinding(slot);
@@ -105,7 +105,7 @@ public final class ChimeraTextureBindingState {
         }
     }
 
-    /** Clears the session selector state at pack cleanup boundaries. */
+    /** Clears every slot's override, at pack cleanup. */
     public static void reset() {
         synchronized (ChimeraTextureBindingState.class) {
             STORE.reset();
@@ -114,7 +114,7 @@ public final class ChimeraTextureBindingState {
         }
     }
 
-    /** Small identity-based state machine used by runtime code and behavioral tests. */
+    /** Slot bindings matched by image identity, generic so tests can drive it without Vulkan images. */
     static final class BindingStore<I> {
         private final Map<Integer, Entry<I>> bindings = new HashMap<>();
 

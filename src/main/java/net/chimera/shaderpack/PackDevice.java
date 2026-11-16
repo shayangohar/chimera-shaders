@@ -11,14 +11,14 @@ import java.util.TreeSet;
 import java.util.stream.Stream;
 
 /**
- * The GPU pack GLSL compiles for: its identity, which a GL driver reports as GL_VENDOR and
- * GL_RENDERER, and what the logical device was created with, which bounds the SPIR-V a pipeline
- * may be built from ({@link #missing}). A GL driver refuses a stage that needs what it lacks when
- * it compiles the stage; a Vulkan driver handed such a module can crash instead (NVIDIA's did, on
- * RenderPearl's deferred1, 2026-11-02). In game it is the device VulkanMod created
- * (ChimeraDeviceFeaturesMixin). Before that, as offline in the tests, the corpus gate and the
- * option sweep, it is the {@code chimera.device} profile: nvidia (the default) or amd, each recorded
- * from a driver on the owner's PC, or intel, typical of an Arc GPU on Intel's Windows driver.
+ * The GPU pack GLSL compiles for: its identity, which a GL driver reports as GL_VENDOR and GL_RENDERER, and
+ * what the logical device was created with, which bounds the SPIR-V a pipeline may be built from
+ * ({@link #missing}). A GL driver refuses a stage that needs what it lacks when it compiles the stage; a Vulkan
+ * driver handed such a module can crash instead.
+ *
+ * In game it is the device VulkanMod created (ChimeraDeviceFeaturesMixin). Before that, and offline in tests
+ * and tools, it is the {@code chimera.device} profile: nvidia, the default, or amd, each recorded from a real
+ * driver, or intel, typical of an Arc GPU on Intel's Windows driver.
  *
  * @param features the Vulkan features enabled, by their VkPhysicalDevice*Features member names
  * @param subgroupStages VkPhysicalDeviceSubgroupProperties.supportedStages
@@ -27,18 +27,18 @@ import java.util.stream.Stream;
  */
 public record PackDevice(String profile, int vendorId, int driverId, String name, SortedSet<String> features,
                          int subgroupStages, int subgroupOperations, SortedSet<String> extensions) {
-    /** The offline profile the tests, the corpus gate and the option sweep compile for unless told another. */
+    /** The offline profile used unless {@code chimera.device} names another. */
     public static final String DEFAULT_PROFILE = "nvidia";
     public static final int VENDOR_AMD = 0x1002;
     public static final int VENDOR_NVIDIA = 0x10DE;
     public static final int VENDOR_INTEL = 0x8086;
-    /** VkDriverId values. */
+    // VkDriverId values
     public static final int DRIVER_AMD_PROPRIETARY = 1;
     public static final int DRIVER_NVIDIA_PROPRIETARY = 4;
     public static final int DRIVER_INTEL_PROPRIETARY_WINDOWS = 5;
     public static final int DRIVER_INTEL_OPEN_SOURCE_MESA = 6;
 
-    /** VkShaderStageFlagBits a module can be compiled for. */
+    // VkShaderStageFlagBits a module can be compiled for
     public static final int STAGE_VERTEX = 0x1;
     public static final int STAGE_TESSELLATION_CONTROL = 0x2;
     public static final int STAGE_TESSELLATION_EVALUATION = 0x4;
@@ -67,14 +67,14 @@ public record PackDevice(String profile, int vendorId, int driverId, String name
             "shaderSharedInt64Atomics");
     /**
      * Device extensions pack GLSL compiles to that need no feature struct: RenderPearl's
-     * GL_AMD_shader_trinary_minmax, Alpha Piscium's GL_NV_shader_subgroup_partitioned, and GLSL
-     * 4.60's anyInvocation, allInvocations and allInvocationsEqual, which RenderPearl 2.8 calls
-     * without GL_KHR_shader_subgroup.
+     * GL_AMD_shader_trinary_minmax, Alpha Piscium's GL_NV_shader_subgroup_partitioned, and GLSL 4.60's
+     * anyInvocation, allInvocations and allInvocationsEqual, which RenderPearl calls without
+     * GL_KHR_shader_subgroup.
      */
     public static final List<String> PACK_EXTENSIONS = List.of("VK_AMD_shader_trinary_minmax",
             "VK_NV_shader_subgroup_partitioned", "VK_EXT_shader_subgroup_vote");
 
-    /** SPIR-V capabilities and the feature each needs (SPIR-V 1.5 numbering). */
+    /** SPIR-V capabilities, by their SPIR-V 1.5 numbers, and the feature each needs. */
     private static final Map<Integer, String> CAPABILITY_FEATURES = Map.ofEntries(
             Map.entry(2, "geometryShader"), Map.entry(3, "tessellationShader"), Map.entry(9, "shaderFloat16"),
             Map.entry(10, "shaderFloat64"), Map.entry(11, "shaderInt64"), Map.entry(12, "shaderBufferInt64Atomics"),
@@ -142,24 +142,24 @@ public record PackDevice(String profile, int vendorId, int driverId, String name
                 sorted(enabled));
     }
 
-    /** The sized arithmetic types a pack's GL vendor extensions map onto (GlslVendorExtensions). */
+    /** The sized arithmetic types GlslVendorExtensions maps a pack's GL vendor extensions onto. */
     public GlslVendorExtensions.SizedTypes sizedTypes() {
         return new GlslVendorExtensions.SizedTypes(features.contains("shaderFloat16"), features.contains("shaderInt16"),
                 features.contains("shaderInt64"));
     }
 
     /**
-     * Whether the device serves GL_AMD_shader_trinary_minmax natively; without it the extension's
-     * functions compile as min and max (GlslVendorExtensions).
+     * Whether the device serves GL_AMD_shader_trinary_minmax natively; without it GlslVendorExtensions compiles
+     * the extension's functions as min and max.
      */
     public boolean trinaryMinmax() {
         return extensions.contains("VK_AMD_shader_trinary_minmax");
     }
 
     /**
-     * What a module for {@code stage} (a STAGE_* bit) needs that the device was created without:
-     * its device extensions, the features its capabilities need, and its subgroup operations, which
-     * the device runs in the stages it names. Empty when the device can run it.
+     * What a module for {@code stage}, a STAGE_* bit, needs that the device was created without: its device
+     * extensions, the features its capabilities need, and its subgroup operations, which the device runs in the
+     * stages it names. Empty when the device can run it.
      */
     public List<String> missing(SpirvDeviceRequirements.Requirements module, int stage) {
         List<String> result = new ArrayList<>();

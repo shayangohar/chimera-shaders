@@ -14,18 +14,17 @@ import org.spongepowered.asm.mixin.injection.Slice;
 import java.util.List;
 
 /**
- * Keeps a block entity that renders off-screen (a beacon, an end gateway, a structure block) out of
- * its section's list in the terrain Chimera meshes for a pack, as NeoForge's SectionCompiler and
- * Sodium do: only the level's global set renders it. VulkanMod lists it in both (vanilla's
- * MC-112730), so its section loop and the global loop each drew it, as did the shadow casters, and
- * a beacon's blended glow came out twice as opaque as under Iris. VulkanMod's own meshes, with no
- * pack, keep its lists.
+ * Keeps a block entity that renders off-screen, such as a beacon, end gateway or structure block, out of its
+ * section's list in the terrain Chimera meshes for a pack, as NeoForge's SectionCompiler and Sodium do; only
+ * the level's global set renders it. VulkanMod lists it in both (vanilla's MC-112730), so the section loop
+ * and the global loop would each draw it, in the shadow pass too, and a beacon's blended glow would come out
+ * twice as opaque as under Iris. VulkanMod's own meshes, with no pack, keep its lists.
  */
 @Mixin(value = BuildTask.class, remap = false)
 public abstract class ChimeraGlobalBlockEntityMixin {
     /**
-     * handleBlockEntity's add to the section's list: the first add after it reads that list, so the
-     * global list's add is never taken for it, in whichever order VulkanMod makes the two.
+     * handleBlockEntity's add to the section's list: the first add after the section list is read, so the
+     * global list's add is never matched, whichever order VulkanMod makes the two in.
      */
     @WrapOperation(method = "handleBlockEntity",
             at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z", ordinal = 0),

@@ -9,15 +9,14 @@ import java.util.Locale;
 import java.util.function.UnaryOperator;
 
 /**
- * Builds chimera's fullscreen post-processing pipelines (composite, present)
- * from assets/chimera/shaders/. These use CustomVertexFormat.NONE: a
- * three-vertex triangle generated in the vertex stage, no vertex buffers.
+ * Builds Chimera's own pipelines from assets/chimera/shaders/. The fullscreen ones use
+ * CustomVertexFormat.NONE: the vertex stage generates the quad, with no vertex buffer.
  */
 public final class ChimeraPostPipelines {
     /**
-     * Vertices of every fullscreen draw: a two-triangle quad over UV 0..1, as Iris's
-     * fullscreen quad. Packs that rescale the post geometry (Bliss draws clouds and
-     * bloom tiles into a sub-rectangle) need its edges to stay on the screen edges.
+     * Vertices of every fullscreen draw: a two-triangle quad over UV 0..1, like Iris's fullscreen quad. Packs
+     * that rescale the post geometry (Bliss draws clouds and bloom tiles into a sub-rectangle) need its edges
+     * to stay on the screen edges.
      */
     public static final int FULLSCREEN_VERTICES = 6;
 
@@ -27,14 +26,14 @@ public final class ChimeraPostPipelines {
         return HostPipelineLayout.create(name, name, CustomVertexFormat.NONE, UnaryOperator.identity());
     }
 
-    /** Creates the internal forward-Z depth copy pipeline used by pack snapshots. */
+    /** Copies the world's forward [0, 1] depth, unchanged, into the pack's depth textures. */
     public static GraphicsPipeline createDepthPipeline() {
         return create("chimera_depth");
     }
 
     /**
-     * Creates the world resolve that also converts to {@code space} (chimera_color_space), for a
-     * colour space other than sRGB: the space's ordinal selects the conversion.
+     * The world resolve that also converts to {@code space} (chimera_color_space), for a colour space other
+     * than sRGB; the space's ordinal selects the conversion.
      */
     public static GraphicsPipeline createColorSpace(ColorSpace space) {
         if (space == ColorSpace.SRGB) throw new IllegalArgumentException("sRGB needs no conversion");
@@ -50,14 +49,13 @@ public final class ChimeraPostPipelines {
                 + source.substring(lineEnd + 1);
     }
 
-    /** Creates the host-to-pack scene seed pipeline. */
     public static GraphicsPipeline createSceneSeedPipeline() {
         return create("chimera_scene_seed");
     }
 
     /**
-     * Creates a terrain-format pipeline for shadow rendering. It reads the section offset and the
-     * ChunkOffset push constant VulkanMod's DrawBuffers sets per chunk area.
+     * A terrain-format pipeline for shadow rendering. It reads the section offset and the ChunkOffset push
+     * constant VulkanMod's DrawBuffers sets per chunk area.
      */
     public static GraphicsPipeline createTerrainPipeline(String name, VertexFormat vertexFormat) {
         return HostPipelineLayout.create(name, name, vertexFormat, UnaryOperator.identity());

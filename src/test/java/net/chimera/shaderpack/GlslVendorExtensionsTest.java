@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Alpha Piscium's "Assume NVIDIA GPU" enables GL_NV_gpu_shader5 for half floats and 16-bit
- * integers; shaderc refused it ("syntax error, unexpected IDENTIFIER" at float16_t), and the whole
- * screen went black.
+ * integers. shaderc does not know the extension and stops at float16_t with "syntax error,
+ * unexpected IDENTIFIER".
  */
 final class GlslVendorExtensionsTest {
     private static final GlslVendorExtensions.SizedTypes ALL = new GlslVendorExtensions.SizedTypes(true, true, true);
@@ -43,9 +43,9 @@ final class GlslVendorExtensionsTest {
     }
 
     /**
-     * A directive with a trailing comment stayed as written: GL_NV_gpu_shader5 unknown to shaderc,
-     * and GL_AMD_shader_trinary_minmax required of a device without it. Both are rewritten, the
-     * comment kept on the first line written in the directive's place.
+     * A directive with a trailing comment is rewritten too, the comment kept on the first line
+     * written in its place: GL_NV_gpu_shader5, unknown to shaderc, and GL_AMD_shader_trinary_minmax,
+     * which a device may lack.
      */
     @Test
     void aDirectiveWithATrailingCommentIsRewritten() {

@@ -18,9 +18,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Keeps Iris's constantMood beside the vanilla moodiness: the same step at the same position each
- * mood tick (the tick lambda that reads the sky light), clamped to [0, 1] instead of reset after the
- * mood sound.
+ * Iris's {@code constantMood}: vanilla's moodiness step, taken in the mood tick lambda before its sky light
+ * read, clamped to [0, 1] instead of reset after the mood sound.
  */
 @Mixin(BiomeAmbientSoundsHandler.class)
 public abstract class ChimeraBiomeAmbienceMixin implements AmbientMoodAccess {

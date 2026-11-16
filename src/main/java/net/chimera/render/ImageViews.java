@@ -51,7 +51,7 @@ final class ImageViews {
     static void sampleAlphaAsOne(VulkanImage image) {
         long view = create(image.getId(), VK_IMAGE_VIEW_TYPE_2D, image.format, VK_IMAGE_ASPECT_COLOR_BIT,
                 image.mipLevels, VK_COMPONENT_SWIZZLE_ONE, 0);
-        // No command has recorded the replaced view yet.
+        // no command has recorded the replaced view yet
         vkDestroyImageView(Vulkan.getVkDevice(), image.getImageView(), null);
         ((ChimeraVulkanImageAccessor) image).chimera$setMainImageView(view);
     }
@@ -66,10 +66,10 @@ final class ImageViews {
     }
 
     /**
-     * A depth-only view of a shadow depth image that samples as R, R, R, 1, as Iris swizzles its
-     * shadowtex textures (ShadowRenderer.configureDepthSampler, for packs that read the depth from z):
-     * a read without depth compare finds the depth in every colour channel (audit T-S3). A depth
-     * compare happens before the swizzle, so its result still comes back in R.
+     * A depth-only view of a shadow depth image that samples as R, R, R, 1, as Iris swizzles its shadowtex
+     * textures (ShadowRenderer.configureDepthSampler, for packs that read the depth from z): a read without depth
+     * compare finds the depth in every colour channel. A depth compare happens before the swizzle, so its result
+     * still comes back in R.
      */
     static long shadowDepth(VulkanImage image) {
         return create(Vulkan.getVkDevice(), image.getId(), VK_IMAGE_VIEW_TYPE_2D, image.format,
@@ -84,8 +84,8 @@ final class ImageViews {
     }
 
     /**
-     * A view on {@code device}, with {@code components} as its r, g, b and a mapping. {@code usage}
-     * 0 leaves the view the image's usage; otherwise the view takes only it.
+     * A view on {@code device}, with {@code components} as its r, g, b and a mapping. A {@code usage} of 0 leaves
+     * the view the image's usage; otherwise the view takes only that usage.
      */
     static long create(VkDevice device, long image, int viewType, int format, int aspect, int levelCount,
                        int[] components, int usage) {

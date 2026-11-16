@@ -10,11 +10,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Immutable load-time frame order for pack-visible stages.
+ * Load-time frame order of the stages a pack can see.
  *
- * The plan describes seams. It does not own Vulkan resources and it does not
- * decide whether a pipeline compiled successfully. Runtime code uses the
- * existing target, depth, and family owners at these seams.
+ * The plan only names the seams. It owns no Vulkan resources and does not know whether a pipeline compiled; the
+ * runtime target, depth and family owners act at these seams.
  */
 public final class PackFrameSchedulePlan {
     public enum Phase {
@@ -71,7 +70,7 @@ public final class PackFrameSchedulePlan {
                                   boolean handBeforeEarlyPost, boolean particlesBeforeLatePost,
                                   List<String> deviations) {
         this.postStages = postStages == null ? List.of() : List.copyOf(postStages);
-        // The begin and prepare phases exist only with a pass of their window.
+        // the begin and prepare phases exist only with a pass of their window
         this.phases = ORDER.stream()
                 .filter(phase -> phase != Phase.BEGIN || hasWindow(PostWindow.BEGIN))
                 .filter(phase -> phase != Phase.PREPARE || hasWindow(PostWindow.PREPARE))
@@ -97,9 +96,9 @@ public final class PackFrameSchedulePlan {
     }
 
     /**
-     * The schedule with a stage for each pass of {@code computeDepthReads} that has no program: Iris
-     * runs such a pass's computes at its place (CompositeRenderer.ComputeOnlyPass), drawing nothing.
-     * A deferred pass whose computes read depthtex0 needs it captured as a deferred program does.
+     * The schedule, with a stage for each pass of {@code computeDepthReads} that has no program. Iris runs such a
+     * pass's computes in its place and draws nothing (CompositeRenderer.ComputeOnlyPass). A deferred pass whose
+     * computes read depthtex0 needs it captured, as a deferred program does.
      */
     public static PackFrameSchedulePlan build(List<PackProgramPlan> programs, PackTargetGraphPlan graph,
                                               Map<String, Set<String>> computeDepthReads) {
@@ -162,12 +161,10 @@ public final class PackFrameSchedulePlan {
     /** The window a post pass runs in, recording a pass that must wait for the late depth. */
     private static PostWindow postWindow(PackProgramPlan program, List<String> samplers, List<String> deviations) {
         PostTargetPlan target = program.targetPlan();
-        // Iris runs every deferred pass, in order, between opaque and
-        // translucent geometry (beginTranslucents), after beginHand has
-        // copied depthtex2; there depthtex0 is the opaque depth. A
-        // deferred pass never moves late: Bliss's deferred computes the
-        // sky light its deferred1/2 and composites read. Nor does a
-        // begin or prepare pass, which runs before the world.
+        // Iris runs every deferred pass in order between opaque and translucent geometry (beginTranslucents),
+        // after beginHand has copied depthtex2, so depthtex0 there is the opaque depth
+        // a deferred pass never moves late: Bliss's deferred computes the sky light its deferred1/2 and composites read
+        // begin and prepare passes run before the world, so they never move late either
         boolean requiresLateDepth = passWindow(program.name()) == PostWindow.LATE
                 && (samplers.contains("depthtex0") || samplers.contains("depthtex2"));
         if (requiresLateDepth && !target.isFinal()) {
@@ -177,10 +174,11 @@ public final class PackFrameSchedulePlan {
     }
 
     /**
-     * The window a begin, prepare, deferred or composite pass runs in, by its name. Iris runs the
-     * begin passes each frame at the level's start (IrisRenderingPipeline.beginLevelRendering),
-     * which Chimera's opening windows do, and the prepare passes after the shadow pass, just before
-     * the sky (IrisRenderingPipeline.renderShadows), which PreSkyPasses does.
+     * The window a begin, prepare, deferred or composite pass runs in, by its name.
+     *
+     * Iris runs the begin passes each frame at the level's start (IrisRenderingPipeline.beginLevelRendering), as
+     * Chimera's opening windows do. It runs the prepare passes after the shadow pass, just before the sky
+     * (IrisRenderingPipeline.renderShadows), as PreSkyPasses does.
      */
     private static PostWindow passWindow(String pass) {
         if (pass.startsWith("begin")) return PostWindow.BEGIN;
@@ -202,10 +200,7 @@ public final class PackFrameSchedulePlan {
         return early;
     }
 
-    /**
-     * A stage for each compute pass no program scheduled, in the window its name gives a program
-     * (deferred computes run where deferred passes do), then every stage in pass order.
-     */
+    /** Adds a stage for each compute pass no program scheduled, in its name's window, then sorts into pass order. */
     private static void addComputeOnlyStages(List<PostStage> stages, Collection<String> computePasses,
                                              List<String> deviations) {
         for (String pass : computePasses) {
@@ -232,7 +227,7 @@ public final class PackFrameSchedulePlan {
     public List<PostStage> postStages() { return postStages; }
     public boolean requiresDepthtex0() { return depthtex0; }
     public boolean requiresDepthtex1() { return depthtex1; }
-    /** An early (deferred) pass reads depthtex0, the opaque depth at that seam. */
+    /** A deferred pass or its computes read depthtex0, the opaque depth at that seam. */
     public boolean earlyReadsDepthtex0() { return earlyDepthtex0; }
     public boolean handBeforeEarlyPost() { return handBeforeEarlyPost; }
     public boolean particlesBeforeLatePost() { return particlesBeforeLatePost; }

@@ -5,27 +5,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * What the pack changes in chunk meshes, as Iris's WorldRenderingSettings applies it: how terrain
- * vertex colours carry Minecraft's block lighting, through the shaders.properties switches
- * oldLighting and separateAo (ShaderProperties, both default off) and the ambientOcclusionLevel
- * directive (PackDirectives, default 1), and whether light blocks get a voxel quad
- * (voxelizeLightBlocks, default off). A change rebuilds the meshes.
+ * What the pack changes in chunk meshes, as Iris's WorldRenderingSettings applies it: how terrain vertex
+ * colours carry Minecraft's block lighting, and whether light blocks get a voxel quad. The inputs are the
+ * shaders.properties switches oldLighting and separateAo (both default off), the ambientOcclusionLevel
+ * directive (default 1) and voxelizeLightBlocks (default off). A change rebuilds the meshes.
  *
- * <p>Without {@code oldLighting}, Iris meshes terrain and fluids unshaded (ClientLevel.getShade
- * sees {@code shaded = false}), because the pack lights faces itself; the vanilla shade would
- * darken every side face and underside a second time.</p>
+ * Without {@code oldLighting}, Iris meshes terrain and fluids unshaded (ClientLevel.getShade sees
+ * {@code shaded = false}), because the pack lights faces itself and the vanilla shade would darken every
+ * side face and underside a second time.
  *
- * <p>With {@code separateAo}, Iris keeps the block's tint in the vertex colour's RGB and moves
- * the light pipeline's per-vertex brightness (ambient occlusion times face shade) into its
- * alpha, so the pack applies ambient occlusion its own way. Without it the brightness is
- * multiplied into RGB.</p>
+ * With {@code separateAo}, Iris keeps the block's tint in the vertex colour's RGB and moves the light
+ * pipeline's per-vertex brightness, ambient occlusion times face shade, into its alpha, so the pack applies
+ * ambient occlusion its own way. Without it the brightness is multiplied into RGB.
  *
- * <p>{@code ambientOcclusionLevel} scales how far a block's shade brightness falls below 1
- * (Iris's BlockStateBase.getShadeBrightness hook): 0 meshes terrain with no ambient occlusion.</p>
+ * {@code ambientOcclusionLevel} scales how far a block's shade brightness falls below 1, through Iris's
+ * BlockStateBase.getShadeBrightness hook; 0 meshes terrain with no ambient occlusion.
  *
- * <p>With {@code voxelizeLightBlocks}, each light block (minecraft:light), which has no model,
- * is meshed as one zero-area cutout-mipped quad carrying its id and emission, for a pack that
- * voxelizes terrain in its shadow pass (MixinChunkMeshBuildTask.iris$setLightBlock).</p>
+ * With {@code voxelizeLightBlocks}, each light block (minecraft:light), which has no model, is meshed as one
+ * zero-area cutout-mipped quad carrying its id and emission, for a pack that voxelizes terrain in its shadow
+ * pass (MixinChunkMeshBuildTask.iris$setLightBlock).
  */
 public record TerrainShadingDirectives(boolean oldLighting, boolean separateAo, float ambientOcclusionLevel,
                                        boolean voxelizeLightBlocks, List<String> deviations) {
@@ -64,7 +62,7 @@ public record TerrainShadingDirectives(boolean oldLighting, boolean separateAo, 
                 deviations);
     }
 
-    /** True when the pack lights faces itself, so the host's directional shade must not apply. */
+    /** Whether the pack lights faces itself, so the host's directional shade must not apply. */
     public boolean disablesDirectionalShading() {
         return !oldLighting;
     }

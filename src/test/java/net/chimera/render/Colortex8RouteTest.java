@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The logical colortex8 target and the Complementary post chain that produces it. */
 final class Colortex8RouteTest {
-    // The routes depend on the CHIMERA instance's options, as at runtime.
+    // the routes depend on the CHIMERA instance's options, as at runtime
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.ROUTES.apply();
@@ -112,8 +112,8 @@ final class Colortex8RouteTest {
                 "composite", "/* RENDERTARGETS: 9,13,15 */").plan();
         assertTrue(high.executable() && high.targetSlots().equals(List.of(9, 13, 15)),
                 "Iris targets colortex9..15 were rejected: " + high.deviations());
-        // Every Iris colour target owns one addressable selector, distinct from
-        // every other target and from the fixed depth, shadow and material slots.
+        // every Iris colour target owns one addressable selector, distinct from every other target and
+        // from the fixed depth, shadow and material slots
         Set<Integer> reserved = Set.of(5, 6, 7, 12, 13,
                 SelectorNamespace.COVERAGE_SLOT,
                 SelectorNamespace.SHADOW_TEX1_SLOT,
@@ -130,8 +130,8 @@ final class Colortex8RouteTest {
         }
         assertEquals(-1, SelectorNamespace.colorTargetSlot(16),
                 "colortex16 gained a selector");
-        // Post targets are built through VulkanMod's image builder, which
-        // throws for any format it cannot size (BSL's RGB10_A2 gaux2 did).
+        // post targets are built through VulkanMod's image builder, which throws for any format it
+        // cannot size, so every exact format needs a texel size
         PackConfig.FMT_TO_VK.forEach((token, format) ->
                 assertTrue(PackConfig.formatBytes(format) > 0,
                         "exact target format " + token + " has no texel size"));
@@ -178,10 +178,7 @@ final class Colortex8RouteTest {
         }
     }
 
-    /**
-     * BSL's bloom (composite4) reads colortex0 through its mips; without them
-     * it point-samples sun sparkles on water and flashes.
-     */
+    /** BSL's bloom (composite4) reads colortex0 through its mips; without them sun sparkles on water flash. */
     private static void verifyBslMipmaps(PackProbe.Analysis analysis) {
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(
                 analysis.plan().programs(), analysis.config(), analysis.plan().resources(),
@@ -193,8 +190,8 @@ final class Colortex8RouteTest {
                 "Post-target-8 BSL colortex0 needs a full 2560x1440 chain: " + graph.target(0));
         assertTrue(graph.deviations().stream().noneMatch(value -> value.contains("MIPMAP")),
                 "Post-target-8 BSL must not report a mipmap fallback");
-        // A minimized window rebuilds targets at 1x1 (ChimeraMainPass.createResources).
-        // Their chain is level 0 alone, which must be skipped, never rejected.
+        // targets built while the swapchain is 0x0 are 1x1 (MainPassTargets.createResources)
+        // their chain is level 0 alone, which must be skipped, never rejected
         PackTargetGraphPlan minimized = PackTargetGraphPlan.build(
                 analysis.plan().programs(), analysis.config(), analysis.plan().resources(),
                 1, 1, 8, 16384);
@@ -211,10 +208,9 @@ final class Colortex8RouteTest {
     }
 
     /**
-     * Complementary r5.9 blends volumetric light with an entity linear depth
-     * in colortex13 (declared R8): translucent entities write it and
-     * composite1 reads it. Iris exposes colortex0..15, so both must run, on
-     * an exact R8 target. Packs that do not use colortex13 skip the check.
+     * Complementary r5.9 blends volumetric light with an entity linear depth in colortex13, declared R8:
+     * translucent entities write it and composite1 reads it. Iris exposes colortex0 to 15, so both must run,
+     * on an exact R8 target. Packs that do not use colortex13 skip the check.
      */
     private static void verifyHighTargets(String label, PackProbe.Analysis analysis,
             PackTargetGraphPlan graph, TargetStep composite1) {

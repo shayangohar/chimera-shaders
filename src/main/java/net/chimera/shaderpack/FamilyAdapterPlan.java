@@ -2,7 +2,7 @@ package net.chimera.shaderpack;
 
 import java.util.List;
 
-/** Immutable family contract selected once during pack analysis. */
+/** A program's family, stage and vertex contract, chosen once during pack analysis. */
 public record FamilyAdapterPlan(
         String programName,
         Family family,
@@ -16,8 +16,8 @@ public record FamilyAdapterPlan(
         WATER,
         SHADOW,
         /**
-         * shadow_entities: entities and block entities in the shadow pass (Iris
-         * SHADOW_ENTITIES_CUTOUT, ProgramId.ShadowEntities, falling back to shadow).
+         * shadow_entities: entities and block entities in the shadow pass (Iris SHADOW_ENTITIES_CUTOUT,
+         * ProgramId.ShadowEntities, falling back to shadow).
          */
         SHADOW_ENTITIES,
         /**
@@ -123,10 +123,9 @@ public record FamilyAdapterPlan(
         HOST_FALLBACK;
 
         /**
-         * Lanes whose program runs on a host vertex layout Iris also draws natively
-         * (VanillaTransformer), the beam's widened as Iris widens BLOCK: converted by
-         * HostLayoutVertexBridge.convertHostLayoutVertexChecked in the main pass and
-         * convertShadowLaneVertexChecked in the shadow pass.
+         * Lanes whose program runs on a host vertex layout Iris also draws natively (VanillaTransformer), the
+         * beam's widened as Iris widens BLOCK. HostLayoutVertexBridge converts them, with
+         * convertHostLayoutVertexChecked in the main pass and convertShadowLaneVertexChecked in the shadow pass.
          */
         public boolean hostLayout() {
             return switch (this) {
@@ -151,7 +150,7 @@ public record FamilyAdapterPlan(
                 VertexContract.HOST_FALLBACK, false, List.of("FAMILY_LANE_UNSUPPORTED"));
     }
 
-    /** Returns the same family contract with a source-validated host vertex shape. */
+    /** The same plan with a vertex contract checked against the source. */
     public FamilyAdapterPlan withVertexContract(VertexContract contract) {
         return new FamilyAdapterPlan(programName, family, stage, contract, executable, deviations);
     }

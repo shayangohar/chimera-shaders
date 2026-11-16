@@ -5,11 +5,10 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Which post stages threw while recording this session, and whether the chain may go on without
- * them. A stage that throws is skipped from then on, as an identity stage, and the rest
- * of the chain and the gbuffers keep running. A device-level failure, or a third stage failing,
- * still turns the pack off: the first says the device itself is in trouble, the second that the
- * failures are not one optional pass's.
+ * Which post stages threw while recording this session, and whether the chain may go on without them.
+ * A stage that throws is skipped from then on as an identity stage, and the rest of the chain and the
+ * gbuffers keep running. A device-level failure, or a third failing stage, still turns the pack off: the
+ * first means the device is in trouble, the second that the failures are not one optional pass's.
  */
 final class PostStageFailures {
     /** The distinct failing stages at which the session stops isolating and falls back to vanilla. */
@@ -34,7 +33,6 @@ final class PostStageFailures {
         return this.skipped.size() < VANILLA_AT;
     }
 
-    /** How many distinct stages have failed this session. */
     int count() {
         return this.skipped.size();
     }

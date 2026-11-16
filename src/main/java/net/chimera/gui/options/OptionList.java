@@ -16,9 +16,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The settings of the loaded pack, laid out as Iris lays them out: a header row with the page title
- * and its buttons, then the page's elements in rows of its column count. Rows are 24 pixels tall,
- * at most 400 wide, over a 25% black background, and the whole list scrolls, header included.
+ * The loaded pack's settings, laid out as Iris's: a header row with the page title and its buttons, then the
+ * page's elements in rows of its column count. The whole list scrolls, header included.
  */
 public final class OptionList extends ContainerObjectSelectionList<OptionList.Row> {
     private static final int ROW_HEIGHT = 24;
@@ -40,8 +39,8 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
     }
 
     /**
-     * Shows the open page from the top. A page the pack never defined shows the main page's
-     * elements. A slider still in keyboard edit keeps its value; its cell is about to go.
+     * Shows the open page from the top; a page the pack never defined shows the main page's elements. A
+     * slider still in keyboard edit commits its value first, since its cell is about to go.
      */
     void rebuild() {
         context.sliders().finishEdits(true);
@@ -51,9 +50,9 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
         OptionMenu.Screen screen = sub.orElse(menu.main());
         addEntry(new HeaderRow(sub.isPresent() ? page : null));
         List<OptionMenu.Element> elements = screen.elements();
-        // Iris fills rows until they hold the column count, so 0 or less gives one cell per row. Unlike
-        // Iris, a count too wide for the row stops where cells reach their narrowest: a huge
-        // screen.columns would otherwise hang the screen padding the row, or draw cells of negative width.
+        // Iris fills rows up to the column count, so 0 or less gives one cell per row
+        // a count too wide for the row stops at the narrowest cell; a huge screen.columns would otherwise
+        // hang the screen padding the row, or draw cells of negative width
         int columns = Math.clamp(screen.columnCount(), 1, maxColumns());
         for (int start = 0; start < elements.size(); start += columns) {
             List<OptionCell> cells = new ArrayList<>();
@@ -99,7 +98,7 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
         return button == 0 || button == 1;
     }
 
-    /** Iris fades the list's separators out in the settings, leaving the world in view. */
+    /** No separators, as in Iris's settings, so the world stays in view. */
     @Override
     protected void renderListSeparators(GuiGraphics graphics) {}
 
@@ -128,7 +127,7 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
             this.utilities = List.of(new HeaderButton(context, HeaderButton.Kind.IMPORT),
                     new HeaderButton(context, HeaderButton.Kind.EXPORT),
                     new HeaderButton(context, HeaderButton.Kind.RESET));
-            // Keyboard order as Iris's: the utilities, then Back.
+            // keyboard order as Iris's: the utilities, then Back
             buttons.addAll(utilities);
             if (back != null) buttons.add(back);
         }
@@ -170,8 +169,8 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
     }
 
     /**
-     * One row of cells. The row splits its width into equal cells with 2 px gaps, and the cell under
-     * the mouse is the one whose share of the row's width the mouse is in, gaps included.
+     * A row of equal cells with 2 px gaps. The mouse is over the cell whose share of the row's width it is in,
+     * gaps included.
      */
     private final class CellRow extends Row {
         private final List<OptionCell> cells;

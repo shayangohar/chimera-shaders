@@ -2,7 +2,10 @@ package net.chimera.shaderpack;
 
 import java.util.List;
 
-/** Immutable load-time decision for the scene seed contract. */
+/**
+ * Whether the scene seed may fill colortex0's uncovered pixels from the host scene: the pack draws terrain,
+ * water, entities or the hand, and its colortex0 is window-sized.
+ */
 public record PackCoveragePlan(
         boolean enabled,
         boolean windowSizedTarget,

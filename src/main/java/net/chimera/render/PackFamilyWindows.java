@@ -19,9 +19,9 @@ import java.util.function.Consumer;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Opens and closes the render-pass windows pack geometry draws in: a family window retargets the
- * pass to the family's authored outputs, and a resource window binds a program's images and
- * terrain atlas for the draws inside it.
+ * Opens and closes the render-pass windows pack geometry draws in: a family window retargets the pass to the
+ * family's declared outputs, and a resource window binds a program's images and terrain atlas for the draws
+ * inside it.
  */
 final class PackFamilyWindows {
     private final ChimeraMainPass pass;
@@ -31,15 +31,15 @@ final class PackFamilyWindows {
     }
 
     /**
-     * Draws held batches in order inside the pack windows their family lanes write, one window per
-     * run of consecutive batches with the same outputs and the same stored targets. A run holds
-     * the targets its programs store to as colorimgN in the general layout, and a program that
-     * samples one (a world program reading colortexN) would fail to bind it, so the two never share
-     * a run; a program never samples a target it stores to itself (TARGET_IMAGE_ALSO_SAMPLED). A
-     * host type's batch opens no window here: its host-layout lane opens its own when it draws. A
-     * run whose window cannot open is discarded: its widened meshes have no host program to fall
-     * back to. Every batch of one flush reads the depthtex0 its first reader captured, the world
-     * drawn before the flush.
+     * Draws held batches in order inside the pack windows their family lanes write, one window per run of
+     * consecutive batches with the same outputs and the same stored targets.
+     *
+     * A run holds the targets its programs store to as colorimgN in the general layout, where a program that
+     * samples one, such as a world program reading colortexN, could not bind it, so the two never share a run.
+     * A program never samples a target it stores to itself (TARGET_IMAGE_ALSO_SAMPLED). A host type's batch
+     * opens no window here, since its host-layout lane opens its own when it draws. A run whose window cannot
+     * open is discarded: its widened meshes have no host program to fall back to. Every batch of one flush
+     * reads the depthtex0 its first reader captured, the world drawn before the flush.
      */
     void drawFamilyBatches(List<RenderType> batches, Consumer<RenderType> draw, Consumer<RenderType> discard) {
         try {
@@ -77,9 +77,8 @@ final class PackFamilyWindows {
     }
 
     /**
-     * Draws one run inside its window. The targets a hand program stores to as colorimgN, which
-     * preparing its images held in the general layout, go back to the sampled layout once the run
-     * ends, drawn or discarded.
+     * Draws one run inside its window. The targets a hand program stores to as colorimgN, which preparing its
+     * images held in the general layout, go back to the sampled layout once the run ends, drawn or discarded.
      */
     private void drawRun(List<RenderType> run, GeometryOutputPlan outputs, Consumer<RenderType> draw,
                          Consumer<RenderType> discard) {
@@ -93,7 +92,7 @@ final class PackFamilyWindows {
                 run.forEach(discard);
                 return;
             }
-            // Rendering reopens inside the window before the first batch draws.
+            // rendering reopens inside the window before the first batch draws
             if (outputs != null) pass.rebindMainTarget();
             try {
                 run.forEach(draw);
@@ -106,13 +105,12 @@ final class PackFamilyWindows {
     }
 
     /**
-     * Opens the authored attachment window around one host geometry family
-     * draw or batch. The bridge only selects the pipeline; this pass owns the target
-     * transitions: it closes the host HDR pass, binds the declared targets
-     * in output-location order with shared depth (target 0 uses live HDR), and
-     * enters the guarded geometry context whose dynamic-rendering bridge
-     * supplies the attachments. Returns true only when this call opened the
-     * window; the caller closes exactly what it opened.
+     * Opens the pack's attachment window around one geometry family draw or batch. The bridge only picks the
+     * pipeline; this owns the target transitions. It ends the host HDR pass, binds the declared targets in
+     * output-location order with the shared depth, target 0 being the live HDR image, and enters the geometry
+     * context whose dynamic rendering supplies the attachments.
+     *
+     * True only when this call opened the window; the caller closes exactly what it opened.
      */
     public boolean beginPackFamilyWindow(PackPipelines.PackEntity family) {
         return family != null && beginPackFamilyWindow(family.outputPlan());
@@ -172,7 +170,7 @@ final class PackFamilyWindows {
         }
     }
 
-    /** Binds pack-owned sampled images for the guarded terrain draw only. */
+    /** Prepares the terrain or water program's images before a terrain layer draws (prepareProgramImages). */
     void beginPackResourceWindow(TerrainRenderType renderType) {
         if (pass.shadowPass.shadowPassActive || !ChimeraRenderer.segmentsActive()) return;
         PackPipelines.PackTerrain terrain = switch (renderType) {
@@ -185,24 +183,22 @@ final class PackFamilyWindows {
     }
 
     /**
-     * Pairs the real selector atlas with LevelRenderer.chunkLayerSampler.
-     * WorldRenderer calls this only after VulkanMod has synchronized slot 0.
+     * Binds the terrain or water program's images for one layer. VulkanMod's WorldRenderer calls it once
+     * renderSectionLayer has bound its shader textures, so slot 0 holds the block atlas.
      */
     public void bindTerrainImagesAfterSelector(TerrainRenderType renderType) {
         if (pass.shadowPass.shadowPassActive) return;
         boolean translucent = renderType == TerrainRenderType.TRANSLUCENT;
         PackPipelines.PackTerrain terrain = translucent ? pass.pipelines.waterRoute : pass.pipelines.terrainRoute;
         if (terrain == null || translucent && pass.packTranslucentSuspended) {
-            // The fixed pipeline draws this layer. Reforged has just rebound its shadow map slot
-            // (unit 3) from RenderSystem, which holds no texture there, to the missing texture.
+            // the fixed pipeline draws this layer; Reforged has just rebound unit 3, the shadow map slot, from
+            // RenderSystem, which holds no texture there, leaving the missing texture
             pass.shadowPass.shadowMap.bindShadowTexture();
             return;
         }
         restorePackResourceWindow();
-        // Capture the draw context before the transaction: the albedo image
-        // straight from the synchronized selector plus the authoritative
-        // chunk sampler profile. The resolver below binds from this
-        // immutable context instead of re-querying slot state mid-draw.
+        // capture the draw context before the transaction: the atlas from the selector, with its sampler as
+        // OpenGL samples it; the resolver binds from this and never reads slot state mid-draw
         DrawMaterialContext drawContext =
                 DrawMaterialContext.forTerrain(VTextureSelector.getImage(0));
         pass.packGeometryBindings = pass.images.bindProgramImages(terrain.pipeline(),

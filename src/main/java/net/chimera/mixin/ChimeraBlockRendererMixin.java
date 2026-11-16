@@ -24,7 +24,7 @@ public abstract class ChimeraBlockRendererMixin {
     private void chimera$beginBlock(BlockState blockState, BlockPos blockPos, Vector3f pos,
                                     TerrainBufferBuilder builder, BakedModel model, ModelData modelData,
                                     RenderType renderType, CallbackInfo ci) {
-        // VulkanMod writes terrain vertices relative to the section, as Iris's local positions.
+        // VulkanMod writes terrain vertices relative to the section, like Iris's local positions
         if (builder instanceof ChimeraExtTerrainBuilder extended) {
             extended.beginBlock(blockPos.getX() & 15, blockPos.getY() & 15, blockPos.getZ() & 15);
         }

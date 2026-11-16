@@ -28,7 +28,7 @@ final class PropertyKeyReportTest {
                 "frustum.culling")) {
             assertNull(PackPropertyKeys.unread(applied), applied);
         }
-        // Source const names: Iris reads them only as const directives, so neither reader takes them here.
+        // source const names: Iris reads them only as const directives, so neither reader takes them here
         for (String constOnly : List.of("colortex3Format", "colortex1Clear", "shadowMapResolution",
                 "sunPathRotation")) {
             assertEquals("SETTING_UNKNOWN", PackPropertyKeys.unread(constOnly), constOnly);
@@ -112,7 +112,7 @@ final class PropertyKeyReportTest {
         assertEquals(-1, settings.indexOf("hidden"), "the #if line's comment took it");
         assertEquals(-1, settings.indexOf("d"), "the #endif in a comment ended no branch");
 
-        // A # after the close of a comment that began its line starts a directive there too.
+        // a # after the close of a comment that began its line starts a directive there too
         Files.writeString(shaders.resolve("shaders.properties"), """
                 uniform.float.k1 = 1.0
                 /*
@@ -127,10 +127,10 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * JCPP reports a malformed conditional and reads on: shaders.properties and
-     * dimension.properties used to stop at one. {@code #if F(1)} with no F reads false, as JCPP reads
-     * the name as 0 and skips the rest, and a stray #else turns the rest off; JCPP gives these results.
-     * A condition Chimera cannot evaluate (a function-like macro) also reads false, and is reported.
+     * JCPP reports a malformed conditional and reads on, in shaders.properties and dimension.properties
+     * alike. {@code #if F(1)} with no F reads false, as JCPP reads the name as 0 and skips the rest, and a
+     * stray #else turns the rest off. A condition Chimera cannot evaluate, such as a function-like macro,
+     * also reads false and is reported.
      */
     @Test
     void aMalformedConditionalIsSkippedAndTheFileReadsOn(@TempDir Path root) throws Exception {
@@ -152,7 +152,7 @@ final class PropertyKeyReportTest {
         assertEquals(-1, settings.indexOf("skipped"));
         assertEquals(-1, settings.indexOf("off"), "a stray #else turns the rest off");
 
-        // An #ifdef with no name keeps its branch on and takes the next line; blank lines are gone first.
+        // an #ifdef with no name keeps its branch on and takes the next line; blank lines are gone first
         Files.writeString(shaders.resolve("shaders.properties"), """
                 #ifdef
 
@@ -185,8 +185,7 @@ final class PropertyKeyReportTest {
 
     /**
      * Iris hides each backslash behind an identifier before JCPP reads a properties file, so a
-     * string in a #define closes at a backslash's quote and what follows can be a comment. Read
-     * with the backslash, the string ran on and swallowed the comment.
+     * string in a #define closes at a backslash's quote and what follows can be a comment.
      */
     @Test
     void aPropertiesDirectiveReadsItsBackslashesHidden() {
@@ -252,7 +251,7 @@ final class PropertyKeyReportTest {
             assertEquals(on ? "2" : null, defines.get("COLOR_SPACE_DISPLAY_P3"), flag);
             String fragment = plan.program("composite").convertedFragment();
             assertEquals(on, fragment.contains("0.25") && !fragment.contains("0.75"), flag + ":\n" + fragment);
-            // Kappa reads them as values too (case COLOR_SPACE_SRGB:): the use expands to the value.
+            // Kappa reads them as values too (case COLOR_SPACE_SRGB:), so a use expands to the value
             assertEquals(on, fragment.contains("0.25 * float(2)"), flag + ":\n" + fragment);
             assertEquals(-1, plan.runtimeSettings().indexOf("inProperties"),
                     "shaders.properties is preprocessed before the colour spaces are defined");

@@ -21,20 +21,20 @@ public final class TerrainLayers {
     }
 
     /**
-     * The alpha-test reference Iris gives the layer's pack terrain (SodiumPrograms.getAlphaTest):
-     * 0.1 for its cutout pass, which holds cutout and cutout_mipped blocks, and none (0) for solid
-     * and translucent. This layer split holds solid blocks in cutout_mipped too, which Iris draws
-     * untested; their opaque texels pass 0.1 alike.
+     * The alpha-test reference Iris gives the layer's pack terrain (SodiumPrograms.getAlphaTest): 0.1 for its
+     * cutout pass, which holds cutout and cutout_mipped blocks, and none (0) for solid and translucent.
+     * VulkanMod's split puts solid blocks in cutout_mipped too, which Iris draws untested; their opaque texels
+     * pass 0.1 either way.
      */
     public static float irisAlphaReference(TerrainRenderType type) {
         return type == TerrainRenderType.CUTOUT || type == TerrainRenderType.CUTOUT_MIPPED ? 0.1F : 0.0F;
     }
 
     /**
-     * Iris's rendering phase (renderStage) for the blocks a layer draws. Iris sets the phase from the
-     * layer LevelRenderer asks for, and Sodium draws its solid and cutout passes in the solid call
-     * (SodiumWorldRenderer.drawChunkLayer), so every opaque block reads TERRAIN_SOLID; the cutout
-     * calls draw nothing. Packs voxelize and light only that stage (Glimmer's flood-fill light).
+     * Iris's rendering phase (renderStage) for the blocks a layer draws. Iris sets the phase from the layer
+     * LevelRenderer asks for, and Sodium draws its solid and cutout passes in the solid call
+     * (SodiumWorldRenderer.drawChunkLayer), so every opaque block reads TERRAIN_SOLID and the cutout calls draw
+     * nothing. Some packs voxelize and light only that stage, such as Glimmer's flood-fill light.
      */
     public static PackRenderingPhase phase(TerrainRenderType type) {
         return switch (type) {

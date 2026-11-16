@@ -11,7 +11,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The translation defects the option sweep found: each a pack option a player can set in the settings screen. */
+/** Translation cases reached through pack options a player can set on the settings screen. */
 final class OptionSweepFixesTest {
     /** Complementary WATER_FOG_MULT: the macro is defined inside a function body, behind an #if. */
     @Test
@@ -36,10 +36,11 @@ final class OptionSweepFixesTest {
 
     /**
      * Bliss LPV_VL_FOG_ILLUMINATION with LPV off: composite2.fsh defines IS_LPV_ENABLED itself, so
-     * composite3 samples texLpv1, which no image backs. Iris assigns no unit to a name it does not
-     * serve, so the sampler3D stays on unit 0 beside the first colortex sampler2D. GL refuses a draw
-     * with two sampler types on one unit (INVALID_OPERATION), so Iris draws nothing for composite3.
-     * A pack bug Iris shares: Chimera refuses the program and the post chain skips the stage.
+     * composite3 samples texLpv1, which no image backs.
+     *
+     * Iris assigns no unit to a name it does not serve, so the sampler3D stays on unit 0 beside the first
+     * colortex sampler2D. GL refuses a draw with two sampler types on one unit (INVALID_OPERATION), so Iris
+     * draws nothing for composite3. Chimera refuses the program and the post chain skips the stage.
      */
     @Test
     void aSamplerIrisServesNothingStillRefusesTheProgram() {
@@ -52,9 +53,9 @@ final class OptionSweepFixesTest {
     }
 
     /**
-     * A post program's fragment reads an input its vertex never writes (Bliss composite3 reads an
-     * exposure its vertex writes only under another option). Iris adds a vertex output set to zero
-     * (CompatibilityTransformer.transformGrouped); the pair then matches.
+     * A post fragment reads an input its vertex never writes; Bliss composite3 reads an exposure its vertex
+     * writes only under another option. As Iris's CompatibilityTransformer does, the vertex gains an output
+     * set to zero and the pair matches.
      */
     @Test
     void aPostInputNoVertexWritesReadsAsZero() {
@@ -109,7 +110,7 @@ final class OptionSweepFixesTest {
 
     /**
      * Photon: its TAAU program ends in a stray #endif, and with cloud shadows off its prepare stage
-     * reaches an #error no switch disables. Iris's preprocessor reports both and goes on; so does Chimera.
+     * reaches an #error no switch disables. Iris's preprocessor reports both and carries on, as Chimera's does.
      */
     @Test
     void aStrayEndifAndAnErrorDirectiveAreReportedNotFatal(@TempDir Path dir) {
@@ -177,9 +178,10 @@ final class OptionSweepFixesTest {
     }
 
     /**
-     * Bliss SAND_STORMS off writes {@code uniform.float.sandStorm = 0.0;}. Iris cannot parse the
-     * semicolon, logs it and declares nothing, so programs run reading it as zero; a value Chimera
-     * cannot compile for want of a feature (an unknown function) still fails closed.
+     * Bliss with SAND_STORMS off writes {@code uniform.float.sandStorm = 0.0;}. Iris cannot parse the
+     * semicolon, logs it and declares nothing, so programs read the uniform as zero.
+     *
+     * A value Chimera cannot compile for a missing feature, such as an unknown function, still fails closed.
      */
     @Test
     void aCustomValueIrisCannotParseReadsAsUnset() {
@@ -194,8 +196,8 @@ final class OptionSweepFixesTest {
     }
 
     /**
-     * Complementary WATER_FOG_MULT, the defect itself: the first definition sits in a function no
-     * program calls; blanking that function must keep the directive the later code relies on.
+     * Complementary WATER_FOG_MULT: the first definition sits in a function no program calls. Removing that
+     * function keeps the directive, since later code relies on it.
      */
     @Test
     void blankingAnUnusedFunctionKeepsTheDefinesInside() {
@@ -220,8 +222,8 @@ final class OptionSweepFixesTest {
     /**
      * Photon DEBUG_VIEW_HISTOGRAM: composite4 passes {@code flat out vec4[HISTOGRAM_BINS / 4]
      * histogram_pdf}, which reaches translation as {@code vec4[32 / 4]}. GL sizes an array with any
-     * constant integral expression, so each stage declares eight locations and the pair links; a
-     * named length is still not read.
+     * constant integral expression, so each stage declares eight locations and the pair links. An
+     * undeclared name as the size is refused.
      */
     @Test
     void aConstantExpressionSizesAnInterfaceArray() {
@@ -258,10 +260,11 @@ final class OptionSweepFixesTest {
     }
 
     /**
-     * I Like Vanilla SSS_LIDAR: composite5 passes {@code lidarSampleCoords[lidarSampleCount]}
-     * after {@code const int lidarSampleCount = 24}. GL reads the file-scope const as the size, so both
-     * stages declare 24 locations. A size this cannot read refuses the statement: on the declarator it
-     * used to become no array at all, and indexing the vec2 failed to compile.
+     * I Like Vanilla SSS_LIDAR: composite5 passes {@code lidarSampleCoords[lidarSampleCount]} after
+     * {@code const int lidarSampleCount = 24}. GL reads the file-scope const as the size, so both stages
+     * declare 24 locations; a const built from other consts reads too.
+     *
+     * A size the scanner cannot read refuses the statement, so the name never reads as a plain vec2.
      */
     @Test
     void aFileScopeConstIntSizesAnInterfaceArray() {

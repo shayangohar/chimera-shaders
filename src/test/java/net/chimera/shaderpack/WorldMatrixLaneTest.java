@@ -13,10 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * gbufferModelView and gbufferModelViewInverse are the pack's uniforms in every world lane, as in
  * Iris. Ebin rebuilds positions through them, and an enchanted item in a frame draws its glint
- * with depth test EQUAL over the item: the two lanes must place each vertex bit for bit, which a
- * GPU inverse of ModelViewMat in one lane and the uniform in the other did not. The same expression
- * must also evaluate the same in both programs, which GLSL promises only for an invariant position.
- * A stage that projects with the pack's gbufferProjection writes GL's clip range.
+ * with depth test EQUAL over the item: the two lanes must place each vertex bit for bit, so neither
+ * computes its own inverse of ModelViewMat on the GPU. The same expression must also evaluate the
+ * same in both programs, which GLSL promises only for an invariant position. A stage that projects
+ * with the pack's gbufferProjection writes GL's clip range.
  */
 final class WorldMatrixLaneTest {
     private static final String CONVERSION = "gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);";
@@ -41,7 +41,7 @@ final class WorldMatrixLaneTest {
                 gl_FragData[0] = color;
             }
             """;
-    /** Insanity's (BSL's) entity and glint vertex: the position is plain ftransform(). */
+    /** The entity and glint vertex Insanity shares with BSL: the position is plain ftransform(). */
     private static final String FTRANSFORM_VERTEX = """
             #version 120
             varying vec4 color;
@@ -60,9 +60,9 @@ final class WorldMatrixLaneTest {
             """;
 
     /**
-     * Under Insanity an enchanted item in a frame and its glint both wrote ftransform() on the same
-     * inputs, yet NVIDIA placed them one ulp apart and the glint speckled. Every lane an item or its
-     * glint draws on declares its position invariant ahead of any use, the hand's glint included.
+     * An item and its glint both write ftransform() on the same inputs, which NVIDIA can still place
+     * one ulp apart, speckling the glint. Every lane an item or its glint draws on declares its
+     * position invariant ahead of any use, the hand's glint included.
      */
     @Test
     void itemAndGlintPositionsAreInvariant(@TempDir Path root) throws IOException {
@@ -122,7 +122,7 @@ final class WorldMatrixLaneTest {
             Files.writeString(shaders.resolve(program + ".vsh"), projected);
             Files.writeString(shaders.resolve(program + ".fsh"), FRAGMENT);
         }
-        // Reads the pack projection beside ftransform(): the host built-ins take GL's range too.
+        // reads the pack projection beside ftransform(): the host built-ins take GL's range too
         Files.writeString(shaders.resolve("gbuffers_block.vsh"), """
                 #version 330 compatibility
                 uniform mat4 gbufferProjection;
@@ -133,7 +133,7 @@ final class WorldMatrixLaneTest {
                 }
                 """);
         Files.writeString(shaders.resolve("gbuffers_block.fsh"), FRAGMENT);
-        // Declares the pack projection and never reads it: the host's range, unchanged.
+        // declares the pack projection and never reads it: the host's range, unchanged
         Files.writeString(shaders.resolve("gbuffers_textured.vsh"), """
                 #version 330 compatibility
                 uniform mat4 gbufferProjection;
@@ -161,7 +161,7 @@ final class WorldMatrixLaneTest {
         assertTrue(!textured.contains("chimeraGlClip") && !textured.contains(WorldClipRange.AUTHORED_ENTRY),
                 "a stage that never reads a pack projection keeps the host's range: " + textured);
 
-        // Held glint keeps its one conversion and takes the hand family's ftransform().
+        // the held glint keeps its one conversion and takes the hand family's ftransform()
         String glint = convertedVertex(analysis, "gbuffers_armor_glint");
         String hand = EntityVertexBridge.handGlintVertex(glint);
         assertTrue(hand.contains("chimeraHandProjection() * ModelViewMat")

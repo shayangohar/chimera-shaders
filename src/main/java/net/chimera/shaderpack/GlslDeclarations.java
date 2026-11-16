@@ -12,10 +12,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * The file-scope variable declarations of a {@link GlslTree}, and text edits on them. The
- * converters' declaration rewrites read and edit declarations through this instead of matching
- * declaration text, so a comment, a declarator list or a qualifier order no longer decides
- * whether a declaration is seen.
+ * The file-scope variable declarations of a {@link GlslTree}, and text edits on them. The converters'
+ * declaration rewrites go through the tree, so a comment, a declarator list or the qualifier order never
+ * decides whether a declaration is seen.
  */
 final class GlslDeclarations {
     private GlslDeclarations() {}
@@ -33,7 +32,7 @@ final class GlslDeclarations {
             return type.name() >= 0 ? tree.text(type.name()) : "struct";
         }
 
-        /** Whether a qualifier keyword is {@code keyword}. */
+        /** Whether any qualifier keyword is {@code keyword}. */
         boolean qualified(String keyword) {
             return declaration.qualifiers().stream().anyMatch(value -> tree.text(value.keyword()).equals(keyword));
         }
@@ -64,9 +63,9 @@ final class GlslDeclarations {
     record TextEdit(int from, int to, String text) {}
 
     /**
-     * The tree of {@code source}, or null when it does not parse. A reader that only gathers
-     * declarations (target directives, outputs) treats such a source as declaring none: it
-     * compiles nowhere, and the converters refuse it with the parse failure.
+     * The tree of {@code source}, or null when it does not parse. A reader that only gathers declarations,
+     * such as target directives or outputs, treats such a source as declaring none: it compiles nowhere, and
+     * the converters refuse it with the parse failure.
      */
     static GlslTree parseOrNull(String source) {
         try {
@@ -76,10 +75,7 @@ final class GlslDeclarations {
         }
     }
 
-    /**
-     * Where a {@code (?m)^[ \t]*} match that ends at {@code offset} begins: the start of the
-     * indentation before it, or -1 when other text shares its line.
-     */
+    /** The start of the indentation before {@code offset}, or -1 when other text comes before it on its line. */
     static int indentationStart(String source, int offset) {
         int start = offset;
         while (start > 0 && (source.charAt(start - 1) == ' ' || source.charAt(start - 1) == '\t')) start--;
@@ -108,9 +104,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * Removes a declaration. One that stands alone on its line takes its indentation and trailing
-     * spaces with it and leaves the line terminator, as a {@code (?m)^[ \t]*...;[ \t]*$} match
-     * replaced with nothing did.
+     * Removes a declaration. One that stands alone on its line takes its indentation and trailing spaces
+     * with it and leaves the line terminator.
      */
     static TextEdit remove(GlslTree tree, GlslTree.Node node) {
         String source = tree.source();
@@ -130,9 +125,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * Edits that remove these variables, one per declaration: a declaration keeps its other names,
-     * or goes whole when it names no other. {@code in vec3 vaNormal, vaPosition;} declares two
-     * core inputs at once.
+     * Edits that remove these variables, one per declaration: a declaration keeps its other names, or goes
+     * whole when it names no other. {@code in vec3 vaNormal, vaPosition;} declares two core inputs at once.
      */
     static List<TextEdit> removeVariables(GlslTree tree, List<Variable> variables) {
         Map<GlslTree.Declaration, Set<String>> names = new LinkedHashMap<>();
@@ -157,8 +151,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * The arguments of a {@code layout(...)} qualifier, name to value ({@code ""} for a bare
-     * name): {@code layout(location = 2, index = 0)} gives location 2 and index 0.
+     * The arguments of a {@code layout(...)} qualifier, name to value, {@code ""} for a bare name:
+     * {@code layout(location = 2, index = 0)} gives location 2 and index 0.
      */
     static Map<String, String> layoutArguments(GlslTree tree, GlslTree.Qualifier qualifier) {
         Map<String, String> arguments = new LinkedHashMap<>();
@@ -174,9 +168,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * Where a line-anchored declaration rewrite's span ends: {@code tail} (its trailing spaces,
-     * comment and line breaks, compiled MULTILINE) matched from just after the declaration; -1
-     * when the tail does not match there, so the old pattern did not match that declaration.
+     * Where a declaration's span ends: the end of {@code tail}, its trailing spaces or line breaks compiled
+     * MULTILINE, matched from just after the declaration. -1 when the tail does not match there.
      */
     static int tailEnd(String source, int from, Pattern tail) {
         Matcher matcher = tail.matcher(source);
@@ -206,18 +199,16 @@ final class GlslDeclarations {
     }
 
     /**
-     * Where a {@code (?m)^\s*} match that ends at {@code offset} begins: the first line start
-     * after the text before {@code offset}, so the blank lines and indentation before a
-     * declaration belong to its span. -1 when the declaration does not start a line.
+     * The first line start after the text before {@code offset}, so the blank lines and indentation before a
+     * declaration belong to its span; -1 when the declaration does not start a line.
      */
     static int lineStartBefore(String source, int offset) {
         return lineStartBefore(source, offset, 0);
     }
 
     /**
-     * {@link #lineStartBefore(String, int)} for a pattern searched repeatedly: the search resumes at
-     * the previous match's end, {@code minimum}, so a span never starts before it, however many
-     * blank lines that match's tail took.
+     * {@link #lineStartBefore(String, int)} for spans taken one after another: a span never starts before
+     * {@code minimum}, the previous span's end, however many blank lines that span's tail took.
      */
     static int lineStartBefore(String source, int offset, int minimum) {
         int text = offset;
@@ -283,9 +274,8 @@ final class GlslDeclarations {
     private static final Pattern LAYOUT_BEFORE = Pattern.compile("\\blayout\\s*\\([^()]*\\)\\s*$");
 
     /**
-     * Where a {@code layout(...)} written directly before the keyword at {@code keyword} starts,
-     * within the statement holding it, or {@code keyword} without one. {@code source} has its
-     * comments masked.
+     * Where a {@code layout(...)} written directly before the keyword at {@code keyword} starts, within the
+     * statement holding it, or {@code keyword} without one. {@code source} has its comments masked.
      */
     static int layoutStart(String source, int keyword) {
         int statement = Math.max(Math.max(source.lastIndexOf(';', keyword - 1), source.lastIndexOf('}', keyword - 1)),

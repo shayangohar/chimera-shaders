@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The option model on the locked packs: what the settings screen will show for each. */
+/** The option model on the test packs: what the settings screen shows for each. */
 @Tag("packs")
 final class PackOptionsRealPackTest {
     @Test
@@ -46,7 +46,7 @@ final class PackOptionsRealPackTest {
             }
             if (pack.getFileName().toString().startsWith("Bliss")) {
                 // Bliss declares these with different defaults across files; Iris's file order
-                // decides which survive, and with which default.
+                // decides which survive, and with which default
                 var toggles = options.options().toggles();
                 assertTrue(toggles.get("WEATHER").option().defaultValue(), "WEATHER is an option, on");
                 assertTrue(toggles.get("CLOUDSHADOWSONLY").option().defaultValue(), "CLOUDSHADOWSONLY defaults on");
@@ -57,8 +57,8 @@ final class PackOptionsRealPackTest {
     }
 
     private static ShaderPackOptions load(Path pack) {
-        // The options come from the sources as shipped: the loaded tree already carries the
-        // instance's option file, and an edited choice line no longer lists its values.
+        // the options come from the sources as shipped: the loaded tree already carries the
+        // instance's option file, and an edited #define choice line loses its value list
         try (PackSource.LoadResult loaded = PackSource.loadResult(pack)) {
             ShaderPackOptions options = loaded.options().pack();
             System.out.println(summary(pack, options));

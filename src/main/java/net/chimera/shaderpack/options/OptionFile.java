@@ -46,10 +46,7 @@ public final class OptionFile {
         return values;
     }
 
-    /**
-     * Writes {@code values}' changes, or deletes the file when there are none. The write goes through
-     * a temporary file, so a failure leaves the previous file whole.
-     */
+    /** Writes {@code values}' changes, or deletes the file when there are none. */
     public static void write(Path file, OptionValues values) throws IOException {
         Map<String, String> changes = values.changes();
         if (changes.isEmpty()) {

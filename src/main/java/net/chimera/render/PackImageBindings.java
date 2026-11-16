@@ -21,9 +21,9 @@ import java.util.Set;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Binds each pack program's images for a draw: the manifest every installed pipeline records, and
- * the transaction that resolves each entry to a target, depth copy, shadow map, material map or
- * pack texture, and restores the host bindings afterwards.
+ * Binds each pack program's images for a draw: the manifest every installed pipeline records, and the
+ * transaction that resolves each entry to a target, depth copy, shadow map, material map or pack texture and
+ * restores the host bindings afterwards.
  */
 final class PackImageBindings {
     private final ChimeraMainPass pass;
@@ -58,13 +58,16 @@ final class PackImageBindings {
     public ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> bindDescriptorImages(
             GraphicsPipeline pipeline) {
         ChimeraMainPass.ProgramImages program = this.programImages.get(pipeline);
-        // Fullscreen and terrain seams already hold a transaction with their exact graph inputs.
+        // fullscreen passes and terrain layers already hold a transaction with their exact graph inputs
         if (program == null || PostTargetPlan.isFullscreenProgramName(program.name())
                 || (!pass.shadowPass.shadowPassActive && pass.packGeometryBindings != null)) return null;
         return bindProgramImages(pipeline);
     }
 
-    /** All graphics families reach this seam before descriptor upload. */
+    /**
+     * Binds {@code pipeline}'s images before its descriptors upload; an output resolve binds as the identity
+     * program, colortex0 alone. Null for a pipeline with no pack program.
+     */
     public ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> bindProgramImages(
             GraphicsPipeline pipeline, VulkanImage[] colors, VulkanImage fallback,
             DrawMaterialContext drawContext) {
@@ -77,10 +80,10 @@ final class PackImageBindings {
     }
 
     /**
-     * Binds the images a pass owns across all its draws, before the first: its targets, depths,
-     * shadow maps and pack images. Host textures and material maps follow each draw's albedo, so
-     * each draw binds them after the host's selector (bindDescriptorImages). Before the first draw a
-     * host slot holds whatever an earlier draw left, or nothing once a pack cleanup cleared it.
+     * Binds the images a pass owns across all its draws, before the first: its targets, depths, shadow maps
+     * and pack images. Host textures and material maps follow each draw's albedo, so each draw binds them
+     * after the host's selector (bindDescriptorImages). Before the first draw a host slot holds whatever an
+     * earlier draw left, or nothing once a pack cleanup cleared it.
      */
     public ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> bindPassImages(
             GraphicsPipeline pipeline) {
@@ -88,15 +91,15 @@ final class PackImageBindings {
         if (program == null) return null;
         ProgramImageBindingManifest owned = new ProgramImageBindingManifest(program.manifest().entries().stream()
                 .filter(entry -> !followsDraw(entry.kind())).toList());
-        // No material map entry remains, so no draw context is read.
+        // no material map entry remains, so no draw context is read
         return bind(new ChimeraMainPass.ProgramImages(program.name(), owned, program.shadowSamplerSymbols()),
                 null, null, null);
     }
 
     /**
-     * The overlay entityColor reads: the texture on the game's overlay unit. A render type without
-     * an overlay (eyes, energy swirl) leaves the unit empty, where GL samples an opaque texel and
-     * entityColor comes out zero; the white texture is that opaque texel.
+     * The overlay entityColor reads: the texture on the game's overlay unit. A render type without an overlay,
+     * such as eyes or the energy swirl, leaves the unit empty, where GL samples an opaque texel and entityColor
+     * comes out zero; the white texture is that opaque texel.
      */
     private static ChimeraTextureBindingState.Snapshot overlay(int unit) {
         GlTexture texture = GlTexture.getTexture(RenderSystem.getShaderTexture(unit));
@@ -126,9 +129,8 @@ final class PackImageBindings {
                     ? IMAGE_STORE.capture(hostSlot) : overlay(hostSlot);
         }
         if (entry.kind() == ProgramImageBindingManifest.Kind.MATERIAL_MAP) {
-            // The context was captured before the first slot capture, so
-            // the resolver sees the unmutated draw. Rollback stays with
-            // the transaction.
+            // the context was captured before the first slot capture, so the resolver sees the draw unchanged;
+            // rollback stays with the transaction
             if (pass.materials.materialMapOwner == null) return null;
             return pass.materials.materialMapOwner.resolveDrawMaterial(drawContext, entry.resourceKey());
         }
@@ -141,10 +143,9 @@ final class PackImageBindings {
     }
 
     /**
-     * {@code bound} as the pack program at {@code slot} samples it: with the sampler its descriptor
-     * would take, as OpenGL samples it (SamplerProfile.asGl): at bias 0, and clamped where vanilla
-     * asked. Only a sampler VulkanMod built from texture flags changes, such as the block atlas's
-     * mipmapped one or the entity shadow's.
+     * {@code bound} with the sampler its descriptor at {@code slot} would take, changed to sample as OpenGL
+     * does (SamplerProfile.asGl): at bias 0, and clamped where vanilla asked. Only a sampler VulkanMod built
+     * from texture flags changes, such as the block atlas's mipmapped one or the entity shadow's.
      */
     private static ChimeraTextureBindingState.Snapshot asGl(int slot, ChimeraTextureBindingState.Snapshot bound) {
         if (bound == null || bound.image() == null) return bound;
@@ -168,8 +169,8 @@ final class PackImageBindings {
                     : pass.packResourceOwner.image(entry.resourceKey());
             case ADVANCED_IMAGE -> pass.packAdvancedImageOwner == null ? null
                     : pass.packAdvancedImageOwner.image(entry.resourceKey());
-            // A pass's: the image the chain reads now, which PostTargetStorage holds in the general
-            // layout. A hand program's resolves in resolve(), to the image world programs read.
+            // a pass's colorimgN is the image the chain reads now, held in the general layout by
+            // PostTargetStorage; a hand program's resolves in resolve(), to the image world programs read
             case TARGET_IMAGE -> pass.packPostTargets.storageSource(Renderer.getCommandBuffer(),
                     PackResourcePlan.targetIndex(entry.resourceKey()));
             case CENTER_DEPTH -> pass.packCenterDepth == null ? null : pass.packCenterDepth.image();
@@ -180,10 +181,11 @@ final class PackImageBindings {
 
     /**
      * A depth snapshot. depthtex1 and depthtex2 read their last capture until this frame's.
-     * depthtex0 reads this frame's capture: while the world depth is still the attachment world
-     * programs draw into, prepareProgramImages has captured the world drawn so far, since sampling
-     * that attachment would be a feedback loop. Without one, it reads the live world depth once
-     * that is readable, and the last capture before then.
+     *
+     * depthtex0 reads this frame's capture: while the world depth is still the attachment world programs draw
+     * into, prepareProgramImages has captured the world drawn so far, since sampling that attachment would be
+     * a feedback loop. Without a capture it reads the live world depth once that is readable, and the last
+     * capture before then.
      */
     private VulkanImage depthTargetImage(String name) {
         if (!name.equals("depthtex0")) return pass.packDepthTargets.sampledImage(name);
@@ -196,8 +198,8 @@ final class PackImageBindings {
     }
 
     /**
-     * shadowtex1 is the opaque-only shadow depth; shadowtex0 is the full shadow depth. A shadow program
-     * reads shadowtex1 from its copy, never from the attachment the pass draws into.
+     * shadowtex1 is the opaque-only shadow depth and shadowtex0 the full one. A shadow program reads
+     * shadowtex1 from its copy, never from the attachment the pass draws into.
      */
     VulkanImage shadowDepthImage(String name) {
         ChimeraShadowMap shadowMap = pass.shadowPass.shadowMap;
@@ -209,8 +211,8 @@ final class PackImageBindings {
     }
 
     /**
-     * Binds a program's images at a draw: a fullscreen program reads the chain's sources, a world
-     * program what the targets hold (PackPostTargets.worldImages).
+     * Binds a program's images at a draw: a fullscreen program reads the chain's sources, a world program
+     * what the targets hold (PackPostTargets.worldImages).
      */
     public ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> bindProgramImages(
             GraphicsPipeline pipeline) {
@@ -226,11 +228,10 @@ final class PackImageBindings {
     }
 
     /**
-     * True when every pack target and depth snapshot the water program samples
-     * can be bound: a target as world programs read it (PackPostTargets.worldImages). A failed
-     * depth capture leaves one missing, and the manifest resolver would then reject the draw.
-     * depthtex0 counts while the world depth can still be captured: the
-     * program's prepare captures it before the layer draws.
+     * True when every pack target and depth snapshot the water program samples can be bound, a target as
+     * world programs read it (PackPostTargets.worldImages). A failed depth capture leaves one missing, and the
+     * manifest resolver would then reject the draw. depthtex0 counts while the world depth can still be
+     * captured, since the program's prepare captures it before the layer draws.
      */
     boolean packTranslucentInputsReady(PackPipelines.PackTerrain water) {
         ChimeraMainPass.ProgramImages program = this.programImages.get(water.pipeline());
@@ -250,10 +251,10 @@ final class PackImageBindings {
     }
 
     /**
-     * Called before opening attachments, including host geometry render passes: captures the
-     * depthtex0 a program reads while the world still draws, moves its advanced images into
-     * their graphics layouts, and holds the targets a hand program stores to as colorimgN in the
-     * general layout until its lane run ends (releaseWorldStorage).
+     * Called before attachments open, host geometry render passes included. Captures the depthtex0 a program
+     * reads while the world still draws, moves its writable images into their graphics layouts, and holds the
+     * targets a hand program stores to as colorimgN in the general layout until its lane run ends
+     * (releaseWorldStorage).
      */
     public void prepareProgramImages(GraphicsPipeline pipeline) {
         ChimeraMainPass.ProgramImages program = this.programImages.get(pipeline);
@@ -278,8 +279,8 @@ final class PackImageBindings {
     }
 
     /**
-     * The targets {@code pipeline}'s program stores to as colorimgN, which preparing it holds in
-     * the general layout until its run ends; none for a pipeline with no pack program.
+     * The targets {@code pipeline}'s program stores to as colorimgN, which preparing it holds in the general
+     * layout until its run ends; none for a pipeline with no pack program.
      */
     public List<Integer> worldStorageTargets(GraphicsPipeline pipeline) {
         ChimeraMainPass.ProgramImages program = pipeline == null ? null : this.programImages.get(pipeline);
@@ -295,9 +296,9 @@ final class PackImageBindings {
     }
 
     /**
-     * Returns the targets a hand lane's run stored to as colorimgN to the sampled layout, once the
-     * run has drawn: VulkanMod moves no image out of GENERAL ("Unexpected value:1"), and later draws
-     * sample them. Called outside or between render passes; one bound here reopens.
+     * Moves the targets a hand lane's run stored to as colorimgN back to the sampled layout once the run has
+     * drawn, since later draws sample them and VulkanMod moves no image out of GENERAL ("Unexpected value:1").
+     * A render pass bound here is ended and reopened around it.
      */
     public void releaseWorldStorage() {
         if (!pass.packPostTargets.holdsWorldStorage()) return;

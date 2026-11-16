@@ -7,9 +7,8 @@ import java.util.Map;
 /**
  * The shaders.properties switch for Minecraft's weather, read as Iris reads it: {@code rain.depth}
  * lets rain and snow write depth, so the passes after them see the weather in depthtex0. It
- * defaults to off (PackDirectives: {@code getRainDepth().orElse(false)}). Iris's MixinLevelRenderer
- * applies it by forcing renderSnowAndRain's first RenderSystem.depthMask to true. Pegasus 0.5 and
- * RenderPearl 2.4.0 turn it on.
+ * defaults to off, as in Iris's PackDirectives. Iris's MixinLevelRenderer applies it by forcing
+ * renderSnowAndRain's first RenderSystem.depthMask to true.
  */
 public record WeatherDirectives(boolean rainDepth, List<String> deviations) {
     public static final WeatherDirectives DEFAULTS = new WeatherDirectives(false, List.of());

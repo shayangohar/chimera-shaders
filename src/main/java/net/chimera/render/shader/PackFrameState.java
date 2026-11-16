@@ -39,11 +39,10 @@ import java.util.function.DoubleSupplier;
 import java.util.function.IntToDoubleFunction;
 
 /**
- * One render-thread snapshot shared by every pack supplier in a frame.
+ * The frame's engine values, captured once on the render thread and shared by every pack uniform supplier.
  *
- * <p>This class owns no Vulkan resources. It only owns stable scalar, vector,
- * matrix, and smoothing storage. The provider writes that storage to stable
- * MappedBuffers after the snapshot is complete.</p>
+ * Holds no Vulkan resources, only scalar, vector, matrix and smoothing state. The uniform provider writes it
+ * into the pipelines' mapped buffers once the snapshot is complete.
  */
 final class PackFrameState {
     static final int FRAME_COUNTER_WRAP = 720720;
@@ -85,7 +84,7 @@ final class PackFrameState {
     private final IrisWorldState irisWorld = new IrisWorldState();
     private final SelectedBlockState selectedBlock = new SelectedBlockState();
     private final IrisDrawState drawState = new IrisDrawState();
-    /** The value groups beside the table, each serving its own names. */
+    /** Value groups that serve their own names outside the table. */
     private final List<FrameValueSource> sources = List.of(irisPlayer, heldItems, irisWorld, selectedBlock,
             drawState);
     /** The shadow caster rotation for the same light, as Iris builds it; its Z is sunLightVector. */
@@ -96,7 +95,7 @@ final class PackFrameState {
     private final float[] lightDirection1 = new float[3];
 
     private final int[] eyeBrightness = new int[2];
-    // The atlas the current draw samples: the block atlas per frame, per draw for entities.
+    // the atlas the current draw samples: the block atlas per frame, per draw for entities
     private final int[] atlasSize = new int[2];
     private final int[] eyeBrightnessSmooth = new int[2];
     private final int[] cameraPositionInt = new int[3];
@@ -105,7 +104,7 @@ final class PackFrameState {
     private final float[] previousCameraPositionFract = new float[3];
     private PackRuntimeSettings runtimeSettings = PackRuntimeSettings.empty();
     private PackRuntimeSettings.Session session = runtimeSettings.newSession();
-    // The pack's smoothing half-lives (Iris PackDirectives).
+    // the pack's smoothing half-lives (Iris PackDirectives)
     private PackDirectives directives = PackDirectives.DEFAULTS;
 
     private ClientLevel lastLevel;
@@ -139,11 +138,11 @@ final class PackFrameState {
     private float fogStart;
     private float fogEnd;
     private float alphaCutout;
-    // Per draw: the host entity pipeline's ALPHA_CUTOUT, 0 where it has none.
+    // per draw: the host entity pipeline's ALPHA_CUTOUT, 0 where it has none
     private float entityAlphaReference;
-    // Per draw: the entityId a host-layout lane reads (ChimeraEntityBridge.hostLayoutEntityId).
+    // per draw: the entityId a host-layout lane reads (ChimeraEntityBridge.hostLayoutEntityId)
     private int hostEntityId;
-    // Per frame: the glint strength option, vanilla Globals.GlintAlpha (Iris isGlint gl_Color).
+    // per frame: the glint strength option, vanilla Globals.GlintAlpha (Iris isGlint gl_Color)
     private float glintAlpha = 1.0F;
     private PackRenderingPhase renderingPhase = PackRenderingPhase.NONE;
     private int bedrockLevel;
@@ -168,9 +167,9 @@ final class PackFrameState {
     private float eyeBrightnessSkySmooth;
 
     /**
-     * One frame value as both readers see it: a uniform buffer receives its components in the
-     * declared GLSL type, and a custom-value expression reads them one at a time (a matrix's
-     * elements column-major, as GLSL and Iris number them).
+     * One frame value as both readers see it: a uniform buffer receives its components in the declared GLSL
+     * type, and a custom-value expression reads them one at a time, a matrix's elements column-major as GLSL
+     * and Iris number them.
      */
     record FrameValue(int width, IntToDoubleFunction component) {}
 
@@ -253,7 +252,7 @@ final class PackFrameState {
         matrix(table, modelView, "gbufferModelView", "ModelViewMat");
         matrix(table, modelViewInverse, "gbufferModelViewInverse");
         matrix(table, previousModelView, "gbufferPreviousModelView");
-        // DHCompat without Distant Horizons: the gbuffer projection and its derivations.
+        // DHCompat without Distant Horizons: the gbuffer projection and its derivations
         matrix(table, projection, "gbufferProjection", "dhProjection");
         matrix(table, projectionInverse, "gbufferProjectionInverse", "dhProjectionInverse");
         matrix(table, previousProjection, "gbufferPreviousProjection", "dhPreviousProjection");
@@ -267,7 +266,6 @@ final class PackFrameState {
         return Map.copyOf(table);
     }
 
-    // Builds and writes the frame-value table: each served uniform name, its width and its component source.
     private static void scalar(Map<String, FrameValue> table, DoubleSupplier value, String... names) {
         serve(table, new FrameValue(1, component -> value.getAsDouble()), names);
     }
@@ -336,7 +334,7 @@ final class PackFrameState {
         }
     }
 
-    /** Returns true and resets temporal state when the level identity changes. */
+    /** Resets temporal state when the level changes; true when it did. */
     boolean prepareLevel(ClientLevel level) {
         if (level == this.lastLevel) {
             return false;
@@ -489,9 +487,9 @@ final class PackFrameState {
     }
 
     /**
-     * The value, or one component of it, the host serves under a name: the same table a uniform
-     * buffer is written from. Custom values are resolved before this, so everything here is a
-     * canonical engine input -- which is exactly why a pack may not author one.
+     * The value, or one component of it, served under an engine name, from the same table a uniform buffer is
+     * written from. Custom values never reach this table, and a pack may not declare one under an engine
+     * input's name (PackRuntimeSettings).
      */
     double value(String name, int component) {
         FrameValueSource source = sourceOf(name);
@@ -521,7 +519,7 @@ final class PackFrameState {
     }
 
     void advanceFrameTime(float deltaSeconds) {
-        // Iris exposes the whole elapsed frame, including stalls, and resets at one hour.
+        // as in Iris, frameTime is the whole elapsed frame, stalls included, and frameTimeCounter resets hourly
         this.frameTime = Math.max(deltaSeconds, 0.0f);
         this.frameTimeCounter = wrapFrameTimeCounter(this.frameTimeCounter + this.frameTime);
     }
@@ -538,7 +536,7 @@ final class PackFrameState {
         return 0.0;
     }
 
-    // The camera entity's effects as Iris's CommonUniforms reads them: night vision, darkness, blindness, fluid.
+    // the camera entity's effects, as Iris's CommonUniforms reads them
     private static float nightVision(Minecraft minecraft, Entity cameraEntity, float partialTick) {
         if (cameraEntity instanceof LivingEntity living
                 && living.hasEffect(MobEffects.NIGHT_VISION)) {
@@ -579,8 +577,8 @@ final class PackFrameState {
     }
 
     /**
-     * Iris 1.8.14 CommonUniforms.isEyeInWater: the camera's fluid, a spectator's lava included
-     * (newer Iris leaves a spectator's lava at 0).
+     * Iris 1.8.14 CommonUniforms.isEyeInWater: the camera's fluid, a spectator's lava included. Newer Iris
+     * reads a spectator's lava as 0.
      */
     static int eyeInWater(FogType type) {
         return switch (type) {
@@ -628,10 +626,9 @@ final class PackFrameState {
     }
 
     /**
-     * Advances current matrices and rotates the previous pair. First frame
-     * seeds previous from current; later frames shift current into
-     * previous before capturing. Reloads and resizes restart the sequence
-     * by clearing {@code viewInitialized} through the temporal reset.
+     * Captures the current matrices and rotates the previous pair. The first frame seeds the previous pair
+     * from the current one; later frames shift current into previous before capturing. A level change, a
+     * session reset or a resize restarts the sequence by clearing {@code viewInitialized}.
      */
     private void rotateView(Matrix4f capturedModelView, Matrix4f capturedProjection) {
         if (capturedModelView == null || capturedProjection == null) {
@@ -669,7 +666,7 @@ final class PackFrameState {
         destination.m32(0.5f * (legacy.m32() + legacy.m33()));
     }
 
-    /** Test-only entry for the previous-matrix rotation; skips host render state. */
+    /** Skips the host render state. */
     void rotateViewForTest(Matrix4f capturedModelView, Matrix4f capturedProjection) {
         rotateView(capturedModelView, capturedProjection);
         updateViewMatrices();
@@ -714,7 +711,7 @@ final class PackFrameState {
         return updateViewport(width, height);
     }
 
-    /** Updates viewport values and reseeds reprojection history after a resize. */
+    /** Sets the viewport values; a resize reseeds the reprojection history and returns true. */
     boolean updateViewport(int width, int height) {
         width = Math.max(width, 1);
         height = Math.max(height, 1);
@@ -776,7 +773,7 @@ final class PackFrameState {
         var biome = biomeHolder.value();
         biomeCategory = BiomeIds.category(biomeHolder).ordinal();
         biomeTemperature = biome.getBaseTemperature();
-        // Iris BiomeUniforms: the biome's downfall, 0.4 in plains (Ebin's cloud coverage reads it).
+        // Iris BiomeUniforms: the biome's downfall, 0.4 in plains; Ebin's cloud coverage reads it
         rainfall = biome.getModifiedClimateSettings().downfall();
         eyeAltitude = cameraOrigin.y;
         biomeId = BiomeIds.id(biomeKey(level, biomePos));
@@ -818,29 +815,27 @@ final class PackFrameState {
     }
 
     /**
-     * Samples the level's sky for this frame and derives the celestial frame from it: the sun
-     * turns with the time of day as LevelRenderer.renderSky turns it, the moon opposite, and the
-     * sky colour is the level's at the camera entity, where Iris samples it (the sky itself draws
-     * with the colour at the camera's position).
+     * Samples the level's sky for this frame and derives the celestial frame from it. The sun turns with the
+     * time of day as LevelRenderer.renderSky turns it, and the moon sits opposite.
      */
     private void captureCelestial(ClientLevel level, Camera camera, float partialTick) {
         float sunAngle = level.getTimeOfDay(partialTick) * 360.0F;
-        // As Iris's CommonUniforms.getSkyColor: at the camera entity's position, unrounded, and zero
-        // without an entity.
+        // as Iris's CommonUniforms.getSkyColor: at the camera entity's position, unrounded, zero without one
+        // the sky itself draws with the colour at the camera's position
         Entity entity = camera.getEntity();
         Vec3 sky = entity == null ? Vec3.ZERO : level.getSkyColor(entity.position(), partialTick);
         deriveCelestial(sunAngle, sunAngle + 180.0F, (float) sky.x, (float) sky.y, (float) sky.z);
     }
 
-    /** Test seam: the same derivation from explicit host samples. */
+    /** The same derivation from explicit host samples. */
     void setCelestialForTest(float sunAngleDegrees, float moonAngleDegrees,
                              float skyRed, float skyGreen, float skyBlue) {
         deriveCelestial(sunAngleDegrees, moonAngleDegrees, skyRed, skyGreen, skyBlue);
     }
 
     /**
-     * One source for the pack-facing angles and positions, the up direction, and the shadow light
-     * vector, so a caster and a receiver cannot disagree about where the light is.
+     * One source for the pack-facing angles and positions, the up direction and the shadow light vector, so
+     * a caster and a receiver cannot disagree about where the light is.
      */
     private void deriveCelestial(float sunAngleDegrees, float moonAngleDegrees,
                                  float skyRed, float skyGreen, float skyBlue) {
@@ -868,7 +863,7 @@ final class PackFrameState {
         return level.getBiome(pos).unwrapKey().map(key -> key.location()).orElse(null);
     }
 
-    /** The pack's precipitation input: none, rain or snow, as the packs compare it. */
+    /** biome_precipitation: 0 for none, 1 for rain, 2 for snow. */
     private static int precipitation(Biome biome, BlockPos pos) {
         return switch (biome.getPrecipitationAt(pos)) {
             case NONE -> 0;
@@ -897,7 +892,7 @@ final class PackFrameState {
         return session.failures();
     }
 
-    /** Returns true when the atlas size served to the next draw changed. */
+    /** True when the atlas size served to the next draw changed. */
     boolean setAtlasSize(int width, int height) {
         if (atlasSize[0] == width && atlasSize[1] == height) return false;
         atlasSize[0] = width;
@@ -905,12 +900,12 @@ final class PackFrameState {
         return true;
     }
 
-    /** Returns true when the next draw's gtextureSize or blendFunc changed (IrisDrawState). */
+    /** True when the next draw's gtextureSize or blendFunc changed (IrisDrawState). */
     boolean setDrawState(int width, int height, PackBlendPlan.Mode programBlend, PipelineState.BlendInfo host) {
         return drawState.set(width, height, programBlend, host);
     }
 
-    /** Returns true when the per-draw entity alpha reference changed. */
+    /** True when the per-draw entity alpha reference changed. */
     boolean setEntityAlphaReference(float reference) {
         if (Float.compare(this.entityAlphaReference, reference) == 0) return false;
         this.entityAlphaReference = reference;
@@ -923,14 +918,14 @@ final class PackFrameState {
         return true;
     }
 
-    /** Returns true when the fog colour (Iris fogColor) changed. */
+    /** True when the fog colour (Iris fogColor) changed. */
     boolean setFogColor(float[] color) {
         if (Arrays.equals(this.fogColor, 0, 4, color, 0, 4)) return false;
         System.arraycopy(color, 0, this.fogColor, 0, 4);
         return true;
     }
 
-    /** Returns true when the fog range (Iris fogStart and fogEnd) changed. */
+    /** True when the fog range (Iris fogStart and fogEnd) changed. */
     boolean setFogRange(float start, float end) {
         if (Float.compare(this.fogStart, start) == 0 && Float.compare(this.fogEnd, end) == 0) return false;
         this.fogStart = start;
@@ -948,14 +943,14 @@ final class PackFrameState {
         irisWorld.captureFogShape();
     }
 
-    /** Starts a frame's fog latches: each program reads its per-frame fog afresh at its next draw. */
+    /** Each program reads its per-frame fog afresh at its next draw. */
     void beginFogFrame() {
         irisWorld.beginFrame();
     }
 
     /**
-     * Serves the next draw of {@code program} its per-frame fog values (IrisWorldState); a null
-     * program, a compute dispatch, reads the current ones. True when the served values changed.
+     * Serves the next draw of {@code program} its per-frame fog values (IrisWorldState); a null program, a
+     * compute dispatch, reads the current ones. True when the served values changed.
      */
     boolean latchProgramFog(Object program) {
         return irisWorld.latchProgramFog(program, this);
@@ -1100,10 +1095,9 @@ final class PackFrameState {
     }
 
     /**
-     * The inverse Iris serves (MatrixUniforms.Inverted: a plain invert), or identity for a
-     * singular matrix, whose inverse is not finite. A small determinant is not singular: a shadow
-     * projection over 512 blocks has one near 3e-8, and its true inverse is what a pack's shadow
-     * vertex stage undoes ftransform() with.
+     * The inverse Iris serves (MatrixUniforms.Inverted, a plain invert), or identity for a singular matrix,
+     * whose inverse is not finite. A small determinant is not singular: a shadow projection over 512 blocks
+     * has one near 3e-8, and a pack's shadow vertex stage undoes ftransform() with its true inverse.
      */
     private static void invertOrIdentity(Matrix4f source, Matrix4f destination) {
         source.invert(destination);
@@ -1115,9 +1109,9 @@ final class PackFrameState {
     }
 
     /**
-     * The camera position packs see. Like Iris, the origin moves by whole multiples of 30,000 blocks
-     * once the camera walks past that range or teleports, so pack-facing coordinates stay small
-     * enough for float precision. The raw values keep the world position for block and biome lookups.
+     * The camera position packs see. As in Iris, the origin moves by whole multiples of 30,000 blocks once
+     * the camera walks past that range or teleports, so pack-facing coordinates stay small enough for float
+     * precision. The raw values keep the world position for block and biome lookups.
      */
     private static final class CameraOrigin {
         double rawX;

@@ -2,7 +2,7 @@ package net.chimera.shaderpack;
 
 import org.junit.jupiter.api.Test;
 
-/** Fixture checks for the load-time "program draws nothing" proof. */
+/** The load-time proof that a program draws nothing: an unconditional discard and no write anywhere. */
 final class AuthoredOutputTest {
     private static final String VERTEX = """
             #version 120

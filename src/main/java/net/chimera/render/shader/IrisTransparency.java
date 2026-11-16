@@ -15,9 +15,9 @@ public enum IrisTransparency {
     OPAQUE, OPAQUE_DECAL, GENERAL_TRANSPARENT, DECAL, WATER_MASK, LINES;
 
     /**
-     * The type's transparency as Iris sets it (MixinSheets, then MixinCompositeRenderType): a type that
-     * is no composite reads GENERAL_TRANSPARENT, Iris's default for any render type. The bolt's type
-     * reads the lightning type it wraps, as Iris's InnerWrappedRenderType does.
+     * The type's transparency as Iris sets it (MixinSheets, then MixinCompositeRenderType). A non-composite
+     * type reads GENERAL_TRANSPARENT, Iris's default for any render type. The bolt's type reads the lightning
+     * type it wraps, as Iris's InnerWrappedRenderType does.
      */
     public static IrisTransparency of(RenderType type) {
         RenderType drawn = LightningBoltRenderType.unwrap(type);

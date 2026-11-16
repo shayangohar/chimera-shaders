@@ -9,24 +9,26 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Iris's cross-stage repair (CompatibilityTransformer.transformGrouped), applied to each pair of
- * adjacent stages: the earlier stage, from the inputs the later stage declares. For each numeric
- * input, gl_ names aside, that is not an array (beyond the one dimension, one element per vertex,
- * that a tessellation or geometry stage's input takes):
+ * Iris's cross-stage repair (CompatibilityTransformer.transformGrouped), applied to each pair of adjacent
+ * stages: the earlier stage is edited to fit the inputs the later stage declares.
+ *
+ * Each numeric input outside gl_ that is not an array, beyond the per-vertex dimension a tessellation or
+ * geometry stage's input takes, is matched against the earlier stage's output of its name:
  * <ul>
- *   <li>No output of its name, and the later stage reads it: the earlier stage gains an output with
- *   the input's qualifiers and element type, set to zero at the start of main
- *   (VARYING_UNWRITTEN_ZEROED). Bloop's overworld shadow writes lmtexcoord without declaring it.</li>
- *   <li>An output of its type that the earlier stage never names again: the output is set to zero at
- *   the start of main (VARYING_UNASSIGNED_ZEROED).</li>
- *   <li>A non-array output of another type of the same kind (scalar, vector, matrix): the output
- *   takes the input's type, and the earlier stage writes a global of the old type that the end of
- *   main converts into it (VARYING_TYPE_CONVERTED).</li>
+ *   <li>no output, and the later stage reads the input: the earlier stage gains an output with the
+ *   input's qualifiers and type, zeroed at the start of main (VARYING_UNWRITTEN_ZEROED);</li>
+ *   <li>an output of the same type that the earlier stage never names again: it is zeroed at the start
+ *   of main (VARYING_UNASSIGNED_ZEROED);</li>
+ *   <li>a non-array output of another type of the same kind (scalar, vector, matrix): the output takes
+ *   the input's type, and the stage writes a global of the old type that the end of main converts into
+ *   it (VARYING_TYPE_CONVERTED).</li>
  * </ul>
- * An output array, or an output of another kind, stays as written; the stage match refuses it,
- * as Iris's link does. So do the edits Iris makes that would not compile or would never reach a
- * vertex: a tessellation control stage's outputs are arrays, which the outputs Iris adds are not,
- * and a geometry stage would convert a retyped output after its last EmitVertex.
+ * An output array, or an output of another kind, stays as written and the stage match refuses it, as
+ * Iris's link does.
+ *
+ * Two of Iris's edits are skipped because they would not compile or would never reach a vertex. A
+ * tessellation control stage is left alone, since its outputs are arrays and the outputs Iris adds are
+ * not. A geometry stage is not retyped, since it would convert after its last EmitVertex.
  */
 final class CrossStageRepair {
     private CrossStageRepair() {}
@@ -42,7 +44,6 @@ final class CrossStageRepair {
     /** The repaired source of the earlier stage, and one deviation per name it repaired. */
     record Result(String earlier, List<String> deviations) {}
 
-    /** One interface variable: the declaration and declarator that make it, its name and type. */
     private record Variable(GlslTree.Declaration declaration, GlslTree.Declarator declarator, String name,
                             String type) {
         /** Whether the variable is an array beyond the one dimension a per-vertex input takes. */
@@ -52,12 +53,12 @@ final class CrossStageRepair {
         }
     }
 
-    /** The repair of a program's vertex stage from its fragment stage, with nothing between them. */
+    /** Repairs a program's vertex stage against its fragment stage, with nothing between them. */
     static Result repair(String vertex, String fragment) {
         return repair(vertex, GlslInterfaceScanner.Stage.VERTEX, fragment, GlslInterfaceScanner.Stage.FRAGMENT);
     }
 
-    /** The repair of {@code earlier} from the inputs of {@code later}, the stage GL links after it. */
+    /** Repairs {@code earlier} against the inputs of {@code later}, the stage GL links after it. */
     static Result repair(String earlier, GlslInterfaceScanner.Stage earlierStage, String later,
                          GlslInterfaceScanner.Stage laterStage) {
         Result unchanged = new Result(earlier, List.of());
@@ -81,7 +82,7 @@ final class CrossStageRepair {
         return edits.result(main);
     }
 
-    /** Iris's repair of one input against the earlier stage's output of its name, null when none. */
+    /** Iris's repair of one input against the earlier stage's output of its name; {@code output} may be null. */
     private static void repairInput(Edits edits, GlslTree earlierTree, GlslTree laterTree, Variable input,
                                     Variable output, boolean converts) {
         if (output == null) {
@@ -141,9 +142,9 @@ final class CrossStageRepair {
     }
 
     /**
-     * The storage an added output takes: the earlier stage's own outputs' storage, or for a stage that
-     * declares none, {@code varying} before GLSL 1.30 and {@code out} from it. A modern post vertex
-     * whose version line the normalizer dropped keeps its {@code out}.
+     * Storage for an added output: the stage's own outputs' storage, so a modern post vertex stage whose
+     * version line the normalizer dropped keeps {@code out}. A stage with no outputs gets {@code varying}
+     * before GLSL 1.30 and {@code out} from it.
      */
     private static String outputStorage(GlslTree tree, Collection<Variable> outputs, String source) {
         for (Variable output : outputs) {
@@ -155,8 +156,8 @@ final class CrossStageRepair {
     }
 
     /**
-     * A numeric type's zero. LegacyShaderNormalizer starts referenced outputs at the same
-     * statement, so it adds none beside a repaired one.
+     * A numeric type's zero. LegacyShaderNormalizer zeroes referenced outputs with the same statement, so it
+     * adds no second one beside a repaired output.
      */
     static String zero(String type) {
         return type + "(0)";

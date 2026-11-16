@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Shrimple's spider and enderman eyes drew black. The eyes render type sets no overlay, so the
- * overlay unit held VulkanMod's 1x1 white image while UV1 was vanilla's NO_OVERLAY (0, 10); the
- * fetch fell outside the image, NVIDIA read zero, and entityColor came out opaque black, which
- * Shrimple mixes over the eye texture. Iris's GL reads unbound texture 0 as (0, 0, 0, 1).
+ * The eyes render type sets no overlay, so the overlay unit holds VulkanMod's 1x1 white image while
+ * UV1 is vanilla's NO_OVERLAY (0, 10). Iris's GL reads unbound texture 0 as (0, 0, 0, 1), and an
+ * out-of-range fetch reads that too. NVIDIA reads zero there, an opaque black entityColor that
+ * Shrimple mixes over its spider and enderman eyes.
  */
 final class EntityOverlayColorTest {
     private static final String FRAGMENT =

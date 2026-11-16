@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A lossless parse of one GLSL source over {@link GlslLexer} tokens. Every node names a
- * range of token indices, so comments and whitespace stay in the token list and an unedited region
- * prints exactly as written. The tree reaches statements: a function body holds blocks, control
- * statements and local declarations, which is enough to resolve a name through its scopes.
- * Expressions stay token ranges until a pass needs more. Pure Java, with no host types.
+ * A lossless parse of one GLSL source over {@link GlslLexer} tokens. Every node names a range of token indices,
+ * so comments and whitespace stay in the token list and an unedited region prints exactly as written.
+ *
+ * The tree reaches statements: a function body holds blocks, control statements and local declarations, which
+ * is enough to resolve a name through its scopes. Expressions stay token ranges. Pure Java, with no host types.
  */
 final class GlslTree {
     /** Token indices {@code [start, end)}; a node's range starts and ends on a significant token. */
@@ -104,14 +104,13 @@ final class GlslTree {
         this.externals = externals;
     }
 
-    /** The parsed text, as given. */
     String source() {
         return source;
     }
 
     /**
-     * The latest trees. A program's conversion steps each parse the source they are handed, and
-     * many hand on the same text unchanged.
+     * The eight most recently used trees. A program's conversion steps each parse the source they are handed,
+     * and many hand on the same text unchanged.
      */
     private static final Map<String, GlslTree> RECENT = new LinkedHashMap<>(16, 0.75F, true) {
         @Override
@@ -176,7 +175,7 @@ final class GlslTree {
         }
     }
 
-    /** Which tokens belong to a directive: {@code directive[token]} for every token. */
+    /** For each token, whether it belongs to a directive. */
     boolean[] directiveTokens() {
         boolean[] directive = new boolean[tokens.size()];
         for (Directive value : directives()) {
@@ -204,16 +203,14 @@ final class GlslTree {
         return line;
     }
 
-    /** The source as written: every token, trivia included. */
     String print() {
         return print(List.of());
     }
 
     /**
-     * The source with each edit's range replaced by its text. An empty range inserts its text
-     * before the token it starts at, or at the end of the source; several insertions at one
-     * position keep their given order, ahead of a replacement starting there. Edits must not
-     * overlap.
+     * The source with each edit's range replaced by its text. An empty range inserts its text before the token
+     * it starts at, or at the end of the source. Several insertions at one position keep their given order,
+     * ahead of a replacement starting there. Edits must not overlap.
      */
     String print(List<Edit> edits) {
         List<Edit> ordered = new ArrayList<>(edits);
@@ -232,10 +229,10 @@ final class GlslTree {
     }
 
     /**
-     * The declaration the identifier at {@code token} names, as GLSL scopes resolve it: the
-     * innermost block first, then a for loop's init, the function's parameters, and file scope.
-     * A declaration counts from its name on. Null for a field access ({@code value.name}) and for
-     * a name the source does not declare (a built-in).
+     * The declaration the identifier at {@code token} names, as GLSL scopes resolve it: the innermost block
+     * first, then a for loop's init, the function's parameters, and file scope. A variable is visible from its
+     * name on, or after its initializer when it has one. Null for a field access ({@code value.name}) and for a
+     * name the source does not declare, such as a built-in.
      */
     Binding resolve(int token) {
         GlslLexer.Token target = tokens.get(token);

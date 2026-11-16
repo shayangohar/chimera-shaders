@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-/** The option sweep's pack copies: a folder pack arrives whole, and the player's option file stays behind. */
+/** OptionSweepTest's pack copies: a folder pack arrives whole, and the player's option file stays behind. */
 final class TestPacksCopyTest {
     @Test
     void aFolderPackIsCopiedWholeAndAnOlderCopyIsReplaced(@TempDir Path root) throws IOException {

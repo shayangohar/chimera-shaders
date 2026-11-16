@@ -18,14 +18,15 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Iris's player, HUD, clock and Distant Horizons uniforms, captured once per frame. Each value
- * follows the Iris 1.21.1 supplier it is named after ({@code CommonUniforms},
- * {@code IrisExclusiveUniforms}, {@code IrisTimeUniforms}, {@code DHCompat}), including the -1
- * Iris reports for player stats outside survival. Distant Horizons is not supported, so the
- * {@code dh*} values are the ones Iris serves when DH is absent.
+ * Iris's player, HUD, clock and Distant Horizons uniforms, captured once per frame.
+ *
+ * Each value follows the Iris 1.21.1 supplier it is named after ({@code CommonUniforms},
+ * {@code IrisExclusiveUniforms}, {@code IrisTimeUniforms}, {@code DHCompat}), including the -1 Iris reports
+ * for player stats outside survival. Chimera does not support Distant Horizons, so the {@code dh*} values are
+ * the ones Iris serves without it.
  */
 final class IrisPlayerState implements FrameValueSource {
-    /** Every scalar or vector name this snapshot answers; matrices stay with the frame state. */
+    /** Scalar and vector names only; matrices stay with the frame state. */
     static final Set<String> NAMES = Set.of(
             "hideGUI", "isRightHanded", "firstPersonCamera", "isSpectator",
             "currentPlayerHealth", "maxPlayerHealth", "currentPlayerHunger", "maxPlayerHunger",
@@ -83,7 +84,6 @@ final class IrisPlayerState implements FrameValueSource {
         return 0.0f;
     }
 
-    /** The HUD, hand, camera and spectator state from the options and game mode, and the Color Space setting. */
     private void captureOptions(Minecraft minecraft) {
         this.hideGui = minecraft.options.hideGui;
         this.rightHanded = minecraft.options.mainHand().get() == HumanoidArm.RIGHT;
@@ -95,7 +95,7 @@ final class IrisPlayerState implements FrameValueSource {
                 && minecraft.gameMode.getPlayerMode() == GameType.SPECTATOR;
     }
 
-    /** Iris's player stats, -1 outside survival, and its player flags. */
+    /** Player stats read -1 outside survival, as Iris reports them. */
     private void capturePlayerStats(Minecraft minecraft) {
         LocalPlayer player = minecraft.player;
         boolean survival = player != null && minecraft.gameMode != null
@@ -122,7 +122,7 @@ final class IrisPlayerState implements FrameValueSource {
         this.playerFlags.put("is_alive", player.isAlive());
     }
 
-    /** Iris's clock uniforms: the local date and time, and the seconds gone and left in the year. */
+    /** The local date and time, and the seconds gone and left in the year. */
     private void captureClock() {
         LocalDateTime now = LocalDateTime.now();
         this.date[0] = now.getYear();
@@ -137,7 +137,7 @@ final class IrisPlayerState implements FrameValueSource {
         this.yearTime[1] = now.toLocalDate().lengthOfYear() * 86400 - elapsed;
     }
 
-    /** No level: Iris's values with no player. */
+    /** Iris's values with no level or player. */
     void clear() {
         this.spectator = false;
         this.health = this.maxHealth = this.hunger = this.armor = this.air = this.maxAir = -1.0f;
@@ -150,7 +150,6 @@ final class IrisPlayerState implements FrameValueSource {
         return NAMES;
     }
 
-    /** The scalar, or one component of the vector, Iris serves under a name. */
     public double value(String name, int component) {
         int c = Math.max(component, 0);
         return switch (name) {
@@ -160,7 +159,7 @@ final class IrisPlayerState implements FrameValueSource {
             case "isSpectator" -> flag(this.spectator);
             case "pi" -> (float) Math.PI;
             case "lastFrameTime" -> this.lastFrameTime;
-            // IrisExclusiveUniforms: the Color Space setting; a supportsColorCorrection pack converts to it.
+            // IrisExclusiveUniforms: the Color Space setting, which a supportsColorCorrection pack converts to
             case "currentColorSpace" -> this.colorSpace;
             case "playerBodyVector" -> c < 3 ? this.bodyVector[c] : Double.NaN;
             case "currentDate" -> c < 3 ? this.date[c] : Double.NaN;
@@ -168,10 +167,10 @@ final class IrisPlayerState implements FrameValueSource {
             case "currentYearTime" -> c < 2 ? this.yearTime[c] : Double.NaN;
             case "dhNearPlane", "dhFarPlane" -> DH_ABSENT_PLANE;
             case "dhRenderDistance" -> this.renderDistance;
-            // CommonUniforms serves blockEntityId and currentRenderedItemId as the constant -1, and
-            // entityId as the entity being drawn (CapturedRenderingState), which Iris sets back to 0
-            // after each entity (MixinEntityRenderDispatcher). Entity-layout programs read all three
-            // per vertex instead (EntityDeclarations), as Iris's EntityPatcher does.
+            // CommonUniforms serves blockEntityId and currentRenderedItemId as the constant -1, and entityId
+            // as the entity being drawn, which Iris resets to 0 after each entity (MixinEntityRenderDispatcher)
+            // entity-layout programs read all three per vertex instead (EntityDeclarations), as Iris's
+            // EntityPatcher does
             case "blockEntityId", "currentRenderedItemId" -> -1;
             case "entityId" -> 0;
             default -> playerStat(name);
@@ -195,12 +194,12 @@ final class IrisPlayerState implements FrameValueSource {
         };
     }
 
-    /** IrisExclusiveUniforms' player flags ({@code is_hurt}, {@code is_alive}, ...); NaN for other names. */
+    /** IrisExclusiveUniforms' player flags such as {@code is_hurt}; NaN for other names. */
     private double playerFlag(String name) {
         return NAMES.contains(name) ? flag(this.playerFlags.getOrDefault(name, false)) : Double.NaN;
     }
 
-    /** Writes a name in its declared type: integer types as ints, the rest as floats. */
+    /** Integer and bool types are written as ints, the rest as floats. */
     @Override
     public void write(String name, String type, MappedBuffer target) {
         int count = componentCount(type);

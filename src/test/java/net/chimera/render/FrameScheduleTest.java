@@ -144,11 +144,9 @@ final class FrameScheduleTest {
     }
 
     /**
-     * Models two complete frames plus the failure seams a temporal reader
-     * depends on. History must advance every committed frame, a skipped
-     * writer must retain (not invent) previous availability exactly as the
-     * runtime seeds it, an aborted frame must keep the last commit, and a
-     * resize/reload must restart with no stale previous frame.
+     * Two full frames and the failure cases a temporal reader depends on. History advances with every
+     * committed frame; a skipped writer keeps the previous frame available as the runtime seeds it; an
+     * aborted frame keeps the last commit; a resize or reload restarts with no previous frame.
      */
     private static void verifyTwoFrameHistory() {
         PackTemporalState frames = new PackTemporalState();
@@ -166,17 +164,15 @@ final class FrameScheduleTest {
         assertTrue(frames.commit(), "second history commit failed");
         assertTrue(frames.previousAvailable(2), "second frame produced no history");
 
-        // Skipped writer: the runtime still seeds a valid persistent
-        // target at frame start, so the previous frame stays available
-        // instead of degrading to unseeded history.
+        // skipped writer: the runtime still seeds the persistent target at frame start, so the
+        // previous frame stays available
         frames.beginFrame(true);
         frames.seedCurrent(2);
         assertTrue(frames.commit(), "skipped-writer commit failed");
         assertTrue(frames.previousAvailable(2),
                 "skipped writer must retain the last committed history");
 
-        // Failed writer: abort drops the pending write and the commit is
-        // refused, so the last good history survives untouched.
+        // failed writer: abort drops the pending write, so the last committed history survives
         frames.beginFrame(true);
         frames.seedCurrent(2);
         frames.stageWrite(2);
@@ -184,7 +180,7 @@ final class FrameScheduleTest {
         assertTrue(frames.previousAvailable(2),
                 "aborted frame must keep the last committed history");
 
-        // Resize/reload restarts the sequence with no stale previous frame.
+        // a resize or reload restarts the sequence with no previous frame
         frames.reset();
         assertTrue(frames.firstFrame(), "reset did not restart the frame sequence");
         frames.beginFrame(true);

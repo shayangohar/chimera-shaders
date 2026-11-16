@@ -1,6 +1,6 @@
 package net.chimera.shaderpack;
 
-/** Immutable active resource declaration from shaders.properties. */
+/** A resource declaration from shaders.properties; stage {@code *} applies to every stage. */
 public record PackResourceDeclaration(
         String key,
         String stage,

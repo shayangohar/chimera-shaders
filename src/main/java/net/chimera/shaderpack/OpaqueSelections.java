@@ -7,14 +7,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A sampler or image chosen by a conditional as a call's first argument:
- * {@code textureLod(altFrame ? texDiffuseRT : texDiffuseRT_alt, uv, 0)}. NVIDIA's GL compiler
- * takes an opaque value as a {@code ?:} operand; GLSL does not, and glslang refuses it ("no
- * operation ':' exists that takes a left-hand operand of type ... sampler2D"). Shrimple's traced
- * lighting (composite11.csh, composite12) reads its ping-pong history this way, so its RTX profile
- * fell back. The choice moves out of the call, which then reads the texel GL's would:
- * {@code ((altFrame) ? textureLod(texDiffuseRT, uv, 0) : textureLod(texDiffuseRT_alt, uv, 0))}.
- * Only the branch taken runs, so the other arguments still run once.
+ * Moves a sampler or image chosen by a conditional out of a call's first argument, as in
+ * {@code textureLod(altFrame ? texDiffuseRT : texDiffuseRT_alt, uv, 0)}. NVIDIA's GL compiler takes an opaque
+ * value as a {@code ?:} operand; GLSL does not, and glslang refuses it with "no operation ':' exists that takes
+ * a left-hand operand of type ... sampler2D". Shrimple's traced lighting reads its ping-pong history this way.
+ *
+ * The rewritten call reads the texel GL's would:
+ * {@code ((altFrame) ? textureLod(texDiffuseRT, uv, 0) : textureLod(texDiffuseRT_alt, uv, 0))}. Only the branch
+ * taken runs, so the other arguments still run once.
  */
 final class OpaqueSelections {
     private OpaqueSelections() {}
@@ -22,7 +22,7 @@ final class OpaqueSelections {
     /** A declaration of an opaque variable or parameter: its type, then its name. */
     private static final Pattern OPAQUE_DECLARATION = Pattern.compile(
             "\\b[iu]?(?:sampler|image)[0-9A-Za-z]*\\s+([A-Za-z_]\\w*)");
-    /** Rewrites inside a rewritten call's other arguments wait for the next round; this bounds the rounds. */
+    /** Selections inside a rewritten call's other arguments wait for the next round; this bounds the rounds. */
     private static final int MAX_ROUNDS = 8;
 
     /** {@code source} with every call's conditional opaque first argument moved out of the call. */
@@ -64,9 +64,9 @@ final class OpaqueSelections {
     }
 
     /**
-     * A call at {@code open}, its opening parenthesis, whose first argument is {@code c ? a : b}
-     * with {@code a} and {@code b} opaque names: the tokens of the call's name, the {@code ?},
-     * {@code a}, {@code b}, the end of the first argument and the closing parenthesis.
+     * A call whose first argument is {@code c ? a : b} with {@code a} and {@code b} opaque names, as token
+     * indices: the call's name, its opening parenthesis, the {@code ?}, {@code a}, {@code b}, the end of the
+     * first argument and the closing parenthesis.
      */
     private record Selection(int name, int open, int question, int first, int second, int argumentEnd,
                              int close) {

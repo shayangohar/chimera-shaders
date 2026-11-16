@@ -40,7 +40,7 @@ final class BlockPropertiesResolverTest {
 
     /**
      * ChimeraTerrainPipelines tells material maps apart by identity. A new empty map on each reset
-     * counted as a change, so each reset to vanilla rebuilt the live level in extended mode.
+     * would count as a change, and each reset to vanilla would rebuild the live level in extended mode.
      */
     @Test
     void theEmptyMapIsOneMap() {
@@ -57,11 +57,11 @@ final class BlockPropertiesResolverTest {
         assertEquals(-1, resolver.resolveName("minecraft:oak_planks"), "a predicate entry is no plain mapping");
         assertEquals(11, resolver.resolveName("minecraft:stone"),
                 "conflicting mapping: the first wins, as in Iris BlockMaterialMapping");
-        // BSL and Complementary map tall grass by half and leaves by waterlogged.
+        // BSL and Complementary map tall grass by half and leaves by waterlogged
         assertEquals(13, resolver.resolveState("minecraft:tall_grass", Map.of("half", "lower")::get),
                 "namespaced predicate");
         assertEquals(13, resolver.resolveState("tall_grass", Map.of("half", "upper")::get), "unqualified predicate");
-        // Iris ignores a predicate on a property the block does not have (null here).
+        // Iris ignores a predicate on a property the block does not have (null here)
         assertEquals(13, resolver.resolveState("minecraft:tall_grass", Map.<String, String>of()::get),
                 "a predicate on a missing property");
         assertEquals(-1, resolver.resolveState("minecraft:tall_grass", Map.of("half", "middle")::get),
@@ -79,13 +79,13 @@ final class BlockPropertiesResolverTest {
     @Test
     void theFirstEntryInFileOrderWins(@TempDir Path root) throws IOException {
         PackMaterialResolver resolver = parse(root).resolver();
-        // Iris putIfAbsent: poppy's plain mapping precedes its age predicate.
+        // Iris's putIfAbsent: poppy's plain mapping precedes its age predicate
         assertEquals(16, resolver.resolveState("minecraft:poppy", Map.of("age", "1")::get),
                 "an earlier plain mapping wins over a later predicate");
-        // Iris compares a value exactly: "1,2" is no list, so it matches no state.
+        // Iris compares a value exactly: "1,2" is no list, so it matches no state
         assertEquals(-1, resolver.resolveState("minecraft:birch_leaves", Map.of("distance", "1")::get),
                 "a comma value is one literal value");
-        // A segment that is no key=value is skipped; the rest still applies.
+        // a segment that is no key=value is skipped; the rest still applies
         assertEquals(17, resolver.resolveState("minecraft:spruce_leaves", Map.of("persistent", "true")::get),
                 "a malformed predicate is skipped");
     }
@@ -221,12 +221,12 @@ final class BlockPropertiesResolverTest {
     }
 
     /**
-     * JCPP lexes the whole file, so a block comment runs across lines: a directive line
-     * that leaves one open takes the lines up to its close and goes on after it (CUSTOM is 1 + 1);
-     * a directive inside a comment is comment text, in an inactive branch too; an active comment's
-     * text is kept as written, macros unexpanded (KEEPCOMMENTS), and Properties.load reads it. A
-     * {@code #} line naming no JCPP directive is emptied first, comment marks and all. Each value
-     * here is what Iris's PropertiesPreprocessor and Properties.load give for this file.
+     * JCPP lexes the whole file, so a block comment runs across lines. A directive line that leaves
+     * one open takes the lines up to its close and goes on after it (CUSTOM is 1 + 1). A directive
+     * inside a comment is comment text, in an inactive branch too. An active comment's text is kept
+     * as written, macros unexpanded (KEEPCOMMENTS), and Properties.load reads it. A {@code #} line
+     * naming no JCPP directive is emptied first, comment marks and all. Each value here is what
+     * Iris's PropertiesPreprocessor and Properties.load give for this file.
      */
     @Test
     void aBlockCommentRunsAcrossLinesAsJcppLexesIt(@TempDir Path root) throws IOException {
@@ -307,11 +307,11 @@ final class BlockPropertiesResolverTest {
     }
 
     /**
-     * JCPP reports a conditional it cannot read and reads on: an #if or #elif Chimera
-     * cannot evaluate, and an empty #if, read false; an empty #ifdef takes block.8, the line after
-     * it (anIfdefWithoutANameLeavesItsBranchOn); a second #else and an #elif after #else are
-     * ignored; a stray #endif is ignored and a stray #else turns the rest off. The file
-     * used to read nothing (CONDITION_UNSUPPORTED). The entries are JCPP's for this file.
+     * JCPP reports a conditional it cannot read and reads on. An #if or #elif Chimera cannot
+     * evaluate, and an empty #if, read false; an empty #ifdef takes block.8, the line after it
+     * (anIfdefWithoutANameLeavesItsBranchOn). A second #else and an #elif after #else are ignored;
+     * a stray #endif is ignored and a stray #else turns the rest off. The file reports
+     * CONDITION_UNSUPPORTED and still reads. The entries are JCPP's for this file.
      */
     @Test
     void aConditionalJcppCannotReadIsReportedAndSkipped(@TempDir Path root) throws IOException {
@@ -391,7 +391,7 @@ final class BlockPropertiesResolverTest {
         assertEquals("DIRT", entries.get("block.2"), "a line that does not start with # loses its sign first");
         assertEquals("c */ define DIRT dirt", entries.get("/*"));
 
-        // A comment that opened after other text keeps the line it closes on from starting a directive.
+        // a comment that opened after other text keeps the line it closes on from starting a directive
         Files.writeString(root.resolve("block.properties"), """
                 #if 0
                 block.0=a /* c
@@ -453,8 +453,8 @@ final class BlockPropertiesResolverTest {
         assertEquals(List.of("block.1", "block.8", "block.11", "block.12", "block.13"),
                 List.copyOf(file.entries().keySet()));
 
-        // The taken line is the first with text after Iris's line pass, which empties # comments;
-        // a name is a Java identifier to JCPP, so #ifndef $X tests an undefined $X.
+        // the taken line is the first with text after Iris's line pass, which empties # comments
+        // a name is a Java identifier to JCPP, so #ifndef $X tests an undefined $X
         Files.writeString(root.resolve("block.properties"), """
                 #ifdef
                 # comment

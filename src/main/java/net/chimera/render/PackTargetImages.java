@@ -60,10 +60,10 @@ import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
 import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
 
 /**
- * Pack target images: allocation, the device checks their formats need, clears, copies, mip
- * chains and samplers. An integer target (IrisColorFormats) samples nearest, as Iris's do (Iris
- * RenderTarget, CompositeRenderer); its clears and mip chains are Chimera's defined stand-ins for
- * what GL leaves undefined or refuses.
+ * Pack target images: allocation, the device checks their formats need, clears, copies, mip chains and
+ * samplers. An integer target (IrisColorFormats) samples nearest, as Iris's RenderTarget and
+ * CompositeRenderer do; its clears and mip chains are Chimera's defined stand-ins for what GL leaves
+ * undefined or refuses.
  */
 final class PackTargetImages {
     private PackTargetImages() {}
@@ -79,8 +79,8 @@ final class PackTargetImages {
 
     /** Checks the device features the targets' formats rely on before any image is allocated. */
     static void verifyFormats(Collection<TargetSpec> targets) {
-        // These formats' sampled/attachment features are not mandatory on every device. Reject
-        // unsupported storage rather than silently substituting a format that stores other values.
+        // these formats' sampled and attachment features are optional; a device without them fails the
+        // targets, since another format would store different values
         targets.stream().map(TargetSpec::format).filter(OPTIONAL_TARGET_FORMATS::contains)
                 .distinct().forEach(PackTargetImages::verifyOptionalTargetSupport);
         targets.stream().filter(TargetSpec::mipmapped).map(TargetSpec::format)
@@ -104,14 +104,14 @@ final class PackTargetImages {
                         | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                         | (storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0))
                 .setMipLevels(target.mipLevels())
-                // Reforged makes per-level views only on request. A mipmapped target renders to level 0
-                // through one, as does a padded-alpha target, whose main view reads alpha as 1.
+                // Reforged makes per-level views only on request; a mipmapped target renders to level 0 through one
+                // so does a padded-alpha target, whose main view reads alpha as 1
                 .setLevelViews(target.mipLevels() > 1 || target.paddedAlpha())
                 .setLinearFiltering(!IrisColorFormats.integer(target.format()))
                 .setClamp(true)
                 .createVulkanImage(), target.format(), storage ? storageFormats : Set.of());
         if (target.paddedAlpha()) ImageViews.sampleAlphaAsOne(image);
-        // Iris samples the base level until a program's pass generates the chain.
+        // Iris samples the base level until a program's pass generates the chain
         if (image.mipLevels > 1) sampleWith(image, baseLevelSampler(image));
         return image;
     }
@@ -123,7 +123,6 @@ final class PackTargetImages {
         requireFeatures(format, required, "mipmapped target format", "blit");
     }
 
-    /** Check an optional exact format before allocating any target images. */
     private static void verifyOptionalTargetSupport(int format) {
         requireFeatures(format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
                 | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
@@ -204,7 +203,7 @@ final class PackTargetImages {
 
     /** Generates the image's mip chain and samples it through every level, as Iris does after a pass. */
     static void buildMipChain(MemoryStack stack, VkCommandBuffer commandBuffer, VulkanImage image) {
-        // One tracked layout covers the chain; TRANSFER_DST keeps level 0's contents.
+        // one tracked layout covers the chain; TRANSFER_DST keeps level 0's contents
         image.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         boolean integer = IrisColorFormats.integer(image.format);
         recordMipChain(stack, commandBuffer, image.getId(), image.width, image.height, image.mipLevels,
@@ -220,11 +219,12 @@ final class PackTargetImages {
     }
 
     /**
-     * glGenerateMipmap: each level is a downsample of the one above. An integer target downsamples
-     * nearest, Chimera's choice: the GL spec refuses glGenerateMipmap on a format it cannot filter,
-     * so where a driver follows it Iris's integer target is left mipmap-incomplete under
-     * NEAREST_MIPMAP_NEAREST and reads zero, and a lenient driver builds a chain. Every level
-     * enters in TRANSFER_DST and leaves in SHADER_READ_ONLY.
+     * glGenerateMipmap: each level is a downsample of the one above. Every level enters in TRANSFER_DST and
+     * leaves in SHADER_READ_ONLY.
+     *
+     * An integer target downsamples nearest, Chimera's choice. GL refuses glGenerateMipmap on a format it
+     * cannot filter, so a strict driver leaves Iris's integer target mipmap-incomplete under
+     * NEAREST_MIPMAP_NEAREST, reading zero, while a lenient one builds a chain.
      */
     static void recordMipChain(MemoryStack stack, VkCommandBuffer commandBuffer,
                                long image, int width, int height, int levels, int filter) {

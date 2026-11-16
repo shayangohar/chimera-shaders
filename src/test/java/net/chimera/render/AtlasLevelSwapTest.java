@@ -12,10 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Audit W7: the atlas level swap kept a sprite's VulkanMod levels only after rewriting them, and
- * recorded a swap as done before it ran, so one that stopped partway lost levels for good.
- */
+/** An atlas level swap that stops partway loses none of a sprite's VulkanMod levels. */
 final class AtlasLevelSwapTest {
     /** A rewrite that stops partway is undone whole by the restore that follows, and is not retried. */
     @Test

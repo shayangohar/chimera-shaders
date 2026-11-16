@@ -14,12 +14,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The words the settings show for a pack, as Iris finds them: a key in the game's own language
- * first, then in the pack's {@code lang} files (the player's language, then English), else the raw
- * name. Nothing is prettified, and legacy colour codes in a string are left for the font to apply.
+ * The words the settings show for a pack, found as Iris finds them: a key in the game's own language first,
+ * then in the pack's {@code lang} files for the player's language and then English, else the raw name.
+ * Nothing is prettified, and legacy colour codes are left for the font to apply.
  *
- * <p>Iris shows names, values, page titles, profiles and comments as translatable text, so
- * {@code %%} reads as {@code %}; a prefix or suffix is inserted as written.
+ * Iris shows names, values, page titles, profiles and comments as translatable text, so {@code %%} reads as
+ * {@code %}; a prefix or suffix is inserted as written.
  */
 final class OptionText {
     /** A format specifier as a translatable string reads one: {@code %s}, {@code %1$s}, {@code %%}. */
@@ -44,8 +44,8 @@ final class OptionText {
     }
 
     /**
-     * {@code %%} becomes {@code %}. A string asking for an argument cannot be formatted without
-     * one, and a translatable string then shows as written, so it is left whole.
+     * {@code %%} becomes {@code %}. A string that asks for an argument is left whole, since a translatable
+     * string with no arguments shows it as written.
      */
     static String formatted(String text) {
         if (text.indexOf('%') < 0) return text;

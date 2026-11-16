@@ -19,27 +19,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Small, source-agnostic preprocessor for the wrapper patterns used by
- * OptiFine and Iris packs. It expands includes, removes inactive branches and
- * then expands every macro ({@link GlslMacroExpander}) before the pack
- * interface is inspected or converted, as Iris preprocesses before it reads a
- * program.
+ * Preprocesses a pack program before its interface is read or converted, as Iris does: expands includes,
+ * drops inactive branches, then expands every macro ({@link GlslMacroExpander}).
  */
 public final class ShaderSourcePreprocessor {
     private static final int MAX_INCLUDE_DEPTH = 32;
-    // Iris's preprocessor has no include limit. Complementary Unbound with Euphoria Patches includes
-    // between 257 and 512 files in gbuffers_entities_translucent. The count still bounds a pack that
-    // fans out into empty includes, which the line and character budgets would not catch.
+    // Iris sets no include limit, and Complementary Unbound with Euphoria Patches includes several hundred
+    // files in gbuffers_entities_translucent; the cap still stops a pack that fans out into empty includes,
+    // which the line and character budgets would miss
     private static final int MAX_EXPANDED_FILES = 4096;
     private static final int MAX_EMITTED_LINES = 200_000;
     private static final int MAX_EXPANDED_CHARS = 4 * 1024 * 1024;
-    // A directive name ends at the first non-word character, as JCPP tokenizes it: Escheridia closes
-    // its include guard with "#endif//CLOUDS_GLSL".
+    // a directive name ends at the first non-word character, as JCPP tokenizes it; Escheridia closes its
+    // include guard with "#endif//CLOUDS_GLSL"
     private static final Pattern DIRECTIVE = Pattern.compile("^\\s*#\\s*(\\w+)(.*?)\\s*$");
     private static final Pattern INCLUDE = Pattern.compile("^[<\"]([^>\"]+)[>\"]$");
     private static final Pattern DEFINE = Pattern.compile("^([A-Za-z_]\\w*)(?:\\s+(.*))?$");
-    // A macro is function-like only when "(" follows its name directly, as in C: Noble's
-    // "#define ANIMATIONS_ENABLED (WAVING_PLANTS == 1 || ...)" is an object-like macro.
+    // a macro is function-like only when "(" follows its name directly, as in C; Noble's
+    // "#define ANIMATIONS_ENABLED (WAVING_PLANTS == 1 || ...)" is object-like
     private static final Pattern FUNCTION_DEFINE = Pattern.compile(
             "^([A-Za-z_]\\w*)\\([^)]*\\)(?:\\s*(.*))?$");
 
@@ -49,7 +46,7 @@ public final class ShaderSourcePreprocessor {
 
     private ShaderSourcePreprocessor() {}
 
-    /** True when a deviation of a prepared source only records a fact (a redefinition, a stray #endif). */
+    /** Whether {@code deviation} only records a fact, such as a redefinition or a stray #endif. */
     public static boolean isWarning(String deviation) {
         return deviation != null && WARNINGS.stream().anyMatch(deviation::startsWith);
     }
@@ -80,8 +77,8 @@ public final class ShaderSourcePreprocessor {
         Context context = new Context(shadersRoot, initialMacros, lockedMacros);
         try {
             context.process(source, sourceFile);
-            // Iris's preprocessor (JCPP) ends the source with a conditional still open and keeps what
-            // it emitted: Bloop's TAA program never closes its #ifdef TAA.
+            // JCPP, Iris's preprocessor, ends a source with a conditional still open and keeps what it
+            // emitted; Bloop's TAA program never closes its #ifdef TAA
             if (context.conditionState.open()) {
                 context.deviations.add("PREPROCESSOR_UNMATCHED_CONDITIONAL:unterminated");
             }
@@ -101,7 +98,7 @@ public final class ShaderSourcePreprocessor {
         }
     }
 
-    /** Runtime bridge for load-time stages discovered outside PackProgram. */
+    /** Public {@code prepare} for stages read outside PackProgram, such as pass computes. */
     public static Result prepareForRuntime(
             Path shadersRoot,
             Path sourceFile,
@@ -167,8 +164,7 @@ public final class ShaderSourcePreprocessor {
                         if (value != null && !value.isBlank()) {
                             this.lockedMacros.put(name, value.trim());
                         } else {
-                            // A locked name without a value is an option
-                            // switched off: the source may not define it.
+                            // a locked name without a value is an option switched off; the source may not define it
                             this.lockedUndefined.add(name);
                         }
                     }
@@ -216,7 +212,7 @@ public final class ShaderSourcePreprocessor {
             }
             String prefix = line.substring(0, start);
             if (!prefix.isBlank()) {
-                // The comments before the directive stay in the source: one may close a comment it opened.
+                // keep the comments before the directive; they may close a block comment an earlier line opened
                 if (active()) emit(prefix);
                 line = line.substring(start);
             }
@@ -238,9 +234,9 @@ public final class ShaderSourcePreprocessor {
         }
 
         /**
-         * A directive with no handler. Iris's preprocessor (JCPP) reports #error and #warning and goes
-         * on without the line (Photon's prepare stage #errors with cloud shadows off, which no switch
-         * disables); any other active one fails the source.
+         * A directive with no handler. JCPP, Iris's preprocessor, reports #error and #warning and drops the
+         * line (Photon's prepare stage reaches an #error whenever cloud shadows are off); any other active one
+         * fails the source.
          */
         private void otherDirective(String directive) {
             if (!active()) return;
@@ -421,36 +417,39 @@ public final class ShaderSourcePreprocessor {
     }
 
     /**
-     * Logical lines over a stack of sources. GLSL 3.3 section 3.1: a backslash right before a
-     * newline splices the two lines before any directive is parsed. A comment is one space to a C
-     * preprocessor, so a block comment a directive line leaves open joins the lines up to its close
-     * into that directive, which goes on after it: in JCPP, {@code #if 0 /* note}, then
-     * {@code note *}{@code / || 1} on the next line, holds; one that never closes takes the rest of
-     * the text. A {@code #} inside a block comment starts no directive: BSL documents its options
-     * with "#define FEATURE ..." lines inside comments. One after the comment's close is a directive
-     * when only whitespace and comments come before it since its line began ({@link #directiveStart}):
-     * a comment that opened after code keeps it off the line it closes on. A source
-     * pushed while another is read is read next, then the rest of the other: Iris pastes an
-     * include's text where its directive stood before JCPP reads the program, so a comment, splice
-     * or directive an include leaves open goes on into the includer's next lines, a backslash on
-     * an include's last line among them. Iris pastes every #include line as text, also one inside
-     * a comment, in a skipped branch or right after a splice, and fails the pack on one it cannot
-     * find; Chimera reads an active one as a directive.
+     * Logical lines over a stack of sources.
+     *
+     * A backslash right before a newline splices the two lines before any directive is parsed (GLSL 3.3
+     * section 3.1). A C preprocessor reads a comment as one space, so when a directive line leaves a block
+     * comment open, the lines up to its close join that directive, which goes on after it: in JCPP,
+     * {@code #if 0 /* note} followed by {@code note *}{@code / || 1} on the next line holds. A comment that
+     * never closes takes the rest of the text.
+     *
+     * A {@code #} inside a block comment starts no directive; BSL documents its options with
+     * "#define FEATURE ..." lines inside comments. A {@code #} after the comment's close is a directive when
+     * only whitespace and comments precede it since its line began ({@link #directiveStart}), so a comment that
+     * opened after code keeps it off the line it closes on.
+     *
+     * A source pushed while another is read is read next, then the rest of the other. Iris pastes an include's
+     * text where its directive stood before JCPP reads the program, so a comment, splice or directive that an
+     * include leaves open runs on into the includer's next lines, a backslash on the include's last line among
+     * them. Iris pastes every #include line as text, even one inside a comment, in a skipped branch or right
+     * after a splice, and fails the pack on one it cannot find; Chimera reads only an active one as a directive.
      */
     static final class LineReader {
         private final Deque<Source> sources = new ArrayDeque<>();
         private final StringBuilder logical = new StringBuilder();
         private boolean inComment;
-        // Whether the open block comment began where a directive may start (openedAtLineStart).
+        // whether the open block comment began where a directive may start (openedAtLineStart)
         private boolean atLineStart = true;
-        // A directive whose block comment is still open, and how much of it is scanned.
+        // a directive whose block comment is still open, and how much of it is scanned
         private boolean joining;
         private int scanned;
-        // Whether the joined directive's first line started inside a block comment, and where on
-        // that line the directive starts.
+        // whether the joined directive's first line started inside a block comment, and where on that line
+        // the directive starts
         private boolean joinStartsInComment;
         private int joinStart;
-        // The source the pending logical line started in.
+        // the source the pending logical line started in
         private Source start;
 
         /** One source's physical lines, and what runs once they are all read. */
@@ -463,8 +462,8 @@ public final class ShaderSourcePreprocessor {
 
             private Source(String text, Path file, int depth, Runnable exit) {
                 String[] split = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
-                // Iris pastes a file without its trailing empty lines (IncludeGraph splits on \R), so
-                // a backslash on its last line splices into the includer's next line.
+                // Iris pastes a file without its trailing empty lines (IncludeGraph splits on \R), so a
+                // backslash on its last line splices into the includer's next line
                 int end = split.length;
                 while (end > 0 && split[end - 1].isEmpty()) end--;
                 this.lines = end > 0 && end < split.length && split[end - 1].endsWith("\\")
@@ -511,8 +510,8 @@ public final class ShaderSourcePreprocessor {
                 return null;
             }
             if (joining) {
-                // Only the text added since the last scan is scanned, from one character back so a
-                // close a backslash splice joined still counts; the join stays linear.
+                // scan only the text added since the last scan, from one character back so a close that a
+                // backslash splice joined still counts; the join stays linear
                 int from = Math.max(scanned - 1, 0);
                 logical.append(line);
                 if (inCommentAfter(logical.substring(from), true)) {
@@ -563,7 +562,7 @@ public final class ShaderSourcePreprocessor {
                 open = false;
                 index = end + 2;
             } else {
-                // A comment mark inside a string or character literal is text, as JCPP lexes it.
+                // a comment mark inside a string or character literal is text, as JCPP lexes it
                 int mark = PackConditionals.nextCommentOrLiteral(line, index);
                 if (mark < 0 || line.startsWith("//", mark)) return false;
                 if (line.startsWith("/*", mark)) {
@@ -585,13 +584,13 @@ public final class ShaderSourcePreprocessor {
     }
 
     /**
-     * Where the directive on {@code line} starts, or -1: at a {@code #} with only whitespace and
-     * block comments before it on the line, the first of them already open when {@code inComment}.
-     * JCPP takes a {@code #} as a directive at the start of a line, and a comment keeps that start
-     * as whitespace does, its newlines included, while any other token ends it: so
-     * {@code /* note *}{@code / #define X 1} defines X, and so does {@code #define X 1} after the
-     * close of a comment opened on an earlier line when {@code atLineStart} (nothing but whitespace
-     * and comments before it there, {@link #openedAtLineStart}); after code, it is no directive.
+     * Where the directive on {@code line} starts, or -1: at a {@code #} with only whitespace and block
+     * comments before it on the line, the first comment already open when {@code inComment}.
+     *
+     * JCPP takes a {@code #} at the start of a line as a directive, and a comment keeps that start as
+     * whitespace does, newlines included, while any other token ends it. So {@code /* note *}{@code / #define X 1}
+     * defines X, and so does {@code #define X 1} after the close of a comment opened on an earlier line, when
+     * only whitespace and comments came before that comment ({@code atLineStart}, {@link #openedAtLineStart}).
      */
     static int directiveStart(String line, boolean inComment, boolean atLineStart) {
         if (inComment && !atLineStart) return -1;
@@ -652,9 +651,8 @@ public final class ShaderSourcePreprocessor {
     }
 
     /**
-     * Whether the first character past leading whitespace (regex {@code \s}) is {@code #}. No other
-     * line can be a directive, and most lines of a pack are not, so line scanners test this before
-     * running a directive pattern.
+     * Whether the first character past leading whitespace is {@code #}. Only such a line can be a directive,
+     * so line scanners run this cheap test before a directive pattern.
      */
     static boolean startsDirective(String line) {
         for (int index = 0; index < line.length(); index++) {

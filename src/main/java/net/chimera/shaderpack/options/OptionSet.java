@@ -96,7 +96,7 @@ public final class OptionSet {
                 return;
             }
             if (!existing.option().defaultText().equals(proposed.option().defaultText())) {
-                // A later declaration that agrees with neither starts the name over, as in Iris.
+                // disagreeing defaults drop the name; a later declaration starts it over, as in Iris
                 target.remove(name);
                 ambiguous.add(name);
                 return;

@@ -11,15 +11,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Defects of VulkanMod Reforged 0.3.0 that 0.3.5 fixed, where Chimera dropped its own workaround
- * A host that loses the fix brings the defect back, so each is pinned to the host
- * code that carries it.
+ * Host behaviour Chimera relies on instead of workarounds of its own. Each test pins the host code that
+ * provides it, so a host without it fails here.
  */
 final class HostFixesTest {
     /**
      * A render target blits to the screen by the row order its image recorded: the GL-framebuffer
-     * blit for a target drawn bottom-up, such as the entity outline. Chimera's 0.3.0
-     * workaround, a blit under an inverted viewport, would now flip it a second time.
+     * blit for a target drawn bottom-up, such as the entity outline.
      */
     @Test
     void aRenderTargetBlitsByItsRecordedRowOrder() throws IOException {
@@ -30,8 +28,7 @@ final class HostFixesTest {
 
     /**
      * Each entry of a pipeline's descriptor pool takes its descriptor's type, so a set holding a pack
-     * storage buffer or storage image fits its pool. 0.3.0 typed every buffer a dynamic uniform
-     * buffer and every image a combined image sampler.
+     * storage buffer or storage image fits its pool.
      */
     @Test
     void descriptorPoolEntriesTakeTheirDescriptorsType() throws IOException {

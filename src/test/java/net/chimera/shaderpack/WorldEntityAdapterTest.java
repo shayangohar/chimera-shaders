@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The isolated world-entity adapter. */
 final class WorldEntityAdapterTest {
     @Test
     void worldEntityAdapter() throws Exception {
@@ -86,7 +85,7 @@ final class WorldEntityAdapterTest {
     /**
      * Every entity-format shader Iris 1.21.1 overrides, in an entity, in a block entity and in the
      * shadow pass; then the chunk shaders Iris draws as MOVING_BLOCK. Routes key on the shader, as
-     * Iris's do, so NeoForge's item types and the armor-trim decal follow their shaders' rows.
+     * Iris's do, so NeoForge's item types and the armour trim decal follow their shaders' rows.
      */
     @Test
     void worldPipelineContract() {
@@ -108,7 +107,7 @@ final class WorldEntityAdapterTest {
                 Family.SHADOW_ENTITIES));
         routes.add(new Route("entity_translucent_emissive", Family.SPIDER_EYES, Family.BLOCK,
                 Family.SHADOW_ENTITIES, Family.SHADOW_BLOCK));
-        // Iris ENTITIES_ALPHA (the dying dragon) in either context, with no shadow key of its own.
+        // Iris's ENTITIES_ALPHA, the dying dragon, in either context, with no shadow key of its own
         routes.add(new Route("entity_alpha", Family.ENTITY, Family.ENTITY, Family.SHADOW_ENTITIES,
                 Family.SHADOW_ENTITIES));
         var entityFormat = DefaultVertexFormat.NEW_ENTITY;
@@ -295,13 +294,9 @@ final class WorldEntityAdapterTest {
     }
 
     /**
-     * Iris EntityPatcher: blockEntityId reads iris_Entity.y whether declared as an
-     * attribute (MakeUp 9.5g solid_blocks_vertex) or a uniform, beside entityId on .x.
-     */
-    /**
      * A parameter named after an identity hides it, as Shrimple's GetSceneEntityLightColor(const in
      * int entityId) does in its Nether and End voxel lighting: only the global's references read the
-     * identity. Renaming the parameter too broke the parameter list and refused the program.
+     * identity, and the parameter list stays as written.
      */
     @Test
     void aParameterNamedEntityIdKeepsItsName() {
@@ -328,6 +323,10 @@ final class WorldEntityAdapterTest {
                 && !converted.source().contains("lightOf(entityId)"), converted.source());
     }
 
+    /**
+     * As in Iris's EntityPatcher, blockEntityId reads iris_Entity.y whether declared as an attribute
+     * (MakeUp 9.5g solid_blocks_vertex) or a uniform, beside entityId on .x.
+     */
     @Test
     void blockEntityIdBridge() {
         String vertex = """
@@ -372,7 +371,7 @@ final class WorldEntityAdapterTest {
         assertTrue(!convertedFragment.contains("chimeraEntityId)"),
                 "fragment must not reference an id it never declared");
 
-        // Terrain has no iris_Entity: the same shared vertex source reads the unbound 0.
+        // terrain has no iris_Entity: the same shared vertex source reads the unbound 0
         String terrain = """
                 #version 120
                 attribute vec2 mc_Entity;
@@ -397,9 +396,9 @@ final class WorldEntityAdapterTest {
     }
 
     /**
-     * Iris EntityPatcher: currentRenderedItemId reads iris_Entity.z on the entity layout (Photon's
-     * get_material_mask takes a dropped item's or a held item's id from it), and stays Iris's
-     * CommonUniforms value, 0 by the time the batch draws, on a host layout.
+     * As in Iris's EntityPatcher, currentRenderedItemId reads iris_Entity.z on the entity layout
+     * (Photon's get_material_mask takes a dropped item's or a held item's id from it). On a host
+     * layout it reads CommonUniforms' constant -1.
      */
     @Test
     void renderedItemIdBridge(@TempDir Path shaders) throws IOException {
@@ -435,7 +434,7 @@ final class WorldEntityAdapterTest {
         assertTrue(hostLayout.contains("max((-1) - 10000, 0)")
                         && !hostLayout.contains("uniform int currentRenderedItemId"),
                 "a host layout reads CommonUniforms' constant item -1: " + hostLayout);
-        // Iris's fallback entityId uniform: per draw, the bolt's id while a lightning bolt draws.
+        // Iris's fallback entityId uniform is per draw: the bolt's id while a lightning bolt draws
         String lane = IrisCoreProfile.prepareHostLayoutIdentity("#version 120\nuniform int entityId;\n"
                 + "uniform float blockEntityId;\nvoid main() { int id = entityId; float b = blockEntityId; }\n");
         assertTrue(lane.contains("uniform int " + UniformRegistry.HOST_ENTITY_ID + ";")
@@ -488,9 +487,9 @@ final class WorldEntityAdapterTest {
             assertEquals(Map.of("minecraft:zombie", 2), malformed.resolver().mappings(),
                     "Iris's parseIdMap: a later key's mapping replaces an earlier one");
 
-            // superDuperVanilla continues its emissive list over five lines; Bliss conditions
-            // its entries on options. Iris preprocesses and loads entity.properties as it does
-            // item.properties.
+            // superDuperVanilla continues its emissive list over five lines
+            // Bliss conditions its entries on options
+            // Iris preprocesses and loads entity.properties as it does item.properties
             Files.writeString(temporary.resolve("entity.properties"), """
                     entity.10130 = minecraft:experience_orb \\
                         minecraft:vex minecraft:allay \\
@@ -578,8 +577,8 @@ final class WorldEntityAdapterTest {
                 "entity marker varying");
         assertTrue(!plan.convertedVertex().contains("attribute float entityId"),
                 "legacy entity attribute declaration remained");
-        // The host alpha-test reference gives the fragment a uniform block at
-        // binding 2, so the samplers follow it, as in any entity program with uniforms.
+        // the host alpha-test reference gives the fragment a uniform block at binding 2, so the
+        // samplers follow it, as in any entity program with uniforms
         assertTrue(plan.convertedFragment().contains("layout(binding = 3) uniform sampler2D chimeraTexture"),
                 "entity atlas binding");
         assertTrue(plan.convertedFragment().contains("layout(binding = 4) uniform sampler2D lightmap"),

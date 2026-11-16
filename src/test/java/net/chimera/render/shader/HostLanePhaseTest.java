@@ -7,9 +7,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Iris answers renderStage for a held host-lane batch from the wrapper around the render type it
- * was asked for in (OuterWrappedRenderType). Every rendertype_lines draw reported OUTLINE, so a
- * fishing line took Glimmer's, Mellow's, Shrimple's and Photon's block-outline branch.
+ * Iris answers renderStage for a held host-lane batch from the wrapper around the render type it was
+ * asked for in (OuterWrappedRenderType). Reporting OUTLINE for every rendertype_lines draw would send a
+ * fishing line down the block-outline branch of packs such as Glimmer and Photon.
  */
 final class HostLanePhaseTest {
     @Test
@@ -20,10 +20,9 @@ final class HostLanePhaseTest {
     }
 
     /**
-     * The wrapper is the one open when vanilla asks for the batch: a hitbox inside an entity. The
-     * block outline is asked for outside both and reports NONE, as the outline's draw reads
-     * renderStage 0 in the owner's Iris captures of Glimmer and Mellow: OUTLINE made Glimmer's line
-     * transparent and Mellow's opaque black.
+     * The wrapper is the one open when vanilla asks for the batch: a hitbox inside an entity. The block
+     * outline is asked for outside both and reports NONE, as the outline draw reads renderStage 0 under
+     * Iris; OUTLINE would make Glimmer's line transparent and Mellow's opaque black.
      */
     @Test
     void theWriterIsWhatIsRenderingWhenTheBatchIsAskedFor() {

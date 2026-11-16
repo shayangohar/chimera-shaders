@@ -10,10 +10,11 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * What a pack's options bring to reading its shaders.properties, as Iris preprocesses that file:
- * every toggle that is on defined as {@code 1}, every choice defined as its value, the toggle names
- * (a program switch reads one that is off as false), and the programs the matching profile switches
- * off. Names the pack does not declare are not macros, whatever its sources define.
+ * What a pack's options bring to reading its shaders.properties, as Iris preprocesses that file.
+ *
+ * Each toggle that is on is defined as {@code 1} and each choice as its value. The toggle names let a program
+ * switch read an off toggle as false. Names the pack does not declare are not macros, whatever its sources
+ * define. {@code disabledPrograms} are those the matching profile switches off.
  */
 record PackOptionEnvironment(Map<String, String> macros, Set<String> toggles, Set<String> disabledPrograms) {
     PackOptionEnvironment {

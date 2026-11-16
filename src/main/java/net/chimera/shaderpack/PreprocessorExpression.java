@@ -12,19 +12,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A conditional directive's expression as Iris's preprocessor, JCPP 1.4.14, evaluates it. Macros
- * expand first, but a {@code defined} operand does not. Every value is a C {@code long}, with C's
- * operators and precedence. A number keeps its integer part ({@code NumericValue.longValue}):
- * {@code 0.5} reads 0 and {@code 1.5e1} reads 10. A name no macro defines reads 0, {@code true} and
- * {@code false} included. Division or modulus by zero reads 0. Shrimple sizes its light bins with
- * {@code (LIGHT_SIZE_XZ*LIGHT_SIZE_XZ*LIGHT_SIZE_Y * LIGHT_BIN_SIZE3) < (2048*2048)}.
+ * A conditional directive's expression as Iris's preprocessor, JCPP 1.4.14, evaluates it.
  *
- * <p>JCPP is lenient where a pack writes a malformed condition, and so is this: at a token no
- * operator takes, the value so far stands and the rest of the line is skipped (Aurora's
- * {@code #if WATERCOLOR_B = 200} holds for any nonzero WATERCOLOR_B); a group missing its ')' and a
- * conditional missing its ':' read 0 as a missing operand does, and the token found in their place
- * ends the expression. Checked against JCPP 1.4.14 itself. Two forms JCPP also reads stay refused:
- * a character literal and a malformed {@code defined}.</p>
+ * Macros expand first, but a {@code defined} operand does not. Every value is a C {@code long}, with C's operators
+ * and precedence. A number keeps its integer part, so {@code 0.5} reads 0 and {@code 1.5e1} reads 10. A name no
+ * macro defines reads 0, {@code true} and {@code false} included. Division or modulus by zero reads 0. Shrimple
+ * sizes its light bins with {@code (LIGHT_SIZE_XZ*LIGHT_SIZE_XZ*LIGHT_SIZE_Y * LIGHT_BIN_SIZE3) < (2048*2048)}.
+ *
+ * Malformed conditions read as leniently as in JCPP. At a token no operator takes, the value so far stands and the
+ * rest of the line is skipped; Aurora's {@code #if WATERCOLOR_B = 200} holds for any nonzero WATERCOLOR_B. A group
+ * missing its ')' and a conditional missing its ':' read 0, as a missing operand does, and the token found in their
+ * place ends the expression. Two forms JCPP reads stay refused: a character literal and a malformed
+ * {@code defined}.
  */
 final class PreprocessorExpression {
     private static final Pattern TOKEN = Pattern.compile(
@@ -42,10 +41,9 @@ final class PreprocessorExpression {
     }
 
     /**
-     * An operand JCPP finds missing, as when a macro defined with no body is tested ({@code #if X}
-     * after {@code #define X}), or a missing ')' or ':'. JCPP reports the bad token and the expr()
-     * call that wanted it reads 0 without consuming it; at the top, the directive skips the rest of
-     * its line.
+     * An operand JCPP finds missing, as when {@code #if X} tests a macro defined with no body, or a missing ')' or
+     * ':'. JCPP reports the bad token, and the expr() call that wanted it reads 0 without consuming it; at the top,
+     * the directive skips the rest of its line.
      */
     private static final class MissingOperand extends RuntimeException {
         MissingOperand() {
@@ -54,8 +52,8 @@ final class PreprocessorExpression {
     }
 
     /**
-     * Whether {@code expression} holds under {@code macros}; throws when it is not one Chimera
-     * evaluates as JCPP does (a function-like macro, a malformed defined, past the size budgets).
+     * Whether {@code expression} holds under {@code macros}. Throws for one Chimera cannot evaluate as JCPP does: a
+     * function-like macro, a malformed {@code defined}, or one past the size budgets.
      */
     static boolean evaluate(String expression, Map<String, String> macros) {
         List<String> expanded = expand(lex(expression), macros, new HashSet<>(), new int[1]);
@@ -66,7 +64,7 @@ final class PreprocessorExpression {
         } catch (MissingOperand missing) {
             return false;
         }
-        // Tokens left over are the ones JCPP warns of and skips with the rest of the line.
+        // tokens left over are the ones JCPP warns of and skips with the rest of the line
         return value != 0;
     }
 
@@ -75,7 +73,7 @@ final class PreprocessorExpression {
         Matcher matcher = TOKEN.matcher(text == null ? "" : text);
         int position = 0;
         while (position < matcher.regionEnd()) {
-            // Any other character is a token of its own, which no operator takes; only blanks remain.
+            // any other character is a token of its own that no operator takes, so a failed match leaves only blanks
             if (!matcher.find(position) || matcher.start() != position) break;
             if ("'".equals(matcher.group(4))) throw new IllegalArgumentException("character literal in condition");
             result.add(matcher.group(1) != null ? matcher.group(1) : matcher.group(2) != null ? matcher.group(2)
@@ -101,7 +99,7 @@ final class PreprocessorExpression {
                 result.add(token);
                 continue;
             }
-            // ShaderSourcePreprocessor keeps a function-like macro as "NAME(params) body".
+            // ShaderSourcePreprocessor keeps a function-like macro as "NAME(params) body"
             if (value.startsWith(token + "(")) throw new IllegalArgumentException("function-like macro in condition");
             hidden.add(token);
             result.addAll(expand(lex(value), macros, hidden, budget));

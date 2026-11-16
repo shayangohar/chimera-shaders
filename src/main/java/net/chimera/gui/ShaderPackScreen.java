@@ -24,14 +24,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The shader pack screen, modelled on Iris's {@code ShaderPackScreen}. It has two modes on one set
- * of bottom buttons (Cancel / Apply / Done, Open Shader Pack Folder, and a switch between them):
- * the pack list, and the settings of the loaded pack ({@link OptionsView}).
+ * The shader pack screen, modelled on Iris's {@code ShaderPackScreen}. One set of bottom buttons serves two
+ * modes: the pack list, and the loaded pack's settings ({@link OptionsView}).
  *
- * <p>Applying writes {@code config/chimera.properties} and queues the change through the same safe
- * frame-boundary switch as {@code /chimera pack}. Settings edits wait in {@link PendingOptions}
- * until Apply or Done reloads the pack; Cancel drops them. Tab switches modes, applying first. Esc
- * in the settings goes back a page, or back to the list without applying.
+ * Applying writes {@code config/chimera.properties} and queues the change for a frame boundary, as
+ * {@code /chimera pack} does. Settings edits wait in {@link PendingOptions} until Apply or Done reloads the
+ * pack; Cancel drops them. Tab switches modes, applying first. Esc in the settings goes back a page, or back
+ * to the list without applying.
  */
 public final class ShaderPackScreen extends Screen {
     private static final Component SELECT_TITLE = Component.translatable("pack.chimera.select.title")
@@ -50,7 +49,7 @@ public final class ShaderPackScreen extends Screen {
     private Component notification;
     private int notificationTimer;
     private boolean dropChanges;
-    /** What was applied when the screen opened or last applied; Apply acts only on a change. */
+    /** The choice in force at open or after the last Apply; Apply acts only on a change. */
     private Choice baseline;
     private boolean optionsMode;
     private OptionsView optionsView;
@@ -66,7 +65,7 @@ public final class ShaderPackScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        // Rebuilt on resize and on a mode switch: keep the pending selection and toggle.
+        // rebuilt on resize and mode switch; keep the pending selection and toggle
         String selected = this.packList == null ? null : this.packList.selectedPack();
         Boolean enabled = this.packList == null ? null : this.packList.shadersEnabled();
         if (this.packList != null) {
@@ -76,7 +75,7 @@ public final class ShaderPackScreen extends Screen {
 
         ChimeraConfig config = ChimeraConfig.get();
         String applied = appliedPackName();
-        // The toggle shows what is running; the saved name only preselects a row when nothing is.
+        // the toggle shows what is running; the saved name preselects a row only when nothing is
         this.packList = new ShaderPackSelectionList(this, this.minecraft, this.width, this.height - 94, LIST_TOP,
                 ShaderpackDirectory.root(), enabled != null ? enabled : applied != null,
                 applied != null ? applied : config.shaderPack().orElse(null));
@@ -129,15 +128,15 @@ public final class ShaderPackScreen extends Screen {
         this.optionsView = null;
     }
 
-    /** The loaded pack, unless a change to another pack (or to none) is still queued. */
+    /** The loaded pack, unless a change to another pack or to none is still queued. */
     private static ChimeraRenderer.LoadedPack settingsPack() {
         ChimeraRenderer.LoadedPack loaded = ChimeraRenderer.loadedPack();
         return loaded != null && loaded.path().equals(ChimeraRenderer.selectedPackPath()) ? loaded : null;
     }
 
     /**
-     * In the list, settings open only with shaders on and a pack that has settings (or none loaded
-     * yet, which Apply will load). In the settings the switch always leads back to the list.
+     * In the list, the switch opens settings only with shaders on and a loaded pack that has settings, or no
+     * pack loaded yet, which Apply loads. In the settings it always leads back to the list.
      */
     private void updateSwitchButton() {
         if (this.optionsMode) {
@@ -161,7 +160,7 @@ public final class ShaderPackScreen extends Screen {
         rebuildWidgets();
     }
 
-    /** An import whose dialog has closed lands in the settings shown now, if this screen still is. */
+    /** An import whose dialog has closed lands in the settings shown now, if this screen still shows them. */
     private void importIntoView(Path file) {
         if (this.minecraft.screen == this && this.optionsMode && this.optionList != null) {
             this.optionsView.importFile(file);
@@ -180,7 +179,7 @@ public final class ShaderPackScreen extends Screen {
         if (this.optionList != null) this.optionsView.renderOverlay(graphics, this.width, this.height);
     }
 
-    /** The settings keep the world in view for a live preview: no blur behind them. */
+    /** In a world the settings skip the blur, so the world stays visible as a live preview. */
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         if (this.optionsMode && this.minecraft.level != null) {
@@ -213,10 +212,9 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * After a failed switch the screen shows what runs: that pack applied and picked (so Done does
-     * not retry), saved as the selection so the next start matches, and the list rather than the
-     * settings, as Iris has no pack to configure then. Chat, where the failure is reported, is
-     * hidden behind this screen, so it says so too.
+     * After a failed switch, shows what runs: that pack applied and picked so Done does not retry, saved as
+     * the selection so the next start matches, and the list instead of the settings, as in Iris. Chat reports
+     * the failure but is hidden behind this screen, so the screen says so too.
      */
     private void returnToRunningPack() {
         Path failed = this.awaitedPack;
@@ -259,7 +257,7 @@ public final class ShaderPackScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_TAB) {
-            // As Iris: switch modes, then let Tab focus the first element (or Shift+Tab the last).
+            // as Iris: switch modes, then let Tab focus the first element, or Shift+Tab the last
             switchMode();
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
@@ -274,7 +272,7 @@ public final class ShaderPackScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** Screens see every release, so a dragged slider commits here; vanilla stops tracking held buttons. */
+    /** A dragged slider commits here: the screen sees every release, while vanilla stops tracking held buttons. */
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (button == 0 && this.optionsView != null) this.optionsView.mouseReleased(mouseX);
@@ -321,7 +319,7 @@ public final class ShaderPackScreen extends Screen {
             String name = packs.get(0).getFileName().toString();
             notify(Component.translatable("options.chimera.shaderPackSelection.addedPack", name)
                     .withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW));
-            // Whoever drops one pack in most likely wants it next.
+            // a single dropped pack is most likely the one the player wants next
             this.packList.select(name);
         } else {
             notify(Component.translatable("options.chimera.shaderPackSelection.addedPacks", packs.size())
@@ -336,14 +334,14 @@ public final class ShaderPackScreen extends Screen {
         this.minecraft.setScreen(this.parent);
     }
 
-    /** Any way off the screen (disconnect, another screen) stops watching the folder. */
+    /** Any way off the screen, such as a disconnect or another screen, stops watching the folder. */
     @Override
     public void removed() {
         if (this.packList != null) this.packList.close();
         super.removed();
     }
 
-    /** Cancel: the settings edits not applied yet are dropped; what Apply already did stays. */
+    /** Cancel drops settings edits not yet applied; what Apply already did stays. */
     private void dropChangesAndClose() {
         this.dropChanges = true;
         if (this.optionsView != null) this.optionsView.finishEdits(false);
@@ -352,10 +350,10 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * Applies the pack choice, or else reloads the pack when settings are pending. As in Iris, only
-     * a change does anything: opening the screen and pressing Done must not turn off a pack it
-     * cannot name (one loaded from outside the shaderpacks folder, for instance). An Apply that
-     * reloads nothing still shows the settings page from the top, as Iris's does.
+     * Applies the pack choice, or reloads the pack when settings are pending. As in Iris, only a change does
+     * anything, so opening the screen and pressing Done never turns off a pack it cannot name, such as one
+     * loaded from outside the shaderpacks folder. An Apply with nothing to reload still returns the settings
+     * page to the top, as Iris's does.
      */
     private void applyChanges() {
         if (this.optionsView != null) this.optionsView.finishEdits(true);
@@ -375,10 +373,10 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * Saves the selection and switches to it. Shaders off means vanilla; shaders on with no pack
-     * picked (the running one left the folder) changes nothing, as in Iris. A switch to what is
-     * already running queues nothing, as the pack command does. Settings pending for one pack are
-     * never applied to another; turning shaders off keeps them for that pack.
+     * Saves the selection and switches to it. Shaders off means vanilla. Shaders on with no pack picked, as
+     * when the running one left the folder, changes nothing, as in Iris. A switch to the running pack queues
+     * nothing, as the pack command does. Settings pending for one pack never apply to another; turning
+     * shaders off keeps them for that pack.
      */
     private void applySelection(Choice choice) {
         String selected = choice.pack();

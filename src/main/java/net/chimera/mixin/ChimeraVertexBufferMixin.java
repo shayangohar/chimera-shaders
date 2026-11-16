@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 /**
- * Vertex-buffer host draws (the sky, stars, void and clouds, and the pack horizon) run under the
- * pack program that serves them (PackHostDraws). VulkanMod's VertexBuffer draws through its VBO,
- * which alone knows the uploaded format.
+ * Runs vertex-buffer host draws, such as the sky, stars, void, clouds and pack horizon, under the pack
+ * program that serves them (PackHostDraws). The hook sits on the VBO VulkanMod's VertexBuffer draws through,
+ * since only the VBO knows the uploaded format.
  */
 @Mixin(value = VBO.class, remap = false)
 public abstract class ChimeraVertexBufferMixin {

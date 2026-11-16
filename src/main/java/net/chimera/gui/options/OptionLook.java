@@ -4,12 +4,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
 
 /**
- * The look of the shader pack settings, matching Iris's: flat translucent controls drawn in code as
- * a 1 px border, a 1 px inner ring and a fill, plus the dark panels of tooltips and comments. The
- * layers never overlap, so their alphas blend with the world behind and not with each other.
+ * The settings' look, matching Iris's: flat translucent controls drawn as a 1 px border, a 1 px inner ring
+ * and a fill, and dark panels for tooltips and comments. The layers never overlap, so each alpha blends only
+ * with the world behind.
  */
 public final class OptionLook {
-    /** A control's look: normal, hovered or focused, or inset (disabled, value boxes, slider tracks). */
+    /** Normal, hovered or focused, or inset for disabled controls, value boxes and slider tracks. */
     public enum State {
         NORMAL(0x8AE0E0E0, 0x36050505, 0x36232323),
         HOVERED(0xFFFFFFFF, 0x638C8C8C, 0x63A3A3A3),
@@ -26,7 +26,7 @@ public final class OptionLook {
         }
     }
 
-    /** A label whose pending value is not applied yet. */
+    /** Label colour for a pending value not applied yet. */
     static final int MODIFIED = 0xFFFFC94A;
     /** Choice and slider values. */
     static final int VALUE = 0x6688FF;
@@ -46,9 +46,9 @@ public final class OptionLook {
     }
 
     /**
-     * The dark panel behind tooltips and comments, on the depth-test-free overlay type as Iris draws
-     * it (GuiUtil.drawPanel). Text sits 0.03 in front of its widget (Font's shadow offset), so a
-     * depth-tested panel would hide a button's face but leave its label showing through.
+     * The dark panel behind tooltips and comments, on the overlay type without depth test, as Iris's
+     * GuiUtil.drawPanel draws it. Text sits 0.03 in front of its widget, Font's shadow offset, so a
+     * depth-tested panel would hide a button's face but let its label show through.
      */
     static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
         frame(graphics, RenderType.guiOverlay(), x, y, width, height, PANEL_BORDER);

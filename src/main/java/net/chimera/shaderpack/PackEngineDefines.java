@@ -9,24 +9,21 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Engine-owned preprocessor capabilities shared by every pack source path.
- *
- * <p>These definitions describe the Chimera execution environment. Pack
- * settings can select shader options, but they cannot change the identity or
- * capability promises made by the engine.</p>
+ * The preprocessor macros Chimera defines for every pack source: Iris's standard environment, the device's
+ * macros and Chimera's feature flags. A pack's own defines cannot override them.
  */
 public final class PackEngineDefines {
     public static final String IS_IRIS = "IS_IRIS";
     public static final String CUSTOM_IMAGES = "IRIS_FEATURE_CUSTOM_IMAGES";
 
     /**
-     * Iris's fixed standard environment (StandardMacros) as Iris 1.8.14 defines it
-     * on Minecraft 1.21.1, the one version Chimera targets. Packs branch on these
-     * everywhere, {@code MC_VERSION} above all: undefined, it reads as 0 and
-     * selects a pack's pre-1.13 paths. The device's macros (PackDeviceMacros) and
-     * MC_MIPMAP_LEVEL join them in {@link #standard()}; texture-format macros are not
-     * defined. IRIS_TAG_SUPPORT promises block.properties tags (PackMaterialResolver).
-     * Iris's biome, category and precipitation symbols (IrisDefines) are macros too.
+     * Iris's fixed standard environment, as StandardMacros defines it in Iris 1.8.14 on Minecraft 1.21.1, the one
+     * version Chimera targets. Packs branch on these everywhere, {@code MC_VERSION} above all: undefined, it
+     * reads as 0 and selects a pack's pre-1.13 paths.
+     *
+     * {@link #standard()} adds the device's macros (PackDeviceMacros) and MC_MIPMAP_LEVEL; texture-format macros
+     * are not defined. IRIS_TAG_SUPPORT promises block.properties tags (PackMaterialResolver). Iris's biome,
+     * category and precipitation symbols from IrisDefines are macros too.
      */
     private static final Map<String, String> STANDARD = standardMacros();
     /** Minecraft's default mipmap levels, until a pack load reads the game's option. */
@@ -51,7 +48,7 @@ public final class PackEngineDefines {
         for (var phase : PackRenderingPhase.values()) {
             result.put("MC_RENDER_STAGE_" + phase.name(), Integer.toString(phase.ordinal()));
         }
-        // Iris's IrisDefines joins them: BIOME_*, CAT_* and PPT_*, from the table expressions read.
+        // Iris's IrisDefines adds BIOME_*, CAT_* and PPT_*, from the table expressions read
         result.putAll(BiomeIds.macros());
         return Collections.unmodifiableMap(result);
     }

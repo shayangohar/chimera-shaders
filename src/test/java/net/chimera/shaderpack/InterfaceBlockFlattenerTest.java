@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * GL matches an interface block across stages by its block name and its members by name.
- * RenderPearl, Reverie and Shrimple pass their varyings in blocks, so every program that used one
- * fell back with PROGRAM_VARYING_TYPE_UNSUPPORTED, entities and block among them.
+ * RenderPearl, Reverie and Shrimple pass their varyings in blocks, so each block flattens into
+ * plain varyings named after the block and its members.
  */
 final class InterfaceBlockFlattenerTest {
     @Test

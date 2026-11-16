@@ -46,9 +46,9 @@ final class SpirvDeviceRequirementsTest {
     }
 
     /**
-     * Audit GD6: these KHR extensions gained a shader_ prefix in Vulkan. Named by the plain rule, a
-     * device created with the extension would still refuse the program, and a refusal named an
-     * extension that does not exist.
+     * These KHR extensions carry a shader_ prefix in Vulkan. Named by the plain rule, a device created
+     * with the extension would still refuse the program, and the refusal would name an extension that
+     * does not exist.
      */
     @Test
     void theShaderPrefixedKhrExtensionsMapToTheirVulkanNames() {
@@ -60,14 +60,14 @@ final class SpirvDeviceRequirementsTest {
         assertEquals("VK_KHR_shader_untyped_pointers", SpirvDeviceRequirements.extension("SPV_KHR_untyped_pointers"));
         assertEquals("VK_EXT_shader_replicated_composites",
                 SpirvDeviceRequirements.extension("SPV_EXT_replicated_composites"));
-        // Served by an extension of another name altogether.
+        // served by an extension of another name altogether
         assertEquals("VK_KHR_ray_tracing_pipeline", SpirvDeviceRequirements.extension("SPV_KHR_ray_tracing"));
         assertEquals("VK_NV_shading_rate_image", SpirvDeviceRequirements.extension("SPV_NV_shading_rate"));
         assertEquals("VK_EXT_conservative_rasterization",
                 SpirvDeviceRequirements.extension("SPV_EXT_fragment_fully_covered"));
         assertEquals("VK_EXT_fragment_density_map",
                 SpirvDeviceRequirements.extension("SPV_EXT_fragment_invocation_density"));
-        // The bundled shaderc knows none of their GLSL extensions yet, so the module is written by hand.
+        // the bundled shaderc knows none of their GLSL extensions, so the module is written by hand
         SpirvDeviceRequirements.Requirements module =
                 SpirvDeviceRequirements.of(moduleDeclaring("SPV_KHR_subgroup_uniform_control_flow"));
         assertEquals(Set.of("VK_KHR_shader_subgroup_uniform_control_flow"), module.extensions());

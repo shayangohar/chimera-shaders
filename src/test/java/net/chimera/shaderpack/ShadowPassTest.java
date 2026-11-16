@@ -129,11 +129,11 @@ final class ShadowPassTest {
     }
 
     /**
-     * A shadow program samples a shadowcolor target: Iris binds every target to the
-     * shadow pass's samplers. Rethinking Voxels' interactive water reads shadowcolor2, which its
-     * shadowcomp2 stores, in every shadow program, and Chimera refused them all. The program now
-     * binds the target, and the plan names it among those the pass copies as it opens
-     * (ChimeraShadowMap.snapshotPassReads). A target nothing in the pass samples is not copied.
+     * A shadow program samples a shadowcolor target: Iris binds every target to the shadow pass's
+     * samplers. Rethinking Voxels' interactive water reads shadowcolor2, which its shadowcomp2 stores,
+     * in every shadow program. The program binds the target, and the plan names it among those the pass
+     * copies as it opens (ChimeraShadowMap.snapshotPassReads). A target nothing in the pass samples is
+     * not copied.
      */
     @Test
     void shadowProgramsSampleShadowColorTargets(@TempDir Path root) throws IOException {
@@ -180,7 +180,7 @@ final class ShadowPassTest {
             String reader = geometry ? plan.convertedGeometry() : plan.convertedFragment();
             assertTrue(reader.contains(fetch) && plan.convertedVertex().contains("chimeraOverlayUV = UV1;"),
                     program + " must read entityColor from the forwarded overlay: " + reader);
-            // A moving block's shadow draws on the block layout, which has no overlay: entityColor is zero.
+            // a moving block's shadow draws on the block layout, which has no overlay, so entityColor is zero
             String movingBlock = EntityVertexBridge.fragmentForFormat(reader, DefaultVertexFormat.BLOCK);
             assertTrue(!movingBlock.contains(fetch)
                     && movingBlock.contains("vec4 chimeraOverlayTexel = vec4(0.0, 0.0, 0.0, 1.0);"), movingBlock);
@@ -233,7 +233,8 @@ final class ShadowPassTest {
     /**
      * The copies the shadow pass's programs sample close before shadowcomp runs, so shadowcomp reads and
      * writes the targets themselves. Rethinking Voxels' shadowcomp2 steps its interactive water in
-     * shadowcolor2; on the copy each step was lost, and its water read a flat 1.0 as full-strength waves.
+     * shadowcolor2; on a copy each step would be lost, and its water would read a flat 1.0 as full-strength
+     * waves.
      */
     @Test
     void shadowcompRunsOnTheTargetsNotThePassCopies() throws IOException {
@@ -299,11 +300,11 @@ final class ShadowPassTest {
                             == route.getValue(),
                     route.getKey().shader() + " must route to " + route.getValue() + " in the shadow pass");
         }
-        // Iris cancels beacon beams in the shadow pass: they stay out of the map.
+        // Iris cancels beacon beams in the shadow pass, so they stay out of the map
         assertTrue(HostLayoutLane.forDraw("rendertype_beacon_beam", DefaultVertexFormat.BLOCK, shadowPass) == null,
                 "beacon beams have no shadow lane");
-        // Iris 1.21.1 keys glint to GLINT in every pass, so its main program draws there and no
-        // glint reaches the shadow map: glint has no shadow lane and its draws are dropped.
+        // Iris 1.21.1 keys glint to GLINT in every pass, so no glint reaches the shadow map
+        // glint has no shadow lane, and its shadow-pass draws are dropped
         for (String glint : HostLayoutLane.GLINT.shaders()) {
             assertTrue(HostLayoutLane.forDraw(glint, DefaultVertexFormat.POSITION_TEX, shadowPass) == null,
                     glint + " has no shadow lane");
@@ -324,7 +325,7 @@ final class ShadowPassTest {
     void shadowLanes(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
         writeLegacyShadowProgram(shaders);
-        // A pack file named like a shader key is not an Iris program and is never selected.
+        // a pack file named like a shader key is not an Iris program and is never selected
         Files.writeString(shaders.resolve("shadow_text.vsh"), "#version 120\nvoid main() { decoy(); }\n");
         Files.writeString(shaders.resolve("shadow_text.fsh"), "#version 120\nvoid main() { decoy(); }\n");
         var analysis = PackProbe.analyze(root);
@@ -342,7 +343,7 @@ final class ShadowPassTest {
         var compiled = PackCompileTest.run(root, analysis);
         assertTrue(compiled.failures().isEmpty(), "shadow lane compilation: " + compiled.failures());
 
-        // An authored shadow_entities serves the ShadowEntities keys; the Shadow keys keep shadow.
+        // an authored shadow_entities serves the ShadowEntities keys; the Shadow keys keep shadow
         Files.copy(shaders.resolve("shadow.vsh"), shaders.resolve("shadow_entities.vsh"));
         Files.copy(shaders.resolve("shadow.fsh"), shaders.resolve("shadow_entities.fsh"));
         var authored = PackProbe.analyze(root).resolution();
@@ -498,7 +499,7 @@ final class ShadowPassTest {
         var advanced = ShadowCullingPlan.Mode.ADVANCED;
         double none = Double.POSITIVE_INFINITY;
         ShadowCullingPlan safeZone = cullingPlan(Map.of("shadow.culling", "reversed"), Map.of("voxelDistance", "32.0"));
-        // A camera at the origin looking down -Z, 70 degree vertical field, 16:9; planes only.
+        // a camera at the origin looking down -Z, 70 degree vertical field, 16:9; planes only
         Matrix4f camera = new Matrix4f()
                 .perspective((float) Math.toRadians(70.0), 16.0F / 9.0F, 0.05F, 1000.0F);
         var open = new ShadowCullingPlan.Culler(advanced, none, 0.0);
@@ -539,8 +540,8 @@ final class ShadowPassTest {
     /**
      * Iris's order before the sky (IrisRenderingPipeline.renderShadows): VulkanMod's section setup,
      * whose indirect-buffer reset must precede the shadow draws, then the shadow pass, then the
-     * prepare passes. The frame's later setup call is skipped, and the terrain layers no longer
-     * render shadows.
+     * prepare passes. The frame's later setup call is skipped, and the terrain layers render no
+     * shadows.
      */
     @Test
     void shadowPassOrder() throws IOException {

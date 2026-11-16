@@ -11,10 +11,9 @@ import java.util.TreeMap;
 /**
  * A pack's discovered options and the source files that declare them.
  *
- * <p>Discovery runs per include group: a toggle candidate counts only when a file in its own group
- * tests it with {@code #ifdef} or {@code #ifndef}. Values are applied the way OptiFine and Iris apply
- * them, by editing the declaring lines, so a define and a const change exactly where the pack wrote
- * them and nowhere else.
+ * A toggle candidate counts only when some file in the pack tests it with {@code #ifdef} or
+ * {@code #ifndef}. Values are applied the way OptiFine and Iris apply them, by editing the declaring
+ * lines, so a define and a const change exactly where the pack wrote them.
  */
 public final class OptionDiscovery {
     private final SourceGraph graph;
@@ -71,8 +70,8 @@ public final class OptionDiscovery {
 
     /**
      * The source files {@code values} changes, by pack-relative path, with the new text. Every line
-     * that declares a changed name is edited, confirmed in its own group or not, as in Iris. A file
-     * is written back with {@code \n} line ends, as the pack loader joins edited lines.
+     * that declares a changed name is edited, as in Iris. A file is written back with {@code \n} line
+     * ends, as the pack loader joins edited lines.
      */
     public Map<String, String> editedFiles(OptionValues values) {
         Map<String, String> edited = new TreeMap<>();

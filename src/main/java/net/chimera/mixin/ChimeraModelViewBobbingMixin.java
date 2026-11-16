@@ -24,12 +24,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Moves view bobbing, hurt shake and nausea from the projection into the model view while a
- * shader pack renders the world, as Iris MixinModelViewBobbing (and OptiFine) do. Packs assume
- * gbufferProjection is a plain perspective: Photon's project() reads only its diagonal and last
- * column, so a bobbing projection broke its screen-space reconstruction whenever the player
- * walked (GTAO bent normals, and with them the sky light, flickered). The raster transform is
- * unchanged: projection * (bob * rotation) equals (projection * bob) * rotation.
+ * Moves view bobbing, hurt shake and nausea from the projection into the model view while a pack renders the
+ * world, as Iris's MixinModelViewBobbing and OptiFine do. Packs assume gbufferProjection is a plain
+ * perspective: Photon's project() reads only its diagonal and last column, so a bobbing projection breaks
+ * its screen-space reconstruction while the player walks, and its GTAO normals and sky light flicker. The
+ * raster transform is unchanged, since projection * (bob * rotation) equals (projection * bob) * rotation.
  */
 @Mixin(GameRenderer.class)
 public abstract class ChimeraModelViewBobbingMixin {
@@ -58,7 +57,7 @@ public abstract class ChimeraModelViewBobbingMixin {
         if (!chimera$packView) original.call(self, poses, tick);
     }
 
-    /** The screen effect scale only feeds the projection's nausea warp, which moves below. */
+    /** The screen effect scale only feeds the projection's nausea warp, which moves to the model view below. */
     @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Ljava/lang/Double;floatValue()F"),
             require = 1)
     private float chimera$nauseaOffProjection(Double scale, Operation<Float> original) {

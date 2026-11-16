@@ -10,8 +10,8 @@ import net.chimera.render.shader.PatchDraws;
 import org.spongepowered.asm.mixin.Mixin;
 
 /**
- * Immediate host draws run under the pack program that serves them (PackHostDraws), a
- * tessellated one as patches of 3 (PatchDraws).
+ * Runs immediate host draws under the pack program that serves them (PackHostDraws), as patches of 3 when
+ * that program is tessellated (PatchDraws).
  */
 @Mixin(BufferUploader.class)
 public abstract class ChimeraBufferUploaderMixin {

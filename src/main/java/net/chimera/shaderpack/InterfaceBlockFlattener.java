@@ -8,20 +8,19 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * A stage's {@code in} and {@code out} interface blocks as plain varyings. GL matches a block
- * across stages by its block name and its members by name, whatever each stage calls the instance
- * (Reverie's vertex writes {@code DataOut.texcoord}, its fragment reads {@code DataIn.texcoord}).
- * Chimera's stage interface matches varyings by name, so every member becomes
- * {@code <Block>_<member>} in each stage that declares the block. Member locations and components
- * go with the block: Chimera gives each varying its location by name (GlslInterfaceScanner). A
- * redeclared {@code gl_PerVertex} is dropped; the built-ins it lists stay.
+ * A stage's {@code in} and {@code out} interface blocks as plain varyings. GL matches a block across stages by
+ * its block name and its members by name, whatever each stage calls the instance: Reverie's vertex writes
+ * {@code DataOut.texcoord} and its fragment reads {@code DataIn.texcoord}. Chimera's stage interface matches
+ * varyings by name, so every member becomes {@code <Block>_<member>} in each stage that declares the block.
+ * Member layouts are dropped, since Chimera gives each varying its location by name (GlslInterfaceScanner). A
+ * redeclared built-in block such as {@code gl_PerVertex} is dropped; the built-ins it lists stay.
  *
- * <p>An arrayed instance, a geometry or tessellation stage's per-vertex block, becomes arrayed
- * varyings: {@code vIn[i].color} reads {@code VertexData_color[i]}. GL matches each pair of stages
- * on its own, so a stage between the vertex and fragment stages may read one {@code VertexData}
- * and write another of the same name (Shrimple's shadow.gsh reads an int blockId and writes a uint
- * one). Each name therefore carries a suffix for the stage that writes it (PackPlanBuilder.prepareStages):
- * none for the vertex stage's outputs, so a vertex and fragment pair flattens as it always has.</p>
+ * An arrayed instance, such as a geometry or tessellation stage's per-vertex block, becomes arrayed varyings:
+ * {@code vIn[i].color} reads {@code VertexData_color[i]}. GL matches each pair of stages on its own, so a stage
+ * between the vertex and fragment stages may read one {@code VertexData} and write another of the same name;
+ * Shrimple's shadow.gsh reads an int blockId and writes a uint one. Each name therefore carries a suffix for
+ * the stage that writes it (PackPlanBuilder.prepareStages). The vertex stage's outputs take none, so a vertex
+ * and fragment pair needs no suffix.
  */
 final class InterfaceBlockFlattener {
     private static final Set<String> STORAGE = Set.of("in", "out");
@@ -33,9 +32,9 @@ final class InterfaceBlockFlattener {
     record Result(String source, List<String> blocks) {}
 
     /**
-     * One block this flattens: the prefix and suffix of its members' new names, the members a
-     * reference may name, whether the declarator a reference resolves to is the block's instance or
-     * one of its members, and whether that instance is an array.
+     * One block this flattens: the prefix and suffix of its members' new names and the members a reference
+     * may name. {@code instance} is true when references resolve to the block's instance rather than to its
+     * members, and {@code arrayed} when that instance is an array.
      */
     private record Flattened(String prefix, String suffix, Set<String> members, boolean instance, boolean arrayed) {
         String rename(String member) {
@@ -118,9 +117,9 @@ final class InterfaceBlockFlattener {
     }
 
     /**
-     * One declaration per member: its own qualifiers and the block's, layouts dropped, then the
-     * storage qualifier and any precision, as GLSL before 4.20 orders them. A member of an arrayed
-     * instance takes the instance's dimension ahead of its own.
+     * One declaration per member: its own qualifiers and the block's with layouts dropped, then the storage
+     * qualifier and any precision, as GLSL before 4.20 orders them. A member of an arrayed instance takes the
+     * instance's dimension ahead of its own.
      */
     private static String declarations(GlslTree tree, GlslTree.InterfaceBlock block, String name, String suffix,
                                        String instanceArrays) {
@@ -159,9 +158,8 @@ final class InterfaceBlockFlattener {
 
     /**
      * Renames each reference to a flattened block: {@code instance.member} of a named block,
-     * {@code instance[i].member} of an arrayed one, or {@code member} of an unnamed one. False when
-     * an instance is used another way, which plain varyings cannot express, or an index reads
-     * another flattened block.
+     * {@code instance[i].member} of an arrayed one, or {@code member} of an unnamed one. False when an instance
+     * is used another way, which plain varyings cannot express, or an index reads another flattened block.
      */
     private static boolean addReferences(GlslTree tree, Map<GlslTree.Node, Flattened> owners,
                                          List<GlslTree.Edit> edits) {
@@ -192,8 +190,8 @@ final class InterfaceBlockFlattener {
     }
 
     /**
-     * Renames {@code instance.member} at {@code at}, with {@code index} after the new name; the
-     * token of the member, or -1 when no member follows.
+     * Renames {@code instance.member} at {@code at}, with {@code index} after the new name. Returns the
+     * member's token, or -1 when no member follows.
      */
     private static int memberReference(List<GlslLexer.Token> tokens, int at, Flattened owner,
                                        List<GlslTree.Edit> edits, String index) {

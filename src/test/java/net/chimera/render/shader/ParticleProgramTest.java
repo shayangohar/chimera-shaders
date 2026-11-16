@@ -11,10 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's NeoForge MixinParticleEngine sets one particle shader per ParticleEngine.render call: the
- * translucent program only when the call leaves the opaque sheet out. Chimera picked it per sheet,
- * and NeoForge makes the terrain and custom sheets translucent too, so under BEFORE and AFTER
- * Spring, Sildur's Nether and End and Bloop drew those with gbuffers_particles_translucent.
+ * Iris's NeoForge MixinParticleEngine sets one particle shader per ParticleEngine.render call, the
+ * translucent program only when the call leaves the opaque sheet out. NeoForge marks the terrain and
+ * custom sheets translucent too, so a choice per sheet would draw them with gbuffers_particles_translucent.
  */
 final class ParticleProgramTest {
     @Test
@@ -25,7 +24,7 @@ final class ParticleProgramTest {
         assertTrue(ChimeraEntityBridge.translucentParticleCall(ParticleRenderType::isTranslucent), "the late call");
     }
 
-    /** The calls a pack's ordering moves sheets into (ChimeraLevelRendererMixin), each with Iris's program. */
+    /** Each call a pack's ordering draws sheets in (ChimeraLevelRendererMixin) uses Iris's program. */
     @Test
     void onlyMixedsLateCallUsesTheTranslucentProgram() {
         int calls = 0;

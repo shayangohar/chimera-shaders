@@ -10,7 +10,7 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Shared bounded expression evaluator for shader and pack-property conditions. */
+/** Preprocessor conditionals and macro expansion shared by shader sources and shaders.properties. */
 final class PackConditionals {
     static final int MAX_EXPRESSION_DEPTH = 64;
 
@@ -19,12 +19,11 @@ final class PackConditionals {
     private PackConditionals() {}
 
     /**
-     * A directive's text as a C preprocessor such as Iris's JCPP reads it: each block comment is
-     * one space, and the text ends at a line comment. A block comment still open at the end is cut
-     * there; the line reader (ShaderSourcePreprocessor.LineReader) first joins the lines up to its
-     * close, as the comment spans them. A comment mark inside a string or character literal is
-     * text ({@link #literalEnd}). Read raw, a block comment after {@code #if FOO} became operators,
-     * and the condition evaluated 0.
+     * A directive's text as a C preprocessor such as Iris's JCPP reads it: each block comment is one space, and
+     * the text ends at a line comment. A block comment still open at the end is cut there; the line reader
+     * (ShaderSourcePreprocessor.LineReader) first joins the lines up to its close. A comment mark inside a
+     * string or character literal is text ({@link #literalEnd}). Left in, a block comment after {@code #if FOO}
+     * would read as operators and the condition as 0.
      */
     static String withoutComments(String text) {
         StringBuilder result = new StringBuilder(text.length());
@@ -67,8 +66,8 @@ final class PackConditionals {
     /**
      * The end of the literal whose quote is at {@code start}, as JCPP's lexer reads it on one line.
      * A string runs to its closing {@code "}, a backslash escaping the next character. A character
-     * literal is one character (or an escape) and its closing {@code '}; without that close it runs
-     * to the next {@code '}. Either one still open at the end of the line ends there: Iris reads
+     * literal is one character or escape and its closing {@code '}; without that close it runs to the
+     * next {@code '}. Either one still open at the end of the line ends there: Iris reads
      * {@code jack_o'lantern /* x} as a broken character literal, not a comment.
      */
     static int literalEnd(String text, int start) {
@@ -148,7 +147,7 @@ final class PackConditionals {
         return result.append(text, last, text.length()).toString();
     }
 
-    /** Shared conditional state for shader and pack-property preparation. */
+    /** The defined macros and open conditionals while a shader source or properties file is read. */
     static final class State {
         private final Map<String, String> macros = new TreeMap<>();
         private final Deque<Branch> branches = new ArrayDeque<>();
@@ -178,9 +177,9 @@ final class PackConditionals {
         }
 
         /**
-         * Applies one conditional directive; false when it was ignored. An #elif, #else or #endif
-         * with no open #if is reported and skipped, as Iris's preprocessor (JCPP) does: Photon's
-         * TAAU program ends in a stray #endif and still runs under Iris.
+         * Applies one conditional directive; false when it is ignored. An #elif, #else or #endif with no open
+         * #if is skipped, as Iris's JCPP does; Photon's TAAU program ends in a stray #endif and still runs under
+         * Iris.
          */
         boolean apply(String directive, String expression) {
             String argument = expression == null ? "" : withoutComments(expression).trim();
@@ -259,7 +258,6 @@ final class PackConditionals {
             return branches.pop();
         }
 
-        /** Whether a conditional is still open. */
         boolean open() {
             return !branches.isEmpty();
         }
@@ -273,15 +271,14 @@ final class PackConditionals {
         private record Branch(boolean parentActive, boolean active, boolean taken, boolean elseSeen) {}
     }
 
-    /** A conditional directive's expression, as JCPP evaluates it ({@link PreprocessorExpression}). */
+    /** Evaluates a conditional directive's expression as JCPP does ({@link PreprocessorExpression}). */
     static boolean evaluate(String expression, Map<String, String> macros) {
         return PreprocessorExpression.evaluate(expression, macros);
     }
 
     /**
-     * Evaluates the small boolean expression language of shaders.properties program switches
-     * ({@code program.X.enabled}). Unknown names mean zero, unless the switch opts into the Iris
-     * behavior where an unknown option name remains enabled.
+     * Evaluates a shaders.properties program switch such as {@code program.X.enabled}. An unknown name reads
+     * zero, or true with {@code unknownNamesAreTrue}, where Iris leaves an unknown option name enabled.
      */
     static boolean evaluate(
             String expression,

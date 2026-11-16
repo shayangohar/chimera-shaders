@@ -37,7 +37,7 @@ final class MaterialMapDrawTest {
                 MaterialMapOwner.withImages(flatNormals, flatSpecular, factory, samplers);
         VulkanImage base = markerImage();
         try {
-            // Pre-pump draws answer flat fallbacks, exactly like descriptors.
+            // before the first pump a draw gets the flat fallbacks, as descriptors do
             var flat = owner.resolveDrawMaterial(contextFor(base, 0x7777L), "normals");
             assertTrue(flat.image() == flatNormals, "unresolved base is not flat");
             assertEquals(0x7777L, flat.samplerOverride(), "context sampler lost");
@@ -53,7 +53,7 @@ final class MaterialMapDrawTest {
                             == flatNormals,
                     "null base is not flat");
 
-            // Linear fixtures resolve with the captured context sampler.
+            // linear fixtures resolve with the captured context sampler
             owner.noteAtlasUpload(layout(), base);
             owner.pumpPendingBuilds(mapLookup(files), MaterialMapFixtures::decodeImageIO);
             var resolved = owner.resolveDrawMaterial(contextFor(base, 0x7777L), "normals");
@@ -62,7 +62,7 @@ final class MaterialMapDrawTest {
                     "context draw missed its companion");
             assertEquals(0x7777L, resolved.samplerOverride(), "context sampler override lost");
 
-            // Unmarked image samplers fall back to the albedo image sampler.
+            // an unmarked sampler falls back to the albedo image's sampler
             var unmarked = owner.resolveDrawMaterial(contextFor(base, 0L), "specular");
             assertTrue(unmarked.image() == factory.set("minecraft:blocks",
                     MaterialMapOwner.MaterialMapKind.SPECULAR).image,
@@ -75,9 +75,8 @@ final class MaterialMapDrawTest {
     }
 
     /**
-     * Two atlases built side by side: each draw resolves the companion of
-     * the exact albedo image it binds, never the other atlas's, and an
-     * image neither atlas owns stays flat.
+     * With two atlases built side by side, each draw resolves the companion of the albedo image it binds,
+     * never the other atlas's, and an image neither atlas owns stays flat.
      */
     @Test
     void twoAtlasDispatch() throws Exception {
@@ -125,13 +124,13 @@ final class MaterialMapDrawTest {
             DrawMaterialContext lod4 = profiledContext(base, 4.0f);
             DrawMaterialContext lod8 = profiledContext(base, 8.0f);
 
-            // Normals keep the exact albedo sampler ID and own nothing.
+            // normals keep the albedo's own sampler id and allocate none
             var normals = owner.resolveDrawMaterial(lod4, "normals");
             assertEquals(0x7777L, normals.samplerOverride(), "normals left the albedo sampler");
             assertTrue(samplers.requests.isEmpty(), "normals allocated a sampler");
 
-            // Atlas labPBR specular reads the nearest texel of the nearest level, as Iris sets it
-            // (GL_NEAREST_MIPMAP_NEAREST), with the source's ceiling.
+            // atlas labPBR specular reads the nearest texel of the nearest level, as Iris sets it
+            // (GL_NEAREST_MIPMAP_NEAREST), with the source's ceiling
             var specular4 = owner.resolveDrawMaterial(lod4, "specular");
             var specular8 = owner.resolveDrawMaterial(lod8, "specular");
             assertEquals(2, samplers.requests.size(), "max-LOD variants aliased in the cache");
@@ -145,11 +144,11 @@ final class MaterialMapDrawTest {
             assertTrue(specular4.samplerOverride() != specular8.samplerOverride(),
                     "different ceilings shared one sampler");
 
-            // Reuse: the same profile never builds twice.
+            // the same profile never builds twice
             owner.resolveDrawMaterial(lod4, "specular");
             assertEquals(2, samplers.requests.size(), "identical profile rebuilt");
 
-            // Incomplete profiles cannot derive: the base ID wins instead.
+            // an incomplete profile cannot derive a sampler, so the base id stays
             var incomplete = owner.resolveDrawMaterial(
                     new DrawMaterialContext(base, SamplerProfile.ofId(0x7777L)), "specular");
             assertEquals(0x7777L, incomplete.samplerOverride(), "incomplete profile derived");
@@ -183,9 +182,9 @@ final class MaterialMapDrawTest {
             owner.resolveDrawMaterial(contextFor(mob, 0L), "normals");
             owner.pumpPendingBuilds(mapLookup(files), MaterialMapFixtures::decodeImageIO, source);
             DrawMaterialContext context = profiledContext(mob, 4.0f);
-            // Simple normals keep the source policy but clamp to LOD zero.
+            // simple normals keep the source policy but clamp to LOD zero
             var normals = owner.resolveDrawMaterial(context, "normals");
-            // Simple labPBR specular filters NEAREST and clamps to LOD zero.
+            // simple labPBR specular filters NEAREST and clamps to LOD zero
             var specular = owner.resolveDrawMaterial(context, "specular");
             assertEquals(2, samplers.requests.size(), "simple maps did not derive two samplers");
             SamplerManager.SamplerKey normalRequest = samplers.requests.get(0);
@@ -205,10 +204,9 @@ final class MaterialMapDrawTest {
     }
 
     /**
-     * The first-draw race, directed: an entity draw marks slot 0 with its
-     * own sampler, then the very first terrain transaction must still bind
-     * all three terrain resources with the chunk profile, because terrain
-     * resolves from its captured context and never re-queries slot state.
+     * An entity draw that marks slot 0 with its own sampler does not reach the first terrain draw:
+     * terrain resolves from its captured context and never reads slot state again, so it binds its maps
+     * with the chunk profile.
      */
     @Test
     void firstTerrainDrawWins() throws Exception {
@@ -223,7 +221,7 @@ final class MaterialMapDrawTest {
         try {
             owner.noteAtlasUpload(layout(), atlasBase);
             owner.pumpPendingBuilds(mapLookup(files), MaterialMapFixtures::decodeImageIO);
-            // Entity batch first: slot 0 now names a foreign image.
+            // entity batch first: slot 0 now names a foreign image
             ChimeraTextureBindingState.markPackBinding(0, entityBase, 0x5555L);
             DrawMaterialContext terrain = profiledContext(atlasBase, 4.0f);
             var normals = owner.resolveDrawMaterial(terrain, "normals");

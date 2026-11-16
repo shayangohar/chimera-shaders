@@ -19,9 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Each distinct failure is told once, with Copy Info, and waits for a player in a world; the
- * status command keeps the current load's. The chat component itself (its Copy Info
- * click and hover) needs Minecraft's registries, so the game shows it, not this test.
+ * Each distinct failure is told once, with Copy Info, and waits for a player in a world; the status
+ * command lists the current load's failures. The chat component itself (its Copy Info click and hover)
+ * needs Minecraft's registries, so this test leaves it out.
  */
 final class PackFailureNoticesTest {
     @AfterEach
@@ -47,7 +47,7 @@ final class PackFailureNoticesTest {
         assertFalse(held.get(0).severe(), "a skip is a warning; the pack still runs");
         assertTrue(held.get(0).info().contains("'lenscolor' : redefinition"), held.get(0).info());
 
-        // The same program again, found by another phase or on the next load, is not told again.
+        // the same program again, found by another phase or on the next load, is not told again
         PackFailureNotices.record(skipped("RedHat v34.3.1", "final", "load"));
         PackFailureNotices.publish();
         assertEquals(1, PackFailureNotices.held().size());
@@ -79,7 +79,7 @@ final class PackFailureNoticesTest {
         PackFailureNotices.beginLoad("Insanity", null);
         PackFailureNotices.record(skipped("Insanity", "gbuffers_entities", "shader-compilation"));
         PackFailureNotices.publish();
-        // The player changes an option and applies again: the skip was told, the fallback is new.
+        // the player changes an option and applies again: the skip was told, the fallback is new
         PackFailureNotices.beginLoad("Insanity", null);
         PackFailureNotices.record(skipped("Insanity", "gbuffers_entities", "shader-compilation"));
         PackFailureNotices.record(new PackFailureNotices.Failure("Insanity", "pack", "load",
@@ -95,7 +95,7 @@ final class PackFailureNoticesTest {
     void aFailedPackChangeTakesInTheSkipsItsRollbackLeftUntold() {
         PackFailureNotices.beginLoad("B.zip", null);
         PackFailureNotices.record(skipped("B.zip", "final", "shader-compilation"));
-        // A contract defect fails B's load; the rollback loads A, which publishes as it ends.
+        // a contract defect fails B's load; the rollback loads A, which publishes as it ends
         PackFailureNotices.beginLoad("A.zip", null);
         PackFailureNotices.publish();
         assertTrue(PackFailureNotices.held().isEmpty(), "B's skip waits for B's own notice");
@@ -167,14 +167,14 @@ final class PackFailureNoticesTest {
         assertEquals(1, PackFailureNotices.current().size());
         assertEquals(1, PackFailureNotices.held().size(), "told once a game");
 
-        // Within a load the first record wins: the build failure, not the load's report of it.
+        // within a load the first record wins: the build failure, not the load's report of it
         PackFailureNotices.record(new PackFailureNotices.Failure("A", "final", "load",
                 PackFailureNotices.Outcome.SKIPPED, "PACK_PIPELINE_BUILD_FAILED:final", "row"));
         PackFailureNotices.publish();
         assertEquals(1, PackFailureNotices.held().size());
         assertEquals("compile error: 'lenscolor' : redefinition", PackFailureNotices.current().get(0).reason());
 
-        // A later load whose final fails for a new reason tells that one.
+        // a later load whose final fails for a new reason tells that one
         PackFailureNotices.beginLoad("A", null);
         PackFailureNotices.record(new PackFailureNotices.Failure("A", "final", "shader-compilation",
                 PackFailureNotices.Outcome.SKIPPED, "compile error: 'bloom' : undeclared identifier", "info"));
@@ -183,7 +183,7 @@ final class PackFailureNoticesTest {
     }
 
     /**
-     * Shaders off after a pack: the no-pack load drops that pack's conformance report. Kept, it was
+     * Shaders off after a pack: the no-pack load drops that pack's conformance report. Kept, it would be
      * written as the no-pack load's conformance file, and its skipped programs told again under "?".
      */
     @Test
@@ -261,7 +261,7 @@ final class PackFailureNoticesTest {
         assertEquals(" (fallback)", PackFailureNotices.label("Pack"), "as Iris labels a pack that fell back");
         PackFailureNotices.beginLoad("Pack", null);
         assertEquals("", PackFailureNotices.label("Pack"), "a new load starts clean");
-        // A saved pack whose source no longer loads renders vanilla as it starts.
+        // a saved pack whose source no longer loads renders vanilla as it starts
         PackFailureNotices.record(new PackFailureNotices.Failure("Pack", "pack", "load",
                 PackFailureNotices.Outcome.LOAD_FAILED, "PACK_ARCHIVE_INVALID. Rendering vanilla.", "info"));
         assertEquals(" (fallback)", PackFailureNotices.label("Pack"));

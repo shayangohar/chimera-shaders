@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
 
-/** One pack-owned sampled image: a pack PNG or game texture, or a texture Iris generates or leaves unbound. */
+/** One pack-owned sampled image: a pack PNG, or a texture Iris generates or leaves unbound. */
 public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
     private final DynamicTexture texture;
     private final VulkanImage image;
@@ -56,11 +56,12 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
     }
 
     /**
-     * The noise Iris generates for a pack without texture.noise: {@code size} squared opaque
-     * texels whose red, green and blue are the low three bytes of successive {@code java.util.Random}
-     * ints from seed 0, drawn column by column, sampled linear and repeating. Refused, as a pack PNG
-     * is, past the device's 2D image limit (PackImageLimits), before any texel is made: a side of
-     * 20000 would first take 1.6 GB and seconds of hashing.
+     * The noise Iris generates for a pack without texture.noise: {@code size} squared opaque texels whose red,
+     * green and blue are the low three bytes of successive {@code java.util.Random} ints from seed 0, drawn
+     * column by column, sampled linear and repeating.
+     *
+     * Refused, as a pack PNG is, past the device's 2D image limit (PackImageLimits), before any texel is made:
+     * a side of 20000 would first take 1.6 GB and seconds of work.
      */
     public static PackNoiseTexture generated(int size, String name) throws IOException {
         String limit = PackImageLimits.deviceFailure("generated noise", 2, size, size);
@@ -69,7 +70,7 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
         Random random = new Random(0);
         for (int x = 0; x < size; x++) {
             for (int y = 0; y < size; y++) {
-                // NativeImage packs a texel as ABGR: red is the low byte.
+                // NativeImage packs a texel as ABGR, so red is the low byte
                 pixels.setPixelRGBA(x, y, random.nextInt() | 0xFF000000);
             }
         }
@@ -77,8 +78,8 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
     }
 
     /**
-     * One texel of what GL samples from an unbound texture, (0, 0, 0, 1): Iris binds texture 0 where
-     * Distant Horizons would supply its depth textures (PackResourcePlan.GENERATED_UNBOUND).
+     * One texel of what GL samples from an unbound texture, (0, 0, 0, 1): Iris binds texture 0 where Distant
+     * Horizons would supply its depth textures (PackResourcePlan.GENERATED_UNBOUND).
      */
     public static PackNoiseTexture unbound(String name) throws IOException {
         NativeImage pixels = new NativeImage(NativeImage.Format.RGBA, 1, 1, false);
@@ -92,8 +93,7 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
         try {
             texture = new DynamicTexture(pixels);
         } catch (RuntimeException failure) {
-            // No texture holds the pixels to free them with (audit review D, image factory); closing
-            // a NativeImage twice frees it once.
+            // no texture holds the pixels to free them with; closing a NativeImage twice frees it once
             pixels.close();
             throw failure;
         }
@@ -102,8 +102,8 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
             if (image == null) {
                 throw new IOException("noise texture has no Vulkan image: " + name);
             }
-            // DynamicTexture samples nearest/repeat. A pack's water normals
-            // difference neighbouring noise texels, so nearest made them blocky.
+            // DynamicTexture samples nearest and repeating, but a pack's water normals difference neighbouring
+            // noise texels, which nearest sampling makes blocky; use the binding's filter and wrap
             ((ChimeraVulkanImageAccessor) image).chimera$setSampler(
                     ChimeraSamplers.flat(!"nearest".equals(filter), "clamp".equals(wrap)));
             return new PackNoiseTexture(texture, image);

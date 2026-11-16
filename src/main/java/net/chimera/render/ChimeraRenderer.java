@@ -26,13 +26,12 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * Owns the main-pass takeover lifecycle:
- * - onHostRendererReady: capture VulkanMod's installed MainPass and install
- *   chimera's segmented pass.
- * - screen mode (default on): the renderer stays installed and shaded behind
- *   vanilla screens over a LIVE level; level teardown/swap churn (respawn,
- *   portals, loading screens) hands off to the host via the setLevel hook
- *   until a live level returns.
+ * Swaps Chimera's main pass in for VulkanMod's and hands the frame back when Chimera cannot run.
+ *
+ * {@link #onHostRendererReady} keeps VulkanMod's main pass as the host pass; Chimera's pass is installed once a
+ * pack is loaded. Chimera keeps rendering behind screens over a live level. A screen without a level, or a level
+ * unloading under an open screen (respawn, portals, loading screens), hands the frame to the host until a live
+ * level returns (WorldRendererLevelMixin).
  */
 public final class ChimeraRenderer {
 
@@ -40,11 +39,11 @@ public final class ChimeraRenderer {
     private static boolean installed;
     private static boolean screenMode;
     private static boolean screenOpen;
-    /** Keeps a normal Chimera install request alive across a safe rebuild. */
+    /** Whether Chimera reinstalls at the next frame boundary, after a pack change or a deferred install. */
     private static boolean resumeAfterVariant;
     /**
-     * False after a failed pack rebuild left the host renderer in charge, so
-     * that pack is not retried every frame. The next pack command clears it.
+     * False after a failed pack rebuild leaves the host renderer in charge, so the pack is not retried every
+     * frame. The next pack request sets it again.
      */
     private static boolean chimeraEnabled = true;
     private static boolean noPackLogged;
@@ -60,10 +59,10 @@ public final class ChimeraRenderer {
     private ChimeraRenderer() {}
 
     /**
-     * Debug/bisect switch parser: absent = disabled; a bare -Dname (empty
-     * value) or any value other than "false" (case-insensitive) = enabled.
-     * Boolean.getBoolean would ignore bare flags - it demands the literal
-     * string "true" - which silently deactivated the whole gate matrix.
+     * Reads a {@code -D} debug switch: unset is off; a bare {@code -Dname} or any value but {@code false}
+     * (any case) is on.
+     *
+     * Boolean.getBoolean would read a bare flag as off, since it wants the literal {@code true}.
      */
     public static boolean debugFlag(String name) {
         String value = System.getProperty(name);
@@ -87,7 +86,7 @@ public final class ChimeraRenderer {
         }
 
         hostPass = current;
-        // Before the main pass and the terrain pipelines build the terrain and shadow configs.
+        // before the main pass and the terrain pipelines build the terrain and shadow configs
         TerrainVertexUniforms.register();
         chimeraPass = new ChimeraMainPass();
         renderer.addOnResizeCallback(ChimeraRenderer::refreshIdleHostPass);
@@ -101,10 +100,10 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * VulkanMod's resize calls {@code onResize} only on the current main pass. While Chimera
-     * owns the frame, the host pass would keep its old swapchain-sized depth texture, and
-     * after {@code /chimera pack off} vanilla's hand depth clear compares against that stale
-     * image, skips the clear, and the hand clips into the world. Refresh it with the swapchain.
+     * Resizes the host pass while Chimera's is current, since VulkanMod resizes only the current main pass.
+     *
+     * A host pass left at the old size keeps a stale depth texture. After {@code /chimera pack off}, vanilla's
+     * hand depth clear then skips that image and the hand clips into the world.
      */
     private static void refreshIdleHostPass() {
         if (hostPass != null && Renderer.getInstance().getMainPass() != hostPass) {
@@ -113,14 +112,15 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * VulkanMod's final teardown (Renderer.cleanUpResources, from Vulkan.cleanUp after the device
-     * went idle) cleans only the installed main pass. Chimera hands the frame to the host pass when
-     * the level closes, so on quit its own pass was never cleaned: its Vulkan objects outlived the
-     * device and an unpacked ZIP's temporary folder waited for the next start's sweep. Cleans it
-     * here unless it is the installed pass, which VulkanMod cleans itself. Any failure, an Error
-     * included, is logged: one escaping would skip the rest of VulkanMod's teardown, from the host
-     * pass to the device. Chimera is not ready afterwards, so nothing installs or drives the torn
-     * down pass if the host ever reached this outside quitting.
+     * Cleans Chimera's pass at VulkanMod's final teardown unless it is the installed pass, which VulkanMod
+     * cleans itself.
+     *
+     * Renderer.cleanUpResources, called from Vulkan.cleanUp once the device is idle, cleans only the installed
+     * main pass, and Chimera hands the frame to the host when the level closes. Left alone, Chimera's Vulkan
+     * objects would outlive the device and a zip pack's temporary folder would wait for the next start's sweep.
+     *
+     * Any failure, an Error included, is logged: one escaping would skip the rest of VulkanMod's teardown.
+     * Chimera is not ready afterwards, so nothing installs or drives the torn down pass.
      */
     public static void beforeHostCleanup() {
         ChimeraMainPass pass = chimeraPass;
@@ -170,12 +170,12 @@ public final class ChimeraRenderer {
         return requestPack(null);
     }
 
-    /** The pack rendering now or about to (a queued change wins); null for vanilla. */
+    /** The pack rendering now, or the queued one when a change is pending; null for vanilla. */
     public static Path selectedPackPath() {
         return ready && chimeraPass != null ? chimeraPass.selectedPackPath() : null;
     }
 
-    /** A loaded pack and the options it was loaded with. A new load gives a new instance. */
+    /** A loaded pack and the options it was loaded with; each load gives a new instance. */
     public record LoadedPack(Path path, StagedOptions options) {}
 
     /** The pack loaded now, whatever is queued; null when none is. */
@@ -193,8 +193,8 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * F3's lines below the system information, as Iris's MixinDebugScreenOverlay: the version, the
-     * pack with whether it fell back or lost programs (PackFailureNotices.label), and its profile.
+     * F3's lines below the system information, as Iris's MixinDebugScreenOverlay: the version, the pack with
+     * whether it fell back or lost programs (PackFailureNotices.label), its profile and the colour space.
      */
     public static List<String> debugLines() {
         List<String> lines = new ArrayList<>(List.of("",
@@ -213,10 +213,12 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * F3's line below the game information, Iris's shadow lines in one (IrisRenderingPipeline and
-     * ShadowRenderer.addDebugText): the map's size and distance, the sections kept of those that
-     * cast (C), and the entities (E) and block entities (BE) drawn; or that the pack uses no shadow
-     * map, or that the shadow distance in force is 0. Nothing while the world is not pack-rendered.
+     * F3's shadow line below the game information, Iris's shadow lines in one (IrisRenderingPipeline and
+     * ShadowRenderer.addDebugText): the map's size and distance, the sections kept of those that cast (C), and
+     * the entities (E) and block entities (BE) drawn.
+     *
+     * Says instead that the pack uses no shadow map or that the shadow distance in force is 0; empty while the
+     * world is not pack-rendered.
      */
     public static List<String> shadowDebugLines() {
         if (!packProjectionActive()) return List.of();
@@ -233,7 +235,7 @@ public final class ChimeraRenderer {
 
     /**
      * The shadow distance the loaded pack forces on the player's Max Shadow Distance, for the
-     * settings page; empty with no pack or none forced, as Iris's with no pipeline.
+     * settings page; empty with no pack or none forced, as Iris answers with no pipeline.
      */
     public static OptionalInt forcedShadowDistance() {
         ShadowCullingPlan culling = chimeraPass != null && chimeraPass.packLoaded()
@@ -247,16 +249,15 @@ public final class ChimeraRenderer {
             return;
         }
         // VulkanMod copies RenderSystem's texture matrix into VRenderSystem.TextureMatrix only when it is
-        // set or reset on the render thread, and allocates that copy uninitialized. Pack entity and hand
-        // stages read it as gl_TextureMatrix[0], which Iris serves from RenderSystem.getTextureMatrix():
-        // until the first glint draw Solas's hand sampled its skin through a zero matrix and drew black.
+        // set or reset on the render thread, and allocates that copy uninitialised
+        // pack entity and hand stages read it as gl_TextureMatrix[0], which Iris serves from
+        // RenderSystem.getTextureMatrix(); a zero matrix samples a hand's skin black until the first glint draw
         VRenderSystem.setTextureMatrix(RenderSystem.getTextureMatrix());
-        // Material companions are independent of shader-pack state: atlas
-        // uploads arrive whether or not a pack is installed.
+        // material maps build with or without a pack, since atlas uploads arrive either way
         chimeraPass.pumpMaterialMapBuilds();
         chimeraPass.targets.refreshWorldResourcesIfDue();
         ChimeraTerrainPipelines.rebuildingOnce(ChimeraRenderer::changePackAtFrameBoundary);
-        // After any pack change above, so a replaced pack's teardown and install upload the atlas once.
+        // after any pack change above, so one pack's teardown and the next one's install upload the atlas once
         PackAtlasMipmaps.reconcile();
     }
 
@@ -275,8 +276,7 @@ public final class ChimeraRenderer {
             return;
         }
         boolean liveLevel = Minecraft.getInstance().level != null;
-        // A first pack load from the host renderer installs too: with no
-        // pack loaded Chimera never took the frame.
+        // a first pack load installs too, since with no pack Chimera never took the frame
         boolean packArrived = !screenMode && chimeraPass.packLoaded();
         if (chimeraEnabled && (resumeAfterVariant || packArrived || (screenMode && liveLevel)) && !installed) {
             if (install()) {
@@ -288,15 +288,14 @@ public final class ChimeraRenderer {
     }
 
 
-    /** Chimera's world segments may run while its pass owns the frame. */
+    /** Chimera's pass owns the frame, so its world segments may run. */
     public static boolean segmentsActive() {
         return installed && !screenMode;
     }
 
     /**
-     * True when this frame's world is rendered for a loaded shader pack, which
-     * reads gbufferProjection with the vanilla finite far plane (see
-     * ChimeraProjectionFarMixin).
+     * This frame's world renders for a loaded pack, whose gbufferProjection keeps vanilla's finite far plane
+     * (ChimeraProjectionFarMixin).
      */
     public static boolean packProjectionActive() {
         return segmentsActive() && chimeraPass != null && chimeraPass.packLoaded();
@@ -357,12 +356,11 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * Opens Chimera's level segment only on a recording main command buffer.
-     * A nested Minecraft.runTick (the respawn loading screen) makes VulkanMod
-     * submit the outer frame before that frame renders its level. VulkanMod's
-     * own passes resume through Renderer.beginRenderPass; Chimera records raw
-     * commands, so it resumes the same way before its first barrier. The new
-     * frame boundary may hand the frame to the host, so re-check ownership.
+     * Whether Chimera's level segment may open, starting a new frame first when none is recording.
+     *
+     * A nested Minecraft.runTick (the respawn loading screen) makes VulkanMod submit the outer frame before it
+     * renders its level, and Chimera records raw commands that need a recording command buffer. The new frame
+     * boundary may hand the frame to the host, so ownership is checked again.
      */
     public static boolean beginLevelSegments() {
         if (!segmentsActive()) {
@@ -384,8 +382,7 @@ public final class ChimeraRenderer {
             return installed;
         }
         if (!chimeraPass.packLoaded()) {
-            // No shader pack: the frame stays vanilla, as it does in Iris.
-            // Chimera's own terrain shading and shadow map are not applied.
+            // no pack: the frame stays vanilla, as in Iris
             if (!noPackLogged) {
                 noPackLogged = true;
                 ChimeraMod.LOGGER.info("[chimera] Shaders are disabled");
@@ -395,9 +392,8 @@ public final class ChimeraRenderer {
         }
 
         if (!chimeraPass.prepareForInstall()) {
-            // An install can be requested while the current command buffer is
-            // still recording. Keep the request alive so the pre-command-buffer
-            // hook retries it at the next safe boundary.
+            // requested while the command buffer still records; beforeMainCommandBuffer retries at the next
+            // frame boundary
             resumeAfterVariant = true;
             ChimeraMod.LOGGER.debug("[chimera] install deferred to the next frame");
             return false;
@@ -412,12 +408,6 @@ public final class ChimeraRenderer {
         return true;
     }
 
-    // ------------------------------------------------------------------
-    // Screen mode: parity keeps chimera live behind vanilla screens over a
-    // LIVE level; level teardown/swap hands off to the host via the
-    // WorldRenderer.setLevel hook until a live level returns.
-    // ------------------------------------------------------------------
-
     public static void setScreenOpen(boolean open) {
         screenOpen = open;
         if (chimeraPass != null) {
@@ -425,27 +415,20 @@ public final class ChimeraRenderer {
         }
     }
 
-    /**
-     * Legacy passthrough: hand the frame back to the host until reinstated.
-     * Single source shared by the setScreen fallback and level hooks.
-     */
+    /** Hands the frame to the host until a live level returns, for a screen without a level or a level unload. */
     private static void legacyUnhand() {
         Renderer.getInstance().endRenderPass();
         Renderer.getInstance().setMainPass(hostPass);
         ChimeraTerrainPipelines.suspendForScreens();
         ChimeraEntityBridge.setEnabled(false);
         ChimeraSkyBridge.setEnabled(false);
-        // Return the global pipeline state VulkanMod snapshots at bind to the
-        // neutral host defaults before the host's next frame records.
+        // reset the global state VulkanMod reads at pipeline bind to host defaults before the host records
         VRenderSystem.enableDepthTest();
         VRenderSystem.depthMask(true);
         VRenderSystem.enableCull();
         VRenderSystem.enableBlend();
         VRenderSystem.colorMask(true, true, true, true);
-        // Reflect reality: the host pass is now the installed pass. Without
-        // this, install() early-returns on the installed flag and chimera's
-        // pass is never restored - every frame after runs on the host
-        // renderer (no HDR, no shadows).
+        // install() returns early while installed is set, and Chimera's pass would never come back
         installed = false;
         resumeAfterVariant = false;
         screenMode = true;
@@ -474,17 +457,14 @@ public final class ChimeraRenderer {
 
     public static void enterScreenMode() {
         if (Minecraft.getInstance().level != null) {
-            // Parity over a live level: PostPassM ends any open pass before
-            // its barriers, Renderer's endRenderPass is null-safe when nothing
-            // is recording, and encoder draws targeting the main RT rebind our
-            // aux pass - the blur chain composes with the live frame.
+            // over a live level Chimera keeps rendering and the menu blur composes with its frame
+            // PostPassM ends any open pass before its barriers; draws to the main target rebind Chimera's aux pass
             ChimeraMod.LOGGER.debug("[chimera] screen open; rendering continues");
             return;
         }
 
-        // No live level (loading/transition screens): the teardown/swap churn
-        // around those frames crashed the segmented frame's image transitions
-        // - use the proven host path instead.
+        // no live level (loading and transition screens): the level teardown and swap around these frames
+        // breaks Chimera's image transitions, so the host renders
         if (!installed) {
             return;
         }
@@ -499,7 +479,7 @@ public final class ChimeraRenderer {
         ChimeraMod.LOGGER.debug("[chimera] screen closed; resuming at the next frame boundary");
     }
 
-    /** Level went away mid-screen: host takes over until a live level returns. */
+    /** A level unloading under an open screen hands the frame to the host until a live level returns. */
     public static void onLevelUnloaded() {
         ShadowSectionQueue.release();
         if (!screenOpen || screenMode || !installed) {
@@ -510,12 +490,14 @@ public final class ChimeraRenderer {
         ChimeraMod.LOGGER.debug("[chimera] level unloaded; host renders");
     }
 
-    /** Live level returned while a screen is still up: restore parity behind it. */
     public static void onLevelLoaded() {
         onLevelLoaded(Minecraft.getInstance().level);
     }
 
-    /** Re-selects the pack variant before applying the screen lifecycle state. */
+    /**
+     * Selects the pack's dimension variant for the new level. If Chimera handed the frame to the host, it
+     * reinstalls at the next frame boundary.
+     */
     public static void onLevelLoaded(ClientLevel level) {
         ShadowSectionQueue.release();
         if (chimeraPass != null && level != null) {

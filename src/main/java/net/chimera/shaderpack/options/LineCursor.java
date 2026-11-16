@@ -69,7 +69,7 @@ final class LineCursor {
             if (end + 1 < rest.length() ? !digitHere && !digitNext : !digitHere) break;
             end++;
         }
-        // A float suffix counts only when something follows it.
+        // a float suffix counts only when something follows it
         if (end > 0 && end + 1 < rest.length() && (rest.charAt(end) == 'f' || rest.charAt(end) == 'F')) end++;
         try {
             Float.parseFloat(rest.substring(0, end));

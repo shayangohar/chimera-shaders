@@ -16,18 +16,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A pack's properties file as Iris 1.21.1 reads one other than shaders.properties: its
- * PropertiesPreprocessor runs the text through JCPP ({@link #preprocess}), then
- * OrderBackedProperties loads it ({@link #load}). The id maps (IdMapProperties) and
- * dimension.properties (DimensionProperties) go through both.
+ * A pack's properties file other than shaders.properties, read as Iris 1.21.1 reads it: its PropertiesPreprocessor
+ * runs the text through JCPP ({@link #preprocess}), then OrderBackedProperties loads it ({@link #load}). The id maps
+ * and dimension.properties go through both.
  */
 final class PropertiesPreprocessor {
     /** A {@code #} line JCPP reads as a directive: {@code #} and a name with nothing between. */
     private static final Pattern DIRECTIVE = Pattern.compile("^#([A-Za-z_]\\w*)(.*)$");
     /**
-     * A {@code #define} argument: the name, a {@code (} right after it for a function-like macro, the
-     * body. JCPP also takes a name with {@code $} or a non-ASCII letter; Chimera neither defines nor
-     * expands one.
+     * A {@code #define} argument: the name, a {@code (} right after it for a function-like macro, the body. JCPP
+     * also takes a name with {@code $} or a non-ASCII letter; Chimera neither defines nor expands one.
      */
     private static final Pattern MACRO = Pattern.compile("^([A-Za-z_]\\w*)(\\()?\\s*(.*?)\\s*$");
     private static final Set<String> CONDITIONALS = Set.of("if", "ifdef", "ifndef", "elif", "else", "endif");
@@ -50,15 +48,15 @@ final class PropertiesPreprocessor {
     record Preprocessed(String text, boolean failed, boolean open) {}
 
     /**
-     * The file as PropertiesPreprocessor hands it on. Each line is trimmed and blank lines are
-     * dropped; a {@code #} line that starts with a JCPP directive's name is kept and any other
-     * {@code #} line is emptied, and every other line loses its {@code #} signs. JCPP then reads the
-     * text as C, so a block comment runs across lines (ShaderSourcePreprocessor.logicalLines): a
-     * directive inside one is comment text, one right after its close on a line is a directive
-     * (ShaderSourcePreprocessor.directiveStart), and one a directive line leaves open takes the
-     * lines up to its close into the directive, which goes on after it. An active branch's comment text is
-     * kept as written (KEEPCOMMENTS) and the rest of its text expands the macros defined before it.
-     * Directive lines and inactive branches are left empty.
+     * The file as PropertiesPreprocessor hands it on.
+     *
+     * Each line is trimmed and blank lines are dropped. A {@code #} line that starts with a JCPP directive's name is
+     * kept, any other {@code #} line is emptied, and every other line loses its {@code #} signs. JCPP then reads the
+     * text as C, so a block comment runs across lines. A directive inside one is comment text, and one right after
+     * its close on a line is a directive. A block comment a directive line leaves open takes the lines up to its
+     * close into the directive, which goes on after it. An active branch keeps its comment text as written, as
+     * JCPP's KEEPCOMMENTS does, and the rest of its text expands the macros defined before it. Directive lines and
+     * inactive branches are left empty.
      */
     static Preprocessed preprocess(String text, Map<String, String> macros) {
         PackConditionals.State conditions = new PackConditionals.State(macros);
@@ -70,10 +68,10 @@ final class PropertiesPreprocessor {
             int start = line.directiveStart();
             Matcher directive = start < 0 ? null : DIRECTIVE.matcher(line.text().substring(start));
             if (takeNext) {
-                // An #ifdef with no name takes the first line with text, past the emptied ones.
+                // an #ifdef with no name takes the first line with text, past the emptied ones
                 takeNext = line.text().isEmpty();
             } else if (directive != null && directive.matches()) {
-                // A comment that closes before the directive on its line stays as text (KEEPCOMMENTS).
+                // a comment that closes before the directive on its line stays as text, as under KEEPCOMMENTS
                 if (conditions.active()) out.append(line.text(), 0, start);
                 Conditional applied = apply(directive.group(1), stripComments(directive.group(2)), conditions,
                         expansions);
@@ -91,17 +89,17 @@ final class PropertiesPreprocessor {
     enum Conditional { APPLIED, REPORTED, TAKES_NEXT_LINE }
 
     /**
-     * Applies a conditional directive in a properties file as JCPP does, which reports an error
-     * there and reads on (checked with JCPP 1.4.14): an #if or #elif Chimera cannot evaluate, an
-     * empty one among them, reads false; a second #else, or an #elif after #else, is ignored; a
-     * stray #else or #elif turns the rest of the file off; a stray #endif is ignored. An #ifdef or
-     * #ifndef in an active branch whose argument starts with no identifier leaves its branch on,
-     * and with no argument at all (comments aside) takes the next line with text too, whatever it
-     * is, past the lines Iris's line pass emptied; JCPP's identifier is a Java one, so it tests
-     * {@code $X} as a name (a {@code #define} of such a name is not read here, see MACRO).
-     * REPORTED where Chimera read an expression false that JCPP may read otherwise ({@code #if 1 +}
-     * reads 1, a character literal or a function-like macro has a value there), or where it read
-     * an #ifdef's error as JCPP does.
+     * Applies a conditional directive in a properties file as JCPP does, which reports an error there and reads on.
+     *
+     * An #if or #elif Chimera cannot evaluate reads false, as does an empty one. A second #else, or an #elif after
+     * #else, is ignored. A stray #else or #elif turns the rest of the file off; a stray #endif is ignored. An #ifdef
+     * or #ifndef in an active branch whose argument starts with no identifier leaves its branch on. With no argument
+     * at all, comments aside, it also takes the next line with text, whatever it is, past the lines Iris's line pass
+     * emptied. JCPP's identifier is a Java one, so it tests {@code $X} as a name, though a {@code #define} of such a
+     * name is not read here.
+     *
+     * REPORTED where Chimera reads false an expression JCPP gives a value, such as a character literal or a
+     * function-like macro, or where it read an #ifdef's error as JCPP does.
      */
     static Conditional applyConditional(PackConditionals.State conditions, String name, String argument) {
         String directive = name.toLowerCase(Locale.ROOT);
@@ -120,8 +118,8 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * An #ifdef or #ifndef in an active branch, its name read as JCPP reads it: a Java identifier,
-     * {@code $} and non-ASCII letters included (applyConditional).
+     * An #ifdef or #ifndef in an active branch, its name read as JCPP reads it: a Java identifier, {@code $} and
+     * non-ASCII letters included.
      */
     private static Conditional applyIfdef(PackConditionals.State conditions, boolean ifdef, String argument) {
         String tested = PackConditionals.withoutComments(argument).trim();
@@ -155,12 +153,12 @@ final class PropertiesPreprocessor {
     record Line(String text, boolean inComment) {}
 
     /**
-     * {@code physical}'s lines as JCPP lexes them after PropertiesPreprocessor's line pass
-     * ({@link #jcppLine}): a block comment runs across lines; a directive may follow the close of
-     * the comment its line starts in (ShaderSourcePreprocessor.directiveStart), and that line is
-     * then the directive alone; a directive line that leaves a comment open takes the lines up to
-     * its close and goes on after it, joined with spaces. shaders.properties is read this way; the
-     * id maps and dimension.properties through {@link #preprocess}.
+     * {@code physical}'s lines as JCPP lexes them after PropertiesPreprocessor's line pass.
+     *
+     * A block comment runs across lines. A directive may follow the close of the comment its line starts in, and
+     * that line is then the directive alone. A directive line that leaves a comment open takes the lines up to its
+     * close, joined with spaces, and goes on after it. shaders.properties is read this way; the id maps and
+     * dimension.properties through {@link #preprocess}.
      */
     static List<Line> commentLines(List<String> physical) {
         List<Line> result = new ArrayList<>(physical.size());
@@ -179,7 +177,7 @@ final class PropertiesPreprocessor {
             }
             int start = ShaderSourcePreprocessor.directiveStart(seen, inComment, atLineStart);
             boolean openAfter = ShaderSourcePreprocessor.inCommentAfter(seen, inComment);
-            // The comment text before such a directive reads as a # comment line once loaded.
+            // the comment text before such a directive reads as a # comment line once loaded
             String text = start > 0 ? seen.substring(start).replace(BACKSLASH, "\\") : raw;
             if (start >= 0 && openAfter) {
                 directive = new StringBuilder(text.strip());
@@ -194,28 +192,28 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * The text PropertiesPreprocessor gives JCPP, one line per non-blank line ({@link #jcppLine}),
-     * each backslash hidden (so no line ends in one, and none splices).
+     * The text PropertiesPreprocessor gives JCPP: one line per non-blank line, each backslash hidden so no line ends
+     * in one and none splices.
      */
     private static String jcppInput(String text) {
         StringJoiner lines = new StringJoiner("\n");
         for (String raw : text.split("\\R")) {
-            // Iris trims first, so a line of control characters is blank too.
+            // Iris trims first, so a line of control characters is blank too
             if (!raw.trim().isBlank()) lines.add(jcppLine(raw));
         }
         return lines.toString();
     }
 
-    /**
-     * What PropertiesPreprocessor gives JCPP for one line: trimmed; a {@code #} line kept when it
-     * starts with a JCPP directive's name and emptied otherwise; any other line without its
-     * {@code #} signs; each backslash hidden behind an identifier.
-     */
     /** Whether Iris's line pass leaves nothing of {@code raw}: a blank line or a non-directive {@code #} line. */
     static boolean emptiedByLinePass(String raw) {
         return jcppLine(raw).isEmpty();
     }
 
+    /**
+     * What PropertiesPreprocessor gives JCPP for one line: trimmed; a {@code #} line kept when it starts with a JCPP
+     * directive's name and emptied otherwise; any other line without its {@code #} signs; each backslash hidden
+     * behind an identifier.
+     */
     private static String jcppLine(String raw) {
         String line = raw.trim();
         String kept;
@@ -228,10 +226,11 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * One directive. Conditionals nest inside inactive branches; {@code #define} and {@code #undef}
-     * apply only in an active one. JCPP reports {@code #error} and {@code #warning}, cannot include a
-     * file into a properties text, and skips a name it does not know; none of those changes the map.
-     * How a conditional applied ({@link #applyConditional}); APPLIED for any other directive.
+     * Applies one directive and returns how a conditional applied, or APPLIED for any other directive.
+     *
+     * Conditionals nest inside inactive branches; {@code #define} and {@code #undef} apply only in an active one.
+     * JCPP reports {@code #error} and {@code #warning}, cannot include a file into a properties text, and skips a
+     * name it does not know, so none of those changes the macros.
      */
     private static Conditional apply(String name, String argument, PackConditionals.State conditions,
                                      Map<String, String> expansions) {
@@ -239,10 +238,10 @@ final class PropertiesPreprocessor {
         if (!conditions.active()) return Conditional.APPLIED;
         if (name.equals("define")) {
             Matcher macro = MACRO.matcher(argument);
-            // A function-like macro is not expanded here.
+            // a function-like macro is not expanded here
             if (!macro.matches() || macro.group(2) != null) return Conditional.APPLIED;
             conditions.define(macro.group(1), macro.group(3));
-            // A macro defined with no body expands to nothing.
+            // a macro defined with no body expands to nothing
             expansions.put(macro.group(1), macro.group(3));
         } else if (name.equals("undef") && !argument.isEmpty()) {
             String macro = argument.split("\\s+")[0];
@@ -261,7 +260,7 @@ final class PropertiesPreprocessor {
         return PackConditionals.withoutComments(argument.replace("\\", BACKSLASH)).replace(BACKSLASH, "\\");
     }
 
-    /** A directive's argument without its C comments, which JCPP skips (PackConditionals.withoutComments). */
+    /** A directive's argument without its C comments, which JCPP skips, trimmed. */
     private static String stripComments(String argument) {
         return PackConditionals.withoutComments(argument == null ? "" : argument).trim();
     }

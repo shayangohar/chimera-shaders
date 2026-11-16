@@ -3,8 +3,8 @@ package net.chimera.shaderpack;
 import java.util.List;
 
 /**
- * Immutable description of one logical pack color target. {@code paddedAlpha} marks a target
- * declared in a format without alpha (RGB16F, say) and stored in an RGBA image.
+ * One pack colour target. {@code paddedAlpha} marks a target declared in a format without alpha, such as
+ * RGB16F, and stored in an RGBA image.
  */
 public record TargetSpec(
         int index,

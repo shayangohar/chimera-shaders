@@ -19,7 +19,6 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The core family adapters. */
 final class CoreFamilyAdapterTest {
     @Test
     void coreFamilyAdapters() throws Exception {
@@ -68,7 +67,7 @@ final class CoreFamilyAdapterTest {
         PackProgramPlan entityPlan = first.plan().program("gbuffers_entities");
         PackProgramPlan blockPlan = first.plan().program("gbuffers_block");
         for (PackProgramPlan plan : List.of(entityPlan, blockPlan)) {
-            // Block entities draw entity meshes placed by the pose, as entities do.
+            // block entities draw entity meshes placed by the pose, as entities do
             assertTrue(plan.convertedVertex() != null && plan.convertedVertex().contains("return vec4(Position, 1.0);"),
                     plan.name() + " bridge must read the host position as is");
         }
@@ -158,7 +157,7 @@ final class CoreFamilyAdapterTest {
             Files.writeString(shaders.resolve(name + ".fsh"), fragment);
         }
         ConformanceReport report = PackProbe.analyze(root).report();
-        // Iris's begin renderer runs begin1; it runs no setup program and reads no gbuffers_translucent.
+        // Iris's begin renderer runs begin1; it runs no setup program and reads no gbuffers_translucent
         assertTrue(report.program("begin1").deviations().contains("PASS_PROGRAM_UNSUPPORTED:begin1")
                 && report.program("setup").deviations().contains("IRIS_PROGRAM_UNUSED:setup")
                 && report.program("gbuffers_translucent").deviations()
@@ -201,7 +200,7 @@ final class CoreFamilyAdapterTest {
         }
         assertTrue(analysis.report().program("shadow_solid").deviations()
                 .contains("TERRAIN_LAYER_MERGED_BY_HOST:shadow_solid"), "shadow_solid reason");
-        // The registry, not a name, puts a program on the shadow terrain lane.
+        // the registry puts a program on the shadow terrain lane; a shadow_ prefix alone does not
         assertTrue(FamilyAdapterRegistry.isShadowTerrain("shadow")
                         && FamilyAdapterRegistry.isShadowTerrain("shadow_water")
                         && FamilyAdapterRegistry.isShadowTerrain("shadow_cutout")
@@ -227,8 +226,8 @@ final class CoreFamilyAdapterTest {
             assertTrue(!analysis.report().shouldAttempt(name),
                     "unsupported family remained eligible: " + name);
         }
-        // Iris draws entities_glowing under no key of its own, and a skybasic with no vertex stage on
-        // its default one (ProgramSet.readProgramSource), which the sky lane lacks: each row names why.
+        // Iris draws entities_glowing under no key of its own, and a skybasic with no vertex stage with
+        // its default vertex (ProgramSet.readProgramSource), which the sky lane lacks; each row names why
         assertTrue(analysis.report().program("gbuffers_entities_glowing").deviations()
                 .contains("IRIS_FALLBACK_SOURCE_ONLY"), "glowing reason");
         assertTrue(analysis.report().program("gbuffers_skybasic").deviations()

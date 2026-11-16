@@ -21,26 +21,23 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * Chimera's entry in VulkanMod's options screen: the name in the brand colour beside the icon, and
- * a Shaders page holding Iris's two mod-wide settings, Max Shadow Distance and Color Space, saved
- * in ChimeraConfig. The shader pack list opens from the screen's own button
- * (ChimeraVOptionScreenMixin). Reforged lists every ModSettingsRegistry entry beside its own, so
- * this needs no mixin.
+ * Chimera's entry in VulkanMod's options screen: the name in the brand colour beside the icon, and a Shaders
+ * page with Iris's two mod-wide settings, Max Shadow Distance and Color Space. Reforged lists every
+ * ModSettingsRegistry entry beside its own, so this needs no mixin. The pack list opens from a button on the
+ * screen itself (ChimeraVOptionScreenMixin).
  *
- * <p>Reforged shows a page's name as literal text, so it arrives translated, styled with a legacy
- * formatting code in the brand red, the nearest of the sixteen legacy colours to the logo's crimson.
- * The blocks are untitled, as VulkanMod's own are. Values stay unstyled: VulkanMod greys a locked
- * option's value itself.</p>
+ * Reforged shows a page name as literal text, so it arrives translated and coloured with a legacy formatting
+ * code. The blocks are untitled, as VulkanMod's own are. Values stay unstyled, since VulkanMod greys a locked
+ * option's value itself.
  */
 public final class ChimeraSettingsPage {
     private static final ResourceLocation ICON =
             ResourceLocation.fromNamespaceAndPath(ChimeraMod.MOD_ID, "textures/gui/settings_icon.png");
-    /** The brand colour as a legacy code, for the page name Reforged takes as text. */
+    /** Brand red as a legacy formatting code, the nearest of the sixteen to the logo's crimson. */
     private static final String BRAND = "§c";
 
     private ChimeraSettingsPage() {}
 
-    /** Adds Chimera's entry to VulkanMod's options screen. */
     public static void register() {
         Component name = Component.literal("Chimera").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
         ModSettingsRegistry.INSTANCE.addModEntry(new ModSettingsEntry(name, () -> ICON,
@@ -57,21 +54,20 @@ public final class ChimeraSettingsPage {
     }
 
     /**
-     * Iris's Max Shadow Distance, 0 to 32 chunks. A pack that sets shadowDistanceRenderMul forces
-     * its distance and locks the slider, as Iris's does: the label and tooltip then name the
-     * distance in force, and the handle stops at the track's end for a distance past 32 chunks.
-     * The greyed slider still shows that tooltip (LockableRangeOption).
+     * Iris's Max Shadow Distance, 0 to 32 chunks. A pack that sets shadowDistanceRenderMul forces its distance
+     * and locks the slider, as Iris does; the label and tooltip then name the distance in force, and the handle
+     * stops at the track's end past 32 chunks. LockableRangeOption keeps the tooltip on the greyed slider.
      */
     private static Option<Integer> shadowDistance() {
         ChimeraConfig config = ChimeraConfig.get();
         OptionalInt forced = ChimeraRenderer.forcedShadowDistance();
         boolean locked = forced.isPresent();
-        // A negative multiplier forces no distance: Iris's culling still reads the player's.
+        // a negative multiplier forces no distance; Iris's culling still reads the player's
         int inForce = locked && forced.getAsInt() >= 0 ? forced.getAsInt() : config.maxShadowRenderDistance();
         RangeOption option = new LockableRangeOption(Component.translatable("options.chimera.shadowDistance"),
                 0, ChimeraConfig.MAX_SHADOW_RENDER_DISTANCE, 1, chunks -> chunks(locked ? inForce : chunks),
                 chunks -> {
-                    // VulkanMod restores a change made before a pack locked the slider (restoreOptionDrafts).
+                    // VulkanMod replays a change made before a pack locked the slider (restoreOptionDrafts)
                     if (!locked) config.setMaxShadowRenderDistance(chunks);
                 },
                 () -> Math.min(inForce, ChimeraConfig.MAX_SHADOW_RENDER_DISTANCE));

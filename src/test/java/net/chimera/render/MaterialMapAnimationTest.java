@@ -79,8 +79,8 @@ final class MaterialMapAnimationTest {
             assertEquals(FALLBACK_NORMALS, n0[8 * 32 + 8], "undividable strip left its slot flat");
             int brick = n0[16 * 32 + 16];
 
-            // Shown frame after each tick: 0 holds 2, then 2 holds 3, then 1 holds 1. Every
-            // redraw writes all three mip levels, as 1.21.1 uploads a frame.
+            // shown frame after each tick: 0 holds 2, then 2 holds 3, then 1 holds 1
+            // every redraw writes all three mip levels, as 1.21.1 uploads a frame
             int[] expected = {0, 2, 2, 2, 1, 0, 0, 2};
             int writes = 0;
             for (int tick = 0; tick < expected.length; tick++) {
@@ -103,13 +103,13 @@ final class MaterialMapAnimationTest {
                         "write left the animated slot: " + Arrays.toString(write));
             }
 
-            // A tick for another atlas never advances this one.
+            // a tick for another atlas never advances this one
             int before = normals.writes.size();
             owner.tickAtlas("minecraft:blocks");
             owner.pumpPendingBuilds(lookup, MaterialMapFixtures::decodeImageIO);
             assertEquals(before, normals.writes.size(), "a foreign atlas tick advanced the map");
 
-            // A re-stitch restarts the schedule on its first entry.
+            // a re-stitch restarts the schedule on its first entry
             owner.noteAtlasUpload(layoutAnimated("minecraft:animated"),
                     markerImage());
             owner.pumpPendingBuilds(lookup, MaterialMapFixtures::decodeImageIO);
@@ -138,9 +138,9 @@ final class MaterialMapAnimationTest {
             int content = 32 + 9;
             assertEquals(pack(40, 200, 100, 0), specular.levels.get(0).pixels()[content],
                     "interpolation starts on frame 0");
-            // Four ticks per frame. Sodium weighs the current frame by 191, 127, then 63 of 255,
-            // mixes the colour channels and keeps the current frame's alpha; then frame 1 shows
-            // exactly and mixes towards frame 0.
+            // four ticks per frame; Sodium weighs the current frame by 191, 127, then 63 of 255
+            // it mixes the colour channels and keeps the current frame's alpha
+            // then frame 1 shows exactly and mixes towards frame 0
             int[][] shown = {
                     {40, 150, 100, 50},
                     {40, 100, 100, 100},
@@ -156,7 +156,7 @@ final class MaterialMapAnimationTest {
                 assertEquals(pack(value[0], value[1], value[2], value[3]),
                         specular.levels.get(0).pixels()[8], "interpolated padding tick " + (tick + 1));
             }
-            // Every tick redraws all three mip levels.
+            // every tick redraws all three mip levels
             assertEquals(3 * shown.length, specular.writes.size(), "interpolation redraws every tick");
         } finally {
             owner.close();

@@ -9,14 +9,14 @@ import net.minecraft.world.level.material.FluidState;
 import net.vulkanmod.render.vertex.CustomVertexFormat;
 import net.vulkanmod.render.vertex.TerrainBufferBuilder;
 
-/** Terrain builder that writes the current block and fluid material identity. */
+/** VulkanMod's terrain builder, writing the current block's or fluid's material identity into each vertex. */
 public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
     private final PackMaterialResolver materialResolver;
     private final ChimeraExtVertexBuilder extendedVertexBuilder;
 
     /**
-     * The host builder accepts only its own formats, so it starts on COMPRESSED_TERRAIN, whose
-     * prefix the extended formats share, and then takes the plan's format and vertex writer.
+     * The host builder accepts only its own formats, so it starts on COMPRESSED_TERRAIN, whose prefix the
+     * extended formats share, and then takes the plan's format and vertex writer.
      */
     public ChimeraExtTerrainBuilder(int size, PackMaterialResolver materialResolver,
                                     TerrainMaterialPlan materialPlan) {
@@ -30,17 +30,17 @@ public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
     }
 
     /**
-     * The position within the section of the block the host renders next, as Iris's
-     * BlockContextHolder records it. ChimeraBlockRendererMixin calls this after the host's
-     * setBlockAttributes, which passes the state only.
+     * The position within the section of the block the host renders next, as Iris's BlockContextHolder
+     * records it. ChimeraBlockRendererMixin calls this after the host's setBlockAttributes, which passes the
+     * state only.
      */
     public void beginBlock(int localX, int localY, int localZ) {
         extendedVertexBuilder.setBlockPosition(localX, localY, localZ);
     }
 
     /**
-     * Appends Iris's voxelizeLightBlocks quad for the light block at this position within the
-     * section ({@link ChimeraExtVertexBuilder#lightBlockQuad}); its id is the pack's for the state.
+     * Appends Iris's voxelizeLightBlocks quad for the light block at this position within the section
+     * ({@link ChimeraExtVertexBuilder#lightBlockQuad}); its id is the pack's for the state.
      */
     public void lightBlockQuad(BlockState blockState, int localX, int localY, int localZ) {
         ensureCapacity();
@@ -58,9 +58,8 @@ public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
     }
 
     /**
-     * A fluid's material is its own block, as in Iris: water inside seagrass
-     * or a waterlogged stair is water, not the block that holds it. The light
-     * emission is the holding block's, as Iris passes it.
+     * A fluid's material is its own block, as in Iris: water inside seagrass or a waterlogged stair is water,
+     * not the block that holds it. The light emission is the holding block's, as Iris passes it.
      */
     public void setFluidBlockAttributes(BlockState blockState, FluidState fluidState,
                                         int localX, int localY, int localZ) {

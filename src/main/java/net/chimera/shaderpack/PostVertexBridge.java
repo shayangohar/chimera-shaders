@@ -17,11 +17,7 @@ final class PostVertexBridge {
     private static final Set<String> INTERPOLATION = Set.of("flat", "noperspective", "smooth", "centroid", "sample");
     private static final Set<String> INPUT_STORAGE = Set.of("in", "varying");
 
-    /**
-     * Normalizes modern post syntax before interface scanning: the version,
-     * precision and input layouts go, and the existing token translator
-     * remains the only executable rewrite path.
-     */
+    /** Strips a modern post source's version, precision and input layouts before interface scanning. */
     static String normalizeModernPost(String source) {
         if (source == null) {
             throw new IllegalArgumentException("post source is missing");
@@ -37,9 +33,9 @@ final class PostVertexBridge {
     }
 
     /**
-     * Post inputs get Chimera's varying locations, and outputs keep theirs for
-     * PostTargetPlan.modernOutputs: an input's {@code layout(...)} goes with the space after it,
-     * and its interpolation and storage qualifiers stay.
+     * Drops each input's {@code layout(...)} and the space after it, since post inputs get Chimera's varying
+     * locations. Outputs keep theirs for PostTargetPlan.modernOutputs, and an input's interpolation and storage
+     * qualifiers stay.
      */
     private static String withoutInputLayouts(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -61,7 +57,7 @@ final class PostVertexBridge {
         return GlslDeclarations.apply(source, edits);
     }
 
-    /** A legacy {@code attribute} declaration, read as the vertex input it is. */
+    /** Rewrites legacy {@code attribute} qualifiers as {@code in}. */
     private static String attributesAsInputs(String source) {
         GlslTree tree = GlslTree.parse(source);
         List<GlslDeclarations.TextEdit> edits = new ArrayList<>();
@@ -90,14 +86,14 @@ final class PostVertexBridge {
         }
     }
 
-    /** Authored fullscreen vertex translation and named compatibility deviations. */
+    /** An authored post vertex stage's translation, null when it cannot run, and its deviations. */
     public record PostVertexConversion(String source, List<String> deviations) {
         public PostVertexConversion {
             deviations = deviations == null ? List.of() : deviations.stream().distinct().sorted().toList();
         }
     }
 
-    /** Canonical inputs shared by a prepared fullscreen vertex and fragment pair. */
+    /** The varying locations and types a fullscreen vertex and fragment pair share. */
     public record PostVaryingLayout(Map<String, Integer> locations, Map<String, String> types) {
         public PostVaryingLayout {
             locations = Collections.unmodifiableMap(new TreeMap<>(locations == null ? Map.of() : locations));
@@ -135,8 +131,8 @@ final class PostVertexBridge {
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),
                     true,
                     declaration -> {
-                        // A fullscreen pass feeds no vertex attributes; Iris leaves an unread
-                        // one unbound (I Like Vanilla's composites declare mc_Entity in a header).
+                        // a fullscreen pass feeds no vertex attributes, and Iris leaves an unread one unbound
+                        // I Like Vanilla's composites declare mc_Entity in a header
                         if (declaration.input() && !declaration.referenced()) return "";
                         Integer location = locations.get(declaration.name());
                         if (declaration.input() || location == null) {
@@ -153,13 +149,11 @@ final class PostVertexBridge {
             converted = converted.replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*[0-7]\\s*\\]", "mat4(1.0)");
             converted = converted.replaceAll("\\bftransform\\s*\\(\\s*\\)", "chimeraFullscreenPosition()");
             requireServedBuiltins(converted);
-            // The pack positions geometry in GL clip space, where NDC y = -1 is image row 0.
-            // Post passes keep VulkanMod's negative-height viewport, which maps y = -1 to the
-            // last row, so the authored position is mirrored once here. Packs that draw a
-            // partial quad and address it by gl_FragCoord (Bliss's exposure texel) need this.
-            // Its depth leaves GL's range too: a pass has no depth attachment, but Vulkan clips
-            // below z = 0, and DrDestens' gl_Vertex * 2 - 1 and Pixel Perfect's
-            // vec4(vaPosition * 2 - 1, 1) put the quad at z = -1, GL's near plane.
+            // GL clip space puts NDC y = -1 at image row 0, but post passes keep VulkanMod's negative-height
+            // viewport, which maps it to the last row, so the authored position is mirrored once here
+            // a partial quad addressed by gl_FragCoord needs this, such as Bliss's exposure texel
+            // depth moves into Vulkan's range too: a pass has no depth attachment, but Vulkan clips below z = 0
+            // DrDestens' gl_Vertex * 2 - 1 and Pixel Perfect's vec4(vaPosition * 2 - 1, 1) put the quad at z = -1
             converted = GlslDeclarations.renameMain(converted, "chimeraPostMain");
             converted += "\nvoid main() { chimeraPostMain(); gl_Position.y = -gl_Position.y; "
                     + ClipDepth.TO_VULKAN + " }\n";
@@ -226,8 +220,7 @@ final class PostVertexBridge {
         Map<String, String> inputs = new TreeMap<>();
         inputs.put("gl_Vertex", "vec4(chimeraFullscreenUv(), 0.0, 1.0)");
         inputs.put("gl_MultiTexCoord0", "vec4(chimeraFullscreenUv(), 0.0, 1.0)");
-        // A fullscreen draw has only position/UV0, exactly as the legacy
-        // fullscreen contract: other texture coordinates have no mesh data.
+        // a fullscreen draw has only position and UV0; other texture coordinates have no mesh data
         for (int unit = 1; unit < 8; unit++) {
             inputs.put("gl_MultiTexCoord" + unit, "vec4(0.0, 0.0, 0.0, 1.0)");
         }
@@ -253,7 +246,7 @@ final class PostVertexBridge {
         }
     }
 
-    /** The fixed fullscreen vertex produces one vec2 input at location zero. */
+    /** Declares the one varying a post fragment may read at location 0, the vec2 the fixed fullscreen vertex writes. */
     static String convertPostVaryings(String source) {
         List<PostVaryingDeclaration> declarations = postVaryingDeclarations(source);
         List<String> referenced = referencedPostVaryings(source, declarations);
@@ -331,7 +324,7 @@ final class PostVertexBridge {
 
     /**
      * One input declaration; null for another declaration. An input with more than one leading
-     * interpolation qualifier, a precision qualifier, an array or an initializer is refused.
+     * interpolation qualifier, a precision qualifier, an array or an initialiser is refused.
      */
     private static PostVaryingDeclaration postVarying(GlslTree tree, GlslTree.Declaration declaration, int start,
                                                       int end) {
@@ -369,7 +362,7 @@ final class PostVertexBridge {
         return referenced;
     }
 
-    /** Probe-visible reason for a post varying that the fixed vertex cannot produce. */
+    /** Deviations for the post varyings the fixed fullscreen vertex cannot produce. */
     static List<String> postVaryingDeviations(String source) {
         String input = source == null ? "" : source;
         List<String> deviations = new ArrayList<>();
@@ -400,9 +393,9 @@ final class PostVertexBridge {
     }
 
     /**
-     * A fragment input the vertex stage does not write and the fragment never reads (Bliss's
-     * Flashing outside the program that sets it). GL links such a declaration as dead, so Iris
-     * accepts it; it is dropped. One that is read stays an error, as it is a link error in GL.
+     * Whether a fragment input is neither written by the vertex stage nor read, such as Bliss's Flashing outside
+     * the program that sets it. GL links such a declaration as dead and Iris accepts it, so it can be dropped. One
+     * that is read stays an error, as it is a link error in GL.
      */
     static boolean unproducedAndUnread(String source, int start, int end, String name,
                                                LegacyGlslConverter.TerrainVaryingLayout layout) {

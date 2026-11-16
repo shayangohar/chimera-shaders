@@ -18,12 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pack modules must read zero from locals the authored GLSL never wrote
- * (Complementary parallaxTexDepth), as on the GL drivers packs target.
- * Compiles real GLSL, applies the initializer, and checks every plain-data
- * function variable carries an OpConstantNull of its own type while opaque
- * handles, initialized locals and the id bound stay coherent. The same
- * modules tell SpirvOutputWrites which output locations they write.
+ * Pack modules read zero from locals the authored GLSL never wrote, such as Complementary's
+ * parallaxTexDepth, as on the GL drivers packs target.
+ *
+ * Each test compiles real GLSL, applies the initializer and checks that every plain-data function
+ * variable carries an OpConstantNull of its own type, while opaque handles, initialized locals and the
+ * id bound stay coherent. The same modules tell SpirvOutputWrites which output locations they write.
  */
 final class SpirvLocalInitializerTest {
     @Test
@@ -50,11 +50,11 @@ final class SpirvLocalInitializerTest {
         int[] initialized = SpirvLocalInitializer.apply(original);
         assertTrue(initialized != original, "uninitialized pack locals were left undefined");
         assertTrue(initialized[3] > original[3], "new null constants must extend the id bound");
-        // lit, and glslang's copy of depth for march's inout parameter, are written whole before anything reads them.
+        // lit, and glslang's copy of depth for march's inout parameter, are written whole before anything reads them
         verifyInitializers(initialized, Set.of("lit", "param"));
         assertTrue(SpirvLocalInitializer.apply(initialized) == initialized, "initializer is not idempotent");
 
-        // A module with no local, private global or output that could be read unwritten is left byte-identical.
+        // a module with no local, private global or output that could be read unwritten is left byte-identical
         String nothing = "#version 460\nlayout(location = 0) in vec2 uv;\n"
                 + "void main() { float edge = 2.0; if (uv.x > edge) discard; }\n";
         int[] clean = words(compile(nothing));
@@ -117,9 +117,9 @@ final class SpirvLocalInitializerTest {
 
     /**
      * BSL's shadowcomp copies its light and tint colour tables into private globals at the top of
-     * main, where glslang stores a global's initializer. The zero would never be seen, and NVIDIA
-     * then fills the tables per invocation (33 ms for the dispatch, against 0.2 ms), so they keep no
-     * initializer. A global main writes only in part, or only after a call that reads it, does.
+     * main, where glslang stores a global's initializer. The zero would never be seen, and with it
+     * NVIDIA fills the tables per invocation, making the dispatch over a hundred times slower, so they
+     * keep no initializer. A global main writes only in part, or only after a call that reads it, does.
      */
     @Test
     void variablesWrittenFirst() {
@@ -154,7 +154,7 @@ final class SpirvLocalInitializerTest {
 
     /**
      * BSL's world programs store their light-colour table after the short-circuit test of an
-     * earlier initializer, and zeroing it first made each terrain draw ten times slower. A store
+     * earlier initializer, and zeroing it first makes each terrain draw many times slower. A store
      * that comes first on every path to every read is enough; a variable written on one path
      * only, or an output an early return leaves unwritten, still starts at zero.
      */
@@ -407,8 +407,7 @@ final class SpirvLocalInitializerTest {
      * An emit sends every output's current value as the vertex, so it reads them all: an output a
      * geometry stage stores only after its first emit starts from zero, as GL's would, and one it
      * stores before every emit needs no initializer. That holds for EmitStreamVertex, optimized or
-     * not, and for an emit in a helper that main calls. Only a return counted as a read, which
-     * GeometryStageBridge's keep helper happened to cover.
+     * not, and for an emit in a helper that main calls.
      */
     @Test
     void anEmitReadsEveryOutput() {

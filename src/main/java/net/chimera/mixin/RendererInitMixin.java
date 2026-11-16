@@ -9,10 +9,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * VulkanMod Renderer's lifecycle: Chimera takes over the main pass once the
- * Renderer singleton is fully constructed (swapchain, default main pass, sync
- * objects all exist), replaces pack resources before a frame records, and
- * cleans its own pass at final teardown when the host pass is the installed one.
+ * Chimera's hooks into VulkanMod's Renderer lifecycle. It takes over the main pass once the Renderer is fully
+ * built, with its swapchain, default main pass and sync objects; applies pending pack work before a frame
+ * records; and cleans up its own pass at final teardown when the host pass is the installed one.
  */
 @Mixin(value = Renderer.class, remap = false)
 public abstract class RendererInitMixin {
@@ -23,8 +22,8 @@ public abstract class RendererInitMixin {
     }
 
     /**
-     * cleanUpResources cleans only the installed main pass. This runs first, while the device
-     * and the host pass are alive, so Chimera's pass is cleaned before the host's.
+     * cleanUpResources cleans only the installed main pass, so an idle Chimera pass is cleaned here first,
+     * while the device and the host pass are still alive.
      */
     @Inject(method = "cleanUpResources", at = @At("HEAD"))
     private void chimera$beforeCleanUpResources(CallbackInfo ci) {
@@ -32,9 +31,8 @@ public abstract class RendererInitMixin {
     }
 
     /**
-     * Renderer.beginFrame has already waited for the current frame-slot fence
-     * here, but command recording has not started. This is the one safe seam for
-     * replacing pack-owned Vulkan resources during a dimension transition.
+     * Runs after Renderer.beginFrame has waited on the frame slot's fence and before command recording
+     * starts, the point where pack-owned Vulkan resources can be replaced, as on a dimension change.
      */
     @Inject(method = "beginRenderPass(Lorg/lwjgl/system/MemoryStack;)V", at = @At("HEAD"))
     private void chimera$beforeMainCommandBuffer(MemoryStack stack, CallbackInfo ci) {

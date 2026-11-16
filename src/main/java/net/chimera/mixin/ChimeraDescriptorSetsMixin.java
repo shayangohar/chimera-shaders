@@ -9,10 +9,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Pack descriptors in VulkanMod's per-pipeline descriptor sets: the descriptor writes and checks
- * bind a pack's sampler override for a selector's image (ChimeraTextureBindingState) instead of the
- * host's sampler. Each pool entry takes its descriptor's own type in Reforged 0.3.5 itself, so a set
- * holding a pack storage buffer or storage image fits its pool (HostFixesTest).
+ * In VulkanMod's per-pipeline descriptor sets, the descriptor writes and update checks use a pack's sampler
+ * override for a selector's image (ChimeraTextureBindingState) in place of the host's sampler. Reforged
+ * gives each pool entry its descriptor's own type, so a set holding a pack storage buffer or storage image
+ * already fits its pool (HostFixesTest).
  */
 @Mixin(targets = "net.vulkanmod.vulkan.shader.Pipeline$DescriptorSets", remap = false)
 public abstract class ChimeraDescriptorSetsMixin {

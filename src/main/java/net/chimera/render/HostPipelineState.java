@@ -4,11 +4,11 @@ import net.vulkanmod.vulkan.VRenderSystem;
 import net.vulkanmod.vulkan.shader.PipelineState;
 
 /**
- * VulkanMod picks a pipeline variant from its global render state when a
- * pipeline is bound, so a Chimera-owned fullscreen draw inherits whatever
- * blend, mask, depth and cull state the last host draw left behind. A glint
- * draw's SRC_COLOR/ONE blend once squared every depth copy. Owners snapshot
- * this state, bind under the fixed fullscreen state, and restore it.
+ * The global render state VulkanMod picks a pipeline variant from at bind.
+ *
+ * A Chimera-owned fullscreen draw would otherwise inherit the blend, mask, depth and cull state the last host
+ * draw left; a glint draw's SRC_COLOR/ONE blend would square a depth copy. Owners capture this state, bind under
+ * the fixed fullscreen state and restore it.
  */
 record HostPipelineState(
         boolean depthTest,

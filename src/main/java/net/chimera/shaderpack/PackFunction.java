@@ -4,10 +4,11 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoubleUnaryOperator;
 
 /**
- * The functions a {@link PackExpression} may call: Iris's set (IrisFunctions), with the arity and
- * argument shape each accepts. A math function carries its operation on one argument, on two, or
- * both; the rest are folded by the call that uses them. Iris has no {@code round}: its entry is
- * commented out, so an expression calling it is refused as Iris refuses it.
+ * The functions a {@link PackExpression} may call: Iris's IrisFunctions set, with the arity and argument shape
+ * each accepts.
+ *
+ * A math function carries its operation on one argument, on two, or both; PackExpression evaluates the rest
+ * itself. Iris's {@code round} entry is commented out, so an expression calling it is refused as Iris refuses it.
  */
 enum PackFunction {
     ABS(1, 1, Shape.LANES, Math::abs),
@@ -51,12 +52,12 @@ enum PackFunction {
     RANDOM(0, 2, Shape.SCALAR, null),
     /** {@code randomInt()} any int, {@code randomInt(bound)} in [0, bound), {@code randomInt(min, max)}. */
     RANDOMINT(0, 2, Shape.LANES, null),
-    /** Iris's explicit casts (IrisFunctions.addExplicitCast): int to float, and float to int, truncating. */
+    /** Iris's explicit casts (IrisFunctions.addExplicitCast); float to int truncates. */
     TOFLOAT(1, 1, Shape.SCALAR, value -> value),
     TOINT(1, 1, Shape.SCALAR, value -> (int) value),
     /**
-     * Iris's three-or-more-argument {@code max} and {@code min} read the second argument again for
-     * each further one, so only the first two count.
+     * Iris's {@code max} and {@code min} with three or more arguments read the second argument again for each
+     * further one, so only the first two count.
      */
     MAX(2, Integer.MAX_VALUE, Shape.LANES, null, Math::max),
     MIN(2, Integer.MAX_VALUE, Shape.LANES, null, Math::min),

@@ -45,7 +45,7 @@ final class TerrainAtlasSamplingTest {
             boolean terrain = stage == UniformRegistry.Stage.GEOMETRY || stage == UniformRegistry.Stage.TRANSLUCENT;
             assertTrue(PackResourcePlan.terrainAtlasSamplers("gbuffers_terrain",iface,null).contains("tex") == terrain,
                     "stage admission: " + stage);
-            // Stitched companions share the atlas topology and take the same reconstruction.
+            // stitched companions share the atlas layout and take the same reconstruction
             var material = new UniformRegistry.ProgramInterface(stage,List.of(),List.of(
                     new UniformRegistry.SamplerBinding("normals",SelectorNamespace.NORMALS_SLOT),
                     new UniformRegistry.SamplerBinding("specular",SelectorNamespace.SPECULAR_SLOT),
@@ -61,9 +61,10 @@ final class TerrainAtlasSamplingTest {
         verifyExplicitGradientAtlasSamples(header);
     }
 
-    /** Explicit-gradient atlas contract: four-argument textureGrad on an
-     * eligible sampler takes the gradient helper with authored expressions
-     * preserved verbatim; everything else fails closed. */
+    /**
+     * Four-argument textureGrad on an atlas sampler takes the gradient helper, keeping the pack's
+     * expressions verbatim; any other textureGrad stays as written.
+     */
     private static void verifyExplicitGradientAtlasSamples(String header) {
         String grad = header + "void main(){vec2 uv=vec2(0.4);vec2 du=vec2(0.01);vec2 dv=vec2(0.02);"
                 + "color=textureGrad(tex,uv+du,du*2.0,dv);}";

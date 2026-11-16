@@ -17,8 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Iris's fog uniforms (FogUniforms, and IrisInternalUniforms' for gl_Fog) and cloudTime
- * (IrisExclusiveUniforms). RedHat's world programs read fogMode and Shrimple's read fogShape and
- * cloudTime; Chimera refused all three.
+ * (IrisExclusiveUniforms).
  */
 final class IrisFogUniformsTest {
     /** Before any fog setup Iris's captured density is 0 (CapturedRenderingState): GL_EXP2, density 0. */
@@ -80,8 +79,7 @@ final class IrisFogUniformsTest {
 
     /**
      * The latches are the programs', which Iris rebuilds with a pack: a program drawn again after the
-     * session ends latches afresh within the frame. They were static, so they outlived the session,
-     * and one test's latches reached the next.
+     * session ends latches afresh within the frame.
      */
     @Test
     void aNewSessionLatchesAfresh() {

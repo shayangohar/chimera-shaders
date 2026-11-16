@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * One pass over every program's prepared stages for the pack images they use: the programs that
- * depend on an advanced resource, the images each stage writes through a storage image declaration
- * and reads through its sampler, and the stages guarded by the custom-image feature.
+ * Scans every program's prepared stages for the pack images they use: the programs that depend on an advanced
+ * resource, the images each stage writes through a storage image declaration or reads through its sampler, and
+ * the programs guarded by the custom-image feature.
  */
 final class GraphicsImageScan {
     static final Pattern GRAPHICS_IMAGE_DECLARATION = Pattern.compile(
@@ -51,8 +51,7 @@ final class GraphicsImageScan {
         GraphicsImageScan scan = new GraphicsImageScan(plan, images, deviations);
         List<PackProgramPlan> programs = plan.programs().stream()
                 .filter(program -> program != null && !program.name().isBlank()).toList();
-        // A program's bindings and deviations are its own: scanned apart and merged in program
-        // order, they are what one scan of every program records.
+        // a program's bindings and deviations are its own, so programs scan apart and merge in program order
         for (GraphicsImageScan part : PackWorkers.map(programs, program -> {
             GraphicsImageScan own = new GraphicsImageScan(plan, images, new ArrayList<>());
             own.scanProgram(program);
@@ -74,7 +73,7 @@ final class GraphicsImageScan {
     }
 
     private void scanProgram(PackProgramPlan program) {
-        // Photon's scattering and worley volumes are raw 3D textures, not images shadowcomp produces.
+        // Photon's scattering and worley volumes are raw 3D textures, not images shadowcomp produces
         Map<String, PackResourceDeclaration> declarations = plan.settings().resourceDeclarations();
         Predicate<String> packVolume = sampler ->
                 PackResourcePlan.rawTextureServes(program.name(), sampler, "sampler3D", declarations);
@@ -98,19 +97,19 @@ final class GraphicsImageScan {
     private void scanStage(String program, String stage, String source) {
         GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(source, imageSamplerNames);
         deviations.addAll(usage.deviations());
-        // Vulkan GLSL needs a binding for every opaque declaration, even one nothing reads (Solas
-        // declares voxelSampler in terrain but only the shadow pass writes voxel_img). An image
-        // declaration nothing reachable reads is already gone, with any dead code that read it
-        // (PackPlanBuilder.withoutInactiveImages); samplers stay. Give every declared pack
-        // image and every declared or referenced pack image sampler a descriptor. Runtime
-        // eligibility remains based on the live uses in usesAdvancedResource.
-        // The pattern opens with optional parts, so it is tried at every character; a stage
-        // without an image declaration (most of them) cannot match at all.
+        // Vulkan GLSL needs a binding for every opaque declaration, even one nothing reads: Solas declares
+        // voxelSampler in terrain, but only the shadow pass writes voxel_img
+        // PackPlanBuilder.withoutInactiveImages has already dropped image declarations nothing reachable reads,
+        // with the dead code that read them; samplers stay
+        // so every declared pack image and every declared or referenced image sampler gets a descriptor, while
+        // whether the program runs still follows the live uses in usesAdvancedResource
+        // the pattern opens with optional parts and is tried at every character, so skip the many stages
+        // that cannot match
         Matcher image = GRAPHICS_IMAGE_DECLARATION.matcher(source.contains("image") ? source : "");
         while (image.find()) {
             String symbol = image.group(3);
-            // A match the parser does not see as a declaration declares nothing: Shrimple's composite18
-            // keeps `//layout(r32f) uniform readonly image2D imgDepthNear;` in a comment.
+            // a match the parser does not see as a declaration declares nothing: Shrimple's composite18
+            // keeps `//layout(r32f) uniform readonly image2D imgDepthNear;` in a comment
             if (usage.successful() && !usage.declaredImages().contains(symbol)) continue;
             String format = AdvancedImageDeclarations.declaredFormat(image.group(1));
             addWriter(program, stage, new Declared(image.group(2), symbol, format),
@@ -145,8 +144,8 @@ final class GraphicsImageScan {
                 if (referenced) addTargetWriter(program, stage, declared, target);
                 return;
             }
-            // Not a pack image: Iris's shadowcolorimgN, and colorimgN outside the post passes and
-            // the hand programs, which no draw here binds.
+            // not a pack image: Iris's shadowcolorimgN, or colorimgN outside the post passes and hand
+            // programs, which no draw here binds
             if (referenced) deviations.add(PackAdvancedResourcePlan.UNSERVED_IMAGE + program + ":" + symbol);
             return;
         }
@@ -162,12 +161,13 @@ final class GraphicsImageScan {
     }
 
     /**
-     * colorimgN in a post pass or a hand program: target N as a storage image at the slot the
-     * program would sample it through, in the target's format or a same-size view the declaration
-     * names, as for a pass compute (StorageForm). A format of another size has no such view, and a
-     * program that also samples the target would read one image in two layouts: either refuses the
-     * program. So does a world program that also draws to the target, which would hold it as an
-     * attachment and a storage image at once; colortex0 counts as drawn, since the HDR image world
+     * colorimgN in a post pass or a hand program: target N as a storage image at the slot the program would
+     * sample it through, in the target's format or a same-size view the declaration names, as for a pass
+     * compute (StorageForm).
+     *
+     * The program is refused when the declared format has another size, when it also samples the target, which
+     * would read one image in two layouts, or when a world program also draws to the target, which would hold
+     * it as an attachment and a storage image at once. colortex0 counts as drawn, since the HDR image world
      * programs render into stands in for it.
      */
     private void addTargetWriter(String program, String stage, Declared declared, int target) {
@@ -193,8 +193,8 @@ final class GraphicsImageScan {
     }
 
     /**
-     * Whether another stage of the program declares the image in another format. The program binds
-     * one descriptor for it, so the stages cannot read it through two views: it is refused.
+     * Whether another stage of the program declares the image in another format. The program binds one
+     * descriptor for it, so the stages cannot read it through two views, and the program is refused.
      */
     private boolean formatConflict(String program, PackAdvancedResourcePlan.ImageSpec spec, String symbol,
                                    String viewFormat) {
@@ -208,8 +208,8 @@ final class GraphicsImageScan {
     }
 
     /**
-     * The format a stage reads an image through (AdvancedImageDeclarations.viewFormat). Another
-     * size has no such reading: the program is refused, and null returned.
+     * The format a stage reads an image through (AdvancedImageDeclarations.viewFormat), or null with the
+     * program refused when the declared format has another size.
      */
     private String viewFormat(String program, PackAdvancedResourcePlan.ImageSpec spec, String declared) {
         String view = AdvancedImageDeclarations.viewFormat(spec, declared);
@@ -222,10 +222,10 @@ final class GraphicsImageScan {
 
     /**
      * A sampler of a pack image, bound to its selector as the image's storage type. As for a storage
-     * declaration, an unread sampler of an image Chimera does not create is inactive, not a refusal.
-     * So is one no stage reads that got no slot: Glimmer's header declares multipleScatteringLUTTex
-     * in every program, and only its compute passes read it. The planner strips that declaration
-     * (InterfacePlanner.bindSamplers).
+     * declaration, an unreferenced sampler of an image Chimera does not create is skipped without refusing the
+     * program. So is a sampler no live path reads that got no slot: Glimmer's header declares
+     * multipleScatteringLUTTex in every program, and only its compute passes read it. The planner strips that
+     * declaration (InterfacePlanner.bindSamplers).
      */
     private void addReader(String program, String stage, String sampler, boolean referenced, boolean live) {
         PackAdvancedResourcePlan.ImageSpec spec = PackAdvancedResourcePlan.imageBySampler(images, sampler);
@@ -240,9 +240,9 @@ final class GraphicsImageScan {
     }
 
     /**
-     * The selector slot {@code program} binds a supported image at, or -1 when the image is
-     * unsupported or has no slot; the program is then recorded as using an image Chimera cannot
-     * serve (PackAdvancedResourcePlan.imagesServable).
+     * The selector slot {@code program} binds a supported image at, or -1 when the image is unsupported or has
+     * no slot; the program is then recorded as using an image Chimera cannot serve
+     * (PackAdvancedResourcePlan.imagesServable).
      */
     private int servedSlot(String program, PackAdvancedResourcePlan.ImageSpec spec) {
         int slot = spec.supported() ? selectorSlot(spec) : -1;

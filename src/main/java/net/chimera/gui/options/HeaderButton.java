@@ -10,22 +10,20 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * A small button in the settings header: Back on a sub-page, then Import, Export and Reset on every
- * page. Reset acts only with Shift held, and greys out until Shift is down or it has focus. Each
- * shows its tooltip at once while hovered or focused, above its top-right corner.
+ * A small button in the settings header: Back on a sub-page, then Import, Export and Reset on every page.
+ * Reset acts only with Shift held, and greys out until Shift is down or it has focus. Import, Export and
+ * Reset show their tooltip at once while hovered or focused, above the top-right corner.
  */
 final class HeaderButton extends AbstractWidget {
     static final int HEIGHT = 16;
     static final int ICON_WIDTH = 15;
     private static final int SHADOW = 0xB3000000;
-    /** Each glyph row as pairs of first and last lit pixel. */
+    // glyph rows as pairs of first and last lit pixel
     private static final int[][] EXPORT_GLYPH = {{3, 3}, {2, 4}, {1, 5}, {3, 3}, {3, 3}, {0, 0, 6, 6}, {0, 0, 6, 6},
             {0, 6}};
     private static final int[][] IMPORT_GLYPH = {{3, 3}, {3, 3}, {1, 5}, {2, 4}, {3, 3}, {0, 0, 6, 6}, {0, 0, 6, 6},
             {0, 6}};
-    /** Yellow, orange, pink, violet. */
     private static final int[] EXPORT_GRADIENT = {0xFFFFE066, 0xFFFF9F43, 0xFFFF6B9D, 0xFFB57BFF};
-    /** Teal, blue, lavender. */
     private static final int[] IMPORT_GRADIENT = {0xFF3FD9C9, 0xFF4DA6FF, 0xFFB9A7FF};
 
     enum Kind { BACK, IMPORT, EXPORT, RESET }
@@ -99,8 +97,8 @@ final class HeaderButton extends AbstractWidget {
     }
 
     /**
-     * A tray with an arrow leaving it (export) or entering it (import), 7 by 8 pixels, white with a
-     * shadow, and in a warm (export) or cool (import) gradient while hovered or focused.
+     * A 7 by 8 pixel tray with an arrow leaving it for export or entering it for import. White with a shadow;
+     * a warm gradient for export or a cool one for import while hovered or focused.
      */
     private void drawIcon(GuiGraphics graphics, int x, int y) {
         int[][] rows = kind == Kind.EXPORT ? EXPORT_GLYPH : IMPORT_GLYPH;

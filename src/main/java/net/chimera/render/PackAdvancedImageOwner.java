@@ -16,7 +16,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 
-/** Owns advanced writable images for one pack session. */
+/** Owns the pack's writable images for one pack session. */
 public final class PackAdvancedImageOwner implements AutoCloseable {
     private final PackAdvancedResourcePlan plan;
     /** The formats pass computes bind each image in (PassComputePlan.imageFormats). */
@@ -24,12 +24,11 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     private final Map<String, PackStorageImage> images = new TreeMap<>();
     private final Map<String, String> failures = new TreeMap<>();
     private final Set<String> reportedLimits = new HashSet<>();
-    /** Each relative image's last size whose refit allocation failed (refit). */
+    /** The size each relative image last failed to refit at. */
     private final Map<String, String> failedRefits = new HashMap<>();
     private int generation;
     private boolean closed;
 
-    /** Pure policy used by the owner and deterministic conformance tests. */
     public static boolean shouldInitializeImage(boolean clearEachFrame, boolean initialized) {
         return clearEachFrame || !initialized;
     }
@@ -40,10 +39,9 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * The session's images, a relative one at its share of a screen this size (Iris creates it at
-     * the render target's size); the first frame refits it to the main target (fitRelativeImages).
-     * Each has a view in every other format programs and pass computes ({@code computeFormats})
-     * read it in.
+     * The session's images, a relative one at its share of a screen this size. Iris creates it at the render
+     * target's size, so the first frame refits it to the main target (fitRelativeImages). Each image has a view
+     * in every other format programs and pass computes ({@code computeFormats}) read it in.
      */
     public static PackAdvancedImageOwner load(PackAdvancedResourcePlan plan, int screenWidth, int screenHeight,
                                               Map<String, Set<Integer>> computeFormats) {
@@ -73,9 +71,9 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * Creates each relative image at its share of the screen, and recreates it when the screen
-     * changes size, as Iris's GlImage.Relative.updateNewSize does. A replaced image is freed once
-     * the frames that used it have finished. The new one starts uninitialized, so it is cleared.
+     * Recreates each relative image at its share of the screen when the screen changes size, as Iris's
+     * GlImage.Relative.updateNewSize does. A replaced image is freed once the frames that used it have
+     * finished. The new one starts uninitialised, so it is cleared.
      */
     private void fitRelativeImages(int width, int height) {
         for (PackAdvancedResourcePlan.ImageSpec spec : plan.images().values()) {
@@ -87,7 +85,7 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
             if (current != null && current.width == extent[0] && current.height == extent[1]) continue;
             String limit = PackStorageImage.extentLimitFailure(spec, extent);
             if (limit != null) {
-                // The screen outgrew the device: the image keeps its last size, as a buffer does.
+                // the screen outgrew the device: the image keeps its last size, as a buffer does
                 if (reportedLimits.add(limit)) ChimeraMod.LOGGER.warn("[chimera] {}", limit);
                 continue;
             }
@@ -96,11 +94,10 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * Replaces a relative image with one at {@code extent}, made first: a failed allocation keeps
-     * the old image bound at its old size, as a size past the device's limit does, logged once,
-     * and not tried again while the screen keeps that size ({@link #keptFailure}). Retired first,
-     * the failure dropped the image and recorded a load failure, so every program binding it fell
-     * back for the session.
+     * Replaces a relative image with one at {@code extent}. The new image is made before the old one is
+     * freed, so a failed allocation keeps the old image bound at its old size, as a size past the device's
+     * limit does. The failure is logged and not tried again while the screen keeps that size
+     * ({@link #keptFailure}).
      */
     private boolean refit(PackAdvancedResourcePlan.ImageSpec spec, int[] extent, PackStorageImage current) {
         String size = extent[0] + "x" + extent[1];
@@ -121,10 +118,9 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * The size whose refit failed, kept while the screen still asks for it, so the allocation is not
-     * tried every frame; null once the screen asks for any other size, its own included, so a later
-     * return to the failed size tries again. Kept until a refit succeeded, a resize back to the
-     * image's own size and out again never retried.
+     * The failed refit size while the screen still asks for it, so the allocation is not tried every frame.
+     * Null once the screen asks for any other size, the image's current size included, so a later return to
+     * the failed size tries again.
      */
     public static String keptFailure(String failedSize, String requestedSize) {
         return requestedSize.equals(failedSize) ? failedSize : null;
@@ -136,13 +132,12 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * Whether every image {@code program} binds exists. Iris runs each program on its own: a
-     * consumer runs whether or not the program that writes its images does, and reads what the
-     * frame's clear left.
+     * Whether every image {@code program} binds exists. Iris runs each program on its own: a reader runs
+     * whether or not the program that writes its images does, and reads what the frame's clear left.
      */
     public boolean programImagesAvailable(String program) {
         for (PackAdvancedResourcePlan.GraphicsImageBinding binding : plan.imageBindings(program)) {
-            // A colour target's colorimgN is the target graph's (PostTargetStorage), not this owner's.
+            // a colour target's colorimgN belongs to the target graph (PostTargetStorage), not this owner
             if (binding.target() < 0 && !availableForSymbol(binding.symbol())) return false;
         }
         return true;
@@ -154,8 +149,8 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * Makes every earlier shader write to the images visible to later shader reads and writes, as
-     * Iris's glMemoryBarrier before each program does. Recorded outside a render pass.
+     * Makes every earlier shader write to the images visible to later shader reads and writes, as Iris's
+     * glMemoryBarrier before each program does. Recorded outside a render pass.
      */
     public void afterImageWrites(VkCommandBuffer commandBuffer) {
         if (commandBuffer == null || closed || images.isEmpty()) return;
@@ -183,15 +178,12 @@ public final class PackAdvancedImageOwner implements AutoCloseable {
     }
 
     /**
-     * Applies the pack clear policy at the start of each world frame, before any program runs
-     * (Iris clears its clear images at beginLevelRendering).
+     * Refits relative images, then clears the images due a clear at the start of each world frame, before any
+     * program runs, as Iris clears its clear images at beginLevelRendering.
      *
-     * A non-clear image is persistent after its first frame, but Vulkan does
-     * not initialize newly allocated image memory. Seed every new image once
-     * before a producer or consumer can read it. This is required for packs
-     * such as BSL, whose persistent light volumes are read and written by the
-     * same compute stage. Later frames preserve those contents unless the
-     * pack explicitly requested a clear.
+     * An image without clear keeps its contents across frames, but Vulkan leaves new image memory undefined,
+     * so every new image is cleared once before anything reads it. Packs such as BSL need this for light
+     * volumes they read and write in the same compute stage.
      */
     public void prepareFrame(VkCommandBuffer commandBuffer, int screenWidth, int screenHeight) {
         if (commandBuffer == null || closed) return;

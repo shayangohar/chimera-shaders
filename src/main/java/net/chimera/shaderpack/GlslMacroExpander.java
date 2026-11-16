@@ -11,27 +11,27 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Expands the macros of a prepared source as a C preprocessor does, and as Iris's JCPP does before
- * any analysis: object-like and function-like macros, arguments expanded before they
- * are substituted, {@code ##} pasting, and rescanning with each macro hidden from its own
- * expansion. The input is {@link ShaderSourcePreprocessor}'s output, whose conditionals are
- * resolved and whose active #define and #undef lines stand in source order. Those lines become
- * empty; comments and every other directive (#version, #extension, #pragma, #line) stay as
- * written; a call that spans lines keeps the line count. A call with the wrong number of
- * arguments, or one that never closes, stays as written for the compiler to report.
+ * Expands a prepared source's macros as a C preprocessor does, and as Iris's JCPP does before any analysis:
+ * object-like and function-like macros, arguments expanded before substitution, {@code ##} pasting, and
+ * rescanning with each macro hidden from its own expansion.
+ *
+ * The input is {@link ShaderSourcePreprocessor}'s output, whose conditionals are resolved and whose active
+ * {@code #define} and {@code #undef} lines stand in source order. Those lines become empty. Comments and every
+ * other directive stay as written, and a call that spans lines keeps the line count. A call with the wrong
+ * number of arguments, or one that never closes, stays as written for the compiler to report.
  */
 final class GlslMacroExpander {
     static final int MAX_EXPANDED_CHARS = 16 * 1024 * 1024;
     private static final Pattern DEFINE_OR_UNDEF = Pattern.compile("(?m)^[ \\t]*#[ \\t]*(?:define|undef)\\b");
     private static final GlslLexer.Kind TRIVIA = GlslLexer.Kind.TRIVIA;
 
-    /** A macro: its parameters, null for an object-like one, and its replacement list. */
+    /** {@code parameters} is null for an object-like macro. */
     private record Macro(List<String> parameters, List<Tok> body) {}
 
     /**
-     * A token in flight: its kind and text, whether whitespace preceded it in a replacement list,
-     * the macros it may no longer expand, whether it is the source's own, and whether it opens a
-     * directive line.
+     * A token in flight. {@code spaceBefore} records whitespace before it in a replacement list, {@code hidden}
+     * the macros it may no longer expand, {@code original} that it is the source's own, and {@code directive}
+     * that it is the {@code #} opening a directive line.
      */
     private record Tok(GlslLexer.Kind kind, String text, boolean spaceBefore, Set<String> hidden,
                        boolean original, boolean directive) {
@@ -119,8 +119,8 @@ final class GlslMacroExpander {
     }
 
     /**
-     * A directive line, from its {@code #} to the newline: #define and #undef change the table and
-     * leave nothing, any other directive stays as written. The newline and what follows it stay.
+     * Reads a directive line up to its newline. {@code #define} and {@code #undef} update the table and leave
+     * nothing; any other directive stays as written. The newline and what follows it stay.
      */
     private void directive(Tok hash) {
         List<Tok> line = new ArrayList<>();
@@ -221,8 +221,8 @@ final class GlslMacroExpander {
     }
 
     /**
-     * Reads a call's arguments after its name: null, with everything read put back, when no '('
-     * follows, the call does not close, a directive interrupts it, or the count does not match.
+     * Reads a call's arguments after its name. Null, with everything read put back, when no {@code (} follows,
+     * the call does not close, a directive interrupts it, or the count does not match.
      */
     private Call call(int parameterCount) {
         List<Tok> read = new ArrayList<>();
@@ -278,7 +278,7 @@ final class GlslMacroExpander {
         return null;
     }
 
-    /** The replacement list with each parameter replaced by its argument, pasted, and hidden from {@code hide}. */
+    /** The replacement list with arguments substituted and pastes joined, every token hiding {@code hide}. */
     private List<Tok> substitute(Macro macro, List<List<Tok>> arguments, Set<String> hide) {
         List<Tok> body = macro.body();
         Map<Integer, List<Tok>> expandedArguments = new HashMap<>();
@@ -345,9 +345,9 @@ final class GlslMacroExpander {
     }
 
     /**
-     * The tokens two operands of {@code ##} make. Text that is not one token is lexed again into
-     * the tokens it holds, as JCPP's paste does: Alpha Piscium pastes {@code 8 ## (x)}, and the
-     * rescan reads the name before it as a call. Two empty operands leave an empty placeholder.
+     * The tokens two operands of {@code ##} make. Text that is not one token is lexed again into the tokens it
+     * holds, as JCPP's paste does: Alpha Piscium pastes {@code 8 ## (x)}, and the rescan reads the name before
+     * it as a call. Two empty operands leave an empty placeholder.
      */
     private static List<Tok> joined(Tok left, Tok right) {
         Set<String> hidden = union(left.hidden(), right.hidden());
@@ -371,8 +371,8 @@ final class GlslMacroExpander {
     }
 
     /**
-     * The tokens as text. The source's own tokens keep their spacing; an expanded token takes the
-     * space its replacement list had, and one more wherever two tokens would otherwise read as one.
+     * The tokens as text. The source's own tokens keep their spacing; an expanded token takes the space its
+     * replacement list had, and one more wherever two tokens would otherwise read as one.
      */
     private static String render(List<Tok> tokens) {
         StringBuilder text = new StringBuilder();

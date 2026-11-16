@@ -11,12 +11,12 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * dimension.properties read as Iris 1.21.1's ShaderPack reads it: PropertiesPreprocessor with
- * Iris's environment defines (StandardMacros, IS_IRIS among them) and no pack options,
- * OrderBackedProperties, then parseDimensionMap, where each world a {@code dimension.<folder>}
- * key lists maps to that folder and a later key overrides an earlier one, and parseDimensionIds,
- * which lists the folders the option scan reads. superDuperVanilla continues its world-1 list
- * onto the next line.
+ * dimension.properties, read as Iris 1.21.1's ShaderPack reads it.
+ *
+ * The file goes through PropertiesPreprocessor with Iris's environment defines and no pack options, then
+ * OrderBackedProperties. Each world a {@code dimension.<folder>} key lists maps to that folder, and a later
+ * key overrides an earlier one (parseDimensionMap). The same keys list the folders the option scan reads
+ * (parseDimensionIds). A world list may continue onto the next line.
  */
 public final class DimensionProperties {
     private static final String PREFIX = "dimension.";
@@ -24,8 +24,8 @@ public final class DimensionProperties {
     private DimensionProperties() {}
 
     /**
-     * Each world the file maps to its folder; {@code present} when the file loads any property,
-     * as Iris tests it. Without one Iris maps world0, world-1 and world1 as if there were no file.
+     * Each world the file maps to its folder. {@code present} is Iris's test that the file loads any
+     * property; without one, Iris maps world0, world-1 and world1 as if there were no file.
      */
     record Folders(Map<String, String> worlds, boolean present) {}
 
@@ -41,7 +41,7 @@ public final class DimensionProperties {
         entries.forEach((key, value) -> {
             if (!key.startsWith(PREFIX)) return;
             String folder = key.substring(PREFIX.length());
-            // The folder is a path under the pack: only a plain name is read.
+            // the folder is a path under the pack, so only a plain name is read
             if (!folder.matches("[A-Za-z0-9_-]+")) return;
             for (String world : value.trim().split("\\s+")) {
                 if (world.isEmpty()) continue;
@@ -52,9 +52,9 @@ public final class DimensionProperties {
     }
 
     /**
-     * The folders the file's dimension keys name, in file order, as Iris's parseDimensionIds lists
-     * them for its option scan; empty when the file is missing or loads no property, where Iris
-     * scans the world folders that exist instead.
+     * The folders the file's dimension keys name, in file order, as Iris's parseDimensionIds lists them for
+     * its option scan. Empty when the file is missing or loads no property; Iris then scans the world folders
+     * that exist.
      */
     public static Optional<List<String>> folderNames(Path shadersDir) {
         Map<String, String> entries = entries(shadersDir, environment(), new ArrayList<>());
@@ -64,9 +64,8 @@ public final class DimensionProperties {
     }
 
     /**
-     * Iris's environment defines (StandardMacros), as near as Chimera has them: the standard set
-     * with IS_IRIS (PackEngineDefines.forPack); Iris's GL-extension and DH_BLOCK_* names are not
-     * defined, and the biome, category and precipitation names are extra.
+     * Iris's environment defines, as near as Chimera has them: the standard set with IS_IRIS and the biome,
+     * category and precipitation names of IrisDefines. Iris's GL-extension and DH_BLOCK_* names are missing.
      */
     private static Map<String, String> environment() {
         return PackEngineDefines.forPack(Map.of());
@@ -79,7 +78,7 @@ public final class DimensionProperties {
         if (!Files.isRegularFile(file)) return null;
         PropertiesPreprocessor.Preprocessed text;
         try {
-            // Iris reads it as ISO-8859-1, which never fails on a stray byte.
+            // ISO-8859-1 as in Iris, which never fails on a stray byte
             text = PropertiesPreprocessor.preprocess(Files.readString(file, StandardCharsets.ISO_8859_1), macros);
         } catch (IOException e) {
             return null;

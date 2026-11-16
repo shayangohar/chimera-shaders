@@ -4,22 +4,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The preprocessor directive lines of a GLSL source, read from {@link GlslLexer} tokens: a
- * {@code #} with only spaces or tabs before it on its line, through that line's end. Comments are
- * trivia, so a directive written inside a comment is not one. This reads any source, parsed or
- * not: {@link GlslVersion} also reads unprepared sources, whose conditional blocks the tree may
- * not parse.
+ * Preprocessor directive lines of a GLSL source, read from {@link GlslLexer} tokens: a {@code #} with only
+ * spaces or tabs before it on its line, through the line's end. A directive inside a comment is not one.
+ *
+ * Reads any source, parsed or not, since {@link GlslVersion} also reads unprepared sources whose conditional
+ * blocks the tree may not parse.
  */
 final class GlslDirectives {
     private GlslDirectives() {}
 
     /**
-     * One directive line. Offsets are characters: {@code hash} is its {@code #}, {@code end} the
-     * end of its line before the line break, {@code wordsEnd} the end of its last word. The
-     * keyword is the word after {@code #} ({@code version}, {@code extension}); {@code adjacent}
-     * when nothing separates them. {@code words} follow the keyword, {@code rest} is the line's
-     * text after the last word, and {@code plain} is true when only spaces or tabs separate the
-     * words and only a line comment follows them.
+     * One directive line. Offsets are characters: {@code hash} is its {@code #}, {@code end} the end of the
+     * line before the break, {@code wordsEnd} the end of the last word.
+     *
+     * The keyword is the word after {@code #}, such as {@code version}; {@code adjacent} is true when nothing
+     * separates the two. {@code words} follow the keyword and {@code rest} is the text after the last word.
+     * {@code plain} is true when only spaces or tabs separate the words and at most a line comment follows.
      */
     record Line(int hash, int end, int wordsEnd, String keyword, boolean adjacent, List<String> words,
                 String rest, boolean plain) {
@@ -28,7 +28,6 @@ final class GlslDirectives {
         }
     }
 
-    /** Every directive line, in source order. */
     static List<Line> lines(String source) {
         String text = source == null ? "" : source;
         List<GlslLexer.Token> tokens = GlslLexer.lex(text);
@@ -68,10 +67,10 @@ final class GlslDirectives {
         for (int index = hashToken + 1; index < tokens.size(); index++) {
             GlslLexer.Token token = tokens.get(index);
             String value = token.text();
-            // A line comment runs to the line's end and may close the directive plainly.
+            // a line comment runs to the line's end and leaves the directive plain
             if (value.startsWith("//")) break;
             if (value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
-                // A block comment that runs onto the next line ends the directive, but not plainly.
+                // a line break ends the directive; a block comment running onto the next line makes it not plain
                 plain &= value.isBlank();
                 break;
             }

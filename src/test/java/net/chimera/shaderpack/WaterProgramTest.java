@@ -19,18 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * gbuffers_water.
+ * gbuffers_water plans on the terrain contract: its uniforms come from the live catalog, it samples the
+ * opaque depth and the pack colour targets Iris gives it, and it carries the pack alpha test.
  *
- * <p>The program: gbuffers_water plans on the terrain contract. Its uniforms come
- * from the live catalog, it samples the opaque depth and the pack colour
- * targets Iris gives it, it carries the pack alpha test, and it is rejected
- * when it would sample a target it also writes.</p>
- *
- * <p>The schedule: deferred passes run before translucents, where depthtex0 is the
- * opaque depth, and a world program's depth reads reach the depth graph.</p>
- *
- * <p>With the locked packs, both packs' gbuffers_water must plan
- * executable, compile, and build a complete descriptor manifest.</p>
+ * Deferred passes run before translucents, where depthtex0 is the opaque depth, and a world program's
+ * depth reads reach the depth graph. Complementary's and BSL's gbuffers_water plan executable, compile
+ * and build a complete descriptor manifest.
  */
 final class WaterProgramTest {
     private static final String WATER_FRAGMENT = """
@@ -60,7 +54,7 @@ final class WaterProgramTest {
             }
             """;
 
-    // The planned water branches must match runtime, so plans use the instance's options.
+    // the planned water branches must match runtime, so plans use the instance's options
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.FULL.apply();
@@ -115,7 +109,7 @@ final class WaterProgramTest {
         assertTrue(!current.executable()
                         && current.deviations().contains("TRANSLUCENT_SAMPLER_UNSUPPORTED:colortex0"),
                 "water accepted colortex0, which aliases a host selector: " + current.deviations());
-        // depthtex0 is a capture taken before the layer draws, never the depth it writes.
+        // depthtex0 is a copy taken before the layer draws, never the depth it writes
         UniformRegistry.ProgramInterface depth = InterfacePlanner.plan(
                 "uniform sampler2D depthtex0; void main() { gl_FragColor = texture2D(depthtex0, vec2(0.0)); }",
                 UniformRegistry.Stage.TRANSLUCENT);
@@ -252,7 +246,7 @@ final class WaterProgramTest {
     /**
      * Pack textures sample as their .mcmeta says (BSL's noise.png: blur=true).
      * BSL differences neighbouring noise texels for water normals, so nearest
-     * sampling made the surface blocky.
+     * sampling would make the surface blocky.
      */
     @Test
     void textureMcmeta(@TempDir Path dir) throws Exception {
@@ -283,8 +277,8 @@ final class WaterProgramTest {
                             && resolver.resolveName("minecraft:flowing_water") == expected,
                     name + " water resolves to " + resolver.resolveName("minecraft:water")
                             + ", expected " + expected);
-            // Double plants map by half through state selectors; without them
-            // tall grass had no id and did not wave.
+            // double plants map by half through state selectors; without them tall grass has no id and
+            // does not wave
             int upper = name.equals("bsl") ? 10300 : 10021;
             int tallGrass = resolver.resolveState("minecraft:tall_grass", Map.of("half", "upper")::get);
             assertTrue(tallGrass == upper,
@@ -391,7 +385,7 @@ final class WaterProgramTest {
     }
 
     /**
-     * Iris shadowtex1 holds only the casters drawn before translucent
+     * Iris's shadowtex1 holds only the casters drawn before translucent
      * terrain, so every program that reads it must bind its own image on its
      * own selector, never shadowtex0's. Packs tint light through
      * shadowcolor exactly where the two maps differ.

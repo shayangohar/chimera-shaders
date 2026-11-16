@@ -15,24 +15,22 @@ import java.util.WeakHashMap;
 
 /**
  * Iris's fog uniforms in a program with fog (FogUniforms with FogMode.PER_VERTEX), the gl_Fog range
- * (IrisInternalUniforms iris_FogStart and iris_FogEnd) and its cloud clock
- * (IrisExclusiveUniforms.cloudTime). A post program reads FogMode.OFF's constant fogMode and
- * fogShape instead, served into its source at plan time (PackPlanBuilder).
+ * (IrisInternalUniforms iris_FogStart and iris_FogEnd) and the cloud clock (IrisExclusiveUniforms.cloudTime).
+ * A post program reads FogMode.OFF's constant fogMode and fogShape instead, written into its source at plan
+ * time (PackPlanBuilder).
  *
- * <p>fogMode and fogDensity follow each FogRenderer.setupFog, as Iris reads them at every program
- * bind: the density as setup begins (Iris MixinFogRenderer: water fog's, and -1 for any other fog;
- * 0 before any setup, CapturedRenderingState's default). fogMode reads GL_LINEAR for a negative
- * density and GL_EXP2 otherwise, and fogDensity never goes below 0. cloudTime counts the level
- * renderer's ticks at 0.03 a tick.</p>
+ * fogMode and fogDensity follow each FogRenderer.setupFog, as Iris reads them at every program bind. The
+ * density is taken as setup begins: water fog's, -1 for any other fog (Iris MixinFogRenderer), and 0 before
+ * any setup, CapturedRenderingState's default. fogMode reads GL_LINEAR for a negative density and GL_EXP2
+ * otherwise, and fogDensity never goes below 0. cloudTime counts the level renderer's ticks at 0.03 a tick.
  *
- * <p>fogShape (1 for cylindrical fog, 0 for spherical) and the gl_Fog range are PER_FRAME in Iris:
- * ProgramUniforms reads them at a program's first use in a frame, and its later draws keep them
- * through the fog setups that follow. So a program used across a fog change keeps the first: the
- * horizon is gbuffers_skybasic's first use, ahead of the sky's fog setup, and the sky disc it draws
- * next reads the Float.MAX_VALUE start that setupNoFog left at the last frame's end. That reaches a
- * pack that fogs its sky with gl_Fog.start, as packs written for OptiFine before 1.18.2 do (Sildurs
- * Vibrant's non-Iris branch). A pack pipeline stands for Iris's program here: Chimera builds one
- * per program and vertex format, as Iris builds one per shader key.</p>
+ * fogShape (1 for cylindrical fog, 0 for spherical) and the gl_Fog range are PER_FRAME in Iris:
+ * ProgramUniforms reads them at a program's first use in a frame, and its later draws keep them through the
+ * fog setups that follow. The horizon is gbuffers_skybasic's first use, ahead of the sky's fog setup, so the
+ * sky disc it draws next reads the Float.MAX_VALUE start setupNoFog left at the end of the last frame. That
+ * reaches packs that fog their sky with gl_Fog.start, as packs written for OptiFine before 1.18.2 do (Sildurs
+ * Vibrant's non-Iris branch). A pack pipeline stands for Iris's program here: Chimera builds one per program
+ * and vertex format, as Iris builds one per shader key.
  */
 final class IrisWorldState implements FrameValueSource {
     static final Set<String> NAMES = Set.of("fogMode", "fogShape", "fogDensity", "iris_FogStart", "iris_FogEnd",
@@ -51,8 +49,8 @@ final class IrisWorldState implements FrameValueSource {
     private float cloudTime;
 
     /**
-     * Records the density of the fog FogRenderer is setting up. Water fog starts at 0.05, thins
-     * with the player's water vision, and thickens by 0.005 in a biome with closer water fog.
+     * Records the density of the fog FogRenderer is setting up. Water fog starts at 0.05, thins with the
+     * player's water vision, and thickens by 0.005 in a biome with closer water fog.
      */
     void captureFogDensity(Camera camera) {
         if (camera.getFluidInCamera() != FogType.WATER) {
@@ -76,25 +74,23 @@ final class IrisWorldState implements FrameValueSource {
     }
 
     /**
-     * Drops every program's latched fog when the pack session ends: Iris builds its programs afresh
-     * with a pack, and each latches at its first draw. The captured fog stays, as Iris's
-     * CapturedRenderingState keeps it across a reload: it is the game's, and the next setup replaces
-     * it. The draw's values stay too, since they are what the bindings hold.
+     * Drops every program's latched fog when the pack session ends, as Iris builds its programs afresh with a
+     * pack. The captured fog stays, as Iris's CapturedRenderingState keeps it across a reload, and so do the
+     * draw's values, which are what the bindings hold.
      */
     void resetProgramFog() {
         programFog.clear();
     }
 
-    /** Starts a frame: each program latches its per-frame fog values afresh at its next draw. */
+    /** Each program latches its per-frame fog values afresh at its next draw. */
     void beginFrame() {
         frame++;
     }
 
     /**
-     * Serves the next draw its program's per-frame fog values: those {@code live} held (its fogStart
-     * and fogEnd) and the fog shape, as they were at the program's first draw this frame. A null
-     * program, a compute dispatch, reads the current ones: Iris runs each compute once a frame.
-     * Returns true when the served values changed.
+     * Serves the next draw its program's per-frame fog values: {@code live}'s fogStart and fogEnd and the fog
+     * shape, as they were at the program's first draw this frame. A null program, a compute dispatch, reads
+     * the current values, as Iris runs each compute once a frame. True when the served values changed.
      */
     boolean latchProgramFog(Object program, PackFrameState live) {
         FrameFog latched = program == null ? new FrameFog()
@@ -150,7 +146,7 @@ final class IrisWorldState implements FrameValueSource {
         private float end;
         private int shape;
 
-        /** Sets the values read in {@code frame}; true when they changed. */
+        /** True when the values changed. */
         boolean set(long frame, float start, float end, int shape) {
             boolean changed = Float.compare(this.start, start) != 0 || Float.compare(this.end, end) != 0
                     || this.shape != shape;

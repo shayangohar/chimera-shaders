@@ -5,16 +5,16 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * An array's length read without its parentheses: Pixel Perfect's Fake GI and object outlines loop
- * to {@code superSampleOffsetsCross.length}. NVIDIA's GL compiler takes it as {@code length()}, so
- * Iris loads those options; glslang refuses it ("'length' : incomplete method syntax"). The call
- * gets its parentheses only where the name resolves to an array, so a struct's {@code length}
- * field, and every source that already compiled, stays as written.
+ * An array's length read without its parentheses, as Pixel Perfect's Fake GI and object outlines loop to
+ * {@code superSampleOffsetsCross.length}. NVIDIA's GL compiler takes it as {@code length()}, so Iris loads
+ * those options; glslang refuses it ("'length' : incomplete method syntax"). The call gets its parentheses
+ * only where the name resolves to an array, so a struct's {@code length} field stays as written, as does every
+ * source that already compiled.
  */
 final class ArrayLengthCalls {
     private ArrayLengthCalls() {}
 
-    /** A {@code .length} with no call after it, spaces allowed: the only text worth parsing for. */
+    /** A {@code .length} with no call after it, spaces allowed; a source without one is not parsed. */
     private static final Pattern BARE_LENGTH = Pattern.compile("\\.\\s*length\\b(?!\\s*\\()");
 
     /** {@code source} with each {@code array.length} not followed by a call written {@code array.length()}. */
@@ -23,12 +23,11 @@ final class ArrayLengthCalls {
         try {
             return completeAll(GlslTree.parse(source));
         } catch (RuntimeException unreadable) {
-            // A source the parser cannot follow goes to the compiler as written.
+            // a source the parser cannot follow goes to the compiler as written
             return source;
         }
     }
 
-    /** The tree's source with each array's bare length written as a call. */
     private static String completeAll(GlslTree tree) {
         String source = tree.source();
         List<GlslLexer.Token> tokens = tree.tokens();

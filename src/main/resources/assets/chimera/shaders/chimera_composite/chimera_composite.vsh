@@ -1,8 +1,6 @@
 #version 460
-// Fullscreen quad generator (no vertex buffers - CustomVertexFormat.NONE):
-// six vertices, two triangles covering UV 0..1, as Iris's fullscreen quad.
-// The host viewport owns the framebuffer orientation. Keep this coordinate
-// contract unchanged for pack post stages.
+// fullscreen quad with no vertex buffers: six vertices, two triangles over UV 0..1, as Iris's;
+// the host viewport sets orientation, and pack post stages rely on these coordinates
 
 layout(location = 0) out vec2 outUv;
 

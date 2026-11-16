@@ -8,9 +8,9 @@ import net.minecraft.network.chat.Component;
 import java.util.Optional;
 
 /**
- * The pack's profile button. It names the profile the pending values match, or Custom, and steps
- * to the next or previous profile in matching order, queueing every value that profile sets. It has
- * no reset of its own: Reset in the header returns everything to the defaults.
+ * The pack's profile button. It names the profile the pending values match, or Custom, and steps to the next
+ * or previous profile in matching order, queueing every value that profile sets. It has no reset of its own;
+ * Reset in the header returns everything to the defaults.
  */
 final class ProfileCell extends ValueCell {
     ProfileCell(OptionContext context) {

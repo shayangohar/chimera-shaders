@@ -5,7 +5,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Immutable load-time alpha-test contract for a geometry program. */
+/** The alpha test a geometry program's fragment runs, from Iris's shader key or the pack's alphaTest directive. */
 record PackAlphaTestPlan(
         Mode mode,
         String function,
@@ -16,24 +16,22 @@ record PackAlphaTestPlan(
     enum Mode {
         OFF,
         /**
-         * Each terrain layer tests against the reference the main pass sets for it: Iris's 0.1
-         * for its cutout pass, none for solid and translucent (SodiumPrograms.getAlphaTest).
+         * Each terrain layer tests against the reference the main pass sets for it: Iris's 0.1 for its cutout
+         * pass, none for solid and translucent, as SodiumPrograms.getAlphaTest gives them.
          */
         DYNAMIC_TERRAIN,
         /** Each entity-family draw tests against its host pipeline's ALPHA_CUTOUT. */
         DYNAMIC_ENTITY,
         /**
-         * Each shadow terrain layer tests against the reference the shadow
-         * pass sets for it: Iris's 0.1 for its cutout pass, none for solid
-         * and translucent. VulkanMod's cutout_mipped layer holds solid blocks
-         * too, which take the 0.1 with the cutout ones; their opaque texels
-         * pass. Without it every foliage quad cast a square shadow.
-         * Entity casters test at 0.1 (Iris SHADOW_ENTITIES_CUTOUT).
+         * Each shadow terrain layer tests against the reference the shadow pass sets for it: Iris's 0.1 for its
+         * cutout pass, none for solid and translucent. VulkanMod's cutout_mipped layer holds solid blocks too,
+         * which take the 0.1 with the cutout ones; their opaque texels pass. Without the test every foliage quad
+         * casts a square shadow. Entity casters test at 0.1, as Iris's SHADOW_ENTITIES_CUTOUT.
          */
         DYNAMIC_SHADOW,
         /**
-         * Each sky draw tests against its host format's Iris ShaderKey (SKY_BASIC_COLOR:
-         * NON_ZERO_ALPHA; SKY_BASIC none), which the sky lane sets per draw (ChimeraSkyBridge).
+         * Each sky draw tests against its host format's Iris ShaderKey, NON_ZERO_ALPHA for SKY_BASIC_COLOR and
+         * none for SKY_BASIC; ChimeraSkyBridge sets it per draw.
          */
         DYNAMIC_SKY,
         FIXED
@@ -82,16 +80,16 @@ record PackAlphaTestPlan(
     /** The test Iris gives a program's shader key when the pack sets none; null when it has none. */
     private static PackAlphaTestPlan irisDefault(String name) {
         if (FamilyAdapterRegistry.isCloudFamily(name)) {
-            // Iris ShaderKey.CLOUDS: AlphaTests.ONE_TENTH_ALPHA.
+            // Iris's ShaderKey.CLOUDS tests AlphaTests.ONE_TENTH_ALPHA
             return new PackAlphaTestPlan(Mode.FIXED, "GREATER", 0.1F, false, List.of());
         }
         if (FamilyAdapterRegistry.isShadowFamily(name)) {
             return new PackAlphaTestPlan(Mode.DYNAMIC_SHADOW, "DYNAMIC", 0.0F, false, List.of());
         }
-        // Iris tests entity programs against the render type's own threshold
-        // (iris_currentAlphaTest); packs rely on it to drop the transparent texels of
-        // layered skins and cutout models. Iris TEXT_BG tests ONE_TENTH_ALPHA, the
-        // lane's per-draw reference; TEXTURED tests NON_ZERO_ALPHA and TEXTURED_COLOR ONE_TENTH_ALPHA.
+        // Iris tests entity programs against the render type's own threshold, iris_currentAlphaTest; packs
+        // rely on it to drop the transparent texels of layered skins and cutout models
+        // the lane passes the other families' references per draw: ONE_TENTH_ALPHA for TEXT_BG and
+        // TEXTURED_COLOR, NON_ZERO_ALPHA for TEXTURED
         if (FamilyAdapterRegistry.isEntityLike(name)
                 || LANE_REFERENCE_FAMILIES.contains(FamilyAdapterRegistry.forProgram(name).family())) {
             return new PackAlphaTestPlan(Mode.DYNAMIC_ENTITY, "DYNAMIC", 0.0F, false, List.of());
@@ -110,14 +108,13 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * Appends the entity-family alpha test to the authored fragment, as Iris
-     * does, before its interface is planned. The dynamic test declares the
-     * per-draw reference uniform, so the ordinary descriptor contract carries
-     * it. Iris tests only gl_FragData[0], indexed by a literal, or gl_FragColor, which it
-     * renames to that (CommonTransformer); a fragment writing neither is left unchanged.
-     * With {@code vertexAlpha} a negative reference tests against the vertex
-     * colour's alpha instead (Iris AlphaTests.VERTEX_ALPHA), which the entity
-     * vertex bridge forwards as {@link #VERTEX_ALPHA_VARYING}.
+     * Appends the program's alpha test to the authored fragment before its interface is planned, as Iris does.
+     * A per-draw test declares its reference uniform, so the ordinary descriptor contract carries it.
+     *
+     * Iris tests only gl_FragData[0], indexed by a literal, or gl_FragColor, which CommonTransformer renames to
+     * it; a fragment writing neither is left unchanged. With {@code vertexAlpha} a negative reference tests
+     * against the vertex colour's alpha instead, as Iris's AlphaTests.VERTEX_ALPHA does; the entity vertex
+     * bridge forwards that alpha as {@link #VERTEX_ALPHA_VARYING}.
      */
     String injectDrawTest(String fragment, boolean vertexAlpha) {
         if (fragment == null || !active()
@@ -139,12 +136,12 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * Gives a stage's {@code alphaTestRef} the program's current alpha-test reference, as Iris
-     * does: its core transformers rename the name to iris_currentAlphaTest, and
-     * IrisInternalUniforms serves it as the same value, CapturedRenderingState's current alpha
-     * test, which ExtendedShader and SodiumShader set to the program's AlphaTest reference. The
-     * declaration goes; each reference reads the per-draw reference, the fixed one, or 0 for a
-     * program Iris tests with AlphaTest.ALWAYS. Iris's VERTEX_ALPHA reference is Float.MAX_VALUE.
+     * Gives a stage's {@code alphaTestRef} the program's current alpha-test reference, as Iris does. Its core
+     * transformers rename the name to iris_currentAlphaTest, which IrisInternalUniforms serves from
+     * CapturedRenderingState; ExtendedShader and SodiumShader set that to the program's AlphaTest reference.
+     *
+     * The declaration goes, and each use reads the per-draw reference, the fixed one, or 0 for a program Iris
+     * tests with AlphaTest.ALWAYS. Iris's VERTEX_ALPHA reference reads as Float.MAX_VALUE.
      */
     String serveReference(String source) {
         String perDraw = UniformRegistry.ENTITY_ALPHA_REFERENCE;
@@ -233,7 +230,7 @@ record PackAlphaTestPlan(
         return off(false);
     }
 
-    /** Entity, shadow and terrain draws test against a reference set per draw (Iris iris_currentAlphaTest). */
+    /** Whether the reference is set per draw, as Iris's iris_currentAlphaTest is: entity, shadow, terrain and sky. */
     boolean perDrawReference() {
         return mode == Mode.DYNAMIC_ENTITY || mode == Mode.DYNAMIC_SHADOW || mode == Mode.DYNAMIC_TERRAIN
                 || mode == Mode.DYNAMIC_SKY;

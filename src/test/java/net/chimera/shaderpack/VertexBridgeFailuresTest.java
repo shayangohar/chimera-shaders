@@ -12,10 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Every vertex bridge a program attempts names why it failed, and the bridges read the material
- * attributes Iris's formats carry or leave unbound. I Like Vanilla's shadow lanes refused its
- * {@code attribute vec4 at_tangent}; Reverie's shadow read {@code uniform restrict image2D} as a
- * value uniform; a sky reading at_tangent was refused outright. An input Iris binds nothing to
- * reads GL's unbound default.
+ * attributes Iris's formats carry or leave unbound. I Like Vanilla's shadow declares
+ * {@code attribute vec4 at_tangent}, and Reverie's shadow a {@code uniform restrict image2D}, which
+ * is no value uniform. An input Iris binds nothing to reads GL's unbound default.
  */
 final class VertexBridgeFailuresTest {
     /**
@@ -152,8 +151,7 @@ final class VertexBridgeFailuresTest {
 
     /**
      * A vertex input Iris binds no data to reads GL's current generic attribute, (0, 0, 0, 1) by
-     * default. I Like Vanilla and Spring declare at_velocity, which Iris 1.21.1 never supplies, and
-     * every lane refused it, so their entity programs fell back and the frame went vanilla.
+     * default. I Like Vanilla and Spring declare at_velocity, which Iris 1.21.1 never supplies.
      */
     @Test
     void anUnboundInputBecomesItsDefaultCutToItsType() {

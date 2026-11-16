@@ -15,12 +15,13 @@ import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The corpus gate: each corpus pack is analysed once and goes through every per-pack check: the
- * lossless GLSL tree (GlslTreeCorpusTest), the clip depth (ClipDepthTest), the flip sides
- * (FlipSidesTest) and, last, the compile gate with its admission and converted-output baselines
- * (PackCompileTest), which may change the analysis's report. The packs are dealt to
- * {@link #SHARDS} shard classes; Gradle runs each test class in its own JVM (forkEvery), so the
- * shards run side by side. Keep one CorpusShardNTest class per shard.
+ * Corpus pack checks. Each pack is analysed once and goes through every per-pack check: the lossless
+ * GLSL tree (GlslTreeCorpusTest), the clip depth (ClipDepthTest), the flip sides (FlipSidesCorpus)
+ * and, last, the compile check with its admission and converted-output baselines (PackCompileTest),
+ * which may change the analysis's report.
+ *
+ * The packs are dealt to {@link #SHARDS} shard classes; Gradle runs each test class in its own JVM
+ * (forkEvery), so the shards run side by side. Keep one CorpusShardNTest class per shard.
  */
 final class CorpusChecks {
     static final int SHARDS = 8;

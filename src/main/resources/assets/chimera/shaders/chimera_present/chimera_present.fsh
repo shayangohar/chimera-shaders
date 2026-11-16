@@ -1,5 +1,5 @@
 #version 460
-// Present stage: final framebuffer -> swapchain passthrough.
+// passes the final framebuffer through to the swapchain
 
 layout(binding = 0) uniform sampler2D FinalColor;
 

@@ -17,9 +17,8 @@ import java.util.TreeSet;
  * uniform catalog and its lookup, and the selector slot tables. InterfacePlanner plans a program's
  * interface against it.
  *
- * <p>Pack names are intentionally resolved here instead of independently in
- * the probe, converter, and pipeline builder. That keeps descriptor bindings
- * and compatibility decisions deterministic.</p>
+ * The probe, converter and pipeline builder all resolve pack names here, so their descriptor bindings and
+ * compatibility decisions agree.
  */
 public final class UniformRegistry {
     /** Per-draw entity alpha-test reference, Chimera's counterpart of iris_currentAlphaTest. */
@@ -32,10 +31,8 @@ public final class UniformRegistry {
      */
     public static final String HOST_ENTITY_ID = "chimeraHostEntityId";
 
-    /**
-     * Descriptor bindings of the transform blocks (DynamicTransforms, Projection) the converted
-     * preambles declare; the host fills their fields by name (HostPipelineLayout).
-     */
+    // bindings of the transform blocks (DynamicTransforms, Projection) the converted preambles declare;
+    // the host fills their fields by name (HostPipelineLayout)
     public static final int DYNAMIC_TRANSFORMS_BINDING = 0;
     public static final int PROJECTION_BINDING = 1;
 
@@ -43,11 +40,11 @@ public final class UniformRegistry {
 
     /** Shader stage of the pipeline a pack program is built onto. */
     public enum Stage {
-        /** composite/final post seams (fullscreen, slot 0 = seam color). */
+        /** Fullscreen passes and computes, with colortex0 on slot 0. */
         POST,
-        /** gbuffers_* terrain path (fixed-vertex inputs, host-set registry slots). */
+        /** gbuffers terrain on fixed vertex inputs and host-set selector slots. */
         GEOMETRY,
-        /** shadow gbuffers path (terrain inputs, but no shadow feedback samplers). */
+        /** Shadow programs on terrain inputs, without samplers that read the shadow map being drawn. */
         SHADOW,
         /**
          * shadow_entities on the shadow pass's entity lane: the shadow interface on the
@@ -70,7 +67,7 @@ public final class UniformRegistry {
         /** gbuffers_clouds host cloud lane. */
         CLOUD;
 
-        /** Programs that draw into the shadow map: its samplers, outputs and uniforms. */
+        /** Draws into the shadow map, with the shadow pass's samplers, outputs and uniforms. */
         public boolean shadowPass() {
             return this == SHADOW || this == SHADOW_ENTITY;
         }
@@ -81,7 +78,7 @@ public final class UniformRegistry {
         }
     }
 
-    /** One ordinary GLSL uniform declaration, excluding sampler declarations. */
+    /** A GLSL uniform declaration other than a sampler. */
     public record UniformDeclaration(String name, String glslType) {
         public UniformDeclaration {
             if (name == null || name.isBlank() || glslType == null || glslType.isBlank()) {
@@ -90,7 +87,7 @@ public final class UniformRegistry {
         }
     }
 
-    /** One pack sampler, its GLSL type, and its fixed VulkanMod texture slot. */
+    /** A pack sampler with its GLSL type and fixed VulkanMod texture slot. */
     public record SamplerBinding(String name, int slot, String glslType) {
         public SamplerBinding {
             if (name == null || name.isBlank() || slot < 0) {
@@ -101,13 +98,13 @@ public final class UniformRegistry {
             }
         }
 
-        /** Compatibility constructor for callers that use the ordinary sampler type. */
+        /** A {@code sampler2D} binding. */
         public SamplerBinding(String name, int slot) {
             this(name, slot, "sampler2D");
         }
     }
 
-    /** Whether Chimera reads a value from the current frame or uses a declared default. */
+    /** Whether Chimera reads a uniform from the current frame, writes a default, or refuses it. */
     public enum Availability {
         LIVE,
         DEFAULTED,
@@ -115,7 +112,7 @@ public final class UniformRegistry {
         REJECTED
     }
 
-    /** One canonical source and default policy for a standard pack uniform. */
+    /** The value written for a uniform that has no live value. */
     public enum DefaultPolicy {
         ZERO,
         ONE,
@@ -127,7 +124,7 @@ public final class UniformRegistry {
         SMOOTH_EYE_BRIGHTNESS
     }
 
-    /** Immutable catalog entry shared by probing and runtime buffer creation. */
+    /** Catalog entry shared by probing and runtime buffer creation. */
     public record UniformDescriptor(
             String name,
             List<String> acceptedTypes,
@@ -149,7 +146,7 @@ public final class UniformRegistry {
             defaultPolicy = defaultPolicy == null ? DefaultPolicy.ZERO : defaultPolicy;
         }
 
-        /** Iris sets a bool declaration as an int one (ProgramUniforms expects INT for GL_BOOL). */
+        /** Bool and int accept each other: Iris sets a bool as an int (ProgramUniforms expects INT for GL_BOOL). */
         public boolean accepts(String glslType) {
             return acceptedTypes.contains(glslType) || INTEGRAL.contains(glslType)
                     && acceptedTypes.stream().anyMatch(INTEGRAL::contains);
@@ -158,7 +155,7 @@ public final class UniformRegistry {
         private static final Set<String> INTEGRAL = Set.of("int", "bool");
     }
 
-    /** Immutable interface plan shared by scanning, conversion, and building. */
+    /** One stage's interface plan, shared by scanning, conversion and building. */
     public record ProgramInterface(
             Stage stage,
             List<UniformDeclaration> uniforms,
@@ -184,7 +181,7 @@ public final class UniformRegistry {
             this(stage, uniforms, samplers, deviations, samplers);
         }
 
-        /** Uniforms safe to place in the generated UBO. */
+        /** Uniforms that go in the generated UBO: not blocked, not unused, not served per vertex. */
         public List<UniformDeclaration> executableUniforms() {
             Set<String> blocked = new TreeSet<>();
             for (String deviation : deviations) {
@@ -216,16 +213,15 @@ public final class UniformRegistry {
             return -1;
         }
 
-        /** True when the current converter and resource bridge may execute this plan. */
+        /** No deviation blocks this plan from executing. */
         public boolean executable() {
             return deviations.stream().noneMatch(UniformRegistry::isExecutionBlocking);
         }
     }
 
     /**
-     * Canonical interface for all stages in one pack program. The existing
-     * ProgramInterface remains the stage-compatible facade used by the
-     * VulkanMod pipeline builders.
+     * The interface of every stage of one pack program. {@link #effective} and {@link #project} give the
+     * single-stage ProgramInterface the VulkanMod pipeline builders take.
      */
     public record ProgramInterfacePlan(
             Map<String, ProgramInterface> stages,
@@ -242,7 +238,7 @@ public final class UniformRegistry {
             deviations = sortedStrings(reconcileStageUnused(stages, deviations));
         }
 
-        /** Returns the legacy facade with the canonical union fields. */
+        /** All stages' uniforms and samplers as one interface; a null stage takes the first stage's. */
         public ProgramInterface effective(Stage stage) {
             Stage effectiveStage = stage == null
                     ? stages.values().stream().findFirst().map(ProgramInterface::stage).orElse(Stage.POST)
@@ -250,7 +246,7 @@ public final class UniformRegistry {
             return new ProgramInterface(effectiveStage, uniforms, samplers, deviations);
         }
 
-        /** Keeps shared uniform fields and binding order, but emits only this stage's samplers. */
+        /** {@code sourceStage}'s view: the shared uniforms and sampler layout, with only its own samplers. */
         public ProgramInterface project(String sourceStage, Stage familyStage) {
             ProgramInterface source = stages.get(sourceStage);
             if (source == null) {
@@ -275,7 +271,7 @@ public final class UniformRegistry {
         }
     }
 
-    /** OptiFine texture uniform name -> fixed VTextureSelector binding slot (post stage). */
+    /** Post stage: each OptiFine sampler name's fixed VTextureSelector slot. */
     public static final Map<String, Integer> NAME_TO_SLOT = Map.ofEntries(
             Map.entry("colortex0", 0),
             Map.entry("colortex1", 1),
@@ -283,8 +279,8 @@ public final class UniformRegistry {
             Map.entry("colortex3", 3),
             Map.entry("colortex8", SelectorNamespace.COLORTEX8_SLOT),
             Map.entry("shadowtex0", 5),
-            // shadowtex1 is its own image, the casters before translucent
-            // terrain, so every stage reads it on its own selector.
+            // shadowtex1 is its own image, the casters before translucent terrain, so every stage reads it
+            // on its own selector
             Map.entry("shadowtex1", SelectorNamespace.SHADOW_TEX1_SLOT),
             Map.entry("shadowcolor0", SelectorNamespace.SHADOW_COLOR0_SLOT),
             Map.entry("shadowcolor1", SelectorNamespace.SHADOW_COLOR1_SLOT),
@@ -295,13 +291,13 @@ public final class UniformRegistry {
     );
 
     /**
-     * Terrain, sky and clouds: the host slots and Iris's addWorldDepthSamplers depths on post's selectors
-     * (depthtex0 the world drawn before the group; depthtex1 and depthtex2 their last captures).
+     * Terrain, sky and clouds: the host slots and Iris's addWorldDepthSamplers depths on post's selectors.
+     * depthtex0 is the world drawn before the group; depthtex1 and depthtex2 are their last captures.
      */
     public static final Map<String, Integer> GEOMETRY_NAME_TO_SLOT = Map.ofEntries(
             Map.entry("texture", 0),
             Map.entry("tex", 0),
-            // Iris core-profile name for the albedo atlas.
+            // Iris's core-profile name for the albedo atlas
             Map.entry("gtexture", 0),
             Map.entry("lightmap", 2),
             Map.entry("shadowtex0", 5),
@@ -320,12 +316,11 @@ public final class UniformRegistry {
     public static final Map<String, Integer> SHADOW_NAME_TO_SLOT = Map.ofEntries(
             Map.entry("texture", 0),
             Map.entry("tex", 0),
-            // Iris core-profile name for the albedo atlas.
             Map.entry("gtexture", 0),
             Map.entry("lightmap", 2),
             Map.entry("noisetex", 7),
             Map.entry("shadowtex1", SelectorNamespace.SHADOW_TEX1_SLOT),
-            // The entity casters' overlay, which only their injected entityColor reads (EntityOverlayColor).
+            // the entity casters' overlay, which only their injected entityColor reads (EntityOverlayColor)
             Map.entry(PackResourcePlan.OVERLAY_SAMPLER, 1)
     );
 
@@ -337,7 +332,6 @@ public final class UniformRegistry {
     public static final Map<String, Integer> TRANSLUCENT_NAME_TO_SLOT = Map.ofEntries(
             Map.entry("texture", 0),
             Map.entry("tex", 0),
-            // Iris core-profile name for the albedo atlas.
             Map.entry("gtexture", 0),
             Map.entry("lightmap", 2),
             Map.entry("shadowtex0", 5),
@@ -350,28 +344,27 @@ public final class UniformRegistry {
     );
 
     /**
-     * World entities use the host atlas, overlay, lightmap, noise, and
-     * optional shadow map. The overlay is declared by EntityOverlayColor.
+     * Entities, block entities, the hand and particles: the host atlas, overlay and lightmap, noise, the shadow
+     * map and the world depths. EntityOverlayColor declares the overlay sampler.
      */
     public static final Map<String, Integer> ENTITY_NAME_TO_SLOT = Map.ofEntries(
             Map.entry("texture", 0),
             Map.entry(PackResourcePlan.OVERLAY_SAMPLER, 1),
             Map.entry("lightmap", 2),
             Map.entry("tex", 0),
-            // Iris core-profile name for the albedo atlas.
             Map.entry("gtexture", 0),
             Map.entry("shadowtex0", 5),
             Map.entry("shadowtex1", SelectorNamespace.SHADOW_TEX1_SLOT),
             Map.entry("shadowcolor0", SelectorNamespace.SHADOW_COLOR0_SLOT),
-            // Noise stays on selector 7, as in every table and the resource plan: a pack selector here
-            // leaves the descriptor without a same-slot manifest resource.
+            // noise stays on selector 7 as in every table and the resource plan; a pack selector here
+            // leaves the descriptor without a same-slot manifest resource
             Map.entry("noisetex", 7),
-            // The three depth textures as in GEOMETRY_NAME_TO_SLOT; depthtex0 is captured per flush.
+            // depths as in GEOMETRY_NAME_TO_SLOT; depthtex0 is captured per flush
             Map.entry("depthtex0", 6),
             Map.entry("depthtex1", 12),
             Map.entry("depthtex2", 13)
     );
-    /** Resource-pack material maps on fixed extended selectors, in MATERIAL_STAGES; keyed on stage, not table. */
+    /** Resource-pack material maps on fixed extended selectors, for every MATERIAL_STAGES stage whatever its table. */
     public static final Map<String, Integer> MATERIAL_NAME_TO_SLOT = Map.of(
             "normals", SelectorNamespace.NORMALS_SLOT,
             "specular", SelectorNamespace.SPECULAR_SLOT
@@ -390,21 +383,21 @@ public final class UniformRegistry {
             "float", "int", "bool", "vec2", "vec3", "vec4",
             "ivec2", "ivec3", "ivec4", "mat4");
 
-    /** The only catalog used by declaration planning and the runtime provider. */
+    /** Every name Chimera serves; declaration planning and the runtime provider both read it. */
     static final Map<String, UniformDescriptor> UNIFORM_SPECS = uniformSpecs();
 
-    /** Returns the canonical descriptor for a name, or null for an unknown name. */
+    /** Catalog entry for {@code name}; null for an unknown name. */
     public static UniformDescriptor descriptor(String name) {
         return UNIFORM_SPECS.get(name);
     }
 
-    /** Returns a descriptor only when the declaration uses one of its accepted types. */
+    /** Catalog entry for {@code name}, only when it accepts {@code glslType}. */
     public static UniformDescriptor descriptor(String name, String glslType) {
         UniformDescriptor descriptor = descriptor(name);
         return descriptor != null && descriptor.accepts(glslType) ? descriptor : null;
     }
 
-    /** Returns the complete deterministic catalog for diagnostics and tests. */
+    /** The whole catalog sorted by name, for diagnostics and tests. */
     public static List<UniformDescriptor> catalog() {
         return UNIFORM_SPECS.values().stream()
                 .sorted(Comparator.comparing(UniformDescriptor::name))
@@ -412,8 +405,8 @@ public final class UniformRegistry {
     }
 
     /**
-     * The catalog entry a program's declaration resolves to, the pack's own authored values
-     * included: a refused declaration resolves to nothing, so nothing serves it a substitute.
+     * What a program's declaration resolves to, the pack's custom uniforms included. A refused declaration
+     * resolves to null, so nothing serves it a substitute.
      */
     public static UniformDescriptor resolve(
             String name,
@@ -434,9 +427,9 @@ public final class UniformRegistry {
     }
 
     /**
-     * The names the host answers for. A pack may not author a declaration under one of these: it
-     * would replace a value the host is responsible for. Every other name is the pack's own,
-     * including VulkanMod's host names, which Iris does not have.
+     * The names the host answers for. A pack may not author a value under one of these, since it would
+     * replace a value the host owns. Every other name is the pack's own, VulkanMod's host names included,
+     * since Iris does not have them.
      */
     public static boolean isEngineInput(String name) {
         return name != null && UNIFORM_SPECS.containsKey(name) && !HOST_ONLY.contains(name);
@@ -444,8 +437,7 @@ public final class UniformRegistry {
 
     /**
      * VulkanMod's own uniform names, which the catalog carries for Chimera's host-shaped programs.
-     * Iris has none of them, so a pack that authors one (Bliss's {@code texelSize}) gets its own
-     * value, as it would under Iris.
+     * Iris has none of them, so a pack that authors one gets its own value, as it would under Iris.
      */
     static final Set<String> HOST_ONLY = Set.of(
             "MVP", "ModelViewMat", "ProjMat", "TextureMat", "FogColor", "FogStart", "FogEnd", "AlphaCutout",
@@ -453,21 +445,23 @@ public final class UniformRegistry {
             "ColorModulator", "LineWidth", "ChunkOffset", "EndPortalLayers", "screenSize");
 
     /**
-     * Names Iris 1.21.1 serves that Chimera does not yet. A program reading one must not run on a
-     * zero Iris would never give it. A world program's alphaTestRef becomes its alpha-test
-     * reference before planning (PackAlphaTestPlan); a post program reads whatever the last world
-     * draw left in CapturedRenderingState, which has no equivalent here. The core-profile
-     * matrices and chunkOffset are not here: IrisCoreProfile serves them in the stages whose Iris
-     * transformer names them, and anywhere else Iris never sets them.
+     * Names Iris 1.21.1 serves that Chimera does not. A program reading one must not run on a zero Iris
+     * would never give it.
+     *
+     * A world program's alphaTestRef becomes its alpha-test reference before planning (PackAlphaTestPlan).
+     * A post program reads whatever the last world draw left in CapturedRenderingState, which has no
+     * equivalent here. The core-profile matrices and chunkOffset are absent on purpose: IrisCoreProfile
+     * serves them in the stages whose Iris transformer names them, and Iris sets them nowhere else.
      */
     private static final Set<String> IRIS_UNSERVED = Set.of("alphaTestRef");
 
     /**
-     * Live values a fullscreen pass or compute dispatch cannot read. A pass's gtextureSize is the
-     * size of whatever texture the previous pass or world draw left on unit 0 when Program.use
-     * updates the uniforms, before the pass binds its own samplers; nothing names that texture.
-     * fogMode, fogShape and blendFunc are served into a pass as constants
-     * (ServedUniforms.servePostValues, serveFogOff) and refuse only where that could not run.
+     * Live values a fullscreen pass or compute dispatch cannot read.
+     *
+     * A pass's gtextureSize is the size of whatever texture the previous pass or world draw left on unit 0
+     * when Program.use updates the uniforms, before the pass binds its own samplers; nothing names that
+     * texture. fogMode, fogShape and blendFunc are served into a pass as constants
+     * (ServedUniforms.servePostValues, serveFogOff) and are refused only where that could not run.
      */
     private static final Set<String> POST_UNSERVED = Set.of("gtextureSize", "blendFunc", "fogMode", "fogShape");
 
@@ -482,7 +476,7 @@ public final class UniformRegistry {
         return unservedIn(name, Stage.POST) ? null : resolve(name, glslType, customDescriptors);
     }
 
-    /** Whether Iris itself gives this name a value: the catalog, the unserved list, Iris internals. */
+    /** Whether Iris itself gives this name a value: non-host catalog names, IRIS_UNSERVED, iris_ and u_ names. */
     public static boolean irisServes(String name) {
         return UNIFORM_SPECS.containsKey(name) && !HOST_ONLY.contains(name)
                 || IRIS_UNSERVED.contains(name) || name.startsWith("iris_") || name.startsWith("u_");
@@ -494,11 +488,10 @@ public final class UniformRegistry {
     }
 
     /**
-     * A declared uniform Iris does not provide is left unset, so GL reads it as zero, and the
-     * program still runs (Solas's {@code vxRenderDistance}, a Voxy value). Chimera serves the
-     * same zero: the source key names no value, so the frame state cannot answer for the name
-     * (it used to serve blindFactor, one of Iris's unregistered HardcodedCustomUniforms, as
-     * blindness). Iris names Chimera lacks are not covered: those stay unsupported.
+     * A declared uniform Iris does not provide stays unset, so GL reads zero and the program still runs
+     * (Solas's {@code vxRenderDistance}, a Voxy value). Chimera serves the same zero: the source key names
+     * no value, so the frame state cannot answer for the name. A name Iris serves gets no descriptor here,
+     * so one Chimera lacks stays unsupported.
      */
     static UniformDescriptor unsetDescriptor(String name, String glslType) {
         if (name == null || irisServes(name) || !SUPPORTED_TYPES.contains(glslType)) {
@@ -522,8 +515,7 @@ public final class UniformRegistry {
     /**
      * The engine vectors and matrices the host serves to custom-value expressions component by
      * component, so {@code eyeBrightness.y} or {@code gbufferModelViewInverse.2.1} resolves to
-     * something the host actually reads. A component of any other name is a declaration error
-     * rather than a zero.
+     * something the host reads. A component of any other name is a declaration error, not a zero.
      */
     private static final Set<String> COMPONENT_INPUTS = Set.of(
             "eyeBrightness", "eyeBrightnessSmooth", "atlasSize",
@@ -569,7 +561,7 @@ public final class UniformRegistry {
         return EntityIdRewrites.ENTITY_ID_NAMES.contains(name);
     }
 
-    /** PipelineConfig's JSON type/count representation for one accepted type. */
+    /** PipelineConfig's JSON type for one accepted type. */
     public static String pipelineType(String glslType) {
         return switch (glslType) {
             case "mat4" -> "matrix4x4";
@@ -620,9 +612,8 @@ public final class UniformRegistry {
     }
 
     /**
-     * Post passes sample every pack colour target on its one selector
-     * ({@link SelectorNamespace#colorTargetSlot}), so aliases such as gcolor
-     * and gaux1 resolve to the same slot as their colortex names.
+     * Post passes sample every pack colour target on its one selector ({@link SelectorNamespace#colorTargetSlot}),
+     * so aliases such as gcolor and gaux1 resolve to the same slot as their colortex names.
      */
     static Integer extendedPostColorSlot(String name) {
         Integer target = PackResourcePlan.targetIndex(name);
@@ -634,12 +625,10 @@ public final class UniformRegistry {
     }
 
     /**
-     * Pack colour targets a world program may sample (Iris binds them in every
-     * gbuffers stage), on the same selectors post uses, so one target keeps
-     * one selector across the pack and PackSettingsPlan already reserves
-     * them. colortex0..3 would land on
-     * the host atlas, overlay, lightmap and shadowcolor0 selectors, so they
-     * stay unmapped.
+     * Pack colour targets a world program may sample (Iris binds them in every gbuffers stage), on the
+     * selectors post uses, so one target keeps one selector across the pack and PackSettingsPlan already
+     * reserves them. colortex0 to 3 would land on the host atlas, overlay, lightmap and shadowcolor0
+     * selectors, so they stay unmapped.
      */
     static Integer gbufferColorInputSlot(String name) {
         Integer target = PackResourcePlan.targetIndex(name);
@@ -697,8 +686,8 @@ public final class UniformRegistry {
                     usedSamplers.add(sampler.name());
                 }
             }
-            // Mapping failure is not evidence that a sampler is dead. A live
-            // unsupported declaration may also be unused in the paired stage.
+            // a sampler that failed to map may be live, so it counts as used even where the paired stage
+            // leaves it unused
             for (String deviation : stage.deviations()) {
                 for (String prefix : List.of("SAMPLER_NOT_MAPPED:",
                         "SHADOW_SAMPLER_UNSUPPORTED:", "TRANSLUCENT_SAMPLER_UNSUPPORTED:",
@@ -720,8 +709,6 @@ public final class UniformRegistry {
         }).toList();
     }
 
-    // The canonical uniform catalog: every name Chimera serves, its types, source and default.
-
     private static Map<String, UniformDescriptor> uniformSpecs() {
         Map<String, UniformDescriptor> specs = new LinkedHashMap<>();
         addWorldAndCameraUniforms(specs);
@@ -731,7 +718,7 @@ public final class UniformRegistry {
         return Map.copyOf(specs);
     }
 
-    /** The OptiFine world, weather, camera, sky, shadow and frame uniforms. */
+    /** OptiFine's world, weather, camera, sky, shadow and frame uniforms. */
     private static void addWorldAndCameraUniforms(Map<String, UniformDescriptor> specs) {
         addLive(specs, "cameraPosition", "vec3");
         addLive(specs, "worldTime", "int");
@@ -764,11 +751,7 @@ public final class UniformRegistry {
         addLive(specs, "cloudHeight", "float");
     }
 
-    /**
-     * Common standard Iris values used by real legacy post sources. The
-     * provider supplies live values where Chimera has a source of truth;
-     * the remaining values are explicit zero or identity defaults.
-     */
+    /** Iris's standard uniforms; all are live except centerDepthSmooth and entityColor, which default to zero. */
     private static void addIrisStandardUniforms(Map<String, UniformDescriptor> specs) {
         addLive(specs, "bedrockLevel", "int");
         addLive(specs, "blindness", "float", "blindness");
@@ -791,7 +774,7 @@ public final class UniformRegistry {
         addLive(specs, "dimension", "int");
         addLive(specs, "heightLimit", "int");
         addLive(specs, "logicalHeightLimit", "int");
-        // Iris serves these through uniform1b; packs declare them bool or int.
+        // Iris serves these through uniform1b; packs declare them bool or int
         addLive(specs, "hasCeiling", List.of("int", "bool"), "hasCeiling");
         addLive(specs, "hasSkylight", List.of("int", "bool"), "hasSkylight");
         addLive(specs, "ambientLight", "float");
@@ -800,7 +783,7 @@ public final class UniformRegistry {
         addDefault(specs, "centerDepthSmooth", "float");
         addDefault(specs, "entityColor", "vec4");
         addLive(specs, "lightningBoltPosition", "vec4");
-        // IdMapUniforms: each hand's item.properties id, its light and that light's colour.
+        // IdMapUniforms: each hand's item.properties id, its light and that light's colour
         addLive(specs, "heldBlockLightValue", "int");
         addLive(specs, "heldBlockLightValue2", "int");
         addLive(specs, "heldItemId", "int");
@@ -846,21 +829,22 @@ public final class UniformRegistry {
         addLive(specs, "fogColor", List.of("vec3", "vec4"), "fogColor");
         addLive(specs, "fogStart", "float");
         addLive(specs, "fogEnd", "float");
-        // FogUniforms in a program with fog; a post program reads FogMode.OFF constants (PackPlanBuilder).
+        // FogUniforms in a program with fog; a post program reads FogMode.OFF constants (ServedUniforms.serveFogOff)
         addLive(specs, "fogMode", "int");
         addLive(specs, "fogShape", "int");
         addLive(specs, "fogDensity", "float");
-        // IrisInternalUniforms, which a legacy program's gl_Fog reads (LegacyShaderNormalizer): the
-        // range is latched per program and frame, the colour and density are fogColor's and fogDensity's.
+        // IrisInternalUniforms, which a legacy program's gl_Fog reads (LegacyShaderNormalizer)
+        // the range is latched per program and frame; colour and density are fogColor's and fogDensity's
         addLive(specs, "iris_FogStart", "float");
         addLive(specs, "iris_FogEnd", "float");
         addLive(specs, "iris_FogColor", "vec4", "fogColor");
         addLive(specs, "iris_FogDensity", "float", "fogDensity");
         addLive(specs, "cloudTime", "float");
-        // CommonUniforms' per-draw unit-0 texture size and blend; a post program reads its
-        // blendFunc as a constant (ServedUniforms.servePostValues). IrisExclusiveUniforms' selection.
+        // CommonUniforms' per-draw unit-0 texture size and blend
+        // a post program reads its blendFunc as a constant (ServedUniforms.servePostValues)
         addLive(specs, "gtextureSize", "ivec2");
         addLive(specs, "blendFunc", "ivec4");
+        // IrisExclusiveUniforms' selected block
         addLive(specs, "currentSelectedBlockId", "int");
         addLive(specs, "currentSelectedBlockPos", "vec3");
         addLive(specs, "screenSize", "vec2");

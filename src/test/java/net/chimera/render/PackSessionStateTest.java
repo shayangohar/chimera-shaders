@@ -12,7 +12,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A pack session's flags and once-only logs end with it (pre-merge audit D4, PackSessionState). */
+/** A pack session's flags and once-only logs (PackSessionState) end with it. */
 final class PackSessionStateTest {
     private static final String STATE = "net/chimera/render/PackSessionState";
 

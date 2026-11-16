@@ -21,21 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reports stitched atlas layouts to the material owner, each atlas's
- * size to {@link AtlasSizes} for the {@code atlasSize} uniform, and a
- * restitched block atlas to {@link PackAtlasMipmaps}.
+ * Reports each stitched atlas: its layout to the material map owner, its size to {@link AtlasSizes} for the
+ * {@code atlasSize} uniform, and a restitched block atlas to {@link PackAtlasMipmaps}.
  *
- * <p>At {@code TextureAtlas.upload} return the atlas texture is fully
- * uploaded, so the observation copies only immutable metadata (atlas
- * location, base-image identity, sprite coordinates plus recovered
- * padding) into the owner's pending queue and returns. Sprite origins are
- * padded slot origins while content dimensions are logical, so the padding
- * is recovered from the UV edge scaled to atlas texels. Sprites whose X
- * and Y padding disagree are isolated here with a named warning because
- * only square borders are supported. Decoding and GPU companion allocation
- * happen later at the safe pump seam, never inside this call. The
- * injection never throws out: a failure warns and leaves vanilla rendering
- * untouched.</p>
+ * At {@code TextureAtlas.upload}'s return the atlas is fully uploaded, so this only queues metadata with the
+ * owner: atlas location, image, sprite coordinates and padding. Sprite origins are padded slot origins while
+ * content sizes are logical, so the padding is recovered from the UV edge in atlas texels. Only square
+ * padding is supported; a sprite whose X and Y padding differ is skipped with a warning. Decoding and GPU
+ * allocation happen later, when the owner's builds are pumped. A failure here warns and leaves vanilla
+ * rendering alone.
  */
 @Mixin(TextureAtlas.class)
 public abstract class ChimeraAtlasMaterialMixin {
@@ -85,9 +79,8 @@ public abstract class ChimeraAtlasMaterialMixin {
     }
 
     /**
-     * Advances animated material maps in lockstep with this atlas: the game
-     * ticks every sprite animation here once per client tick. Metadata only;
-     * the pump writes the changed slots.
+     * Advances animated material maps with this atlas, where the game ticks every sprite animation once per
+     * client tick. Only metadata changes here; the pump writes the changed slots.
      */
     @Inject(method = "cycleAnimationFrames", at = @At("RETURN"), require = 1)
     private void chimera$tickMaterialAnimations(CallbackInfo info) {

@@ -9,13 +9,13 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
- * What a SPIR-V module needs from the device. Each OpExtension it declares and each extended
- * instruction set it imports needs its Vulkan extension enabled on the device, unless Vulkan 1.2
- * made it core; each OpCapability may need a feature (PackDevice.missing). A GL driver refuses an
- * {@code #extension name : require} it lacks when it compiles the stage; a Vulkan driver handed
- * such a module can crash instead. RenderPearl requires GL_AMD_shader_trinary_minmax on a GPU it
- * does not know to be NVIDIA's, and NVIDIA's driver crashed in vkCreateComputePipelines on its
- * deferred1 (2026-11-02).
+ * What a SPIR-V module needs from the device. Each OpExtension it declares and each extended instruction set
+ * it imports needs its Vulkan extension enabled, unless Vulkan 1.2 made it core; each OpCapability may need a
+ * feature (PackDevice.missing).
+ *
+ * A GL driver refuses an {@code #extension name : require} it lacks when it compiles the stage; a Vulkan
+ * driver handed such a module can crash instead. RenderPearl requires GL_AMD_shader_trinary_minmax on a GPU
+ * it does not take for NVIDIA's, and its deferred1 can crash NVIDIA's driver in vkCreateComputePipelines.
  */
 public final class SpirvDeviceRequirements {
     private static final int MAGIC = 0x07230203;
@@ -33,9 +33,9 @@ public final class SpirvDeviceRequirements {
             "SPV_EXT_shader_viewport_index_layer");
 
     /**
-     * The SPIR-V extensions whose Vulkan extension is not named after them. Most of the KHR ones
-     * gained a shader_ prefix in Vulkan (audit GD6): without their entry a refusal names an
-     * extension that does not exist, and a device created with the real one refuses the program.
+     * SPIR-V extensions whose Vulkan extension has another name; most KHR ones gained a {@code shader_}
+     * prefix. Without an entry a refusal names an extension that does not exist, and a device that has the
+     * real one still refuses the program.
      */
     private static final Map<String, String> RENAMED = Map.ofEntries(
             Map.entry("SPV_KHR_shader_ballot", "VK_EXT_shader_subgroup_ballot"),
@@ -84,7 +84,7 @@ public final class SpirvDeviceRequirements {
             int count = words[at] >>> 16;
             if (count == 0 || at + count > words.length) break;
             int opcode = words[at] & 0xFFFF;
-            // Capabilities, extensions and imports precede the memory model, and every instruction after it.
+            // capabilities, extensions and imports all come before the memory model
             if (opcode == OP_MEMORY_MODEL) break;
             if (opcode == OP_CAPABILITY && count > 1) capabilities.add(words[at + 1]);
             String needed = switch (opcode) {

@@ -11,13 +11,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Records a run of texture uploads into one graphics-queue command buffer, as VulkanMod's texture
- * tick records its sprite uploads (MTextureManager.tick). Outside such a recording,
- * VulkanImage.uploadSubTextureAsync submits a command buffer with a fence per region. At every
- * fiftieth fence, Synchronization.addFence makes the render thread wait for the GPU to drain the
- * frame in flight. Binding each written image then submits its layout transition alone
- * (VulkanImage.readOnlyLayout). An open batch begins recording at its first upload. Closing it
- * makes the written images shader-readable and submits once, with no wait. Render thread only.
+ * Records a run of texture uploads into one graphics-queue command buffer, as VulkanMod's texture tick
+ * records its sprite uploads (MTextureManager.tick). Render thread only.
+ *
+ * Outside such a recording, VulkanImage.uploadSubTextureAsync submits a command buffer with a fence per
+ * region, and at every fiftieth fence Synchronization.addFence makes the render thread wait for the GPU to
+ * drain the frame in flight. Binding each written image then submits its layout transition alone
+ * (VulkanImage.readOnlyLayout). An open batch begins recording at its first upload; closing it makes the
+ * written images shader-readable and submits once, with no wait.
  */
 final class TextureUploadBatch<I> {
     /** What a batch drives: VulkanMod's graphics queue in game, a fake in tests. */

@@ -8,13 +8,16 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Who observes the pack's shadow pass, and so whether it runs. Iris 1.21.1 builds its ShadowRenderer
- * only when {@code shadow.enabled} is true or a program outside the shadow pass samples a shadow
- * target (IrisRenderingPipeline: the ShaderMap's gbuffer programs and the composite renderers create
- * the targets before the renderer is chosen), and turns vanilla entity shadows off with it
- * (shouldDisableVanillaEntityShadows). Iris also skips a shadow pass whose programs only write pack
- * images, so a pack voxelizing its lights there gets none (Mellow's COLORED_LIGHTS; Bloop forces
- * {@code shadow.enabled} under LPV_ENABLED for this). Chimera runs that pass as well.
+ * Who observes the pack's shadow pass, and so whether it runs.
+ *
+ * Iris builds its ShadowRenderer only when {@code shadow.enabled} is true or a program outside the shadow
+ * pass samples a shadow target, and turns vanilla entity shadows off with it
+ * (shouldDisableVanillaEntityShadows). IrisRenderingPipeline decides after the gbuffer programs and the
+ * composite renderers have created the shadow targets they sample.
+ *
+ * Iris skips a shadow pass whose programs only write pack images, so a pack that voxelizes its lights there,
+ * such as Mellow with COLORED_LIGHTS, gets none; Bloop forces {@code shadow.enabled} under LPV_ENABLED to
+ * avoid this. Chimera runs that pass.
  *
  * @param enabled the pack's {@code shadow.enabled}, read as Iris reads it
  * @param readers the programs and pass computes outside the shadow pass that read a shadow target
@@ -22,7 +25,7 @@ import java.util.TreeSet;
  *                target or a storage buffer
  */
 public record ShadowPassUse(Enabled enabled, List<String> readers, List<String> writers, List<String> deviations) {
-    /** The pass for a session without a plan: runs, as before any pack is read. */
+    /** A session without a plan: the pass runs. */
     public static final ShadowPassUse ALWAYS =
             new ShadowPassUse(Enabled.UNSET, List.of("(no plan)"), List.of(), List.of());
 
@@ -75,7 +78,7 @@ public record ShadowPassUse(Enabled enabled, List<String> readers, List<String> 
                 shadowReaders(plan, passComputes), shadowWriters(plan, passComputes), deviations);
     }
 
-    /** {@code shadow.enabled}: an explicit value reads the same under either fallback; absent or malformed does not. */
+    /** {@code shadow.enabled}, read with both fallbacks: only an explicit value reads the same under each. */
     private static Enabled enabled(Map<String, String> properties, List<String> deviations) {
         String malformed = "SHADOW_DIRECTIVE_MALFORMED:" + KEY;
         boolean whenTrue = PackBooleanDirective.read(properties, KEY, true, deviations, malformed);

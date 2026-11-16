@@ -30,8 +30,8 @@ final class HostDependencyTest {
     void vulkanModRangeAdmitsOnlyTheTestedReforgedBuild() throws IOException {
         VersionRange range = MavenVersionAdapter.createFromVersionSpec(vulkanModRange());
         assertTrue(range.containsVersion(new DefaultArtifactVersion("0.3.5-ALPHA+1.21.1")), range.toString());
-        // Earlier and later Reforged releases, other 0.3.5 builds (Maven orders these inside a
-        // [0.3.5-ALPHA,0.3.6) range), and the separate NeoForge port that shares the mod id.
+        // earlier and later Reforged releases, the separate NeoForge port that shares the mod id, and
+        // other 0.3.5 builds, which Maven orders inside a [0.3.5-ALPHA,0.3.6) range
         for (String other : List.of("0.3.0-ALPHA+1.21.1", "0.3.1-ALPHA+1.21.1", "0.3.6-ALPHA+1.21.1",
                 "0.3.5.1-ALPHA+1.21.1", "0.3.5-BETA+1.21.1", "0.3.5+1.21.1", "0.3.5-ALPHA",
                 "0.3.5-ALPHA+1.21.11", "0.5.5-dev+6-unstable", "0.2.0-ALPHA")) {

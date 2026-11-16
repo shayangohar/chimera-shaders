@@ -33,19 +33,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.function.Predicate;
 
 /**
- * The sky and clouds under a pack, as Iris 1.21.1 MixinLevelRenderer phases them. renderSky opens
- * the sky window in the CUSTOM_SKY phase, so a sky a mod draws in its place is still the pack's
- * sky; each part of the vanilla sky then sets its phase at the call that starts it. As in Iris,
- * the sky draws even in thick fog (a boss's or a foggy dimension's), so the pack's sky programs
- * always write the sky the composite passes read. The pack horizon draws before all of it, after
- * the world clear (ChimeraLevelRendererMixin), as Iris draws it ahead of the sky. The celestial
- * plane turns by the pack's sun path rotation after vanilla's -90 degree Y turn. The pack's sun,
- * moon, stars and sky switches drop those parts as Iris's MixinLevelRenderer_SunMoonToggle does,
- * and in high fog the void plane and the sunrise colour go as Iris's sky mixins drop them
- * (ChimeraVoidPlaneMixin, ChimeraSunriseColorMixin). renderClouds draws in the CLOUDS phase, and
- * not at all when the pack's cloud program draws nothing; the pack's cloud program draws over
- * Sodium's cloud mesh (ChimeraCloudRenderer), which Iris on 1.21.1 runs it on, unless the
- * dimension draws its own clouds.
+ * The sky and clouds under a pack, phased as Iris's MixinLevelRenderer phases them.
+ *
+ * renderSky opens the sky window in the CUSTOM_SKY phase, so a sky a mod draws in its place is still the
+ * pack's sky; each part of the vanilla sky then sets its phase at the call that starts it. As in Iris, the
+ * sky draws even in thick fog, such as a boss's or a foggy dimension's, so the pack's sky programs always
+ * write the sky the composite passes read. The pack horizon draws before all of it, right after the world
+ * clear (ChimeraLevelRendererMixin). The celestial plane turns by the pack's sunPathRotation after vanilla's
+ * -90 degree Y turn.
+ *
+ * The pack's sun, moon, stars and sky switches drop those parts as Iris's MixinLevelRenderer_SunMoonToggle
+ * does. In high fog the void plane and the sunrise colour go as Iris's sky mixins drop them
+ * (ChimeraVoidPlaneMixin, ChimeraSunriseColorMixin). renderClouds draws in the CLOUDS phase, and not at all
+ * when the pack's cloud program draws nothing. Unless the dimension draws its own clouds, the pack's cloud
+ * program draws over Sodium's cloud mesh (ChimeraCloudRenderer), which Iris runs it on for 1.21.1.
  */
 @Mixin(LevelRenderer.class)
 public abstract class ChimeraSkyRendererMixin {
@@ -118,7 +119,7 @@ public abstract class ChimeraSkyRendererMixin {
         }
     }
 
-    /** The sun quad, dropped when the pack turns the sun off (Iris iris$beforeDrawSun). */
+    /** The sun quad, dropped when the pack turns the sun off (Iris's iris$beforeDrawSun). */
     @WrapOperation(method = "renderSky", at = @At(value = "INVOKE", target = UPLOAD),
             slice = @Slice(from = @At(value = "FIELD", target = SUN), to = @At(value = "FIELD", target = MOON)),
             allow = 1, require = 1)
@@ -126,7 +127,7 @@ public abstract class ChimeraSkyRendererMixin {
         chimera$drawOrDrop(mesh, original, chimera$keeps(SkyDirectives::sun));
     }
 
-    /** The moon quad, dropped when the pack turns the moon off (Iris iris$beforeDrawMoon). */
+    /** The moon quad, dropped when the pack turns the moon off (Iris's iris$beforeDrawMoon). */
     @WrapOperation(method = "renderSky", at = @At(value = "INVOKE", target = UPLOAD),
             slice = @Slice(from = @At(value = "FIELD", target = MOON), to = @At(value = "INVOKE", target = STARS)),
             allow = 1, require = 1)
@@ -134,7 +135,7 @@ public abstract class ChimeraSkyRendererMixin {
         chimera$drawOrDrop(mesh, original, chimera$keeps(SkyDirectives::moon));
     }
 
-    /** The sky disc, dropped with sky=false (Iris iris$beforeDrawSkyDisc). */
+    /** The sky disc, dropped with sky=false (Iris's iris$beforeDrawSkyDisc). */
     @WrapOperation(method = "renderSky", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/VertexBuffer;"
             + "drawWithShader(Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lnet/minecraft/client/renderer/ShaderInstance;)V"),
             slice = @Slice(from = @At(value = "INVOKE", target = FOG_COLOR), to = @At(value = "INVOKE",
@@ -162,7 +163,7 @@ public abstract class ChimeraSkyRendererMixin {
         return chimera$keeps(SkyDirectives::sky) ? original.call(data, level) : Double.NEGATIVE_INFINITY;
     }
 
-    /** The stars phase begins here; no stars with stars=false: vanilla draws them only for a brightness above zero. */
+    /** The stars phase begins here; no stars with stars=false, since vanilla draws them only above zero. */
     @WrapOperation(method = "renderSky", at = @At(value = "INVOKE", target = STARS), require = 1)
     private float chimera$starBrightness(ClientLevel level, float partialTick, Operation<Float> original) {
         chimera$phase(PackRenderingPhase.STARS);
@@ -192,7 +193,7 @@ public abstract class ChimeraSkyRendererMixin {
         }
     }
 
-    /** Sodium reads the cloud texture again on a resource reload. */
+    /** Reads the cloud texture again on a resource reload, as Sodium does. */
     @Inject(method = "onResourceManagerReload", at = @At("RETURN"), require = 1)
     private void chimera$cloudTexture(ResourceManager resources, CallbackInfo callback) {
         ChimeraCloudRenderer.shared().reload();

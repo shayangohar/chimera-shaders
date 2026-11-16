@@ -14,18 +14,15 @@ import java.util.List;
 /**
  * The chunk sections the shadow pass draws, chosen from the light's view.
  *
- * <p>VulkanMod's own queues hold what the camera sees: frustum and
- * occlusion culled from the camera, with each section's faces masked to the
- * ones facing the camera. Replayed from the light, they dropped every caster
- * that was off screen, behind terrain, or turned away from the player, so
- * shadows vanished or changed as the player moved. While this queue is
- * active, {@code renderSectionLayer} reads it instead and
- * {@code DrawBuffers} draws every facing, as Iris's shadow pass does.</p>
+ * VulkanMod's own queues hold what the camera sees: frustum and occlusion culled from the camera, with each
+ * section's faces masked to those facing the camera. Replayed from the light they would drop every caster
+ * that is off screen, behind terrain or turned away from the player, and shadows would change as the player
+ * moves. While this queue is active, {@code renderSectionLayer} reads it instead and {@code DrawBuffers}
+ * draws every facing, as Iris's shadow pass does.
  *
- * <p>Iris's shadow culling ({@link ShadowCullingFrustum}) drops the sections
- * that cannot shadow anything the camera sees; its safe zone is kept whole,
- * as Iris keeps it for voxelizing vertex stages. Only the host's own shadow
- * is also bounded by the light volume.</p>
+ * Iris's shadow culling ({@link ShadowCullingFrustum}) drops the sections that cannot shadow anything the
+ * camera sees, and keeps its safe zone whole for voxelizing vertex stages. Only the host's own shadow is also
+ * bounded by the light volume.
  */
 public final class ShadowSectionQueue {
     private static final int SECTIONS_PER_AREA = 512;
@@ -37,7 +34,7 @@ public final class ShadowSectionQueue {
     /** Kept sections holding block entities, which the caster pass draws. */
     private final List<RenderSection> blockEntitySections = new ArrayList<>();
     private boolean active;
-    /** The last fill's sections that cast (geometry or block entities), and how many of them it kept. */
+    // the last fill's casting sections (geometry or block entities), and how many of them it kept
     private int consideredSections;
     private int keptSections;
 
@@ -53,8 +50,8 @@ public final class ShadowSectionQueue {
     }
 
     /**
-     * The kept sections that hold block entities, as Iris extracts block entities from its
-     * shadow-culled section list. Valid while the queue is active.
+     * The kept sections that hold block entities, as Iris takes block entities from its shadow-culled section
+     * list. Empty while the queue is inactive.
      */
     public static List<RenderSection> blockEntitySections() {
         return INSTANCE.active ? INSTANCE.blockEntitySections : List.of();
@@ -69,13 +66,13 @@ public final class ShadowSectionQueue {
     }
 
     /**
-     * Fills the queues with every non-empty section the culling frustum keeps, and activates them.
-     * {@code lightVolume}, the light's projection times its view, also bounds the host's own
-     * shadow; a pack's shadow pass passes null. Iris tests no projection volume
-     * (ShadowRenderer.createShadowFrustum), and most packs scale shadow clip depth (BSL by 0.2), so
-     * casters past the ortho's near and far planes still land in their map. The matrices are
-     * camera-relative, like terrain vertices. Returns false, leaving the camera queues in use, when
-     * no section grid exists yet.
+     * Fills the queues with every non-empty section the culling frustum keeps, and activates them. Returns
+     * false, leaving the camera queues in use, when no section grid exists yet.
+     *
+     * {@code lightVolume}, the light's projection times its view, bounds only the host's own shadow; a pack's
+     * shadow pass passes null. Iris tests no projection volume (ShadowRenderer.createShadowFrustum), and most
+     * packs scale shadow clip depth (BSL by 0.2), so casters past the ortho's near and far planes still land in
+     * their map. {@code lightVolume} is camera-relative, like terrain vertices.
      */
     static boolean begin(SectionGrid grid, int areaCount, Matrix4fc lightVolume,
                          ShadowCullingFrustum culling, double cameraX, double cameraY, double cameraZ) {
@@ -88,9 +85,9 @@ public final class ShadowSectionQueue {
     }
 
     /**
-     * Drops the queues when a level goes away. VulkanMod's StaticQueue.clear resets its indices
-     * but keeps its slots, so the queues would otherwise hold the last world's sections, and through
-     * them its block entities and level, until the shadow pass next filled as many slots.
+     * Drops the queues when a level goes away or loads. VulkanMod's StaticQueue.clear resets its indices but
+     * keeps its slots, so the queues would otherwise hold the last world's sections, and through them its block
+     * entities and level, until the shadow pass next filled as many slots.
      */
     static void release() {
         end();
@@ -109,7 +106,7 @@ public final class ShadowSectionQueue {
 
         FrustumIntersection volume = lightVolume == null ? null : this.frustum.set(lightVolume);
         for (RenderSection section : grid.sections) {
-            // A chest alone bakes no geometry: its section is empty but still casts.
+            // a chest alone bakes no geometry, so its section is empty but still casts
             if (section == null || (section.isCompletelyEmpty() && !section.containsBlockEntities())) continue;
             ChunkArea area = section.getChunkArea();
             if (area == null || area.index < 0 || area.index >= areaCount) continue;
@@ -125,7 +122,7 @@ public final class ShadowSectionQueue {
         return true;
     }
 
-    /** Empties the per-area queues, or allocates them anew when the area count changed. */
+    /** Empties the per-area queues, or reallocates them when the area count changed. */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void resetQueues(int areaCount) {
         if (this.areas == null || this.areas.size() != areaCount) {
@@ -140,11 +137,11 @@ public final class ShadowSectionQueue {
     }
 
     /**
-     * True when the section at camera-relative ({@code x}, {@code y}, {@code z}) lies in Iris's
-     * safe zone, or the culling frustum keeps it and, when one is given, the light volume holds it.
+     * True when the section at camera-relative ({@code x}, {@code y}, {@code z}) lies in Iris's safe zone, or
+     * the culling frustum keeps it and, when one is given, the light volume holds it.
      */
     static boolean kept(FrustumIntersection lightVolume, ShadowCullingFrustum culling, float x, float y, float z) {
-        // Iris tests sections with the reach of their block models.
+        // Iris pads the culling test by how far block models reach out of their section
         float m = ShadowCullingFrustum.SECTION_MARGIN;
         float minX = x - m, minY = y - m, minZ = z - m;
         float maxX = x + 16.0f + m, maxY = y + 16.0f + m, maxZ = z + 16.0f + m;
@@ -153,7 +150,6 @@ public final class ShadowSectionQueue {
                 && culling.visible(minX, minY, minZ, maxX, maxY, maxZ));
     }
 
-    /** Adds a section to its area's queue, creating the queue on the area's first section. */
     private void enqueue(ChunkArea area, RenderSection section) {
         StaticQueue<RenderSection> queue = this.sections[area.index];
         if (queue == null) {

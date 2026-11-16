@@ -48,7 +48,7 @@ public final class PackLanguage {
                     languages.put(name.substring(0, name.lastIndexOf('.')),
                             Collections.unmodifiableMap(new HashMap<>(MenuProperties.orderedEntries(reader))));
                 } catch (IOException unreadable) {
-                    // An unreadable file adds no translations.
+                    // an unreadable file adds no translations
                 }
             });
         } catch (IOException unreadable) {

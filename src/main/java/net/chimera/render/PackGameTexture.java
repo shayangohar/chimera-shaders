@@ -8,28 +8,30 @@ import net.minecraft.resources.ResourceLocation;
 import net.vulkanmod.vulkan.texture.VulkanImage;
 
 /**
- * A namespaced pack texture, read as Iris's CustomTextureManager reads CustomTextureData.ResourceData:
- * the game texture at that location (an atlas, a dynamic texture, or a resource file the
- * TextureManager loads on first ask), queried at every bind so a resource reload never leaves a stale
- * image. A path ending in a PBR suffix ({@code _n}, {@code _s}) names the normal or specular map of
- * the texture without the suffix, or the flat map when it has none (PBRTextureManager's default
- * holder). A texture the game cannot load is its missing texture.
+ * A namespaced pack texture, read as Iris's CustomTextureManager reads CustomTextureData.ResourceData: the
+ * game texture at that location, such as an atlas, a dynamic texture or a resource file the TextureManager
+ * loads on first ask. It is looked up at every bind, so a resource reload never leaves a stale image.
+ *
+ * A path ending in a PBR suffix ({@code _n}, {@code _s}) names the normal or specular map of the texture
+ * without the suffix, or the flat map when it has none, as PBRTextureManager's default holder does. A texture
+ * the game cannot load is its missing texture.
  */
 final class PackGameTexture {
     /**
      * Where LightTexture registers the game's lightmap ({@code TextureManager.register("light_map", ...)},
      * the first of that name). Iris reads {@code minecraft:dynamic/lightmap_1} and
-     * {@code minecraft:dynamic/light_map_1} as the game renderer's light texture
-     * (ShaderPack.readTexture, CustomTextureData.LightmapMarker); Pixel Perfect binds the first.
-     * Iris asks the game renderer for its light texture; this location is that texture only while
-     * no mod registers a "light_map" texture before GameRenderer makes its LightTexture.
+     * {@code minecraft:dynamic/light_map_1} as the game renderer's light texture (ShaderPack.readTexture,
+     * CustomTextureData.LightmapMarker); Pixel Perfect binds the first.
+     *
+     * Iris asks the game renderer for its light texture, so this location is that texture only while no mod
+     * registers a "light_map" texture before GameRenderer makes its LightTexture.
      */
     static final String LIGHTMAP_PATH = "dynamic/light_map_1";
 
     private PackGameTexture() {
     }
 
-    /** A texture location without its PBR suffix, and the map the suffix names (null: the texture itself). */
+    /** A texture location without its PBR suffix, and the map the suffix names; null for the texture itself. */
     record Source(String namespace, String path, MaterialMapOwner.MaterialMapKind map) {
         /**
          * Iris's split of {@code namespace:path} (ShaderPack.parseCustomTexture): the first two parts,
@@ -58,9 +60,9 @@ final class PackGameTexture {
     }
 
     /**
-     * The image {@code source} names now, or null when no image or flat map can stand for it yet: a
-     * pack loads with the renderer, before Minecraft has a TextureManager, and Iris's TextureWrapper
-     * looks only at bind time.
+     * The image {@code source} names now, or null when no image or flat map can stand for it yet. A pack can
+     * load with the renderer, before Minecraft has a TextureManager; Iris's TextureWrapper looks only at bind
+     * time.
      */
     static VulkanImage image(Source source, MaterialMapOwner materials) {
         Minecraft client = Minecraft.getInstance();
@@ -77,7 +79,7 @@ final class PackGameTexture {
         String sampler = source.map().sampler();
         ChimeraTextureBindingState.Snapshot companion = materials.companionFor(base, sampler);
         if (companion != null) return companion.image();
-        // Iris loads a texture's PBR holder on first use; a simple texture's maps build at the next pump.
+        // Iris loads a texture's PBR holder on first use; a simple texture's maps build at the next pump
         materials.noteDrawAlbedo(base);
         return materials.image(sampler);
     }

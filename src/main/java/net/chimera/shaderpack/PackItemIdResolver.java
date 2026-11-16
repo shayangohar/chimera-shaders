@@ -9,15 +9,14 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * The pack's item.properties ids, read as Iris's IdMap.parseItemIdMap reads them
- * ({@link IdMapProperties}): the file goes through the same continuation and {@code #if}
- * handling as block.properties, each {@code item.<n>} key lists whitespace-separated item names
- * (namespace {@code minecraft} when none is given), a later line for the same key replaces an
- * earlier one as java.util.Properties does, tokens with state selectors are skipped, and an
- * unlisted item resolves to -1.
+ * The pack's item.properties ids, read as Iris's IdMap.parseItemIdMap reads them ({@link IdMapProperties}).
+ *
+ * Each {@code item.<n>} key lists item names, in {@code minecraft} when no namespace is given. A later line for
+ * the same key replaces an earlier one, as in java.util.Properties. Names with a state selector are skipped, and
+ * an unlisted item resolves to -1.
  */
 public final class PackItemIdResolver {
-    /** Iris's Object2IntMap default return value for an unlisted item. */
+    /** Iris's id-map default for an unlisted item. */
     public static final int UNMAPPED = -1;
 
     private static final PackItemIdResolver EMPTY = new PackItemIdResolver(Map.of());
@@ -49,7 +48,7 @@ public final class PackItemIdResolver {
             return new ParseResult(empty(), true, List.of("ITEM_PROPERTIES_" + file.failure()));
         }
         List<String> deviations = new ArrayList<>();
-        // A conditional Chimera could not evaluate read false; the rest of the file still maps.
+        // a conditional Chimera cannot evaluate reads as false; the rest of the file still maps
         if (conditionReadFalse) deviations.add("ITEM_PROPERTIES_CONDITION_UNSUPPORTED");
         List<String> invalidKeys = new ArrayList<>();
         Map<String, Integer> ids = IdMapProperties.ids(file.entries(), "item.", invalidKeys);
@@ -64,8 +63,8 @@ public final class PackItemIdResolver {
     }
 
     /**
-     * Iris's currentRenderedItemId for an item that is not a block item: its listed id, else
-     * {@link #UNMAPPED}, or 0 when the pack has no item.properties (Iris's empty map).
+     * Iris's currentRenderedItemId for an item that is not a block item: its listed id, else {@link #UNMAPPED},
+     * or 0 without a readable item.properties, as Iris's empty map reads.
      */
     public int renderedItemId(String namespacedId) {
         return this == EMPTY ? 0 : resolve(namespacedId);

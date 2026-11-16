@@ -7,7 +7,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/** Table-driven standard family registry. Unknown families remain host-only. */
+/** The family, stage and vertex contract of each program Chimera knows; any other program is unsupported. */
 public final class FamilyAdapterRegistry {
     private static final Map<String, FamilyAdapterPlan> CONTRACTS = Stream.of(
             plan("gbuffers_terrain", FamilyAdapterPlan.Family.TERRAIN,
@@ -16,24 +16,23 @@ public final class FamilyAdapterRegistry {
                     UniformRegistry.Stage.TRANSLUCENT, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
             plan("shadow", FamilyAdapterPlan.Family.SHADOW,
                     UniformRegistry.Stage.SHADOW, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
-            // Iris SodiumPrograms SHADOW_TRANS: the shadow pass's translucent terrain layer.
+            // Iris SodiumPrograms SHADOW_TRANS: the shadow pass's translucent terrain layer
             plan("shadow_water", FamilyAdapterPlan.Family.SHADOW,
                     UniformRegistry.Stage.SHADOW, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
             // Iris SHADOW_CUTOUT: the shadow pass's cutout and cutout_mipped layers, which hold
-            // VulkanMod's solid blocks too; the pass tests them all at 0.1, and opaque texels pass.
+            // VulkanMod's solid blocks too; the pass tests them all at 0.1, and opaque texels pass
             plan("shadow_cutout", FamilyAdapterPlan.Family.SHADOW,
                     UniformRegistry.Stage.SHADOW, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
-            // Iris SHADOW_ENTITIES_CUTOUT: the shadow pass's entity casters on the entity layout (the
-            // end portal and gateway too, after the entitySolid swap), and moving blocks on the
-            // block layout.
+            // Iris SHADOW_ENTITIES_CUTOUT: the shadow pass's entity casters on the entity layout, the end
+            // portal and gateway among them after the entitySolid swap, and moving blocks on the block layout
             plan("shadow_entities", FamilyAdapterPlan.Family.SHADOW_ENTITIES,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris 1.21.1 SHADOW_BLOCK: a block entity's solid, cutout, translucent and emissive models.
+            // Iris 1.21.1 SHADOW_BLOCK: a block entity's solid, cutout, translucent and emissive models
             plan("shadow_block", FamilyAdapterPlan.Family.SHADOW_BLOCK,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris IrisPipelines.assignToShadow keys drawn on the host's own layout. Each key resolves
-            // its Iris program through PackResolutionPlan (shadow_lightning is itself an Iris program;
-            // the others name a ShaderKey and select shadow or shadow_entities).
+            // Iris IrisPipelines.assignToShadow keys, drawn on the host's own layout
+            // each resolves its Iris program through PackResolutionPlan; shadow_lightning is an Iris program
+            // itself, and the others name a ShaderKey that selects shadow or shadow_entities
             plan("shadow_lines", FamilyAdapterPlan.Family.SHADOW_LINES,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.HOST_LINE),
             plan("shadow_leash", FamilyAdapterPlan.Family.SHADOW_LEASH,
@@ -61,11 +60,11 @@ public final class FamilyAdapterRegistry {
             plan("gbuffers_block", FamilyAdapterPlan.Family.BLOCK,
                     UniformRegistry.Stage.BLOCK, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
             // Iris BE_TRANSLUCENT and TEXT_BE: a block entity's translucent models on the entity
-            // layout, and its text on the GLYPH layout variant.
+            // layout, and its text on the GLYPH layout variant
             plan("gbuffers_block_translucent", FamilyAdapterPlan.Family.BLOCK_TRANSLUCENT,
                     UniformRegistry.Stage.BLOCK, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris CRUMBLING: the block-breaking overlay, whose BLOCK buffers Iris widens to TERRAIN
-            // (mid-coordinate and tangent per quad), as Chimera widens them to EXTENDED_BLOCK.
+            // Iris CRUMBLING: the block-breaking overlay, whose BLOCK buffers Iris widens to TERRAIN with a
+            // mid-coordinate and tangent per quad, as Chimera widens them to EXTENDED_BLOCK
             plan("gbuffers_damagedblock",
                     FamilyAdapterPlan.Family.DAMAGED_BLOCK, UniformRegistry.Stage.BLOCK,
                     FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
@@ -88,28 +87,28 @@ public final class FamilyAdapterRegistry {
             plan("gbuffers_weather", FamilyAdapterPlan.Family.WEATHER,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_PARTICLE),
             // Iris LINES, LINES_TRANSLUCENT and SECONDARY_BLOCK_OUTLINE (ShaderKey.LINES) on the
-            // host line layout, served like weather from the host transform blocks.
+            // host line layout, served like weather from the host transform blocks
             plan("gbuffers_line", FamilyAdapterPlan.Family.LINE,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LINE),
-            // Iris GLINT (ShaderKey.GLINT) on the host POSITION_TEX glint layers.
+            // Iris GLINT (ShaderKey.GLINT) on the host POSITION_TEX glint layers
             plan("gbuffers_armor_glint", FamilyAdapterPlan.Family.GLINT,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_GLINT),
-            // Iris LIGHTNING (LIGHTNING, DRAGON_RAYS) on the host POSITION_COLOR layout.
+            // Iris LIGHTNING (LIGHTNING, DRAGON_RAYS) on the host POSITION_COLOR layout
             plan("gbuffers_lightning", FamilyAdapterPlan.Family.LIGHTNING,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LIGHTNING),
             // Iris BEACON (BEACON_BEAM_OPAQUE, BEACON_BEAM_TRANSLUCENT) on the BLOCK layout Iris widens to
-            // TERRAIN, as Chimera widens it to EXTENDED_BLOCK.
+            // TERRAIN, as Chimera widens it to EXTENDED_BLOCK
             plan("gbuffers_beaconbeam", FamilyAdapterPlan.Family.BEACON_BEAM,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_BEACON),
-            // Iris LEASH (ProgramId.Basic) on the host POSITION_COLOR_LIGHTMAP lead strip.
+            // Iris LEASH (ProgramId.Basic) on the host POSITION_COLOR_LIGHTMAP lead strip
             plan("gbuffers_basic", FamilyAdapterPlan.Family.BASIC,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LEASH),
             // Iris TEXT_BG (TEXT_BACKGROUND, TEXT_BACKGROUND_SEE_THROUGH): a shader key that runs
-            // gbuffers_entities_translucent's chain on the host POSITION_COLOR_LIGHTMAP quads.
+            // gbuffers_entities_translucent's chain on the host POSITION_COLOR_LIGHTMAP quads
             plan("text_bg", FamilyAdapterPlan.Family.TEXT_BG,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_TEXT_BACKGROUND),
             // Iris TEXTURED and TEXTURED_COLOR (MixinGameRenderer): world draws with position_tex, the
-            // world border among them, and position_tex_color, outside the sky phases.
+            // world border among them, and position_tex_color, outside the sky phases
             plan("gbuffers_textured", FamilyAdapterPlan.Family.TEXTURED,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_POSITION_TEX),
             plan("textured_color", FamilyAdapterPlan.Family.TEXTURED_COLOR,
@@ -163,15 +162,15 @@ public final class FamilyAdapterRegistry {
         return name.equals("gbuffers_terrain") || name.equals("gbuffers_water") || isShadowTerrain(name);
     }
 
-    /** Programs whose modern sources are normalized like terrain: terrain, water and every shadow-pass program. */
+    /** Programs whose modern sources are normalised like terrain: terrain, water and every shadow program. */
     static boolean isTerrainMaterialFamily(String name) {
         return name.equals("gbuffers_terrain") || name.equals("gbuffers_water") || isShadowFamily(name);
     }
 
     /**
-     * Families whose active sources can write multiple outputs through DRAWBUFFERS/RENDERTARGETS.
-     * Each gets an immutable geometry output plan; single-output plans stay executable and unused
-     * directives never block the family.
+     * Families whose sources may write several outputs through DRAWBUFFERS or RENDERTARGETS, so each gets a
+     * geometry output plan. A single-output plan stays executable, and an unused directive never blocks the
+     * family.
      */
     static boolean isGeometryOutputFamily(String name) {
         return isEntityLike(name) || isParticleLike(name) || isWeatherFamily(name) || isHostLayoutFamily(name)
@@ -235,10 +234,10 @@ public final class FamilyAdapterRegistry {
     }
 
     /**
-     * True when Iris's EntityPatcher applies to the lane's ShaderKey format (GLYPH for shadow
-     * text): entityId and blockEntityId are per-vertex attributes there, which the host mesh
-     * lacks, so they read the unbound value 0. Every other host-layout lane reads them as Iris's
-     * CommonUniforms fallback: the draw's entity id and blockEntityId -1.
+     * Whether Iris's EntityPatcher applies to the lane's ShaderKey format, GLYPH for shadow text. There
+     * entityId and blockEntityId are per-vertex attributes the host mesh lacks, so they read the unbound
+     * value 0. Every other host-layout lane reads Iris's CommonUniforms fallback: the draw's entity id, and
+     * -1 for blockEntityId.
      */
     public static boolean readsEntityIdsPerVertex(String name) {
         return forProgram(name).family() == FamilyAdapterPlan.Family.SHADOW_TEXT;

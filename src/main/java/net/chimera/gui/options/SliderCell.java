@@ -7,14 +7,13 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * A choice the pack lists under {@code sliders}. At rest it looks like a choice with a small handle
- * in its value box; hovered or focused it becomes a track with the value centred and the name in a
- * tooltip. Dragging splits the track into one equal bucket per value.
+ * A choice the pack lists under {@code sliders}. At rest it looks like a choice with a small handle in its
+ * value box; hovered or focused it becomes a track with the value centred and the name in a tooltip.
+ * Dragging splits the track into one equal bucket per value.
  *
- * <p>A drag follows the pointer and commits on the mouse release, or as soon as the pointer leaves
- * the cell, after the last position is taken. The arrow keys edit the value after Enter, and
- * leaving that edit (Enter again, a page change, Apply or Done) commits it; Iris often drops those
- * keyboard edits. Cancel ends an edit without committing it.
+ * A drag follows the pointer and commits on the mouse release, or as soon as the pointer leaves the cell,
+ * after taking the last position. After Enter the arrow keys edit the value. Enter again, losing focus, a
+ * page change, Apply or Done commits that edit, where Iris often drops it; Cancel ends it without a commit.
  */
 final class SliderCell extends ChoiceCell {
     private boolean dragging;
@@ -91,7 +90,7 @@ final class SliderCell extends ChoiceCell {
         }
     }
 
-    /** The bucket under the pointer: the track split into one equal part per value. */
+    /** Takes the bucket under the pointer, one equal part of the track per value. */
     private void follow(int mouseX) {
         int count = option.values().size();
         float fraction = Math.clamp((mouseX - (getX() + 4)) / (float) (getWidth() - 8), 0.0F, 1.0F);

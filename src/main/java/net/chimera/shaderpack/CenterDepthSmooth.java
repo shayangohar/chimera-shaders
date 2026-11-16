@@ -5,11 +5,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Iris's smoothed centre depth (CompositeDepthTransformer, CenterDepthSampler). A fullscreen pass
- * that declares {@code uniform float centerDepthSmooth} reads {@code iris_centerDepthSmooth}, a 1x1
- * texture the renderer smooths each frame, through {@code texture(iris_centerDepthSmooth,
- * vec2(0.5)).r}. Iris registers no uniform of that name, so in any other program it is an unset
- * uniform.
+ * Iris's smoothed centre depth, as CompositeDepthTransformer and CenterDepthSampler provide it.
+ *
+ * A fullscreen pass that declares {@code uniform float centerDepthSmooth} reads it from
+ * {@code iris_centerDepthSmooth}, a 1x1 texture the renderer smooths each frame. Iris registers no uniform
+ * of that name, so in any other program it stays unset.
  */
 final class CenterDepthSmooth {
     static final String UNIFORM = "centerDepthSmooth";
@@ -18,9 +18,10 @@ final class CenterDepthSmooth {
     private CenterDepthSmooth() {}
 
     /**
-     * The source with its {@code uniform float centerDepthSmooth} replaced by the sampler and every
-     * reference by the sampler's read, in a program whose renderer registers the sampler
-     * (IrisSamplerOrder: composite-style passes and final); the source as it is otherwise.
+     * Replaces the uniform with the sampler and each reference with a read of its centre texel.
+     *
+     * Only in programs whose Iris renderer registers the sampler (IrisSamplerOrder), which are the
+     * composite-style passes and final; any other source comes back unchanged.
      */
     static String apply(String source, String program) {
         if (source == null || !IrisSamplerOrder.of(program, false).registers(IrisSamplerOrder.Source.CENTER_DEPTH)) {

@@ -78,17 +78,17 @@ final class TerrainBlockDataTest {
     /**
      * Terrain at_midBlock must be Iris's: for every vertex, the offset to the centre of the block
      * being rendered in 1/64 blocks, then the block's light emission. A centre taken from the
-     * vertex names the neighbouring block for every vertex on a +X, +Y or +Z face, and Solas's
-     * voxelization, which places each block at vertex + at_midBlock / 64, raced neighbouring
-     * blocks into one voxel: its light sources flickered.
+     * vertex names the neighbouring block for every vertex on a +X, +Y or +Z face. Solas's
+     * voxelization places each block at vertex + at_midBlock / 64, so such a centre would race
+     * neighbouring blocks into one voxel and make its light sources flicker.
      */
     @Test
     void midBlockOffsets() {
         ChimeraExtVertexBuilder builder = new ChimeraExtVertexBuilder(PLAN);
-        // A glowstone-like block at section position (4, 7, 9), emission 15.
+        // a glowstone-like block at section position (4, 7, 9), emission 15
         builder.setBlockData(7, ChimeraExtVertexBuilder.BLOCK_RENDER_TYPE, 15);
         builder.setBlockPosition(4, 7, 9);
-        // Its +X face lies on x = 5, the boundary with block (5, 7, 9).
+        // its +X face lies on x = 5, the boundary with block (5, 7, 9)
         float[][] eastFace = {{5, 8, 10}, {5, 7, 10}, {5, 7, 9}, {5, 8, 9}};
         int[][] words = write(builder, PLAN.stride(), eastFace);
         for (int index = 0; index < 4; index++) {
@@ -100,7 +100,7 @@ final class TerrainBlockDataTest {
             }
             assertTrue(words[index][3] == 15, "vertex " + index + " lost the block's emission: " + words[index][3]);
         }
-        // A torch-like model inside the block keeps the exact offset Iris computes.
+        // a torch-like model inside the block keeps the exact offset Iris computes
         builder.setBlockData(9, ChimeraExtVertexBuilder.BLOCK_RENDER_TYPE, 7);
         float[][] post = {{4.4375F, 7.625F, 9.4375F}, {4.4375F, 7, 9.4375F},
                 {4.5625F, 7, 9.5625F}, {4.5625F, 7.625F, 9.5625F}};

@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The core-profile uniforms Iris serves per stage (VanillaCoreTransformer, SodiumCoreTransformer,
  * CompositeCoreTransformer), and the initializer an unset uniform reads. Alpha Piscium declares
  * {@code uniform mat4 textureMatrix = mat4(1.0)} in its compatibility passes, where Iris never
- * sets it; Chimera refused the name in 137 programs.
+ * sets it.
  */
 final class IrisCoreUniformsTest {
     @Test

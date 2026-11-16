@@ -3,31 +3,23 @@ package net.chimera.shaderpack;
 import java.util.Map;
 
 /**
- * What a shadow program's stages before the rasterizer share: the legacy built-ins they read as
- * the shadow draw's own (TerrainVertexBridge, GeometryStageBridge), and the vertex stage's
- * conversion of GL's clip depth, [-w, w], to Vulkan's [0, w] when no geometry stage follows it (a
- * geometry stage converts what it emits, GeometryStageBridge.emitClipRange).
+ * What a shadow program's stages before the rasterizer share: the legacy built-ins they read as the shadow
+ * draw's own (TerrainVertexBridge, GeometryStageBridge), and the vertex stage's conversion of GL's clip
+ * depth, [-w, w], to Vulkan's [0, w]. A geometry stage converts what it emits instead
+ * (GeometryStageBridge.emitClipRange).
  */
 final class ShadowStageBuiltins {
-    /** Name the pack-authored shadow entry point keeps after the wrapper claims {@code main}. */
+    /** The pack's own shadow {@code main}, renamed once the wrapper claims {@code main}. */
     static final String AUTHORED_SHADOW_ENTRY = "chimeraAuthoredShadowMain";
 
     private ShadowStageBuiltins() {}
 
-    /**
-     * Converts the vertex stage's final clip depth after the pack's authored vertex code runs,
-     * unless a geometry stage follows ({@code geometryNext}): that stage converts what it emits
-     * (GeometryStageBridge.emitClipRange).
-     */
+    /** Converts the final clip depth after the pack's vertex code runs, unless a geometry stage follows. */
     static String vertexClipRange(String source, boolean geometryNext) {
         return geometryNext ? source : ClipDepth.afterEntry(source, AUTHORED_SHADOW_ENTRY);
     }
 
-    /**
-     * The shadow adapter's legacy built-ins describe the matrices used by the
-     * current shadow draw. Camera gbuffer matrices remain separately exposed
-     * through their Iris names.
-     */
+    /** Legacy matrix built-ins read the shadow draw's matrices; the camera's keep their Iris names. */
     static Map<String, String> matrixReplacements() {
         return Map.of(
                 "gl_ModelViewMatrix", "shadowModelView",
@@ -36,15 +28,15 @@ final class ShadowStageBuiltins {
                 "gl_ModelViewProjectionMatrix", "MVP");
     }
 
-    /** Maps legacy matrix built-ins to the fixed terrain inputs used by the shadow adapter. */
+    /**
+     * gl_TextureMatrix[1] and [2] read Iris's lightmap matrix and the rest identity; gl_VertexID reads Vulkan's
+     * gl_VertexIndex, which shadow passes use to pick quads or voxels.
+     */
     static String legacyBuiltins(String source) {
         String result = LegacyGlslConverter.replaceLightmapTextureMatrices(source).replaceAll(
                 "\\bgl_TextureMatrix\\s*\\[\\s*\\d+\\s*\\]", "mat4(1.0)");
         return GlslTokenRewriter.replaceIdentifiers(result,
                 Map.of(
-                        // Vulkan GLSL exposes the vertex invocation index as
-                        // gl_VertexIndex.  Iris legacy shadow code commonly
-                        // uses gl_VertexID for quad/voxel producer gating.
                         "gl_VertexID", "gl_VertexIndex"));
     }
 }

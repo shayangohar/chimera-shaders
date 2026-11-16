@@ -91,7 +91,7 @@ final class BlockLayerTest {
         assertTrue(!result.deviations().contains("BLOCK_PROPERTIES_INVALID"), result.deviations().toString());
     }
 
-    /** Bliss gates its glass line on an option; the line holds only while the macro is defined. */
+    /** Bliss puts its glass line behind an option; the line holds only while the macro is defined. */
     @Test
     void layerLinesFollowConditions() throws IOException {
         Files.writeString(shadersDir.resolve("block.properties"), """

@@ -18,15 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The defects the 2026-11-13 corpus widening found: each a popular pack, at default settings, that
- * ran a program Iris 1.21.1 runs as a fallback or not at all.
- */
+/** Programs popular packs run at default settings, which Iris 1.21.1 runs as written. */
 final class CorpusBreadthFixesTest {
     /**
      * AstraLex derives {@code uniform.float.velocity} from the camera's motion. Iris 1.21.1 never
      * registers its HardcodedCustomUniforms, so velocity is no built-in there and the pack's own value
-     * builds; Chimera listed it as one and refused 13 programs that read it.
+     * builds.
      */
     @Test
     void astraLexVelocityIsThePacksOwnUniform() {
@@ -45,9 +42,8 @@ final class CorpusBreadthFixesTest {
 
     /**
      * BSL Classic defines texture2DShadow twice, on sampler2D and on sampler2DShadow, and calls it on
-     * its sampler2DShadow shadowtex0. Iris leaves both to GLSL's overload resolution. Chimera deleted
-     * the sampler2DShadow overload, the other kept the call, and 17 programs failed to compile; only
-     * the helper's own shadow2D call is a legacy lookup, on its parameter's type.
+     * its sampler2DShadow shadowtex0. Iris leaves both to GLSL's overload resolution, so both stay;
+     * only the helper's own shadow2D call is a legacy lookup, rewritten for its parameter's type.
      */
     @Test
     void bslClassicShadowOverloadsStay() {
@@ -68,7 +64,7 @@ final class CorpusBreadthFixesTest {
                         && rewritten.contains("texture2DShadow(shadowtex0, vec3(0.5))"),
                 "both overloads stay, the helper's lookup reads its parameter:\n" + rewritten);
 
-        // The whole fragment conversion keeps both overloads too: it used to delete the second.
+        // the whole fragment conversion keeps both overloads too
         PostTargetPlan targetPlan = PostTargetPlan.parse("composite", source).plan();
         String converted = FragmentConverter.convertPostFragment(source, null,
                 InterfacePlanner.planPreparedPost(source, targetPlan), targetPlan);
@@ -80,10 +76,9 @@ final class CorpusBreadthFixesTest {
 
     /**
      * Pixel Perfect is GLSL 330, so Iris's core names apply, and its toViewspace(in mat4
-     * projectionMatrix, in mat4 modelViewMatrix, ...) names parameters after two of them. Iris's
-     * rename moves each parameter and its uses together to a fresh name, so they keep their meaning;
-     * Chimera replaced the parameters with built-ins, and the parameter list stopped parsing in almost
-     * every vertex stage. A pack's line program takes the same scoped replacement.
+     * projectionMatrix, in mat4 modelViewMatrix, ...) names parameters after two of them. Iris renames
+     * each parameter together with its uses, so they keep their meaning; here the parameters keep their
+     * names and only the globals are replaced. A pack's line program takes the same scoped replacement.
      */
     @Test
     void pixelPerfectCoreNameParametersKeepTheirNames() {
@@ -115,9 +110,8 @@ final class CorpusBreadthFixesTest {
 
     /**
      * Aurora's water writes {@code #if WATERCOLOR_B = 200}, one '='. JCPP 1.4.14 evaluates up to the
-     * '=', warns, and skips the rest of the line, so the branch holds for any nonzero value; Chimera
-     * refused the condition and gbuffers_water fell back. Each case below is JCPP's own result, the
-     * character literal aside.
+     * '=', warns, and skips the rest of the line, so the branch holds for any nonzero value. Each case
+     * below is JCPP's own result, the character literal aside.
      */
     @Test
     void auroraMalformedConditionsReadAsJcppReadsThem() {
@@ -143,8 +137,8 @@ final class CorpusBreadthFixesTest {
 
     /**
      * Clarity ships composite.fsh with no images beside composite.csh, which stores to a pack image.
-     * Iris builds the program and the pass's compute apart (CompositeRenderer); the report judged the
-     * program by the compute's image and refused it, while the plan ran it.
+     * Iris builds the program and the pass's compute apart (CompositeRenderer), so the compute's image
+     * does not refuse the program, and the report agrees with the plan.
      */
     @Test
     void clarityPassComputeImagesDoNotRefuseTheProgram(@TempDir Path root) throws IOException {
@@ -194,7 +188,7 @@ final class CorpusBreadthFixesTest {
             """;
 
     /**
-     * Pixel Perfect's shadow program declares {@code /* DRAWBUFFERS: *}{@code /} and only discards
+     * Pixel Perfect's shadow program declares {@code /* DRAWBUFFERS: *}{@code /} and only discards.
      * Iris reads an empty route, and its shadow framebuffer for one draws no colour. A
      * fullscreen or shadowcomp pass refuses it, as Iris's createColorFramebuffer does, and so does a
      * gbuffers program, which Chimera draws only with a colour attachment. Final keeps output 0, as

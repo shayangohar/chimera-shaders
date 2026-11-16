@@ -12,11 +12,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Applies Iris's separateAo where VulkanMod multiplies the light pipeline's brightness
- * (ambient occlusion times face shade) into a block quad's colour: in Chimera's terrain meshes
- * the tint stays in RGB and the brightness moves to alpha, as Iris writes Sodium's terrain
- * vertices. Blocks drawn outside chunk meshes (falling blocks, moving pistons) go through
- * vanilla's renderer instead.
+ * Applies Iris's separateAo where VulkanMod multiplies the light pipeline's brightness, ambient occlusion
+ * times face shade, into a block quad's colour. In Chimera's terrain meshes the tint stays in RGB and the
+ * brightness moves to alpha, as Iris writes Sodium's terrain vertices. Blocks drawn outside chunk meshes,
+ * such as falling blocks and moving pistons, go through vanilla's renderer instead.
  */
 @Mixin(value = BlockRenderer.class, remap = false)
 public abstract class ChimeraBlockSeparateAoMixin {

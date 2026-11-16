@@ -7,10 +7,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Renames references to global names the way GLSL resolves them. A function parameter or local
- * variable that shares a global's name hides it until its scope closes, so its declaration and
- * uses keep their spelling; a field access ({@code value.name}) is never a global. Kappa names a
- * parameter after its {@code lightDir} uniform ({@code projectedCaustic(..., vec3 lightDir)}).
+ * Renames references to global names the way GLSL resolves them.
+ *
+ * A parameter or local that shares a global's name hides it until its scope closes, so its declaration and
+ * uses keep their spelling; Kappa names a parameter after its {@code lightDir} uniform. A field access
+ * ({@code value.name}) is never a global.
  */
 final class GlslScopedReferences {
     private GlslScopedReferences() {}
@@ -33,8 +34,8 @@ final class GlslScopedReferences {
     }
 
     /**
-     * Whether the name at {@code token} is a global's: neither a call (a sampler named texture
-     * never renames texture(...)) nor a field, and not hidden by a parameter or local.
+     * Whether the name at {@code token} is a global's: not a call, so a sampler named {@code texture} never
+     * renames {@code texture(...)}, not a field, and not hidden by a parameter or local.
      */
     private static boolean global(GlslTree tree, int token) {
         List<GlslLexer.Token> tokens = tree.tokens();
@@ -47,8 +48,8 @@ final class GlslScopedReferences {
     }
 
     /**
-     * Whether a parameter or local is named {@code name}: renaming a global to it would let that
-     * declaration capture the renamed references in its scope.
+     * Whether a parameter or local is named {@code name}; renaming a global to it would let that declaration
+     * capture the renamed references in its scope.
      */
     static boolean declaredLocally(GlslTree tree, String name) {
         List<GlslLexer.Token> tokens = tree.tokens();
@@ -75,8 +76,8 @@ final class GlslScopedReferences {
     }
 
     /**
-     * The names that file scope declares but never sees as globals: struct and interface-block
-     * members, and a prototype's parameters.
+     * Declaring tokens at file scope that are not globals' names: struct and interface-block members, and a
+     * prototype's parameters.
      */
     static Set<Integer> memberNames(GlslTree tree) {
         Set<Integer> names = new HashSet<>();

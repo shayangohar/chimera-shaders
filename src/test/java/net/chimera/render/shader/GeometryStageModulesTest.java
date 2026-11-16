@@ -16,7 +16,7 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 class GeometryStageModulesTest {
-    /** The geometry stage runs between the vertex and fragment stages, entering at their main. */
+    /** The geometry stage goes between the vertex and fragment stages, with the same entry point. */
     @Test
     void theGeometryStageGoesBeforeTheFragmentStage() {
         try (MemoryStack stack = MemoryStack.stackPush()) {

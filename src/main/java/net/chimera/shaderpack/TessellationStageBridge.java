@@ -13,19 +13,22 @@ import static net.chimera.shaderpack.WorldBetweenStages.arraySuffix;
 import static net.chimera.shaderpack.WorldBetweenStages.qualified;
 
 /**
- * A program's tessellation stages (.tcs and .tes), which Iris runs between the vertex and fragment
- * stages when the pack lists TESSELLATION_SHADERS (Shrimple's terrain, water and hand). The control
- * stage's per-vertex inputs pair with the vertex stage's outputs, its per-vertex outputs with the
- * evaluation stage's inputs, and the evaluation stage's outputs with the fragment stage's inputs,
- * each pair by name at one shared location. Both stages read the program's uniforms through the
- * block the other stages declare, bind their samplers as those do, and read the legacy matrices
- * as the vertex stage does (GlslVertexPreambles.terrainMatrixBuiltins, handMatrixBuiltins), in GL's clip range: the
- * vertex stage hands the control stage GL's clip position, as under Iris, and the evaluation
- * stage, the last before the rasterizer, converts the depth it emits once (WorldClipRange).
+ * A program's tessellation stages (.tcs and .tes), which Iris runs between the vertex and fragment stages
+ * when the pack lists TESSELLATION_SHADERS; Shrimple uses them for terrain, water and the hand.
  *
- * <p>Under Vulkan's default upper-left domain origin the tessellator orders a generated
- * triangle's vertices against GL's, which has a lower-left origin. The evaluation stage's winding
- * is swapped, so a triangle GL keeps front-facing stays front-facing.</p>
+ * The control stage's per-vertex inputs pair with the vertex stage's outputs, its per-vertex outputs with
+ * the evaluation stage's inputs, and the evaluation stage's outputs with the fragment stage's inputs, each
+ * pair by name at one shared location. Both stages read the program's uniforms through the block the other
+ * stages declare, bind their samplers as those do, and read the legacy matrices as the vertex stage does
+ * (GlslVertexPreambles.terrainMatrixBuiltins, handMatrixBuiltins).
+ *
+ * Positions stay in GL's clip range: the vertex stage hands the control stage GL's clip position, as under
+ * Iris, and the evaluation stage, the last before the rasterizer, converts the depth it emits once
+ * (WorldClipRange).
+ *
+ * Under Vulkan's default upper-left domain origin the tessellator orders a generated triangle's vertices
+ * opposite to GL, which has a lower-left origin. The evaluation stage's winding is swapped, so a triangle GL
+ * keeps front-facing stays front-facing.
  */
 final class TessellationStageBridge {
     private TessellationStageBridge() {}
@@ -39,9 +42,9 @@ final class TessellationStageBridge {
     record Conversion(String control, String evaluation, LegacyGlslConverter.TerrainVaryingLayout outputLayout) {}
 
     /**
-     * Both converted stages, or null when either failed: BetweenStages refuses a control stage
-     * without its evaluation stage, and a half pair would throw from every report that reads the
-     * program, failing the whole pack where only this program should fall back.
+     * Both converted stages, or null when either failed. BetweenStages refuses a control stage without its
+     * evaluation stage, and a half pair would throw from every report that reads the program, failing the
+     * whole pack where only this program should fall back.
      */
     static Conversion paired(String control, String evaluation,
                              LegacyGlslConverter.TerrainVaryingLayout outputLayout) {
@@ -86,13 +89,14 @@ final class TessellationStageBridge {
     }
 
     /**
-     * Converts both stages of a hand program (gbuffers_hand, gbuffers_hand_water), drawn by the
-     * entity vertex bridge. A stage reads the legacy matrices as the hand's vertex stage does, from
-     * the host's own blocks, the projection in GL's clip range (GlslVertexPreambles.handMatrixBuiltins):
-     * Shrimple's DISPLACE_TESSELATION projects in the evaluation stage. The values that bridge adds
-     * to the vertex stage's outputs for the fragment stage (the entity identities and the
-     * forwarded host values) pass on through both stages ({@link PassedOn}). A stage that reads the
-     * pack's uniforms declares the entity family's block, as the vertex stage does.
+     * Converts both stages of a hand program (gbuffers_hand, gbuffers_hand_water), drawn by the entity
+     * vertex bridge.
+     *
+     * A stage reads the legacy matrices as the hand's vertex stage does, from the host's own blocks, with the
+     * projection in GL's clip range (GlslVertexPreambles.handMatrixBuiltins); Shrimple's DISPLACE_TESSELATION
+     * projects in the evaluation stage. The entity identities and forwarded host values that bridge adds to
+     * the vertex stage's outputs pass on through both stages to the fragment stage ({@link PassedOn}). A
+     * stage that reads the pack's uniforms declares the entity family's block, as the vertex stage does.
      *
      * @throws IllegalArgumentException as {@link #convertTerrain}, and when the domain is not triangles
      */
@@ -225,13 +229,12 @@ final class TessellationStageBridge {
     }
 
     /**
-     * The evaluation stage with its triangle winding reversed: GL's default ccw becomes cw. Every
-     * input layout outside comments that names a vertex order has it swapped, and with none, the
-     * first takes cw. Only the first, as written, was edited: a commented layout above the real one
-     * took the swap, and an order in a second layout statement (layout(ccw) in;) kept GL's.
+     * The evaluation stage with its triangle winding reversed: GL's default ccw becomes cw. Every input
+     * layout outside comments that names a vertex order has it swapped, including one in a second layout
+     * statement such as {@code layout(ccw) in;}. When none names one, the first layout takes cw.
      */
     static String swappedWinding(String evaluation) {
-        // Layouts and their orders are read outside comments, at the offsets of the source as written.
+        // layouts and orders come from the comment-masked source, whose offsets match the source as written
         String masked = GlslLexer.maskComments(evaluation);
         Matcher layout = INPUT_LAYOUT.matcher(masked);
         List<int[]> layouts = new ArrayList<>();

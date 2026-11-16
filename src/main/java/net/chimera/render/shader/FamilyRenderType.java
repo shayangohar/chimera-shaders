@@ -10,19 +10,18 @@ import net.minecraft.client.renderer.ShaderInstance;
 import java.util.Optional;
 
 /**
- * A vanilla render type drawn by a pack family lane. It keeps the vanilla type's state and
- * ordering flags, writes the lane's widened format, and draws inside the lane's draw window: its
- * setupRenderState opens the draw once vanilla's state (and with it the shader) is set, in the
- * Iris rendering phase of the context that wrote it.
+ * A vanilla render type drawn by a pack family lane. It keeps the vanilla type's state and ordering flags,
+ * writes the lane's widened format, and draws inside the lane's draw window: its setupRenderState opens the
+ * draw once vanilla's state, and with it the shader, is set, in the Iris rendering phase of the context that
+ * wrote it.
  *
- * <p>The buffer source that batches them keeps one instance per lane, phase and type
- * ({@link FamilyBufferSource}).</p>
+ * {@link FamilyBufferSource} keeps one instance per lane, phase and type.
  */
 public final class FamilyRenderType extends RenderType {
     private final Family family;
     private final PackRenderingPhase phase;
     private final RenderType host;
-    /** The host type's transparency, as Iris batches it. */
+    /** The host type's transparency, which orders the batch's draw as Iris orders its batches. */
     private final IrisTransparency transparency;
     /** The FamilyBufferSource flush that last drew this type. */
     private long lastDrawn;
@@ -37,7 +36,6 @@ public final class FamilyRenderType extends RenderType {
         this.transparency = IrisTransparency.of(host);
     }
 
-    /** The host type's transparency, which orders the batch's draw as Iris orders its batches. */
     IrisTransparency transparency() {
         return transparency;
     }
@@ -70,9 +68,9 @@ public final class FamilyRenderType extends RenderType {
     }
 
     /**
-     * RenderType.draw has no finally: a draw that throws between setup and clear would leave the
-     * family draw open, so every later ShaderInstance draw got this family's pipeline. The shadow
-     * pass catches its casters' failures and carries on, so the draw closes here whatever happens.
+     * RenderType.draw has no finally, so a draw that throws between setup and clear would leave the family
+     * draw open and every later ShaderInstance draw would get this family's pipeline. The shadow pass catches
+     * its casters' failures and carries on, so the draw closes here whatever happens.
      */
     @Override
     public void draw(MeshData mesh) {

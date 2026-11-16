@@ -12,22 +12,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The one deterministic interpretation of a legacy post program's render
- * targets. The same plan is used by probing, conversion, pipeline creation,
- * and the runtime post chain.
+ * A program's render targets, read from its target directive and fragment outputs. Probing, conversion, pipeline
+ * creation and the runtime post chain all use the same plan.
  */
 public final class PostTargetPlan {
     /** Highest logical colortex index: Iris exposes colortex0 through colortex15. */
     public static final int MAX_TARGET = 15;
     /**
-     * A colortex target the pack declares no format for: Iris's RenderTargetSettings starts at
-     * InternalTextureFormat.RGBA, which GL allocates as RGBA8 (VK_FORMAT_R8G8B8A8_UNORM), so it
-     * clamps to [0, 1] as under Iris.
+     * Format of a colortex target the pack declares none for. Iris's RenderTargetSettings defaults to RGBA, which
+     * GL allocates as RGBA8, so values clamp to [0, 1] as under Iris.
      */
     public static final int DEFAULT_FORMAT = 37;
     /**
-     * The numbered pass families in the order Iris runs them: the setup computes, then its composite
-     * renderers (IrisRenderingPipeline), shadowcomp running after the shadow pass, before prepare.
+     * The numbered pass families in the order Iris runs them: setup computes first, then the composite renderers,
+     * with shadowcomp after the shadow pass and before prepare.
      */
     private static final List<String> PASS_FAMILIES =
             List.of("setup", "begin", "shadowcomp", "prepare", "deferred", "composite");
@@ -63,7 +61,7 @@ public final class PostTargetPlan {
         for (GlslDeclarations.Variable output : GlslDeclarations.variables(tree)) {
             List<String> qualifiers = output.qualifiers();
             int start = tree.offset(output.declaration().range().start());
-            // A gl_ name is a built-in redeclared (layout(depth_greater) out float gl_FragDepth).
+            // a gl_ name is a redeclared built-in, such as layout(depth_greater) out float gl_FragDepth
             if ((qualifiers.equals(List.of("out")) || qualifiers.equals(List.of("layout", "out")))
                     && !output.name().startsWith("gl_")
                     && OUTPUT_TYPE.matcher(output.type()).matches() && output.plain()
@@ -134,9 +132,8 @@ public final class PostTargetPlan {
         List<String> deviations = new ArrayList<>();
         List<List<Integer>> directives = parseDirectives(text, deviations);
 
-        // Iris draws final into Minecraft's main framebuffer and never applies its draw-buffer
-        // directive (FinalPassRenderer): output 0 reaches the screen and any other is discarded.
-        // Ebin's DEBUG exit writes DRAWBUFFERS:3 in final, which Chimera refused.
+        // Iris draws final into Minecraft's main framebuffer and ignores its draw-buffer directive
+        // output 0 reaches the screen and any other is discarded; Ebin's DEBUG exit writes DRAWBUFFERS:3 in final
         List<Integer> targetSlots = programName.equals("final") ? List.of(0) : selectDirective(directives);
         Set<Integer> outputSet = legacyOutputs(text, deviations);
         Map<Integer, String> outputTypes = new TreeMap<>();
@@ -149,12 +146,10 @@ public final class PostTargetPlan {
             outputSet.add(output.location());
         }
 
-        // An empty route (emptyDrawBuffers) draws depth alone in a shadow program or lane: Iris gives it
-        // a framebuffer with no draw buffers (ShadowRenderTargets.createShadowFramebuffer), and the
-        // shadow pass masks the attachments a module never writes (SpirvOutputWrites). Pixel Perfect's
-        // shadow program only discards. Iris's createColorFramebuffer throws for a fullscreen or
-        // shadowcomp pass, and Chimera draws no gbuffers program without a colour attachment, which
-        // Iris does (GEOMETRY_TARGET_ROUTE_EMPTY_UNSUPPORTED).
+        // an empty route draws depth alone in a shadow program or lane, and Iris gives it no draw buffers
+        // the shadow pass masks the attachments a module never writes; Pixel Perfect's shadow program only discards
+        // Iris throws for an empty route in a fullscreen or shadowcomp pass
+        // a gbuffers program without a colour attachment draws in Iris but is refused here
         if (targetSlots.isEmpty() && !FamilyAdapterRegistry.isShadowFamily(programName)) {
             deviations.add("POST_TARGET_ROUTE_EMPTY_UNSUPPORTED");
         }
@@ -163,9 +158,8 @@ public final class PostTargetPlan {
                 deviations.add("POST_TARGET_INDEX_UNSUPPORTED:" + target);
             }
         }
-        // GL discards a fragment output with no draw buffer at its location, so an output
-        // past the route is written to nothing (Photon declares a second gbuffer output it
-        // routes only when normal or specular mapping is on).
+        // GL discards an output with no draw buffer at its location, so an output past the route writes nothing
+        // Photon declares a second gbuffer output it routes only when normal or specular mapping is on
         List<Integer> discardedOutputs = outputSet.stream()
                 .filter(output -> output >= targetSlots.size()).toList();
         for (int output : discardedOutputs) {
@@ -235,9 +229,8 @@ public final class PostTargetPlan {
     }
 
     /**
-     * {@code /* DRAWBUFFERS: *}{@code /}: Iris reads it as a route with no buffers
-     * (ProgramDirectives.parseDigits of ""). An empty RENDERTARGETS is no route, as Iris's
-     * Integer.parseInt("") fails on it.
+     * {@code /* DRAWBUFFERS: *}{@code /}, which Iris reads as a route with no buffers. An empty RENDERTARGETS is no
+     * route, since Iris's Integer.parseInt("") fails on it.
      */
     private static boolean emptyDrawBuffers(String kind, String body) {
         return kind.equalsIgnoreCase("DRAWBUFFERS") && body.isBlank();
@@ -261,13 +254,13 @@ public final class PostTargetPlan {
     }
 
     /**
-     * Iris ProgramDirectives: this program's fragment const directives, in
-     * source order, so a later {@code false} removes an earlier {@code true}.
+     * The targets this program's mipmap const directives enable, read in source order as Iris's ProgramDirectives
+     * reads them, so a later {@code false} removes an earlier {@code true}.
      */
     private static List<Integer> parseMipmappedTargets(String source) {
         Set<Integer> targets = new TreeSet<>();
-        // ConstDirectiveParser reads lines, so a directive inside a block comment counts (Photon's
-        // d4_deferred_shading declares its mipmapped targets that way).
+        // Iris's ConstDirectiveParser reads lines, so a directive inside a block comment counts
+        // Photon's d4_deferred_shading declares its mipmapped targets that way
         for (IrisConstDirectives.Directive directive : IrisConstDirectives.find(source)) {
             Matcher name = MIPMAP_DIRECTIVE_NAME.matcher(directive.name());
             Integer target = name.matches() ? PackResourcePlan.targetIndex(name.group(1)) : null;
@@ -316,7 +309,7 @@ public final class PostTargetPlan {
         return PassComputePlan.isShadowcomp(name) ? parseShadowcomp(name, fragment, config).plan() : null;
     }
 
-    /** A shadowcomp pass's route over the shadowcolor targets (parseShadow), in the pack's shadowcolor formats. */
+    /** A shadowcomp pass's route over the shadowcolor targets, in the pack's shadowcolor formats. */
     static ParseResult parseShadowcomp(String programName, String source, PackConfig.PackConfigData config) {
         List<Integer> shadowFormats = config == null ? List.of() : config.shadowSettings().colorAttachmentFormats();
         Map<Integer, Integer> formats = new TreeMap<>();
@@ -325,11 +318,9 @@ public final class PostTargetPlan {
     }
 
     /**
-     * A shadow-pass source's route over the shadowcolor targets: its directive, or with none {0, 1}.
-     * Iris draws a shadow program or a shadowcomp pass whose draw buffers are unknown to both
-     * (IrisRenderingPipeline.createShadowShader, SodiumPrograms.createFramebuffer,
-     * ShadowCompositeRenderer), where a colour program's default is {0}. Kappa's shadow program
-     * declares no directive and writes its material ids to shadowcolor1 for its shadowcomp to read.
+     * A shadow-pass source's route over the shadowcolor targets: its directive, or {0, 1} with none. Iris draws a
+     * shadow program or shadowcomp pass with no directive to both, where a colour program's default is {0}. Kappa's
+     * shadow program declares no directive and writes its material ids to shadowcolor1 for its shadowcomp to read.
      */
     static ParseResult parseShadow(String programName, String source, Map<Integer, Integer> formats) {
         String text = source == null ? "" : source;
@@ -343,7 +334,7 @@ public final class PostTargetPlan {
                 .thenComparing(Comparator.naturalOrder());
     }
 
-    /** Final, and any other name, after them. */
+    /** The family's place in PASS_FAMILIES; final and any other name rank after them. */
     private static int familyRank(String name) {
         for (int rank = 0; rank < PASS_FAMILIES.size(); rank++) {
             if (name.startsWith(PASS_FAMILIES.get(rank))) return rank;
@@ -365,11 +356,10 @@ public final class PostTargetPlan {
     }
 
     /**
-     * Selects the active output route from the surviving directives: the last one, whatever the
-     * earlier ones say, as Iris takes the last DRAWBUFFERS or RENDERTARGETS comment
-     * (CommentDirectiveParser, ProgramDirectives). The analyzed source is already branch-resolved.
-     * Ebin's DEBUG exit (lib/Exit.glsl) writes DRAWBUFFERS:3 or :0 after the program's own route.
-     * Malformed parses never proxy for a real route; an empty one is the program's ({@link #emptyDrawBuffers}).
+     * The route from the parsed directives: the last one, as Iris takes the last DRAWBUFFERS or RENDERTARGETS
+     * comment, or {0} with none. The analysed source is already branch-resolved. Ebin's DEBUG exit writes
+     * DRAWBUFFERS:3 or :0 after the program's own route. A malformed directive never stands in for a route; an
+     * empty DRAWBUFFERS is one.
      */
     private static List<Integer> selectDirective(List<List<Integer>> directives) {
         return directives.isEmpty() ? List.of(0) : directives.get(directives.size() - 1);
@@ -430,10 +420,9 @@ public final class PostTargetPlan {
     }
 
     /**
-     * Whether {@link #targetSlots()} index the shadowcolor targets rather than the colortex ones: a
-     * shadowcomp pass's route, or a shadow-pass program's. It is decided once, from the name of the
-     * program the route is parsed for (drawsShadowTargets), so a reader that applies colortex formats
-     * or deviations asks the route rather than deciding again (audit FD3, proposal 4).
+     * Whether {@link #targetSlots()} index the shadowcolor targets rather than the colortex ones: a shadowcomp
+     * pass's route, or a shadow-pass program's. It is decided once from the program name, so a reader that applies
+     * colortex formats or deviations asks the route instead of deciding again.
      */
     public boolean shadowTargets() {
         return shadowTargets;
@@ -450,9 +439,8 @@ public final class PostTargetPlan {
     }
 
     /**
-     * Whether the source certainly writes no output, so every directive target is left unwritten
-     * (PackTargetGraphPlan.unwrittenTargets). An empty {@link #outputLocations()} alone may be a
-     * write the scan did not see.
+     * Whether the source certainly writes no output, so the target graph leaves every directive target unwritten.
+     * An empty {@link #outputLocations()} alone may be a write the scan did not see.
      */
     public boolean writesNoOutput() {
         return writesNoOutput;
@@ -468,7 +456,7 @@ public final class PostTargetPlan {
         return outputFormats;
     }
 
-    /** Internal render-thread view. Callers must not modify the returned array. */
+    /** {@link #outputFormats()} as an array for the render thread; callers must not modify it. */
     public int[] outputFormatsArray() {
         return outputFormatsArray;
     }

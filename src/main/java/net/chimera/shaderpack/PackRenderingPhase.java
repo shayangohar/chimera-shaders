@@ -1,6 +1,6 @@
 package net.chimera.shaderpack;
 
-/** Iris WorldRenderingPhase: ordinals are part of the shader ABI. */
+/** Iris's WorldRenderingPhase. Shaders read the ordinals, so the order is fixed. */
 public enum PackRenderingPhase {
     NONE, SKY, SUNSET, CUSTOM_SKY, SUN, MOON, STARS, VOID,
     TERRAIN_SOLID, TERRAIN_CUTOUT_MIPPED, TERRAIN_CUTOUT,

@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * What a module needs that the device was created without. RenderPearl 2.8's NVIDIA path keeps a
- * float16_t in a storage buffer and runs f16 subgroup arithmetic; a GPU without the features must
- * refuse the program, as a GL driver would, instead of handing the driver a module it cannot run.
+ * float16_t in a storage buffer and runs f16 subgroup arithmetic; on a GPU without the features the
+ * program is refused, as a GL driver would refuse it, and the driver never gets the module.
  */
 final class PackDeviceTest {
     /** A device with every feature, every subgroup stage and operation, and the pack extensions. */
@@ -65,7 +65,7 @@ final class PackDeviceTest {
                 without("shaderSubgroupExtendedTypes").missing(module, PackDevice.STAGE_FRAGMENT));
     }
 
-    /** Alpha Piscium's NVIDIA path: the AMD GPU has neither the extension nor the operation. */
+    /** Alpha Piscium's NVIDIA path: the AMD profile has neither the extension nor the operation. */
     @Test
     void partitionedSubgroupsNeedNvidiasExtensionAndOperation() {
         var module = requirements("""
@@ -80,7 +80,7 @@ final class PackDeviceTest {
                 PackDevice.offline("amd").missing(module, PackDevice.STAGE_COMPUTE));
     }
 
-    /** The RTX card has no 16-bit stage inputs and outputs: RenderPearl 2.4's f16vec4 varyings need them. */
+    /** The NVIDIA profile, an RTX card, has no 16-bit stage inputs and outputs, which f16vec4 varyings need. */
     @Test
     void halfVaryingsNeedStorageInputOutput16() {
         var module = requirements("""

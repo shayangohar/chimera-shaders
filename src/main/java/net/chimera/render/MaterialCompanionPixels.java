@@ -15,11 +15,11 @@ import java.util.List;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_UNORM;
 
 /**
- * Builds a material companion's pixels: decodes each sprite's normal or specular map, places it in
- * the albedo atlas layout, builds its mip chain by the map's own reduction, and makes the GPU images.
+ * Builds a material companion: decodes each sprite's normal or specular map, places it in the albedo atlas
+ * layout, reduces its mip chain with the kind's own reduction, and makes the GPU image.
  */
 final class MaterialCompanionPixels {
-    /** The uploads of one material pump (MaterialMapRuntime.pumpMaterialMapBuilds), recorded together. */
+    /** Uploads of one material pump (MaterialMapRuntime.pumpMaterialMapBuilds), recorded together. */
     static final TextureUploadBatch<VulkanImage> UPLOADS = new TextureUploadBatch<>(TextureUploadBatch.GRAPHICS_QUEUE);
 
     private MaterialCompanionPixels() {}
@@ -37,9 +37,8 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * One sprite whose material file decoded cleanly: its logical mip chain
-     * as the slot shows it at build time, plus its animation when the map
-     * carries its own cycling schedule.
+     * A sprite whose material file decoded: its logical mip chain as the slot shows it at build time, and its
+     * animation when the map has its own cycling schedule.
      */
     record PlacedSprite(MaterialMapOwner.AtlasSprite sprite, int[][] chain, MaterialAnimation animation) {}
 
@@ -98,10 +97,9 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * Places one decoded map in its slot. Without a schedule the whole image
-     * is the map, as for a static sprite. A single-entry schedule shows the
-     * strip's first frame. A cycling schedule keeps every frame it names as
-     * its own scaled mip chain and starts on its first entry.
+     * Places one decoded map in its slot. Without a schedule the whole image is the map, as for a static
+     * sprite. A single-entry schedule shows the strip's first frame. A cycling schedule keeps a scaled mip
+     * chain for every frame it names and starts on its first entry.
      */
     static PlacedSprite place(MaterialMapOwner.AtlasSprite sprite, MaterialMapOwner.MaterialMapKind kind,
             MaterialMapOwner.DecodedImage decoded,
@@ -132,8 +130,8 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * One frame's logical mip chain: scaled to the slot's logical size, then
-     * reduced sprite-locally level by level with the kind's mip policy.
+     * One frame's logical mip chain: scaled to the slot's logical size, then reduced level by level within the
+     * sprite by the kind's reduction.
      */
     static int[][] chain(MaterialMapOwner.MaterialMapKind kind, boolean labPbr, int[] pixels, int width,
             int height, MaterialMapOwner.AtlasSprite sprite, int mipLevels) {
@@ -150,12 +148,9 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * Builds one exact-layout mip chain per kind. Each sprite contributes
-     * its own padded image: its logical level grows a replicated border of
-     * {@code pad >> level}, and the complete padded image lands at the slot
-     * origin shifted by level. The canvas starts at fallback, so missing
-     * sprites leave their whole padded slot untouched. Sprites never
-     * negotiate shared pixels, so no occupancy map or ring algorithm exists.
+     * One kind's mip chain in the atlas layout. At each level a sprite's logical image grows a replicated
+     * border of {@code pad >> level} and lands at the slot origin shifted by the level. The canvas starts as
+     * the flat fallback, so a sprite without a map leaves its whole padded slot flat.
      */
     static List<MaterialMapOwner.LevelPixels> buildLevels(MaterialMapOwner.AtlasUpload upload,
             MaterialMapOwner.MaterialMapKind kind,
@@ -189,7 +184,7 @@ final class MaterialCompanionPixels {
         return MaterialMapPixels.reduceLinear(src, srcWidth, srcHeight, dstWidth, dstHeight);
     }
 
-    /** Production decoder over {@code NativeImage}; the caller closes the stream. */
+    /** Decoder over {@code NativeImage}; the caller closes the stream. */
     public static MaterialMapOwner.DecodedImage decodeNative(InputStream in) throws IOException {
         NativeImage image = NativeImage.read(in);
         try {
@@ -233,9 +228,8 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * Writes ABGR texels (RGBA bytes in memory) into one level region, inside the pump's batch when
-     * one is open. VulkanMod copies them into its staging buffer during the call, so the buffer is
-     * freed as soon as it returns.
+     * Writes ABGR texels, RGBA bytes in memory, into a region of one level, inside the pump's batch when one
+     * is open. VulkanMod copies them to its staging buffer during the call, so the buffer is freed on return.
      */
     private static void upload(VulkanImage image, int level, int x, int y, int width, int height, int[] pixels) {
         ByteBuffer buffer = MemoryUtil.memAlloc(pixels.length * Integer.BYTES);

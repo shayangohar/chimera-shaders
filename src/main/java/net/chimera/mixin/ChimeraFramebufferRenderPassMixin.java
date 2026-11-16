@@ -14,10 +14,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * While a pack geometry window is pending (PackGeometryContext), the render pass VulkanMod opens
- * on a framebuffer opens the window instead: dynamic rendering into the pack's attachments, in
- * the row order of the pass it replaces. The window's rendering pass ends it where VulkanMod ends
- * its render pass (ChimeraRenderingPass.endRenderPass).
+ * While a pack geometry window is pending (PackGeometryContext), the render pass VulkanMod opens on a
+ * framebuffer opens the window instead: dynamic rendering into the pack's attachments, in the row order of
+ * the pass it replaces. The window ends where VulkanMod ends its render pass
+ * (ChimeraRenderingPass.endRenderPass).
  */
 @Mixin(value = Framebuffer.class, remap = false)
 public abstract class ChimeraFramebufferRenderPassMixin {
@@ -35,7 +35,7 @@ public abstract class ChimeraFramebufferRenderPassMixin {
         renderer.setBoundRenderPass(PackGeometryContext.beginRendering(commandBuffer, stack,
                 ChimeraRasterOrientation.isGlOriented(renderPass)));
         renderer.setBoundFramebuffer((Framebuffer) (Object) this);
-        // As the beginRenderPass this replaces: the scissor box is GL state, reapplied, not reset.
+        // as the replaced beginRenderPass does: the scissor box is GL state, so reapply it
         Renderer.setViewport(0, 0, getWidth(), getHeight());
         Renderer.applyScissor();
         callback.cancel();

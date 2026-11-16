@@ -17,8 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.List;
 
 /**
- * VulkanMod replaces Video Settings with its own screen, so Iris's Video Settings entry point has
- * no home there. Add "Shader Packs..." to the bottom of its page column instead.
+ * VulkanMod replaces Video Settings with its own screen, which has no place for Iris's Video Settings entry
+ * point, so "Shader Packs..." goes at the bottom of its page column.
  */
 @Mixin(value = VOptionScreen.class, remap = false)
 public abstract class ChimeraVOptionScreenMixin extends Screen {

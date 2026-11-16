@@ -14,10 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PackFamilyWindowsTest {
     /**
-     * A run holds the targets its programs store to as colorimgN in the general layout until it
-     * ends, so a batch that samples one as colortexN must not share it: batches split on their
-     * stored targets as well as on their outputs. Equal outputs alone kept a storing hand batch and
-     * a sampling one in one run, where binding the held target throws "Unexpected value:1".
+     * A run holds the targets its programs store to as colorimgN in the general layout until it ends,
+     * so a batch that samples one as colortexN must not share it; binding a held target throws
+     * "Unexpected value:1". Batches split on their stored targets as well as on their outputs.
      */
     @Test
     void aStoringBatchNeverSharesARunWithOneThatDoesNot() throws IOException {
@@ -33,9 +32,9 @@ class PackFamilyWindowsTest {
                 .map(run -> run[0] + "-" + run[1]).toList());
         assertTrue(PackFamilyWindows.runs(List.of()).isEmpty(), "no batches, no runs");
 
-        // Each batch's key carries the targets its own lane pipeline's program stores to: runKey
-        // itself looks the pipeline up and passes it straight to worldStorageTargets (drawRun's
-        // own lanePipeline call does not count).
+        // each batch's key carries the targets its own lane pipeline's program stores to
+        // runKey looks the pipeline up itself and passes it straight to worldStorageTargets;
+        // drawRun's own lanePipeline call does not count
         var windows = MixinBytecode.nativeClass("net/chimera/render/PackFamilyWindows");
         List<String> keyCalls = MixinBytecode.instructionsThrough(windows, "runKey").stream()
                 .filter(instruction -> instruction instanceof MethodInsnNode)

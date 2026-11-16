@@ -17,16 +17,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Renders the level's block entities in vanilla's order: the visible sections' first, then the
- * global ones, which render off-screen (beacons, end gateways). Sodium under Iris keeps that order.
- * VulkanMod Reforged renders the sections' block entities itself, just before the block-entity
- * stage's closing checkPoseStack, so after vanilla's global loop; this holds each global render and
- * runs it after that checkPoseStack.
+ * Renders the level's block entities in vanilla's order: the visible sections' first, then the global ones
+ * that render off-screen, such as beacons and end gateways. Sodium under Iris keeps that order. Reforged
+ * renders the sections' block entities itself, just before the block-entity stage's closing checkPoseStack
+ * and so after vanilla's global loop; this holds each global render and runs it after that checkPoseStack.
  *
- * <p>The order the level's batches are written in orders their draws: Iris draws a kind's unrelated
- * batches in reverse first-use order (IrisBatchOrder). With the beacon written first, its beam drew
- * after the chest behind it, and a pack that keeps block entities in a target of their own
- * (Escheridia's colortex15, layered over colortex0 in composite2) showed the chest over the beam.</p>
+ * The order batches are written in decides their draw order: Iris draws a kind's unrelated batches in
+ * reverse first-use order (IrisBatchOrder). With the beacon written first, its beam would draw after the
+ * chest behind it, and a pack that keeps block entities in their own target, as Escheridia does with
+ * colortex15, would show the chest over the beam.
  */
 @Mixin(LevelRenderer.class)
 public abstract class ChimeraBlockEntityOrderMixin {
@@ -39,7 +38,7 @@ public abstract class ChimeraBlockEntityOrderMixin {
     /** This frame's global block-entity renders, held until the sections' block entities have rendered. */
     @Unique private final List<Runnable> chimera$globalRenders = new ArrayList<>();
 
-    /** Vanilla's global loop, the second block-entity render in renderLevel: holds the render with its pose. */
+    /** Vanilla's global loop, the second block-entity render in renderLevel; holds the render with its pose. */
     @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = RENDER_BLOCK_ENTITY, ordinal = 1),
             require = 1)
     private void chimera$holdGlobalRender(BlockEntityRenderDispatcher dispatcher, BlockEntity blockEntity,

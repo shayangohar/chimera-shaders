@@ -1,6 +1,6 @@
 package net.chimera.shaderpack;
 
-/** Kind of sampled resource exposed to a pack program. */
+/** What a pack program's sampler reads. */
 public enum PackResourceKind {
     TARGET,
     DEPTH,
@@ -10,12 +10,12 @@ public enum PackResourceKind {
     PACK_TEXTURE,
     /**
      * A raw texture file declared with its type, format and size
-     * ({@code file TEXTURE_3D RGB16F 32 64 32 RGB HALF_FLOAT}); it replaces a
-     * sampler only where the program declares that sampler with the same type.
+     * ({@code file TEXTURE_3D RGB16F 32 64 32 RGB HALF_FLOAT}). It replaces a sampler only where the program
+     * declares that sampler with the same type.
      */
     RAW_TEXTURE,
     ADVANCED_IMAGE,
-    /** Resource-pack normal/specular map resolved at draw time from the bound albedo. */
+    /** A resource pack's normal or specular map, found at draw time from the bound albedo. */
     MATERIAL_MAP,
     /** The 1x1 smoothed centre depth fullscreen passes read as iris_centerDepthSmooth. */
     CENTER_DEPTH,

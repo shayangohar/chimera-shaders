@@ -281,14 +281,11 @@ final class FlipSidesTest {
         }
     }
 
-    // ---------------------------------------------------------------- regression scenarios
-
     /**
      * Glimmer's prepare2 names colortex0 and writes nothing. With colortex0 cleared, Iris's flip there
-     * lands on alt, which its frame-start clear left at the clear colour and its horizon drew on, and
-     * the world draws into it. Chimera once handed
-     * back last frame's final image, which Glimmer's deferred sky adds under the sky, so the horizon
-     * summed to a glow.
+     * lands on alt, which holds the frame-start clear and the horizon, and the world draws into it.
+     * Glimmer's deferred sky adds that side under the sky, so last frame's final image there would sum
+     * the horizon to a glow.
      */
     @Test
     void anUnwrittenColortex0InPrepareHandsTheWorldItsClearedSide(@TempDir Path root) throws Exception {
@@ -304,8 +301,8 @@ final class FlipSidesTest {
     /**
      * Glimmer as it ships, with colortex0Clear=false. Iris draws its horizon before prepare2, onto
      * the alt side the world draws on after prepare2's flip, so every frame's horizon covers the
-     * last one's there. Chimera drew it into the HDR image while that stood in for main, and the
-     * world then took alt without it: the horizon summed frame on frame to a glow again.
+     * last one's there. A horizon drawn on main would leave alt without it, and the horizon would sum
+     * frame on frame to a glow.
      */
     @Test
     void theHorizonLandsOnTheSideAPrepareFlipHandsACarriedWorld(@TempDir Path root) throws Exception {
@@ -400,9 +397,8 @@ final class FlipSidesTest {
 
     /**
      * Shrimple's bloom: flip.composite21.colortex0 points composite38's blend at the scene composite21
-     * read, not at colortex0's other side, last frame's final image (the white VANILLA
-     * profile). flip.deferred_pre.colortex0 does the same for deferred14's AO, which blends onto the
-     * opaque world the HDR image holds.
+     * read, not at colortex0's other side, last frame's final image. flip.deferred_pre.colortex0 does
+     * the same for deferred14's AO, which blends onto the opaque world the HDR image holds.
      */
     @Test
     void blendsAfterColortex0FlipsLandOnTheScene(@TempDir Path root) throws Exception {
@@ -422,7 +418,7 @@ final class FlipSidesTest {
     /**
      * Shrimple keeps its opaque and translucent deferred data apart with flip.deferred1.colortex1, a
      * target only the world writes, and flip.composite_pre.colortex1 hands composite the opaque side
-     * again (the world lost its shadows when the flip did nothing).
+     * again. Without these flips the world loses its shadows.
      */
     @Test
     void aFlipOfAWorldOnlyTargetSplitsOpaqueFromTranslucent(@TempDir Path root) throws Exception {
@@ -438,7 +434,7 @@ final class FlipSidesTest {
 
     /**
      * A step Chimera cannot run passes its input through, so later passes still read the sides Iris's
-     * read and colortex0 keeps the last write (Glimmer's water when a later pass fell back).
+     * read and colortex0 keeps the last write, such as Glimmer's water when a later pass falls back.
      */
     @Test
     void aSkippedStepPassesItsInputThrough(@TempDir Path root) throws Exception {
@@ -473,7 +469,7 @@ final class FlipSidesTest {
 
     /**
      * colortex0Clear=false keeps colortex0 across frames, as Iris does: main holds the final state's
-     * side when the frame starts, and the world draws over it (audit T-A3).
+     * side when the frame starts, and the world draws over it.
      */
     @Test
     void anUnclearedColortex0CarriesTheFinalImageIntoTheNextFrame(@TempDir Path root) throws Exception {
@@ -542,7 +538,7 @@ final class FlipSidesTest {
 
     /**
      * A prepare group with no pass and a flip.prepare_pre entry still opens, as Iris builds every
-     * group (audit FD4): the opaque world draws colortex0 and colortex3 on alt, and the HDR image
+     * group: the opaque world draws colortex0 and colortex3 on alt, and the HDR image
      * moves to colortex0's alt side. A pre-flip set back to false opens nothing.
      */
     @Test
@@ -574,8 +570,6 @@ final class FlipSidesTest {
         assertEquals("clear2", harness.reads.get("composite2").get(2), "the held write must not be read yet");
         assertEquals("clear2>composite1@1", harness.reads.get("composite3").get(2), "the flip exposes it");
     }
-
-    // ---------------------------------------------------------------- the corpus
 
     /**
      * One corpus pack (CorpusChecks, through FlipSidesCorpus), over several frames: as planned, with
@@ -623,8 +617,6 @@ final class FlipSidesTest {
         targets.removeIf(target -> target < 0 || target > 15);
         return targets;
     }
-
-    // ---------------------------------------------------------------- fixtures
 
     private static String writes(int outputs) {
         StringBuilder body = new StringBuilder("void main() {\n");

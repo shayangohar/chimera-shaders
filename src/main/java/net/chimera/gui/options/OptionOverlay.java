@@ -13,14 +13,12 @@ import java.util.Optional;
 /**
  * What the settings draw over everything else: a cell's comment and tooltips.
  *
- * <p>The comment of the hovered or focused cell appears at the bottom of the screen once that same
- * cell has stayed hovered for more than ten ticks, as in Iris. When the mouse is over one cell and
- * the keyboard focus on another, both report every frame and neither's comment ever shows, which is
- * also how Iris behaves. Tooltips last one frame: every one asked for while rendering is drawn on
- * top at the end of that frame.
+ * The comment of the hovered or focused cell appears at the bottom of the screen once that cell has stayed
+ * hovered for more than ten ticks, as in Iris. When the mouse is over one cell and keyboard focus is on
+ * another, both report every frame and no comment shows, as in Iris. Tooltips last one frame: each one asked
+ * for while rendering is drawn on top at the end of that frame.
  */
 final class OptionOverlay {
-    /** A comment panel: its title and the pack's text for it. */
     record Comment(String title, String body) {}
 
     private record Tooltip(Component text, int x, int y) {}

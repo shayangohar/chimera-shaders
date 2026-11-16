@@ -13,7 +13,7 @@ import java.util.WeakHashMap;
  * A freed image leaves with its last reference.
  */
 public final class EdgeClampedImages {
-    // Render thread only: NativeImage._upload asserts it, and pack draws bind there.
+    // render thread only: NativeImage._upload asserts it, and pack draws bind there
     private static final Set<VulkanImage> IMAGES = Collections.newSetFromMap(new WeakHashMap<>());
 
     private EdgeClampedImages() {}

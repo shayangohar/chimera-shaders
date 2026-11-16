@@ -39,7 +39,7 @@ final class StorageBufferPlanTest {
     private static final int VK_SHADER_STAGE_VERTEX_BIT = 1;
     private static final int VK_SHADER_STAGE_FRAGMENT_BIT = 16;
 
-    // Branch-resolved target routes depend on the CHIMERA instance's options, as at runtime.
+    // branch-resolved target routes depend on the development instance's options, as at runtime
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.ROUTES.apply();
@@ -149,7 +149,7 @@ final class StorageBufferPlanTest {
     /** Invalid storage disables only the program that depends on it. */
     private static void assertInvalidStorageStaysScoped(PackProbe.Analysis unsupported) {
         PackAdvancedResourcePlan unsupportedPlan = unsupported.plan().advancedResources();
-        // Iris creates no buffer for a size below 1, as for an index above 8 (ShaderProperties).
+        // Iris's ShaderProperties creates no buffer for a size below 1, as for an index above 8
         assertTrue(unsupportedPlan.buffers().get(0) == null && unsupportedPlan.buffers().get(1) == null
                         && unsupportedPlan.deviations().containsAll(List.of("STORAGE_BUFFER_DISABLED:0",
                         "STORAGE_BUFFER_DISABLED:1")), "a zero or negative size must switch the buffer off");
@@ -174,7 +174,7 @@ final class StorageBufferPlanTest {
                 "unrelated final program was disabled by storage fallback");
     }
 
-    /** Run independently so one broken shadow contract cannot hide the other. */
+    /** Both fixtures always run, so one broken shadow contract cannot hide the other. */
     @Test
     void shadowRegressions() throws Exception {
         List<String> failures = new ArrayList<>();
@@ -219,7 +219,7 @@ final class StorageBufferPlanTest {
                     assertEquals(null, PackAdvancedResourcePlan.layoutMismatch(layout, vertex, fragment,
                             nativeDescriptors), "Shadow resource layout disagrees with actual builder metadata");
                 } else {
-                    // The shadow view block, then the pack's uniform block.
+                    // the shadow view block at 0, then the pack's uniform block at 1
                     for (int binding = 0; binding < 2; binding++) {
                         final int target = binding;
                         var actual = nativeDescriptors.stream().filter(value -> value.type() == 8
@@ -248,9 +248,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * Audit FD5: GL lets each stage name a bufferObject's block its own way. Both blocks share the
-     * buffer's one binding, and the planned layout must hold one descriptor there, not one per name,
-     * or the layout check refuses the program.
+     * GL lets each stage name a bufferObject's block its own way. Both blocks share the buffer's binding, and
+     * the planned layout holds one descriptor there; one per name would make the layout check refuse the program.
      */
     @Test
     void aBufferObjectNamedPerStageIsOneDescriptor(@TempDir Path root) throws Exception {
@@ -289,8 +288,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * The shadow program's descriptor set as the runtime hands it to the host's pipeline builder,
-     * which creates one descriptor per entry at the same binding (HostPipelineLayout).
+     * The shadow program's descriptors as the runtime hands them to the host's pipeline builder, where
+     * HostPipelineLayout makes one host descriptor per entry at the same binding.
      */
     private static List<PackAdvancedResourcePlan.DescriptorBinding> baselineShadowBuilderDescriptors(
             PackProgramPlan shadow, PackAdvancedResourcePlan resources
@@ -314,7 +313,7 @@ final class StorageBufferPlanTest {
         backing.setAccessible(true);
         assertEquals(SelectorNamespace.EXTENDED_CAPACITY, Array.getLength(backing.get(null)),
                 "Backing must cover 8..26");
-        // CPU-only image metadata constructor: no image allocation, views, or Vulkan device.
+        // CPU-only metadata constructor: no image allocation, no views, no Vulkan device
         var constructor = VulkanImage.class.getDeclaredConstructor(
                 VulkanImage.Builder.class);
         constructor.setAccessible(true);
@@ -372,8 +371,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * Exact-pack gate: real pack planning, real shared preparation, real
-     * applyConfig metadata, real layoutMismatch. No predicted layout echo.
+     * Complementary and BSL, with options on that use storage buffers and images: the shadow and post
+     * builders' real descriptor metadata passes layoutMismatch against the planned layouts.
      */
     @Test
     @Tag("packs")
@@ -412,10 +411,9 @@ final class StorageBufferPlanTest {
 
     /** Asserts no program has skyColor defaulted, and counts the programs that declare it. */
     private static long countSkyColourDeclarations(String label, ConformanceReport report) {
-        // The pinned packs colour their atmosphere from the pack-facing sky state, and a
-        // program handed the zero default cannot do it. These manifest rows are per
-        // program, so scan them rather than the aggregate, and count the declarations so
-        // the check cannot pass by finding nothing to look at.
+        // both packs colour their atmosphere from skyColor, which a program handed the zero default cannot do
+        // the rows are per program, so scan them rather than the aggregate
+        // counting the declarations keeps the check from passing on nothing
         List<String> skyColourDefaulted = report.programs().stream()
                 .filter(program -> program.deviations().contains("UNIFORM_DEFAULTED:skyColor"))
                 .map(program -> program.name()).toList();
@@ -425,7 +423,7 @@ final class StorageBufferPlanTest {
                 .filter(program -> program.uniforms().contains("skyColor")).count();
     }
 
-    /** The exact pack's shadow and post programs prepare builders whose real metadata matches the plan. */
+    /** The pack's shadow and post programs prepare builders whose real metadata matches the plan. */
     private static void verifyBuilderParity(String packName, String label, PackPlan pack) {
         PackProgramPlan shadow = pack.program("shadow");
         PackProgramPlan composite = pack.program("composite");
@@ -452,7 +450,7 @@ final class StorageBufferPlanTest {
         assertEquals(null, PackAdvancedResourcePlan.layoutMismatch(prepared.layout(),
                 prepared.vertex(), prepared.fragment(), actual), label);
         prepared.imageBindings().verify(actual);
-        // The shadow view block and the pack's uniform block.
+        // the shadow view block and the pack's uniform block
         assertTrue(actual.stream().filter(d -> d.type() == 8).count() >= 2,
                 label + ": shadow UBO contract lost base blocks");
         for (var sampler : resources.bindingLayout("shadow").advancedSamplers()) {
@@ -717,7 +715,7 @@ final class StorageBufferPlanTest {
 
     @Test
     void storageParserAndLiveResourceUse() {
-        // The parser reads prepared source, whose qualifier macros are already expanded.
+        // the parser reads prepared source, whose qualifier macros are already expanded
         String source = GlslMacroExpander.expand("#define SSBO_QUALIFIER\n"
                 + "layout(std430, binding = 0) SSBO_QUALIFIER buffer blockDataBuffer {\n"
                 + " uint values[];\n} blockDataBuffer;\n"
@@ -818,7 +816,7 @@ final class StorageBufferPlanTest {
 
     @Test
     void macroDependenciesSurvivePruning() {
-        // The analysis reads prepared source, where every macro is expanded.
+        // the analysis reads prepared source, where every macro is expanded
         String macroSource = GlslMacroExpander.expand("float Bayer2(vec2 value) { return value.x; }\n"
                 + "#define Bayer4(value) (Bayer2(value * 0.5))\n"
                 + "#define Bayer8(value) (Bayer4(value * 0.5))\n"
@@ -882,7 +880,7 @@ final class StorageBufferPlanTest {
                         && fogPlan.uniforms().stream().anyMatch(value -> value.name().equals("iris_FogEnd"))
                         && fogPlan.executable(),
                 "normalized fog values did not enter the live interface");
-        // Division exposes a missing outer pair of parentheses; multiplication alone does not.
+        // division exposes a missing outer pair of parentheses; multiplication alone does not
         LegacyShaderNormalizer.Result division = LegacyShaderNormalizer.normalize(
                 "float probe = 6.0 / gl_Fog.scale;", false);
         assertTrue(division.successful(), "Fog scale division normalization failed");
@@ -910,9 +908,9 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * Shrimple qualifies none of its storage blocks with a packing. GL lays such a block out alike in
-     * every program (shared), and glslang lays it out std430 for Vulkan in every stage alike, so it
-     * binds; std140 binds as spelled. Spelled-out shared or packed has no Vulkan layout.
+     * A storage block with no packing binds, as Shrimple's do: GL lays it out shared, the same in every
+     * program, and glslang lays it out std430 for Vulkan, the same in every stage. std140 binds as
+     * spelled; an explicit shared or packed has no Vulkan layout.
      */
     @Test
     void storageBlocksWithoutAPackingBind() {
@@ -928,8 +926,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * ShaderProperties skips a bufferObject value it cannot parse (three values, or a size or scale
-     * that is no number), as it skips a reserved index: Iris creates no buffer under that index.
+     * Iris's ShaderProperties skips a bufferObject value it cannot parse, such as three values or a size
+     * or scale that is not a number, as it skips a reserved index: no buffer exists under that index.
      */
     @Test
     void malformedDeclarationsCreateNoBuffer(@TempDir Path root) throws IOException {
@@ -954,7 +952,8 @@ final class StorageBufferPlanTest {
     /**
      * Iris's ShaderProperties reads "size [name]", or "size relative scaleX scaleY" from the first
      * four values. A relative buffer holds size bytes for each pixel of its truncated share of the
-     * screen (ShaderStorageBuffer.resizeIfRelative). Alpha Piscium declares bufferObject.1=4 true 1.0 1.0.
+     * screen, as in Iris's ShaderStorageBuffer.resizeIfRelative. Alpha Piscium declares
+     * bufferObject.1=4 true 1.0 1.0.
      */
     @Test
     void relativeBuffersFollowTheScreen(@TempDir Path root) throws IOException {
@@ -970,13 +969,14 @@ final class StorageBufferPlanTest {
             assertTrue(StorageBufferDeclarations.parseBuffer(1, malformed).deviations()
                     .contains("STORAGE_BUFFER_PROPERTY_MALFORMED:1"), malformed);
         }
-        // A share of zero or less, or none at all, gives Iris no buffer to create.
+        // a share of zero or less, or NaN, gives Iris no buffer to create
         for (String empty : List.of("4 true 0 1.0", "4 true -0.5 1.0", "4 true 1.0 NaN")) {
             assertTrue(StorageBufferDeclarations.parseBuffer(1, empty).deviations()
                     .contains("STORAGE_BUFFER_SIZE_UNSUPPORTED:1"), empty);
         }
-        // ShaderProperties: a size below 1 switches the buffer off, an index above 8 is reserved,
-        // and the values split on single spaces.
+        // as in ShaderProperties: a size below 1 switches the buffer off
+        // an index above 8 is reserved
+        // values split on single spaces
         for (String off : List.of("0", "-4", "0 true 1.0 1.0")) {
             assertEquals(List.of("STORAGE_BUFFER_DISABLED:3"),
                     StorageBufferDeclarations.parseBuffer(3, off).deviations(), off);
@@ -985,7 +985,7 @@ final class StorageBufferPlanTest {
                 StorageBufferDeclarations.parseBuffer(9, "64").deviations());
         assertTrue(StorageBufferDeclarations.parseBuffer(1, "64  name").deviations()
                 .contains("STORAGE_BUFFER_PROPERTY_MALFORMED:1"), "a double space makes three values");
-        // Any byte count binds: RenderPearl's BUFFER_16_8 declares bufferObject.0=6.
+        // any byte count binds: RenderPearl's BUFFER_16_8 declares bufferObject.0=6
         assertTrue(StorageBufferDeclarations.parseBuffer(0, "6").supported()
                 && StorageBufferDeclarations.parseBuffer(1, "2 true 1.0 1.0").supported());
 

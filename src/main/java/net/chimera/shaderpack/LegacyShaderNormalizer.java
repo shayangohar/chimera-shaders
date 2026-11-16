@@ -11,18 +11,19 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
- * Small token-safe normalization pass shared by planning and conversion.
- * It contains only legacy built-ins that Iris rewrites the same way in every
- * program: gl_Fog fields to Iris's iris_Fog uniforms, and gl_FogFragCoord to
- * an ordinary varying. The legacy colour and texture-coordinate varyings
- * (gl_FrontColor and gl_Color, gl_TexCoord[n]) become ordinary varyings too,
- * which GL's compatibility profile gives packs and Vulkan does not. A fragment
- * stage's read of a gl_FragDepth it never writes reads the rasterized depth
- * ({@link UnwrittenFragDepth}). In the vertex stage it starts every referenced output
- * at zero, the value GL drivers leave in one a path never writes. It also
- * gives every uniform its own declaration, so
- * per-name rewriters never meet a declarator list. Its input is already
- * macro-expanded ({@link ShaderSourcePreprocessor}).
+ * A token-safe normalisation pass shared by planning and conversion, for legacy GLSL that every program needs
+ * handled the same way. Its input is already macro-expanded ({@link ShaderSourcePreprocessor}).
+ *
+ * gl_Fog fields become Iris's iris_Fog uniforms and gl_FogFragCoord an ordinary varying, as Iris rewrites them.
+ * The legacy colour and texture-coordinate varyings (gl_FrontColor and gl_Color, gl_TexCoord[n]) become
+ * ordinary varyings too, since GL's compatibility profile gives packs them and Vulkan does not. A fragment
+ * stage's read of a gl_FragDepth it never writes reads the rasterised depth ({@link UnwrittenFragDepth}). A
+ * vertex stage starts every referenced output at zero, the value GL drivers leave in one a path never writes.
+ *
+ * Source written for an older #version is adjusted for the #version 460 Chimera compiles at: a pack's own
+ * definition of a later built-in, or a later keyword used as a name, is renamed, and a line comment ending in a
+ * backslash stays on its line. Every uniform gets its own declaration, so per-name rewriters never meet a
+ * declarator list.
  */
 final class LegacyShaderNormalizer {
     /** Iris's name for the legacy built-in fog distance varying. */
@@ -38,21 +39,19 @@ final class LegacyShaderNormalizer {
     private LegacyShaderNormalizer() {}
 
     /**
-     * Built-in functions GLSL added after 1.20, each with the version that added it. A pack
-     * authored before that version may define its own (Bliss defines {@code float tanh(float)} at
-     * 1.20, Bloop {@code uint packSnorm4x8(vec4)} at 1.40); every call in that source means the
-     * pack's function, but the #version 460 Chimera compiles at rejects the redefinition, so the
-     * pack's copy is renamed.
+     * Built-in functions GLSL added after 1.20, each with the version that added it. A pack written for an
+     * earlier version may define its own, as Bliss defines {@code float tanh(float)} at 1.20. Every call in that
+     * source means the pack's function, but #version 460 rejects the redefinition, so the pack's copy is renamed.
      */
     private static final Map<String, Integer> LATE_BUILTINS = lateBuiltins();
 
     /**
-     * Keywords GLSL 4.x added, each with its version. Before that version the word is an ordinary
-     * name, and a pack may use one (RedHat v34's final under DOF: {@code vec4 sample}). Iris
-     * compiles that source at #version 330, where the name is still free; the #version 460
-     * Chimera compiles at reserves it, so the pack's name is renamed. Packs below those versions
-     * also write the words as keywords (Glimmer's 330 {@code layout(std430) buffer} blocks), so
-     * only a use as a name is renamed ({@link #usedAsName}).
+     * Keywords GLSL 4.x added, each with its version. Below that version the word is an ordinary name a pack may
+     * use, as RedHat's final pass under DOF declares {@code vec4 sample}. Iris compiles that source at #version
+     * 330, where the name is free, and #version 460 reserves it, so the pack's name is renamed.
+     *
+     * Packs below those versions also write the words as keywords, such as Glimmer's 330
+     * {@code layout(std430) buffer} blocks, so only a use as a name is renamed ({@link #usedAsName}).
      */
     private static final Map<String, Integer> LATE_KEYWORDS = Map.of("sample", 400, "patch", 400,
             "precise", 400, "coherent", 420, "restrict", 420, "readonly", 420, "writeonly", 420,
@@ -85,9 +84,9 @@ final class LegacyShaderNormalizer {
     }
 
     /**
-     * GLSL added line continuation in 4.20. Before it, a {@code //} comment ending in a backslash
-     * (Bliss: {@code /// --- RAYMARCHING STUFF --- \\}) ends at its line; at the #version 460
-     * Chimera compiles at, it would swallow the next line of live code.
+     * Trims the trailing backslash of each line comment below 4.20, the version that added line continuation.
+     * Before it such a comment ends at its line, as in Bliss's {@code /// --- RAYMARCHING STUFF --- \\}; at
+     * #version 460 it would swallow the next line of live code.
      */
     private static void endLineCommentsAtTheirLine(List<GlslLexer.Token> tokens, int version) {
         if (version >= 420) return;
@@ -116,9 +115,9 @@ final class LegacyShaderNormalizer {
         for (String name : List.of("packSnorm2x16", "unpackSnorm2x16", "packHalf2x16", "unpackHalf2x16")) {
             versions.put(name, 420);
         }
-        // Extension built-ins no GLSL version adds: GL declares them only when the source enables
-        // their extension, glslang at #version 460 whether it does or not. RenderPearl defines
-        // vec2 unpackFloat2x16(uint) when no float16 extension is on.
+        // extension built-ins no GLSL version adds: GL declares them only when the source enables their
+        // extension, glslang at #version 460 always
+        // RenderPearl defines vec2 unpackFloat2x16(uint) when no float16 extension is on
         for (String name : List.of("packFloat2x16", "unpackFloat2x16", "packInt2x16", "unpackInt2x16",
                 "packUint2x16", "unpackUint2x16", "packInt4x16", "unpackInt4x16", "packUint4x16", "unpackUint4x16",
                 "packInt2x32", "unpackInt2x32", "packUint2x32", "unpackUint2x32", "float16BitsToInt16",
@@ -128,7 +127,7 @@ final class LegacyShaderNormalizer {
         return Map.copyOf(versions);
     }
 
-    /** Renames every use of the late built-ins the pack declares or defines as its own functions. */
+    /** Renames every use of a late built-in the pack defines as its own function below that built-in's version. */
     private static void renameLateBuiltinDefinitions(GlslTree tree, List<GlslLexer.Token> tokens, int version) {
         Set<String> defined = new HashSet<>();
         for (GlslTree.External external : tree.externals()) {
@@ -144,7 +143,7 @@ final class LegacyShaderNormalizer {
         }
     }
 
-    /** Renames each use as a name of a later keyword (LATE_KEYWORDS) that the authored version leaves free. */
+    /** Renames each use as a name of a {@link #LATE_KEYWORDS} word the authored version leaves free. */
     private static void renameLateKeywords(List<GlslLexer.Token> tokens, int version) {
         for (int index = 0; index < tokens.size(); index++) {
             GlslLexer.Token token = tokens.get(index);
@@ -173,7 +172,7 @@ final class LegacyShaderNormalizer {
     }
 
     /**
-     * A compute stage's normalization: Iris runs CommonTransformer on computes too, so gl_Fog
+     * A compute stage's normalisation: Iris runs CommonTransformer on computes too, so gl_Fog
      * reads the fog uniforms and built-ins take scalar overloads; a compute has no varyings.
      * Rethinking Voxels' deferred1 compute reads gl_Fog.start and gl_Fog.scale.
      */
@@ -220,7 +219,7 @@ final class LegacyShaderNormalizer {
             }
             missing.addAll(GlslScalarReductions.overloads(split));
             if (fogFragCoord) {
-                // Iris CommonTransformer: an ordinary varying, zeroed first in the vertex stage.
+                // an ordinary varying as in Iris's CommonTransformer, zeroed first in the vertex stage
                 missing.add("varying float " + FOG_FRAG_COORD + ";");
                 if (vertexStage) {
                     normalized = GlslTokenRewriter.prependMainPrologue(normalized, FOG_FRAG_COORD + " = 0.0;");
@@ -265,11 +264,12 @@ final class LegacyShaderNormalizer {
 
     /**
      * The expression that serves one gl_Fog field, or null for a field Chimera does not serve. Iris's
-     * CommonTransformer builds iris_Fog from its own uniforms, iris_FogStart, iris_FogEnd,
-     * iris_FogDensity and iris_FogColor (the fog RGBA), with scale 1 / (end - start). Their names
-     * are Iris's, apart from the pack's fogStart and fogDensity: a pack's own identifier of that
-     * name neither hides nor clashes with them, and the range is latched per program and frame,
-     * where fogStart follows every fog setup (IrisWorldState).
+     * CommonTransformer builds iris_Fog from its own uniforms iris_FogStart, iris_FogEnd, iris_FogDensity and
+     * iris_FogColor, the fog RGBA, with scale 1 / (end - start).
+     *
+     * The names are Iris's, separate from the pack's fogStart and fogDensity, so a pack identifier of that name
+     * neither hides nor clashes with them. Their range is latched per program and frame, where fogStart follows
+     * every fog setup (IrisWorldState).
      */
     private static String fogFieldValue(String fieldName, Map<String, String> required) {
         return switch (fieldName) {
@@ -289,11 +289,12 @@ final class LegacyShaderNormalizer {
     }
 
     /**
-     * Starts every vertex output the shader references at zero. An output written on some paths
-     * only (BSL's gbuffers_basic sets isSelection for the selection outline alone) reads 0 under
-     * GL drivers in practice, but is undefined in Vulkan: the lead took BSL's unlit outline path
-     * on random fragments, a different set each frame. A source whose interface the scanner
-     * cannot read, or that has no main, is left as it is; re-normalizing adds nothing.
+     * Starts every vertex output the shader references at zero. An output written on some paths only reads 0
+     * under GL drivers in practice but is undefined in Vulkan. BSL's gbuffers_basic sets isSelection for the
+     * selection outline alone; left undefined, random fragments take its unlit outline path.
+     *
+     * A source whose interface the scanner cannot read, or that has no main, is left as it is. Normalising a
+     * source twice adds nothing.
      */
     private static String zeroReferencedOutputs(String source) {
         GlslInterfaceScanner.StageInterface stage = GlslInterfaceScanner.scan(source, true);
@@ -319,8 +320,8 @@ final class LegacyShaderNormalizer {
 
     /** {@code name = T(0);} for a referenced output of a built-in type, or null to leave it alone. */
     private static String zeroStatement(GlslInterfaceScanner.Declaration output) {
-        // An unread output is dropped as dead, so it gets no write that would keep it alive;
-        // iris_FogFragCoord has Iris's own zero, added with its declaration.
+        // an unread output is dropped as dead, so it gets no write that would keep it alive
+        // iris_FogFragCoord has Iris's own zero, added with its declaration
         if (!output.referenced() || output.name().startsWith("gl_") || output.name().equals(FOG_FRAG_COORD)
                 || !ZEROABLE_TYPE.matcher(output.type()).matches()) {
             return null;
@@ -346,9 +347,9 @@ final class LegacyShaderNormalizer {
     }
 
     /**
-     * A graphics stage's built-ins Vulkan lacks: its legacy varyings ({@link #renameLegacyVaryings}),
-     * and outside the vertex stage the reads of an unwritten gl_FragDepth ({@link UnwrittenFragDepth}).
-     * Returns the varyings the source now uses.
+     * Replaces a graphics stage's built-ins Vulkan lacks: its legacy varyings ({@link #renameLegacyVaryings}),
+     * and outside the vertex stage the reads of an unwritten gl_FragDepth ({@link UnwrittenFragDepth}). Returns
+     * the varyings the source now uses.
      */
     private static Set<String> renameStageBuiltins(GlslTree tree, List<GlslLexer.Token> tokens, boolean vertexStage,
                                                    Set<String> privateGlobals) {

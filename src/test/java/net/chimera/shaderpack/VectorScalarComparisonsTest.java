@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Body Camera's old lighting compares a vec3 with a number, which NVIDIA's GL compiler takes as a
- * comparison with that number in every component and GLSL refuses.
+ * Body Camera's old lighting compares a vec3 with a number, which NVIDIA's GL compiler
+ * takes as a comparison with that number in every component and GLSL refuses.
  */
 final class VectorScalarComparisonsTest {
     @Test
@@ -72,7 +72,7 @@ final class VectorScalarComparisonsTest {
 
     /**
      * An operand longer than the name or the number, and a number its vector cannot hold unchanged
-     * (NVIDIA compares ivec2(0) == 0.5 as floats), are left to the compiler, which refuses them as before.
+     * (NVIDIA compares ivec2(0) == 0.5 as floats), are left to the compiler, which refuses them.
      */
     @Test
     void anOperandItCannotWidenStays() {

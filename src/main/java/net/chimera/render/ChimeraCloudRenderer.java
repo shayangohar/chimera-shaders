@@ -27,16 +27,17 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Draws a pack's clouds over Sodium 0.8.13's cloud mesh (CloudMesh), the clouds Iris 1.8.14 on
- * 1.21.1 runs its cloud program on, where VulkanMod leaves vanilla's 96-block tile sheets. As
- * Sodium does, it drifts the layer 0.03 blocks a tick toward -X, rebuilds the mesh only when the
- * camera's cell, the reach, the side of the layer or the cloud setting changes, sets the terrain fog
- * at 8 blocks per cell of reach, and gives the cloud colour at 0.8 opacity as the shader colour.
+ * Draws a pack's clouds over Sodium's cloud mesh (CloudMesh), which Iris on 1.21.1 runs its cloud program on,
+ * in place of the 96-block tile sheets VulkanMod keeps from vanilla.
  *
- * <p>It draws through vanilla's cloud render types, so the pack's cloud program and the cloud
- * target serve it as they served vanilla's sheets. FANCY lays depth, then colour, each culling back
- * faces as Sodium's draw does: with culling off, a cell's inner walls would blend over its outer
- * faces. FAST draws colour alone with culling off, as Sodium does.</p>
+ * As Sodium does, it drifts the layer 0.03 blocks a tick toward -X and rebuilds the mesh only when the camera's
+ * cell, the reach, the camera's side of the layer or the cloud setting changes. It sets the terrain fog at 8
+ * blocks per cell of reach and passes the cloud colour at 0.8 opacity as the shader colour.
+ *
+ * It draws through vanilla's cloud render types, so the pack's cloud program and cloud target serve it as they
+ * serve vanilla's sheets. FANCY lays depth, then colour, each culling back faces as Sodium does; with culling
+ * off, a cell's inner walls would blend over its outer faces. FAST draws colour alone with culling off, as
+ * Sodium does.
  */
 public final class ChimeraCloudRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChimeraCloudRenderer.class);
@@ -126,7 +127,7 @@ public final class ChimeraCloudRenderer implements AutoCloseable {
 
     private void drawPass(RenderType type, boolean cull, Matrix4f modelView, Matrix4f projection) {
         type.setupRenderState();
-        // The cloud types turn culling off for vanilla's sheets, which Sodium's FANCY boxes need on.
+        // the cloud render types turn culling off for vanilla's sheets; Sodium's FANCY boxes need it on
         if (cull) RenderSystem.enableCull();
         try {
             buffer.drawWithShader(modelView, projection, RenderSystem.getShader());

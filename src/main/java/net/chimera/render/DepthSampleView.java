@@ -7,15 +7,13 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_DEPTH_BIT;
 import static org.lwjgl.vulkan.VK10.vkDestroyImageView;
 
 /**
- * Owns one depth-aspect view of a raw depth image, shared by every pack depth
- * conversion.
+ * Owns one depth-only view of a depth image, made again when the image changes.
  *
- * <p>Sampling a combined depth-stencil attachment needs a depth-only view; the
- * host image keeps its own depth-stencil view and is never replaced. A retired
- * view goes through HandleRetirement: mid-frame it waits for the frame slot's
- * fence, since the command buffer still being recorded can already hold a
- * conversion that samples the old view, and destroying it before submission
- * loses the device (re-joining a world recreates the HDR depth image mid-frame).</p>
+ * Sampling a combined depth-stencil attachment needs a depth-only view; the host image keeps its own
+ * depth-stencil view, which is never replaced. A retired view goes through HandleRetirement: mid-frame it waits
+ * for the frame slot's fence, since the command buffer being recorded can already hold a conversion that
+ * samples the old view, and destroying it before submission loses the device. Re-joining a world recreates the
+ * HDR depth image mid-frame.
  */
 final class DepthSampleView {
     /** Whether the view samples as R, R, R, 1, as Iris's shadow depth textures do (ImageViews.shadowDepth). */
@@ -41,12 +39,12 @@ final class DepthSampleView {
         return new DepthSampleView(true);
     }
 
-    /** Returns the depth-only view of the image, creating it for a new image. */
+    /** The depth-only view of {@code image}, made anew for a new image. */
     long ensure(VulkanImage image) {
         if (view != 0L && this.image == image) {
             return view;
         }
-        // Create before retiring, so the new handle cannot reuse the old one.
+        // create before retiring, so the new handle cannot reuse the old one
         long next = shadow ? ImageViews.shadowDepth(image)
                 : VulkanImage.createImageView(image.getId(), image.format, VK_IMAGE_ASPECT_DEPTH_BIT, image.mipLevels);
         destroy();

@@ -28,9 +28,8 @@ import java.nio.file.WatchService;
 import java.util.List;
 
 /**
- * The pack list of {@link ShaderPackScreen}, laid out as Iris's: a shaders on/off row, one row per
- * pack in the shaderpacks folder (the applied one in yellow), and a drag-and-drop hint. The list
- * follows the folder while the screen is open.
+ * The pack list of {@link ShaderPackScreen}, laid out as Iris's: a shaders on/off row, a row per pack with
+ * the applied one in yellow, and a drag-and-drop hint. The list follows the folder while the screen is open.
  */
 public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPackSelectionList.BaseEntry> {
     private static final Component PACK_LIST_LABEL = Component.translatable("pack.chimera.list.label")
@@ -45,8 +44,8 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
     private WatchKey key;
     private String applied;
     /**
-     * The pack the player picked. Vanilla's selection also lands on the caption and toggle rows
-     * (by click or arrow key) and clears past either end; none of that unpicks the pack, as in Iris.
+     * The pack the player picked. Vanilla's selection also moves onto the caption and toggle rows, by click
+     * or arrow key, and clears past either end; none of that unpicks the pack, as in Iris.
      */
     private String chosen;
 
@@ -113,7 +112,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
                     .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
             return;
         }
-        // A pack that left the folder is no longer chosen.
+        // a pack that left the folder stays unchosen; setSelected below picks it again if it is still there
         this.chosen = null;
         addEntry(this.topButtonRow);
         this.topButtonRow.allowToggle = !names.isEmpty();
@@ -152,7 +151,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         this.applied = name;
     }
 
-    /** After a switch failed to load: what runs is applied and picked again, the toggle as it runs. */
+    /** After a failed switch, marks the running pack applied and picked again, with the toggle as it runs. */
     void showRunning(String name, boolean enabled) {
         this.applied = name;
         this.topButtonRow.enabled = enabled;
@@ -189,7 +188,6 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
 
     public abstract static class BaseEntry extends ObjectSelectionList.Entry<BaseEntry> {}
 
-    /** A centred caption row. */
     private static final class LabelEntry extends BaseEntry {
         private final Component label;
 
@@ -307,7 +305,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         }
     }
 
-    /** One pack. Picking it selects it, and turns shaders on, as Iris does. */
+    /** A pack row; picking it while shaders are off also turns them on for the apply, as in Iris. */
     final class ShaderPackEntry extends BaseEntry {
         private final String packName;
 
@@ -323,7 +321,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
                 drawButton(graphics, x - 2, y - 2, width, height + 4, true, false);
             }
             boolean enabled = shadersEnabled();
-            // The applied pack says it fell back or lost programs, as Iris's "(fallback)" does.
+            // the applied pack says it fell back or lost programs, as Iris's "(fallback)" does
             String name = this.packName
                     + (enabled && this.packName.equals(applied) ? PackFailureNotices.label(this.packName) : "");
             if (font.width(Component.literal(name).withStyle(ChatFormatting.BOLD)) > getRowWidth() - 3) {
@@ -348,7 +346,6 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         }
 
         private boolean pick() {
-            // Iris UX: picking a pack while shaders are off turns them on for the apply.
             topButtonRow.enable();
             setSelected(this);
             screen.focusBottomRow();

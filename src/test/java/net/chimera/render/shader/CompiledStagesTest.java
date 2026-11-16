@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Complementary's hand binds one fragment source in four vertex layouts, and a dimension visited
- * again compiles the same sources again. Each is compiled once per session; a different kind or
- * pack treatment of the same text is another module; past its byte budget the store lets the
- * least recently used modules go.
+ * Each stage compiles once per session. The same text with another kind or pack treatment is another
+ * module, and past its byte budget the store drops the least recently used modules.
+ *
+ * Complementary's hand binds one fragment source in four vertex layouts, and a dimension visited again
+ * compiles the same sources.
  */
 final class CompiledStagesTest {
     @Test

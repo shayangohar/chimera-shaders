@@ -48,8 +48,8 @@ final class PackTexturesTest {
     }
 
     /**
-     * Audit FD7: the noise Iris generates for a pack without texture.noise is refused past the
-     * device's 2D limit, as a pack PNG is, and before its texels are made.
+     * The noise Iris generates for a pack without texture.noise is refused past the device's 2D
+     * limit, as a pack PNG is, and before its texels are made.
      */
     @Test
     void generatedNoisePastTheDeviceLimitIsRefusedFirst() {
@@ -87,7 +87,7 @@ final class PackTexturesTest {
         RawTextureSpec lut = RawTextureSpec.parse("lut.dat TEXTURE_2D RGB16F 1 2 RGB FLOAT");
         ByteBuffer file = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
         file.putFloat(1.0F).putFloat(0.5F).putFloat(-2.0F);
-        // 1 + 3 * 2^-12 is nearer the next half above 1 (1 + 2^-10, 0x3C01) than 1 itself: it rounds up.
+        // 1 + 3 * 2^-12 is nearer the next half above 1 (1 + 2^-10, 0x3C01) than 1 itself, so it rounds up
         file.putFloat(0.25F).putFloat(65504.0F).putFloat(1.0F + 0x3p-12F);
         assertArrayEquals(new byte[] {
                 0x00, 0x3C, 0x00, 0x38, 0x00, (byte) 0xC0, 0x00, 0x3C,

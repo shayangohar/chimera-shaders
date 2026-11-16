@@ -19,7 +19,6 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The common world-family adapters. */
 final class WorldFamilyAdapterTest {
     @Test
     void worldFamilyAdapters() throws Exception {

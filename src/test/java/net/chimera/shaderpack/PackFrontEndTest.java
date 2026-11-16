@@ -18,11 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The pack front end reads the Iris/GLSL formats in full rather
- * than the subset the baseline packs needed. Each check is the spec behaviour, not a pack's usage.
+ * The pack front end reads the Iris and GLSL formats in full. Each check follows the spec, whatever a
+ * given pack happens to use.
  */
 final class PackFrontEndTest {
-    /** Sky/cloud draws must not require the terrain bridge's implicit atlas and lightmap. */
+    /** Sky and cloud draws take no implicit atlas or lightmap from the terrain bridge. */
     @Test
     void skySamplerContract() {
         for (String name : List.of("gbuffers_skybasic", "gbuffers_skytextured", "gbuffers_clouds")) {
@@ -59,7 +59,7 @@ final class PackFrontEndTest {
                 "void main() {}");
         GlslInterfaceScanner.StageInterface stage = GlslInterfaceScanner.scan(vertex, true);
         assertTrue(stage.deviations().isEmpty(), "interface types rejected: " + stage.deviations());
-        // Name order: fog(1+1+2=4) light(1) mask(1) sky_sh(9) tbn(3) uv(1).
+        // name order: fog(1+1+2=4) light(1) mask(1) sky_sh(9) tbn(3) uv(1)
         assertTrue(stage.locations().equals(Map.of("fog", 0, "light", 4, "mask", 5, "sky_sh", 6,
                 "tbn", 15, "uv", 18)), "packed locations " + stage.locations());
         assertTrue(stage.output("sky_sh").typeWithArray().equals("vec3[9]"), "array type");
@@ -76,12 +76,12 @@ final class PackFrontEndTest {
         assertTrue(GlslInterfaceScanner.scan(bad, true).deviations()
                         .contains("PROGRAM_VARYING_TYPE_UNSUPPORTED:Unknown"),
                 "an undefined struct type must be named");
-        // Bliss composite.fsh: `//*` opens a line comment, not a block that hides live code.
+        // Bliss composite.fsh: `//*` opens a line comment, so no block comment hides the code after it
         assertTrue(GlslLexer.stripComments("a = z;//*z*m;\nb = viewWidth;/* x */c;\n// tail */")
                         .equals("a = z; \nb = viewWidth; c;\n "),
                 "comments must be stripped in source order: "
                         + GlslLexer.stripComments("a = z;//*z*m;\nb = viewWidth;/* x */c;\n// tail */"));
-        // Bliss deferred.vsh defines tanh under #version 120, where GLSL has none.
+        // Bliss deferred.vsh defines tanh under #version 120, where GLSL has none
         String ownTanh = LegacyShaderNormalizer.normalize(
                 "#version 120\nfloat tanh(float x) { return x; }\nvoid main() { float y = tanh(1.0); }", true).source();
         assertTrue(ownTanh.contains("float chimera_tanh(float x)") && ownTanh.contains("y = chimera_tanh(1.0)"),
@@ -89,12 +89,12 @@ final class PackFrontEndTest {
         String builtinTanh = LegacyShaderNormalizer.normalize(
                 "#version 130\nvoid main() { float y = tanh(1.0); }", true).source();
         assertTrue(builtinTanh.contains("y = tanh(1.0)"), "a 1.30 tanh call is the built-in: " + builtinTanh);
-        // Bliss composite.fsh: before GLSL 4.20 a trailing backslash does not continue a comment.
+        // Bliss composite.fsh: before GLSL 4.20 a trailing backslash does not continue a comment
         String continued = LegacyShaderNormalizer.normalize(
                 "#version 120\nvoid main() {\n\t/// --- STUFF --- \\\\\r\n\tint count = 1;\n}", false).source();
         assertTrue(!continued.contains("\\") && continued.contains("int count = 1;"),
                 "a pre-4.20 comment must end at its line: " + continued);
-        // Bliss deferred.fsh: parameter qualifiers are not stage interfaces.
+        // Bliss deferred.fsh: parameter qualifiers are not stage interfaces
         String parameters = String.join("\n",
                 "#version 400",
                 "in vec2 texcoord;",
@@ -122,7 +122,7 @@ final class PackFrontEndTest {
         PackResourceDeclaration png = new PackResourceDeclaration("texture.composite.colortex13",
                 "composite", "colortex13", "image/galaxy.png", PackResourceKind.PACK_TEXTURE);
         assertTrue(PackResourcePlan.appliesTo(png, "sampler2D"), "a PNG declaration applies as before");
-        // TextureTransformer.isTypeValid: a rectangle texture takes only a sampler2DRect.
+        // as Iris's TextureTransformer.isTypeValid: a rectangle texture takes only a sampler2DRect
         PackResourceDeclaration rectangle = new PackResourceDeclaration("texture.composite.lut",
                 "composite", "lut", "lut.dat TEXTURE_RECTANGLE R8 4 4 RED UNSIGNED_BYTE", PackResourceKind.RAW_TEXTURE);
         assertTrue(PackResourcePlan.appliesTo(rectangle, "sampler2DRect") && !PackResourcePlan.appliesTo(rectangle,
@@ -130,8 +130,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A raw texture.<stage> entry is a uniform of its own: Iris renames the declaration of its type
-     * to customtexN and every renderer registers that name (addCustomTextures), so it binds a name
+     * A raw {@code texture.<stage>} entry is a uniform of its own: Iris renames the declaration of its
+     * type to customtexN and every renderer registers that name (addCustomTextures), so it binds a name
      * nothing else registers. A PNG entry on such a name binds nowhere.
      */
     @Test
@@ -187,13 +187,13 @@ final class PackFrontEndTest {
         RawTextureSpec worley = RawTextureSpec.parse("image/worley.dat TEXTURE_3D R8 64 64 64 RED UNSIGNED_BYTE");
         assertTrue(worley != null && worley.unsupportedReason() == null && worley.requiredBytes() == 262144,
                 "Photon worley noise: " + worley);
-        // GL_UNPACK_ALIGNMENT 4: a 3-byte row is read from a 4-byte stride, the last row unpadded.
+        // GL_UNPACK_ALIGNMENT 4: a 3-byte row is read from a 4-byte stride, the last row unpadded
         RawTextureSpec odd = RawTextureSpec.parse("lut.dat TEXTURE_2D R8 3 2 RED UNSIGNED_BYTE");
         assertTrue(odd != null && odd.dimensions() == 2 && odd.rowStride() == 4 && odd.requiredBytes() == 7,
                 "row alignment: " + odd);
         assertTrue(RawTextureSpec.parse("line.dat TEXTURE_1D RGBA8 16 RGBA UNSIGNED_BYTE").dimensions() == 1,
                 "six words are 1D");
-        // Pixel Perfect's colour LUT: 32-bit floats in the file, halved into RGB16F on upload.
+        // Pixel Perfect's colour LUT: 32-bit floats in the file, halved into RGB16F on upload
         RawTextureSpec lut = RawTextureSpec.parse("/LUTs/lut.dat TEXTURE_3D RGB16F 65 65 65 RGB FLOAT");
         assertTrue(lut != null && lut.unsupportedReason() == null && lut.halvesFloats()
                         && lut.requiredBytes() == 3_295_500L, "Pixel Perfect LUT: " + lut);
@@ -239,7 +239,7 @@ final class PackFrontEndTest {
                         && volume.status() == PackResourceStatus.PACK_FILE
                         && volume.filter().equals("linear") && volume.wrap().equals("clamp"),
                 "raw volume binding: " + volume);
-        // A raw volume is an ordinary texture, not an image only an installed shadowcomp serves.
+        // a raw volume is an ordinary texture and needs no installed shadowcomp to serve it
         assertTrue(!plan.advancedResources().dependentPrograms().contains("deferred")
                 && plan.shouldAttempt("deferred"), "raw volume taken for a pack image");
         assertTrue(plan.advancedResources().dependentPrograms().contains("composite")
@@ -297,7 +297,7 @@ final class PackFrontEndTest {
                 sampler + " must sample " + filter + "/" + wrap + ": " + binding);
     }
 
-    /** program.<folder>/<name>.enabled with a declared-but-off toggle disables, as in Iris. */
+    /** {@code program.<folder>/<name>.enabled} with a declared-but-off toggle disables, as in Iris. */
     @Test
     void programSwitches() {
         PackSettingsPlan settings = new PackSettingsPlan(Map.of(), Map.of(), Map.of(), Map.of(),
@@ -310,7 +310,7 @@ final class PackFrontEndTest {
                 "a bare switch names the root program only, as Iris matches paths exactly");
     }
 
-    /** uniform.bool reads through `uniform bool`, and gtexture is Iris's atlas name. */
+    /** uniform.bool reads through {@code uniform bool}, and gtexture is Iris's atlas name. */
     @Test
     void boolAndAtlasNames() {
         PackRuntimeSettings settings = PackRuntimeSettings.build(List.of(
@@ -358,10 +358,9 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A comment on a directive line is whitespace to JCPP. Read raw, a block comment after
-     * {@code #if FOO} became operators and the condition evaluated 0, a comment before the
-     * expression failed it, and a #define body kept the comment. A block comment the line leaves
-     * open spans the lines up to its close, and the directive goes on after it.
+     * A comment on a directive line is whitespace to JCPP, around a condition and in a #define body.
+     * A block comment the line leaves open spans the lines up to its close, and the directive goes on
+     * after it.
      */
     @Test
     void aCommentOnADirectiveLineIsWhitespace() {
@@ -399,8 +398,8 @@ final class PackFrontEndTest {
 
     /**
      * A directive's open block comment takes the lines up to its close, in an inactive branch too,
-     * and the rest of the file when it never closes, as in JCPP. Joining scans each line once: it
-     * rescanned the whole joined text per line, 1.2 s for a 1600-line comment.
+     * and the rest of the file when it never closes, as in JCPP. Joining scans each line once, so a
+     * long comment costs linear time.
      */
     @Test
     void aDirectiveCommentJoinsLinearlyUpToItsClose() {
@@ -475,7 +474,7 @@ final class PackFrontEndTest {
                 "continued #define was not spliced:\n" + result.source());
     }
 
-    /** `#define attribute in` followed by a `const` line is a directive, not an `in const` varying. */
+    /** {@code #define attribute in} before a {@code const} line is a directive, not an {@code in const} varying. */
     @Test
     void directivesAreNotDeclarations() {
         String source = String.join("\n",
@@ -498,7 +497,7 @@ final class PackFrontEndTest {
             case "m" -> PackExpression.MATRIX_WIDTH;
             default -> 1;
         };
-        // Column-major: element (column c, row r) is lane c * 4 + r.
+        // column-major: element (column c, row r) is lane c * 4 + r
         PackExpression.Inputs inputs = (name, component) -> switch (name) {
             case "skyColor" -> 10.0 + component;
             case "m" -> component;
@@ -514,7 +513,7 @@ final class PackFrontEndTest {
         for (int lane = 0; lane < 3; lane++) {
             assertTrue(lanes[lane] == expected[lane], "vec3 lane " + lane + " gave " + lanes[lane]);
         }
-        // A scalar inside a vector is one value per frame: its smooth advances once, as in Iris.
+        // a scalar inside a vector is one value per frame: its smooth advances once, as in Iris
         PackExpression.Program smoothed = PackExpression.parse("smooth(k, 10, 10) * vec3(1.0, 2.0, 3.0)",
                 BiomeIds.constants(), widths);
         PackExpression.State state = smoothed.newState();
@@ -576,7 +575,7 @@ final class PackFrontEndTest {
     /**
      * Iris preprocesses shaders.properties with the pack's option values as macros
      * (PropertiesPreprocessor), so a custom value reads an option as its value. Reverie's betaRfact
-     * reads RAYLEIGH_DENSITY_VARIANCE, which Chimera refused as an unknown name.
+     * reads RAYLEIGH_DENSITY_VARIANCE this way.
      */
     @Test
     void aCustomValueReadsAnOptionAsItsValue(@TempDir Path root) throws IOException {
@@ -596,11 +595,11 @@ final class PackFrontEndTest {
     }
 
     /**
-     * Iris's function set (IrisFunctions): Alpha Piscium's values call exp2 and twenty corpus
-     * values call mix, which Chimera refused. Iris's max and min past two arguments read the second
-     * again for each further one, and Iris has no round. OptiFine's documented functions evaluate,
-     * and a declaration that reads a refused one is refused with it instead of reading zero in its
-     * place.
+     * Iris's function set (IrisFunctions), with the exp2 Alpha Piscium's values call and the mix many
+     * packs call. Iris's max and min past two arguments read the second again for each further one,
+     * and Iris has no round. OptiFine's documented functions evaluate.
+     *
+     * A declaration that reads a refused one is refused with it and never reads zero in its place.
      */
     @Test
     void theFunctionsAreIrisFunctions() {
@@ -638,8 +637,7 @@ final class PackFrontEndTest {
 
     /**
      * Iris's parser binds {@code a / b} to {@code divide(a, b)} (IrisOptions), so a zero divisor
-     * gives one answer either way. Chimera's operators served a silent zero where divide gave
-     * infinity; both now give infinity, served as Iris serves it and reported once.
+     * gives the same infinity either way.
      */
     @Test
     void anOperatorDividesAsItsFunctionDoes() {
@@ -652,8 +650,8 @@ final class PackFrontEndTest {
 
     /**
      * An int custom value is served exactly, as Iris's int uniforms are: RenderPearl packs the
-     * viewport into one int, and at 1366x768 a float rounded 50333014 to 50333016, a width of 1368.
-     * A float value keeps float rounding.
+     * viewport into one int, and at 1366x768 a float would round 50333014 to 50333016, a width of
+     * 1368. A float value keeps float rounding.
      */
     @Test
     void anIntCustomValueIsExact() {
@@ -673,7 +671,7 @@ final class PackFrontEndTest {
     /**
      * A non-finite value is served as computed, to the uniform and to the values that read it, as
      * Iris serves it. RenderPearl's fog density divides by its Fog setting: at 0, Iris's infinity
-     * means no fog, while holding the last finite value made the fog depend on whether it had rained.
+     * means no fog; holding the last finite value would make the fog depend on whether it had rained.
      */
     @Test
     void aNonFiniteValueIsServedAsIrisServesIt() {
@@ -711,9 +709,8 @@ final class PackFrontEndTest {
 
     /**
      * Iris defines the same symbols as macros in every shader and properties file it preprocesses
-     * (IrisDefines.createIrisReplacements). Chimera served them to expressions only, so a pack's
-     * {@code #if} on one read 0, and Noble's and Photon's {@code #ifndef PPT_NONE} fallbacks in
-     * shaders.properties were taken.
+     * (IrisDefines.createIrisReplacements), so a pack's {@code #if} on one reads its value and
+     * Noble's and Photon's {@code #ifndef PPT_NONE} fallbacks in shaders.properties stay unused.
      */
     @Test
     void irisBiomeSymbolsAreMacrosToo(@TempDir Path root) throws IOException {
@@ -799,7 +796,7 @@ final class PackFrontEndTest {
 
     @Test
     void packOwnTexelSize() {
-        // Bliss authors texelSize; Iris has no such builtin, so the pack's value stands.
+        // Bliss authors texelSize; Iris has no such builtin, so the pack's value stands
         PackRuntimeSettings texel = PackRuntimeSettings.build(List.of(
                 PackRuntimeSettings.declaration(true, "vec2", "texelSize",
                         "vec2(1.0 / viewWidth, 1.0 / viewHeight)")), List.of());
@@ -814,7 +811,7 @@ final class PackFrontEndTest {
 
     @Test
     void shadowSamplerAliases() {
-        // IrisSamplers.addShadowSamplers: shadow is shadowtex0 unless watershadow is declared.
+        // IrisSamplers.addShadowSamplers: shadow is shadowtex0 unless watershadow is declared
         assertTrue(PackResourcePlan.programResource("shadow", false).equals("shadowtex0")
                 && PackResourcePlan.programResource("shadow", true).equals("shadowtex1")
                 && PackResourcePlan.programResource("watershadow", true).equals("shadowtex0")
@@ -835,8 +832,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * CommonTransformer: gl_Fog reads Iris's own iris_Fog uniforms, so the pack's fog names stay its
-     * own: a vec3 fogColor uniform, a const fogStart and a local fogDensity meet no declaration of Chimera's.
+     * As in Iris's CommonTransformer, gl_Fog reads Iris's own iris_Fog uniforms, so the pack's fog names stay
+     * its own: a vec3 fogColor uniform, a const fogStart and a local fogDensity meet no declaration of Chimera's.
      */
     @Test
     void glFogReadsIrisUniforms() {
@@ -859,7 +856,7 @@ final class PackFrontEndTest {
 
     @Test
     void fogFragCoord() {
-        // CommonTransformer: gl_FogFragCoord is the varying iris_FogFragCoord, zeroed first in the vertex stage.
+        // CommonTransformer: gl_FogFragCoord is the varying iris_FogFragCoord, zeroed first in the vertex stage
         LegacyShaderNormalizer.Result fogVertex = LegacyShaderNormalizer.normalize(
                 "#version 120\nvoid main() {\n    gl_FogFragCoord = 4.0;\n}\n", true);
         assertTrue(fogVertex.successful() && fogVertex.source().contains("varying float iris_FogFragCoord;")
@@ -879,8 +876,8 @@ final class PackFrontEndTest {
 
     @Test
     void vertexOutputsStartAtZero() {
-        // BSL gbuffers_basic writes isSelection only for the selection outline. GL drivers leave it
-        // 0 elsewhere; Vulkan leaves it undefined, and leads took the unlit outline path at random.
+        // BSL gbuffers_basic writes isSelection only for the selection outline; GL drivers leave it 0 elsewhere
+        // Vulkan leaves it undefined, so leads would take the unlit outline path at random
         String bsl = """
                 #version 120
                 varying float isSelection;
@@ -919,7 +916,7 @@ final class PackFrontEndTest {
 
     @Test
     void uniformDeclaratorLists() {
-        // Solas declares samplers in lists; every per-name rewriter needs one declaration per name.
+        // Solas declares samplers in lists; every per-name rewriter needs one declaration per name
         String lists = GlslTokenRewriter.splitUniformDeclarators("""
                 #version 330
                 #define LIST uniform float a, b;
@@ -941,7 +938,7 @@ final class PackFrontEndTest {
 
     @Test
     void commentedUniformDeclarations() {
-        // Solas comments "a corresponding uniform in shaders.properties" right above its declarations.
+        // Solas comments "a corresponding uniform in shaders.properties" right above its declarations
         String commented = """
                 //Every biome has a corresponding uniform in the shaders.properties file
                 uniform float frameTimeCounter;
@@ -958,8 +955,8 @@ final class PackFrontEndTest {
 
     @Test
     void nonConstantGlobals() {
-        // Photon: constants stay const (array sizes and later consts need them); only a
-        // global const that really depends on a uniform, a plain global or a function loses it.
+        // Photon: constants stay const, since array sizes and later consts need them
+        // only a global const that depends on a uniform, a plain global or a function loses it
         String relaxed = GlslTokenRewriter.relaxNonConstantGlobals("""
                 uniform float frameTime;
                 float plain = 2.0;
@@ -991,7 +988,7 @@ final class PackFrontEndTest {
 
     @Test
     void objectMacroReachability() {
-        // Photon calls tonemap_lottes only as tonemap(x) through an object-like alias, which preparation expands.
+        // Photon calls tonemap_lottes only as tonemap(x) through an object-like alias, which preparation expands
         String reachable = GlslMacroExpander.expand("""
                 #define tonemap tonemap_lottes
                 vec3 tonemap_lottes(vec3 rgb) { return rgb; }
@@ -1006,7 +1003,7 @@ final class PackFrontEndTest {
 
     @Test
     void modernOutputLocations() {
-        // Photon: explicit (even multi-line) output locations hold; unlocated ones take the next free one.
+        // Photon: explicit output locations hold, even multi-line ones; unlocated ones take the next free one
         String outputs = "/* RENDERTARGETS: 6,14,3 */\nlayout(\n    location = 1\n) out vec4 b;\n"
                 + "out vec2 a;\nlayout(location = 0) out vec3 c;\nvoid main() {}\n";
         List<PostTargetPlan.ModernOutput> modern = PostTargetPlan.modernOutputs(outputs);
@@ -1018,7 +1015,7 @@ final class PackFrontEndTest {
                         && routed.outputLocations().equals(List.of(0, 1, 2))
                         && routed.outputType(0).equals("vec3") && routed.outputType(2).equals("vec2"),
                 "modern output locations: " + modern + " plan " + routed.outputLocations());
-        // RenderPearl redeclares gl_FragDepth with a depth layout: a built-in, not a target output.
+        // RenderPearl redeclares gl_FragDepth with a depth layout: a built-in, not a target output
         String depth = "/* RENDERTARGETS: 0 */\nlayout(depth_greater) out float gl_FragDepth;\n"
                 + "layout(location = 0) out vec4 color;\nvoid main() {}\n";
         assertEquals(List.of("color"), PostTargetPlan.modernOutputs(depth).stream()
@@ -1027,8 +1024,8 @@ final class PackFrontEndTest {
 
     @Test
     void worldColourTargetReads() {
-        // MakeUp: world programs read pack colour targets (gaux4 = colortex7) as Iris binds them;
-        // colortex0..3 stay off the host atlas/overlay/lightmap/shadowcolor selectors.
+        // MakeUp: world programs read pack colour targets (gaux4 = colortex7) as Iris binds them
+        // colortex0..3 stay off the host atlas, overlay, lightmap and shadowcolor selectors
         String worldReader = """
                 uniform sampler2D gaux4;
                 uniform sampler2D colortex2;
@@ -1045,7 +1042,7 @@ final class PackFrontEndTest {
 
     @Test
     void implicitModelView() {
-        // The terrain bridge rewrites gl_ModelViewMatrix to gbufferModelView; the plan must serve it.
+        // the terrain bridge rewrites gl_ModelViewMatrix to gbufferModelView, so the plan must serve it
         UniformRegistry.ProgramInterface legacyMatrix = InterfacePlanner.plan(
                 "void main() { gl_Position = gl_ModelViewMatrix * gl_Vertex; }", UniformRegistry.Stage.GEOMETRY);
         assertTrue(legacyMatrix.uniforms().stream().anyMatch(value -> value.name().equals("gbufferModelView")),
@@ -1061,7 +1058,7 @@ final class PackFrontEndTest {
         assertArrayEquals(new float[] {0.2F, 0.4F, 0.6F, 1.0F}, undeclared.irisClearColor(0, fog));
         assertArrayEquals(new float[] {1.0F, 1.0F, 1.0F, 1.0F}, undeclared.irisClearColor(1, null));
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 0.0F}, undeclared.irisClearColor(2, null));
-        // Photon declares colortex0ClearColor = vec4(0.0): the fog never reaches colortex0.
+        // Photon declares colortex0ClearColor = vec4(0.0): the fog never reaches colortex0
         var declared = new PackConfig.TargetSettings("", true, new float[] {0.0F, 0.0F, 0.0F, 0.0F}, List.of());
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 0.0F}, declared.irisClearColor(0, fog));
         assertArrayEquals(new float[] {0.0F, 0.0F, 0.0F, 0.0F}, declared.irisClearColor(1, null));

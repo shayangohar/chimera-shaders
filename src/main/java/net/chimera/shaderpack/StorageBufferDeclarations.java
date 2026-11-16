@@ -50,16 +50,16 @@ final class StorageBufferDeclarations {
                         return;
                     }
                     PackAdvancedResourcePlan.BufferSpec spec = parseBuffer(index, entry.getValue());
-                    // A size below 1, an index above 8 or a value it cannot parse: Iris creates no buffer.
+                    // a size below 1, an index above 8 or a value it cannot parse: Iris creates no buffer
                     if (!skipped(spec)) result.put(index, spec);
                     deviations.addAll(spec.deviations());
                 });
         return result;
     }
 
-    /** ShaderProperties skips a buffer whose size is below 1: "the shader dev intended to disable the buffer". */
+    /** Iris's ShaderProperties skips a buffer whose size is below 1, taking it as switched off. */
     static final String DISABLED = "STORAGE_BUFFER_DISABLED:";
-    /** ShaderProperties skips a buffer numbered above 8: "they're reserved". */
+    /** ShaderProperties skips a buffer numbered above 8, as reserved. */
     static final String RESERVED = "STORAGE_BUFFER_INDEX_RESERVED:";
     /** ShaderProperties skips a value it cannot parse: a size or scale that is no number, or three values. */
     static final String MALFORMED = "STORAGE_BUFFER_PROPERTY_MALFORMED:";
@@ -78,8 +78,8 @@ final class StorageBufferDeclarations {
             return new PackAdvancedResourcePlan.BufferSpec(index, 0L, "", PackAdvancedResourcePlan.Status.UNSUPPORTED,
                     deviations);
         }
-        // ShaderProperties splits the value on single spaces: "size [name]", or "size relative scaleX
-        // scaleY" read from its first four values.
+        // split on single spaces as ShaderProperties does: "size [name]", or "size relative scaleX scaleY"
+        // read from the first four values
         String[] values = raw == null ? new String[0] : raw.stripLeading().split(" ");
         if (values.length == 0 || values[0].isEmpty() || values.length == 3) {
             deviations.add(MALFORMED + index);
@@ -119,7 +119,7 @@ final class StorageBufferDeclarations {
         boolean relative = Boolean.parseBoolean(values[1]);
         boolean emptyShare = !(scaleX > 0F && scaleY > 0F && Float.isFinite(scaleX) && Float.isFinite(scaleY));
         if (size >= 1L && relative && emptyShare) {
-            // Iris sizes such a buffer at zero bytes or fewer, which GL refuses to create.
+            // Iris sizes such a buffer at zero bytes or fewer, which GL refuses to create
             deviations.add("STORAGE_BUFFER_SIZE_UNSUPPORTED:" + index);
         }
         return new PackAdvancedResourcePlan.BufferSpec(index, size, "", relative,
@@ -127,9 +127,9 @@ final class StorageBufferDeclarations {
     }
 
     /**
-     * A size below 1 switches the buffer off, as in Iris (DISABLED). Any larger byte count binds, as
-     * Iris's buffers take any size the driver does: the device's storage range and the allocation
-     * bound it (PackStorageBufferOwner), and the buffer is filled whole (VK_WHOLE_SIZE).
+     * A size below 1 switches the buffer off, as in Iris. Any larger byte count binds, since Iris's buffers
+     * take any size the driver does; the device's storage range and the allocation bound it
+     * (PackStorageBufferOwner), and the buffer is filled whole (VK_WHOLE_SIZE).
      */
     private static void checkSize(int index, long size, List<String> deviations) {
         if (size < 1L) deviations.add(DISABLED + index);
@@ -155,10 +155,8 @@ final class StorageBufferDeclarations {
             List<StorageBlock> blocks = programBlocks(program, deviations);
             if (blocks.isEmpty()) continue;
             dependentPrograms.add(program.name());
-            // A structurally valid block is a producer/consumer candidate even
-            // while the first immutable plan is still waiting for its final
-            // storage bindings. Final eligibility is decided after descriptor
-            // construction and shader conversion.
+            // a structurally valid block makes the program a candidate before its final storage bindings exist
+            // final eligibility is decided after descriptor construction and shader conversion
             eligiblePrograms.add(program.name());
             ProgramBlocks merged = ProgramBlocks.merge(blocks);
             int bindingBase = bindingBases.getOrDefault(program.name(), 0);
@@ -169,7 +167,7 @@ final class StorageBufferDeclarations {
                     .filter(value -> eligiblePrograms.contains(value.program()))
                     .anyMatch(value -> value.logicalIndex() == spec.logicalIndex());
             if (!used) {
-                // No program binds it; the session allocates it only for a pass compute that does.
+                // no program binds it; the session allocates it only for a pass compute that does
                 deviations.add("STORAGE_BUFFER_DEFERRED:bufferObject." + spec.logicalIndex());
             }
         }
@@ -189,9 +187,7 @@ final class StorageBufferDeclarations {
                             block.originalBinding(), block.laidOut(), stageMask));
                 }
             } catch (RuntimeException failure) {
-                // Keep malformed storage declarations local to this
-                // program. They must not become an invented executable
-                // binding, and they must not reject unrelated programs.
+                // a malformed declaration stays local to this program: it binds nothing and rejects no other program
                 String marker = "__parse_error__" + stage.getKey();
                 blocks.add(new StorageBlock(marker, "", -1, false, stageMask));
                 deviations.add("STORAGE_BUFFER_PARSE_UNSUPPORTED:" + program.name()

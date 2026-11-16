@@ -19,22 +19,19 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * The pack's options as Iris preprocesses its id maps with them: block.properties and
- * item.properties see every option the pack's shader files declare, at its current value, whichever
- * file declares it. Bliss defines {@code FORCE_TRANSLUCENT_GLASS} in {@code lib/settings.glsl} and
- * gates its {@code layer.translucent} line on it.
+ * The pack's options as Iris preprocesses its id maps with them. block.properties and item.properties see every
+ * option the pack's shader files declare, at its current value, whichever file declares it. Bliss, for one,
+ * defines {@code FORCE_TRANSLUCENT_GLASS} in {@code lib/settings.glsl} and tests it around its
+ * {@code layer.translucent} line.
  *
- * <p>The options are found as Iris finds them, across every file the program files include, the
- * {@code #include} lines followed whatever their conditions:</p>
- * <ul>
- *   <li>{@code #define NAME} is a switch that is on, {@code //#define NAME} one that is off; either
- *       may carry a comment. A switch counts only when a bare {@code #ifdef NAME} or
- *       {@code #ifndef NAME} line names it somewhere.</li>
- *   <li>{@code #define NAME value // [a b]} and {@code const int|float NAME = value; // [a b]} are
- *       value options: the allowed-values list is what makes them options.</li>
- * </ul>
- * The annotations are line conventions on the text, commented-out lines included, so this reads
- * lines, not GLSL tokens.
+ * Options are found as Iris finds them, in every file the program files include, following each
+ * {@code #include} whatever its conditions. {@code #define NAME} is a switch that is on and
+ * {@code //#define NAME} one that is off, either with an optional trailing comment; {@code const bool} lines are
+ * switches too. A switch counts only when a bare {@code #ifdef NAME} or {@code #ifndef NAME} line names it.
+ * {@code #define NAME value // [a b]} and {@code const int|float NAME = value; // [a b]} are value options, made
+ * options by the allowed-values list.
+ *
+ * These conventions hold on commented-out lines too, so this reads lines, not GLSL tokens.
  */
 public final class PackOptionMacros {
     private static final Pattern REFERENCE = Pattern.compile("^#(?:ifdef|ifndef)\\s+(\\w+)$");
@@ -58,11 +55,12 @@ public final class PackOptionMacros {
     }
 
     /**
-     * The macros the id maps are preprocessed with: the options the shader files declare, at their
-     * defaults, then the launcher's choices ({@code settings}). A launcher switch turned off
-     * ({@code overridden} without a value in {@code settings}) is undefined. shaders.properties'
-     * own defines are not among them, as Iris's IdMap preprocesses with options and environment
-     * defines only.
+     * The macros the id maps are preprocessed with: the options the shader files declare, with
+     * {@code settings}, the settings plan's preprocessor defines, on top. An {@code overridden} switch with no
+     * value in {@code settings} is turned off, so it stays undefined.
+     *
+     * shaders.properties' own defines are not among them, as Iris's IdMap preprocesses with options and
+     * environment defines only.
      */
     public static Map<String, String> forIdMaps(Path shadersDir, Map<String, String> settings, Set<String> overridden) {
         Declared declared = declared(shadersDir);
@@ -102,14 +100,14 @@ public final class PackOptionMacros {
                     .filter(path -> path.getFileName().toString().startsWith("world"))
                     .sorted().forEach(folders::add);
         } catch (IOException ignored) {
-            // The shaders folder alone still holds the overworld's programs.
+            // the shaders folder alone still holds the overworld's programs
         }
         for (Path folder : folders) {
             try (Stream<Path> children = Files.list(folder)) {
                 children.filter(Files::isRegularFile).filter(PackOptionMacros::isStageFile).sorted()
                         .forEach(path -> files.add(path.toAbsolutePath().normalize()));
             } catch (IOException ignored) {
-                // An unreadable folder declares nothing.
+                // an unreadable folder declares nothing
             }
         }
         return files;
@@ -139,7 +137,7 @@ public final class PackOptionMacros {
         return null;
     }
 
-    /** Whether a trailing comment lists allowed values, {@code [a b c]}. */
+    /** Whether a trailing comment lists allowed values, such as {@code [a b c]}. */
     private static boolean allowedValues(String comment) {
         int open = comment.indexOf('[');
         return open >= 0 && comment.indexOf(']', open) > open;

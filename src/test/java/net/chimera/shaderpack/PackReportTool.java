@@ -9,16 +9,14 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Developer tool: runs the offline pack analysis ({@link PackProbe}) on each
- * pack named by {@code -Dchimera.packReport.packs} (path-separator list) and
- * prints, per pack, every program's support status and its blocking reasons,
- * then the blocking reasons ranked by how many programs they touch. No GPU and
- * no game: this is the plan-only view a runtime load starts from.
+ * Developer tool: runs the offline pack analysis ({@link PackProbe}) on each pack named by
+ * {@code -Dchimera.packReport.packs}, a path-separator list. Per pack it prints every program's support
+ * status and blocking reasons, then the blocking reasons ranked by how many programs they touch. It needs
+ * no GPU and no game; this is the plan a runtime load starts from.
  *
- * <p>A reason counts as blocking when its program falls back and the reason
- * names something rejected, unsupported, missing, unmapped or invalid, or a
- * program Iris reads only as a fallback source. Informational
- * deviations (translations applied, constants injected) are left out.</p>
+ * A reason is blocking when its program falls back and the reason names something rejected, unsupported,
+ * missing, unmapped or invalid, or a program Iris reads only as a fallback source. Informational
+ * deviations, such as translations applied or constants injected, are left out.
  */
 public final class PackReportTool {
     private static final String BLOCKING =
@@ -47,7 +45,7 @@ public final class PackReportTool {
         List<String> disabled = analysis.resolution().disabledPrograms();
         for (ConformanceReport.ProgramReport program : report.programs()) {
             if (analysis.plan().isProgramDisabled(program.name())) {
-                // The pack switches it off for the selected options, as Iris does: not a fallback.
+                // the pack switches it off for the selected options, as under Iris; not a fallback
                 lines.add(String.format("  %-34s %-26s", program.name(), "DISABLED_BY_PACK"));
                 continue;
             }

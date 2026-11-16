@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
 /**
- * Creates the image VulkanMod allocates while TargetFormatViews is preparing one as mutable, so
- * views in other formats of its texel size can read it.
+ * While TargetFormatViews prepares an image, VulkanMod creates it with a mutable format, so views in other
+ * formats of the same texel size can read it.
  */
 @Mixin(value = MemoryManager.class, remap = false)
 public abstract class ChimeraMutableImageMixin {

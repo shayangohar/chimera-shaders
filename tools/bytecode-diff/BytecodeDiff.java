@@ -75,7 +75,7 @@ public class BytecodeDiff {
 
         collect(b, forward, bSwitch, bMethods, bAccess, bFields, null);
         collect(a, identity, aSwitch, aMethods, aAccess, aFields, null);
-        // Class literals of remapped types in the before tree change getName()/getSimpleName().
+        // class literals of remapped types in the before tree change getName() and getSimpleName()
         for (ClassNode c : b.values()) {
             for (MethodNode m : c.methods) {
                 for (AbstractInsnNode insn : m.instructions) {
@@ -113,8 +113,8 @@ public class BytecodeDiff {
         }
         for (String key : aMethods.keySet()) if (!bMethods.containsKey(key)) added.add(key);
 
-        // Static initializers: compared field by field, so a static field may move between classes.
-        // Each segment is the code up to and including one PUTSTATIC; a trailing bare RETURN is dropped.
+        // static initializers compare field by field, so a static field may move between classes
+        // each segment is the code up to and including one PUTSTATIC; a trailing bare RETURN is dropped
         Map<String, List<String>> bStatics = staticSegments(bMethods);
         Map<String, List<String>> aStatics = staticSegments(aMethods);
         List<String> staticDiffs = new ArrayList<>();
@@ -498,7 +498,7 @@ public class BytecodeDiff {
                 case "rename" -> renameRules.put(p[1] + "." + p[2], p[3]);
                 case "normalize" -> {
                     String[] parts = raw.trim().substring("normalize".length()).trim().split(" => ", 2);
-                    // In a rule, \n stands for a line break in the printed body.
+                    // in a rule, \n stands for a line break in the printed body
                     normalizeRules.add(new String[] {parts[0].replace("\\n", "\n"),
                             parts.length > 1 ? parts[1].replace("\\n", "\n") : ""});
                 }

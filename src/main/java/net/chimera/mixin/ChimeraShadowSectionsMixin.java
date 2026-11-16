@@ -13,9 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * Lets the shadow pass draw the sections {@link ShadowSectionQueue} chose
- * from the light's view, through VulkanMod's ordinary section drawing. Off
- * the shadow pass both reads return the camera queues unchanged.
+ * Lets the shadow pass draw the sections {@link ShadowSectionQueue} chose from the light's view, through
+ * VulkanMod's ordinary section drawing. Outside the shadow pass both reads return the camera's queues.
  */
 @Mixin(value = WorldRenderer.class, remap = false)
 public abstract class ChimeraShadowSectionsMixin {

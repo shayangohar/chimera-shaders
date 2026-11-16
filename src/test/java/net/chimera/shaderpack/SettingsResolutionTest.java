@@ -62,7 +62,7 @@ final class SettingsResolutionTest {
             PackSettingsPlan settings = analysis.settings();
             assertEquals("2", settings.defaults().get("QUALITY"),
                     "property define default for " + dimension);
-            // Iris preprocesses shaders.properties on its own: its defines reach no program source.
+            // Iris preprocesses shaders.properties on its own; its defines reach no program source
             assertTrue(!settings.preprocessorDefines().containsKey("QUALITY")
                             && "2".equals(settings.propertyMacros().get("QUALITY")),
                     "a shaders.properties define stays in that file for " + dimension);
@@ -161,8 +161,7 @@ final class SettingsResolutionTest {
 
     /**
      * A program whose own file cannot be read falls back to the program Iris would draw in its place,
-     * and its report row keeps the scan's SOURCE_READ_FAILED, which says why. The alias's inventory
-     * replaced the row's and dropped it.
+     * and its report row keeps the scan's SOURCE_READ_FAILED, which says why, under the alias's inventory.
      */
     @Test
     void aFallbackForAnUnreadableFileKeepsItsReadFailure(@TempDir Path root) throws IOException {
@@ -175,7 +174,7 @@ final class SettingsResolutionTest {
                 #version 120
                 void main() { gl_FragData[0] = vec4(1.0); }
                 """);
-        // Malformed UTF-8, which Files.readString refuses.
+        // malformed UTF-8, which Files.readString refuses
         Files.write(shaders.resolve("gbuffers_terrain.fsh"), new byte[] {(byte) 0xC3, (byte) 0x28});
         PackProbe.Analysis analysis = PackProbe.analyze(root);
         assertEquals("gbuffers_textured", analysis.resolution().resolution("gbuffers_terrain").selectedProgram());
@@ -211,8 +210,8 @@ final class SettingsResolutionTest {
         PackProbe.Analysis analysis = PackProbe.analyze(pack);
         boolean eligible = false;
         for (ConformanceReport.ProgramReport program : analysis.report().programs()) {
-            // An authored-empty cloud program has no pipeline to build, but the runtime installs it
-            // as drawing nothing, so the report counts it as attempted.
+            // an authored-empty cloud program has no pipeline to build, but the runtime installs it
+            // as drawing nothing, so the report counts it as attempted
             PackProgramPlan plan = analysis.plan().program(program.name());
             boolean planned = analysis.plan().shouldAttempt(program.name())
                     || plan != null && plan.cloudDrawsNothing();

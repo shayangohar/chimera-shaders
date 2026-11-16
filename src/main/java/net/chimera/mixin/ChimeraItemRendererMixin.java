@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Iris MixinItemRenderer: while an item renders, its id is the current rendered item, and a block
+ * As Iris's MixinItemRenderer: while an item renders, its id is the current rendered item id, and a block
  * item's blockEntityId is 1.
  */
 @Mixin(ItemRenderer.class)

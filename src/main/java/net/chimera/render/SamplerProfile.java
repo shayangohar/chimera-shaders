@@ -18,16 +18,14 @@ import static org.lwjgl.opengl.GL11.GL_REPEAT;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 
 /**
- * The sampler a draw samples an image with, and how: VulkanMod's OpenGL-style sampler key
- * (filters with their mip mode, wrap modes, LOD range and bias). A null key means only the Vulkan
- * sampler is known; anything derived from the profile then falls back to that sampler rather than
- * guess its fields.
+ * The sampler a draw samples an image with and, when known, VulkanMod's OpenGL-style key for it (filters with
+ * their mip mode, wrap modes, LOD range and bias). With a null key only the Vulkan sampler is known, and
+ * anything derived from the profile uses that sampler as is.
  */
 public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
-    /** The level-of-detail bias VulkanMod gives every mipmapped sampler it builds from flags (MIP_BIAS). */
+    /** The LOD bias VulkanMod gives every mipmapped sampler it builds from flags (MIP_BIAS). */
     static final float HOST_MIP_BIAS = -0.5F;
 
-    /** ID-only profile: the sampler exists, its fields were never observed. */
     public static SamplerProfile ofId(long id) {
         return new SamplerProfile(id, null);
     }
@@ -39,28 +37,28 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     }
 
     /**
-     * This profile as OpenGL samples {@code image} for Iris, for a pack draw. A sampler VulkanMod
-     * built from texture flags loses VulkanMod's {@link #HOST_MIP_BIAS}, which picks mip levels half
-     * a level finer and which Vulkan adds to an explicit textureLod too. It also clamps to the edge
-     * where vanilla's upload asked (EdgeClampedImages), which VulkanMod drops. Any other sampler is
-     * kept, and VulkanMod's own draws keep theirs.
+     * This profile as OpenGL samples {@code image} under Iris, for a pack draw. A sampler VulkanMod built from
+     * texture flags drops VulkanMod's {@link #HOST_MIP_BIAS}, which picks mip levels half a level finer and
+     * which Vulkan also adds to an explicit textureLod. It also clamps to the edge where vanilla's upload asked
+     * for that (EdgeClampedImages), which VulkanMod ignores. Any other sampler is kept as is; VulkanMod's own
+     * draws keep their samplers.
      */
     public SamplerProfile asGl(VulkanImage image) {
         SamplerManager.SamplerKey gl = glKey(flagKey(id), EdgeClampedImages.contains(image));
         return gl == null ? this : new SamplerProfile(SamplerManager.getTextureSampler(gl), gl);
     }
 
-    /** True when every field needed to derive a sampler is known. */
     public boolean complete() {
         return key != null;
     }
 
     /**
-     * This profile's sampling, clamped to the base level when {@code baseLevelOnly}; null when the
-     * profile is incomplete. A {@code nearest} map reads the nearest texel of the nearest level, as
-     * Iris sets a labPBR specular map (TextureFormat.setupTextureParameters: GL_NEAREST_MIPMAP_NEAREST
-     * when mipmapped). Its classes (metal indices, emission 255 for none) must not blend between
-     * levels: Reverie read a level blend of 255 and 0 as half emission, and distant grass glowed.
+     * This profile's sampling, clamped to the base level when {@code baseLevelOnly}; null when the key is
+     * unknown. A {@code nearest} map reads the nearest texel of the nearest level, as Iris sets up a labPBR
+     * specular map (TextureFormat.setupTextureParameters: GL_NEAREST_MIPMAP_NEAREST when mipmapped).
+     *
+     * Its class values (metal indices, emission 255 for none) must not blend between levels: a blend of 255
+     * and 0 reads as half emission, and distant grass glows in Reverie.
      */
     public SamplerManager.SamplerKey derive(boolean nearest, boolean baseLevelOnly) {
         if (key == null) return null;
@@ -71,7 +69,6 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
                 Math.min(key.minLod(), maxLod), maxLod, key.lodBias(), key.compareMode(), key.compareFunc());
     }
 
-    /** GL_NEAREST_MIPMAP_NEAREST for any mipmapped filter, else GL_NEAREST. */
     static int nearestOf(int minFilter) {
         boolean mipmapped = minFilter == GL_NEAREST_MIPMAP_NEAREST || minFilter == GL_LINEAR_MIPMAP_NEAREST
                 || minFilter == GL_NEAREST_MIPMAP_LINEAR || minFilter == GL_LINEAR_MIPMAP_LINEAR;
@@ -90,8 +87,8 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     }
 
     /**
-     * The flags (low byte) and mip ceiling (high byte) VulkanMod built {@code sampler} from, as its
-     * texture-sampler cache keys them; -1 when the sampler is not in that cache.
+     * The flags (low byte) and mip ceiling (high byte) VulkanMod built {@code sampler} from, as its texture
+     * sampler cache keys them; -1 when the sampler is not in that cache.
      */
     private static int flagKey(long sampler) {
         if (sampler == 0L) return -1;
@@ -102,9 +99,8 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     }
 
     /**
-     * The key of the flag sampler {@code packed} (flagKey) at bias 0, clamped to the edge when
-     * {@code clampToEdge}; null when that changes nothing, or it is not a flag sampler with an
-     * OpenGL form.
+     * The key of the flag sampler {@code packed} (see flagKey) at bias 0, clamped to the edge when
+     * {@code clampToEdge}; null when that changes nothing or the sampler has no OpenGL form.
      */
     static SamplerManager.SamplerKey glKey(int packed, boolean clampToEdge) {
         SamplerManager.SamplerKey host = packed < 0 ? null : legacyKey((short) packed);
@@ -116,9 +112,9 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     }
 
     /**
-     * The OpenGL-style key of a texture sampler VulkanMod built from its flags (texture parameters):
-     * the flags in the low byte and the mip ceiling in the high byte, mipmapped levels biased by
-     * {@link #HOST_MIP_BIAS}. A min/max reduction sampler has no OpenGL form, so it stays unknown.
+     * The OpenGL-style key of a texture sampler VulkanMod built from flags, with the flags in the low byte of
+     * {@code packed} and the mip ceiling in the high byte; mipmapped samplers carry {@link #HOST_MIP_BIAS}.
+     * A min/max reduction sampler has no OpenGL form and returns null.
      */
     static SamplerManager.SamplerKey legacyKey(short packed) {
         int flags = packed & 0xFF;

@@ -30,13 +30,14 @@ import static org.lwjgl.vulkan.KHRDynamicRendering.VK_KHR_DYNAMIC_RENDERING_EXTE
 import static org.lwjgl.vulkan.VK11.vkGetPhysicalDeviceFeatures2;
 
 /**
- * Enables what Chimera needs on VulkanMod's logical device: the features pack GLSL compiles to,
- * where the device offers them, as a GL driver offers them all (ChimeraDevice's tables), among them
- * independentBlend for per-attachment blend and write masks and geometryShader for a pack
- * program's .gsh stage; drawIndirectFirstInstance, which VulkanMod's indirect terrain draws need;
- * VK_KHR_dynamic_rendering with its feature, which Chimera's windows render with (ChimeraDevice);
- * and the device extensions pack GLSL compiles to. The device it creates is the PackDevice pack
- * GLSL compiles for.
+ * Enables what Chimera needs on VulkanMod's logical device.
+ *
+ * Pack GLSL compiles to the features in ChimeraDevice's tables, which a GL driver offers all of; each is
+ * enabled where the device offers it. Among them are independentBlend, for per-attachment blend and write
+ * masks, and geometryShader, for a pack program's .gsh stage. drawIndirectFirstInstance serves VulkanMod's
+ * indirect terrain draws, and VK_KHR_dynamic_rendering with its feature serves Chimera's pack windows. The
+ * pack device extensions are added where offered, and the device created is recorded as the PackDevice
+ * pack GLSL compiles for.
  */
 @Mixin(value = DeviceManager.class, remap = false)
 public abstract class ChimeraDeviceFeaturesMixin {
@@ -85,20 +86,20 @@ public abstract class ChimeraDeviceFeaturesMixin {
         }
         if (enabled.tessellationShader()) chimera$features.add("tessellationShader");
         // VulkanMod's terrain draws carry each section's offset in firstInstance
-        // (DrawBuffers.buildDrawBatchesIndirect), and an indirect draw may set it only with this feature.
+        // (DrawBuffers.buildDrawBatchesIndirect); an indirect draw may set it only with this feature
         if (available.drawIndirectFirstInstance()) enabled.drawIndirectFirstInstance(true);
         if (enabled.drawIndirectFirstInstance()) {
             chimera$features.add("drawIndirectFirstInstance");
         } else if (DeviceManager.supportsFastIndirectDraw()) {
-            // Without fast indirect draw VulkanMod draws terrain directly, where firstInstance needs no feature.
+            // without fast indirect draw VulkanMod draws terrain directly, where firstInstance needs no feature
             LOGGER.warn("[chimera] no drawIndirectFirstInstance; with Indirect Draw on, terrain may draw out of place");
         }
-        // A pack's blend directives and the buffers a program leaves unwritten differ per attachment.
+        // a pack's blend directives and the buffers a program leaves unwritten differ per attachment
         ChimeraDevice.setIndependentBlend(enabled.independentBlend());
         if (!enabled.independentBlend()) {
             LOGGER.warn("[chimera] no independentBlend; a pass with per-attachment blends draws unblended");
         }
-        // A pack program's .gsh stage; Iris's Vulkan path refuses one without the feature too.
+        // without it, a program with a .gsh stage fails to build (HostPipelineLayout)
         ChimeraDevice.setGeometryShader(enabled.geometryShader());
         return enabled;
     }
@@ -138,8 +139,8 @@ public abstract class ChimeraDeviceFeaturesMixin {
 
     /**
      * Puts the offered Vulkan 1.2 features and dynamic rendering on the chain VulkanMod hands
-     * vkCreateDevice, once the host has chained all of its own structs (DeviceFeatureChain, audit
-     * LD5). New structs live on the caller's stack frame, which outlasts vkCreateDevice.
+     * vkCreateDevice, once the host has chained all of its own structs (DeviceFeatureChain). New structs
+     * live on the caller's stack frame, which outlasts vkCreateDevice.
      */
     @ModifyArg(
             method = "createLogicalDevice",

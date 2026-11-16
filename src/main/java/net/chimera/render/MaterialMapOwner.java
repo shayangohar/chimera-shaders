@@ -21,21 +21,18 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Owns resource-pack material images for one renderer lifetime.
+ * Owns the resource pack's normal and specular map images for one renderer lifetime.
  *
- * <p>Fallback core first: two permanent 1x1 images with the contractual
- * flat texels, so material-capable programs always bind something valid.
- * Static atlas companions join here: the upload mixin reports stitched
- * layouts, the pump builds exact-layout companions at a safe render-thread
- * seam, and draws resolve them by exact albedo identity. Simple-texture
- * companions follow draw-observed entity images, reload generations retire
- * stale identities, and animated maps tick with their atlas and rewrite
- * only their own slots.</p>
+ * Two permanent 1x1 images hold the flat texels, so a material program always binds something valid. The
+ * atlas upload mixin reports each stitched layout; the pump builds a companion in the same layout on the
+ * render thread, and a draw finds it by its exact albedo image. A non-atlas texture, such as an entity's, gets
+ * a companion once a draw binds it and the pump finds its resource; a resource reload retires these.
+ * Animated maps tick with their atlas and rewrite only their own slots.
  */
 public final class MaterialMapOwner implements AutoCloseable {
     static final Logger LOGGER = LoggerFactory.getLogger(MaterialMapOwner.class);
 
-    /** Material sampler name, resource-pack suffix, and canonical flat texel. */
+    /** Sampler name, resource-pack file suffix and flat fallback texel (ABGR). */
     public enum MaterialMapKind {
         NORMALS("normals", "_n", 0xFFFF7F7F),
         SPECULAR("specular", "_s", 0x00000000);
@@ -69,80 +66,72 @@ public final class MaterialMapOwner implements AutoCloseable {
     private final CompanionFactory companionFactory;
     private final MaterialSamplerFactory materialSamplerFactory;
     private final Object companionsLock = new Object();
-    /** Latest pending upload per atlas location; the pump drains this on the render thread. */
+    /** Latest pending upload per atlas location; the pump drains it on the render thread. */
     private final Map<String, PendingUpload> pendingUploads = new LinkedHashMap<>();
     /**
-     * Atlas ticks seen since an atlas upload that has not been built yet.
-     * The build fast-forwards its animations by this count, so maps keep
-     * lockstep with the albedo, which starts ticking at upload.
+     * Atlas ticks since an upload that is not built yet. The albedo starts ticking at upload, so the build
+     * fast-forwards its animations by this count to keep step.
      */
     private final Map<String, Integer> ticksSinceUpload = new LinkedHashMap<>();
-    /** Built companions per atlas location, keyed by exact base-image identity. */
+    /** Built companions per atlas location, each tied to the exact base image it was built for. */
     private final Map<String, BuiltAtlas> builtAtlases = new LinkedHashMap<>();
-    /** Draw-observed non-atlas albedo images awaiting pump-time identification. */
+    /** Non-atlas albedo images seen at draw time, waiting for the pump to identify them. */
     private final Set<VulkanImage> wantedSimple =
             Collections.newSetFromMap(new IdentityHashMap<>());
-    /** Resolved simple-texture companions by exact albedo identity. */
+    /** Simple-texture companions by exact albedo image. */
     private final Map<VulkanImage, SimpleCompanion> simpleCompanions =
             new IdentityHashMap<>();
-    /** Albedo images proven to have no maps; never re-scanned within a generation. */
+    /** Albedo images known to have no maps; not scanned again within a generation. */
     private final Set<VulkanImage> simpleMisses =
             Collections.newSetFromMap(new IdentityHashMap<>());
     /** Companion sets retired by a generation bump, closed at the next pump. */
     private final List<AutoCloseable> retiredCompanions = new ArrayList<>();
-    /** Resource-reload generation; invalidates built companions and identity caches. */
+    /** Resource-reload generation, zero before the first reload; a bump retires the simple-texture caches. */
     private int generation;
-    /** Cap on queued unknowns per pump so one frame cannot grow the queue without bound. */
+    /** Cap on queued unknown images, so one frame cannot grow the queue without bound. */
     private static final int MAX_SIMPLE_WANTED = 256;
     private boolean closed;
 
     /**
-     * One stitched sprite, copied out of the upload preparations. The
-     * origin is the padded slot origin while width/height are the logical
-     * content dimensions; the paddings recover the replicated border the
-     * stitcher placed around the content. Only square borders are
-     * supported: X and Y padding must agree.
+     * One stitched sprite, copied out of the upload preparations. The origin is the padded slot's, while
+     * width and height are the content's; the padding is the replicated border the stitcher put around the
+     * content. Only square borders are supported, so X and Y padding must agree.
      */
     public record AtlasSprite(String id, String namespace, String path, int x, int y, int width,
             int height, int padX, int padY) {}
 
-    /** Immutable snapshot of one {@code TextureAtlas.upload} call. */
+    /** Snapshot of one {@code TextureAtlas.upload} call. */
     public record AtlasUpload(String location, int width, int height, int mipLevels,
             List<AtlasSprite> sprites) {}
 
     /**
-     * Opens one resource-pack file for reading. Returns empty when the file
-     * is absent (a missing map is a fallback, not an error). The owner
-     * closes every stream it receives.
+     * Opens a resource-pack file; empty when it is absent, since a missing map just means the fallback. The
+     * owner closes every stream it gets.
      */
     public interface ResourceLookup {
         Optional<InputStream> open(String namespace, String path);
     }
 
-    /** Decoded material file: ABGR pixels matching {@link MaterialMapPixels}. */
+    /** Decoded material file, as ABGR pixels in {@link MaterialMapPixels}'s packing. */
     public record DecodedImage(int[] pixels, int width, int height) {}
 
-    /** Converts a PNG stream to ABGR pixels. Production uses NativeImage; tests use ImageIO. */
+    /** Decodes a PNG stream to ABGR pixels: through NativeImage in game, ImageIO in tests. */
     public interface MapImageDecoder {
         DecodedImage decode(InputStream in) throws IOException;
     }
 
-    /** One resource-backed simple texture: its albedo image plus its resource identity. */
+    /** A resource-backed simple texture's albedo image and the resource it came from. */
     public record SimpleEntry(VulkanImage image, String namespace, String path) {}
 
-    /**
-     * Live resource-backed simple textures for pump-time identity matching.
-     * Production enumerates {@code TextureManager} through the narrow
-     * accessor; tests substitute a map-backed fake.
-     */
+    /** The live resource-backed simple textures, enumerated from {@code TextureManager} in game. */
     public interface SimpleTextureSource {
         List<SimpleEntry> entries();
     }
 
-    /** One mip chain of ABGR pixels for a single companion texture. */
+    /** One mip level of a companion, as ABGR pixels. */
     public record LevelPixels(int[] pixels, int width, int height) {}
 
-    /** GPU backing for one kind's companion. Tests substitute a recording fake. */
+    /** GPU image behind one kind's companion. */
     public interface CompanionSet extends AutoCloseable {
         VulkanImage image();
 
@@ -152,7 +141,7 @@ public final class MaterialMapOwner implements AutoCloseable {
         @Override void close();
     }
 
-    /** Allocates GPU storage for one kind's companion and uploads its levels. */
+    /** Allocates one kind's companion image and uploads its levels. */
     public interface CompanionFactory {
         CompanionSet build(String location, MaterialMapKind kind, int width, int height,
                 List<LevelPixels> levels);
@@ -160,7 +149,7 @@ public final class MaterialMapOwner implements AutoCloseable {
 
     private record PendingUpload(AtlasUpload upload, VulkanImage baseImage) {}
 
-    /** One animated map in a built companion: where it lives and what it shows now. */
+    /** An animated map in a built companion: where it sits and what it shows now. */
     private static final class AnimatedSlot {
         final MaterialMapKind kind;
         final AtlasSprite sprite;
@@ -202,13 +191,10 @@ public final class MaterialMapOwner implements AutoCloseable {
         }
     }
 
-    /** One resolved companion image plus the labPBR mode it was built under. */
+    /** A companion image, the labPBR mode it was built under, and whether it belongs to a simple texture. */
     private record CompanionMatch(VulkanImage image, boolean labPbr, boolean simple) {}
 
-    /**
-     * The Vulkan sampler for a derived material sampler key. Production takes VulkanMod's cached
-     * sampler for the key; tests record the requested keys.
-     */
+    /** The Vulkan sampler for a derived sampler key; in game, VulkanMod's cached sampler for the key. */
     public interface MaterialSamplerFactory {
         long sampler(SamplerManager.SamplerKey key);
     }
@@ -224,7 +210,7 @@ public final class MaterialMapOwner implements AutoCloseable {
         this.materialSamplerFactory = materialSamplerFactory;
     }
 
-    /** Test and forward seam: an owner over prebuilt images without GPU allocation. */
+    /** Test seam: an owner over prebuilt fallback images that allocates nothing on the GPU. */
     public static MaterialMapOwner withImages(VulkanImage normalsImage, VulkanImage specularImage) {
         return withImages(normalsImage, specularImage, (location, kind, width, height, levels) -> {
             throw new UnsupportedOperationException("MATERIAL_MAP_NO_GPU:test owner");
@@ -248,9 +234,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Allocates the two permanent flat fallbacks on the calling thread.
-     * Call only where GPU uploads are legal (pack install on the render
-     * thread); never during a draw.
+     * Allocates the two permanent flat fallbacks on the calling thread. Call only on the render thread where
+     * uploads are allowed, such as a pack install or the frame-boundary pump; never during a draw.
      */
     public static MaterialMapOwner create() {
         FlatImage normals = flat(MaterialMapKind.NORMALS);
@@ -289,17 +274,15 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Resolves one material sampler to its current image. Atlas companions
-     * build beside this path, but descriptors keep answering the flat
-     * fallbacks; draws that know their albedo image resolve the companion
-     * by exact identity (see {@link #companionFor}). Unknown names fail loudly so
-     * a bad manifest entry can never silently bind the wrong map.
+     * The flat fallback for a material sampler. A draw that knows its albedo image finds the companion
+     * instead ({@link #companionFor}, {@link #resolveDrawMaterial}). An unknown name throws, so a bad
+     * manifest entry cannot bind the wrong map.
      */
     public VulkanImage image(String sampler) {
         return snapshot(sampler).image();
     }
 
-    /** Full binding answer including the exact sampler override. */
+    /** The flat fallback for a material sampler, with its own sampler. */
     public ChimeraTextureBindingState.Snapshot snapshot(String sampler) {
         MaterialMapKind kind = MaterialMapKind.forSampler(sampler);
         if (kind == null) {
@@ -311,9 +294,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Queues one stitched atlas for companion building. Keeps only immutable
-     * metadata, so the upload path never blocks on file or GPU work. The
-     * latest upload per location wins.
+     * Queues one stitched atlas for companion building; the latest upload per location wins. Keeps metadata
+     * only, so the upload path never waits on file or GPU work.
      */
     public void noteAtlasUpload(AtlasUpload upload, VulkanImage baseImage) {
         if (upload == null || baseImage == null || upload.sprites().isEmpty()) return;
@@ -325,10 +307,9 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * One {@code TextureAtlas.cycleAnimationFrames} call for {@code location}:
-     * advances every animated map of that atlas by one tick, as the game
-     * advances the albedo. Marks changed slots for the next pump; never
-     * touches the GPU.
+     * One {@code TextureAtlas.cycleAnimationFrames} call for {@code location}: advances the atlas's animated
+     * maps by one tick, as the game advances the albedo, and marks changed slots for the next pump. Before the
+     * atlas is built, counts the tick for the build to catch up. Never touches the GPU.
      */
     public void tickAtlas(String location) {
         synchronized (companionsLock) {
@@ -342,20 +323,17 @@ public final class MaterialMapOwner implements AutoCloseable {
         }
     }
 
-    /**
-     * Builds every queued atlas companion. Runs on the render thread at a
-     * safe seam: no render pass is open and no draw can observe a half-built
-     * companion. A failed atlas build keeps the previous companions and
-     * warns; it never throws out of the pump.
-     */
     public void pumpPendingBuilds(ResourceLookup lookup, MapImageDecoder decoder) {
         pumpPendingBuilds(lookup, decoder, null);
     }
 
     /**
-     * Full pump: atlas companions, then simple-texture identification, then
-     * retirement of the previous generation. A null source skips the simple
-     * step and leaves the wanted queue for the next pump.
+     * Builds queued atlas companions, identifies wanted simple textures, writes changed animated slots and
+     * closes retired sets. Runs on the render thread at the frame boundary, where no draw can see a half-built
+     * companion.
+     *
+     * A failed atlas build warns and keeps the previous companions. A null source skips simple textures and
+     * leaves their queue for the next pump.
      */
     public void pumpPendingBuilds(ResourceLookup lookup, MapImageDecoder decoder,
             SimpleTextureSource source) {
@@ -386,10 +364,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Writes every animated slot that changed since the last pump: each mip
-     * level, including its replicated padding, at the slot's own origin.
-     * Runs at the pump, where no render pass is open. A failed write warns
-     * and leaves that slot showing its last good frame.
+     * Writes every animated slot that changed since the last pump: each mip level, with its replicated
+     * padding, at the slot's own origin. A failed write warns and leaves that slot on its last good frame.
      */
     private void flushAnimations() {
         synchronized (companionsLock) {
@@ -428,23 +404,20 @@ public final class MaterialMapOwner implements AutoCloseable {
         }
     }
 
-    /** Current resource-reload generation; zero before the first reload. */
     public int generation() {
         synchronized (companionsLock) {
             return generation;
         }
     }
     /**
-     * Advances the resource-reload generation. TextureManager re-registers
-     * every texture on reload, so simple identity caches retire here: their
-     * GPU sets close at the next pump and misses re-queue from live draws.
-     * Built atlas companions and pending uploads stay: the reload's own
-     * re-stitch displaces stale atlas entries, and retiring here would kill
-     * companions the pump built earlier in the same reload (the listener
-     * applies after texture work, so a bump always lands after fresh
-     * builds). Stale atlas entries are unreachable by construction: draws
-     * bind the new base image, which resolves only to its own companions
-     * or to flat fallbacks. Returns the new generation.
+     * Starts a new resource-reload generation and returns it.
+     *
+     * TextureManager registers every texture again on reload, so the simple-texture caches retire: their sets
+     * close at the next pump, and live draws queue the images again. Built atlas companions and pending uploads
+     * stay: the reload's re-stitch replaces the old atlas entries, and the reload listener applies after that
+     * texture work, so retiring them here would close companions already built for the new atlases. An old
+     * entry cannot be reached anyway: draws bind the new base image, which finds only its own companions or
+     * the flat fallbacks.
      */
     public int bumpGeneration() {
         synchronized (companionsLock) {
@@ -475,9 +448,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Notes one draw-time albedo image for simple-texture identification.
-     * Atlas bases and cached identities return immediately; anything else
-     * queues once for the next pump. Metadata only, safe during a draw.
+     * Notes an albedo image a draw binds, for simple-texture identification. Atlas bases and known images
+     * return at once; anything else queues once for the next pump. Safe during a draw.
      */
     public void noteDrawAlbedo(VulkanImage base) {
         synchronized (companionsLock) {
@@ -490,12 +462,11 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Draw-time material resolution from an immutable captured draw
-     * context. Atlas and simple companions answer with the context's
-     * sampler policy; anything else falls back to the flat maps. The
-     * transaction still owns rollback around this call. The context is
-     * captured once per draw before the transaction, so this method never
-     * re-queries mutable global slot state.
+     * The material image and sampler for one draw. A companion of the draw's albedo samples with a sampler
+     * derived from the draw's own; without one the flat fallback binds.
+     *
+     * The context is captured once per draw, before the binding transaction, so this never reads live slot
+     * state. The transaction still owns rollback.
      */
     public ChimeraTextureBindingState.Snapshot resolveDrawMaterial(
             DrawMaterialContext context, String sampler) {
@@ -507,8 +478,7 @@ public final class MaterialMapOwner implements AutoCloseable {
         if (base != null) noteDrawAlbedo(base);
         CompanionMatch match = base == null ? null : findCompanion(base, kind);
         if (match == null || match.image() == null) {
-            // Flat fallbacks stand in for the maps, so they sample with the
-            // draw's own policy exactly like companions do.
+            // the flat fallback stands in for a map, so it samples with the draw's sampler as a companion would
             ChimeraTextureBindingState.Snapshot flat = snapshot(sampler);
             SamplerProfile profile = context.profile();
             long id = profile != null && profile.id() != 0
@@ -524,19 +494,17 @@ public final class MaterialMapOwner implements AutoCloseable {
             CompanionMatch match, MaterialMapKind kind) {
         boolean labSpecular = kind == MaterialMapKind.SPECULAR && match.labPbr();
         if (!match.simple() && !labSpecular) {
-            // Atlas normals and non-labPBR specular reuse the exact albedo sampler.
+            // atlas normals and non-labPBR specular use the albedo's sampler as is
             return drawSampler(profile, base, match);
         }
         if (profile == null) {
             return fallbackSampler(base, match);
         }
-        // Derived samplers: atlas labPBR specular filters NEAREST inside its
-        // mip levels with the source ceiling; every simple map keeps the
-        // source filter and wrap policy but clamps to LOD zero (NEAREST for
-        // labPBR specular).
+        // labPBR specular reads the nearest texel of the nearest level, keeping the draw's mip ceiling;
+        // a simple-texture map keeps the draw's filter and wrap but clamps to the base level
         SamplerManager.SamplerKey key = profile.derive(labSpecular, match.simple());
         if (key == null) {
-            // The draw sampler ID is still meaningful; only derivation is impossible.
+            // the profile's fields are unknown, but its sampler id is still the draw's
             return drawSampler(profile, base, match);
         }
         synchronized (companionsLock) {
@@ -544,7 +512,7 @@ public final class MaterialMapOwner implements AutoCloseable {
         }
     }
 
-    /** The draw's own sampler ID when it has one, else the fallback. */
+    /** The draw's own sampler when it has one, else the base image's or the companion's. */
     private static long drawSampler(SamplerProfile profile, VulkanImage base, CompanionMatch match) {
         if (profile != null && profile.id() != 0) return profile.id();
         return fallbackSampler(base, match);
@@ -707,8 +675,7 @@ public final class MaterialMapOwner implements AutoCloseable {
                 closeUnused(sets, "[chimera] material maps: late companion close failed");
                 return;
             }
-            // The albedo has been ticking since its upload; catch the maps up
-            // so both show the same point of their schedules.
+            // the albedo has ticked since its upload; catch the maps up to the same point in their schedules
             Integer missed = ticksSinceUpload.remove(upload.location());
             for (int tick = 0; missed != null && tick < missed; tick++) {
                 for (AnimatedSlot slot : animated) {

@@ -22,11 +22,12 @@ import static org.lwjgl.vulkan.VK10.vkEnumerateDeviceExtensionProperties;
 import static org.lwjgl.vulkan.VK11.vkGetPhysicalDeviceProperties2;
 
 /**
- * What Chimera enables on VulkanMod's logical device (ChimeraDeviceFeaturesMixin). Chimera's
- * windows render with VK_KHR_dynamic_rendering, which VulkanMod leaves off; without it no shader
- * pack can run, and Chimera keeps VulkanMod's own rendering. The independentBlend feature lets a
- * window's attachments blend and mask writes differently. The features and extensions pack GLSL
- * compiles to are the PackDevice it is created as.
+ * What Chimera enables on VulkanMod's logical device (ChimeraDeviceFeaturesMixin).
+ *
+ * Chimera's windows render with VK_KHR_dynamic_rendering, which VulkanMod leaves off; without it no pack can
+ * run and Chimera keeps VulkanMod's own rendering. independentBlend lets a window's attachments blend and mask
+ * writes differently. Pack GLSL compiles for the device's features and extensions as {@link #describe} gives
+ * them.
  */
 public final class ChimeraDevice {
     /** A feature flag in a Vulkan features struct: its member name, read and written. */
@@ -104,13 +105,13 @@ public final class ChimeraDevice {
             vulkan12("shaderSharedInt64Atomics", VkPhysicalDeviceVulkan12Features::shaderSharedInt64Atomics,
                     VkPhysicalDeviceVulkan12Features::shaderSharedInt64Atomics));
 
+    // set as VulkanMod creates the device (ChimeraDeviceFeaturesMixin); false before
     private static volatile boolean dynamicRendering;
     private static volatile boolean independentBlend;
     private static volatile boolean geometryShader;
 
     private ChimeraDevice() {}
 
-    /** True once the device was created with dynamic rendering. */
     public static boolean dynamicRendering() {
         return dynamicRendering;
     }
@@ -119,7 +120,6 @@ public final class ChimeraDevice {
         dynamicRendering = enabled;
     }
 
-    /** True once the device was created with independentBlend. */
     public static boolean independentBlend() {
         return independentBlend;
     }
@@ -128,7 +128,7 @@ public final class ChimeraDevice {
         independentBlend = enabled;
     }
 
-    /** True once the device was created with geometryShader, which a pack's .gsh stage runs on. */
+    /** Whether the device has geometryShader, which a pack's .gsh stage needs. */
     public static boolean geometryShader() {
         return geometryShader;
     }
@@ -137,7 +137,7 @@ public final class ChimeraDevice {
         geometryShader = enabled;
     }
 
-    /** {@code device} created with {@code features} and {@code extensions}, as pack GLSL compiles for it. */
+    /** The PackDevice pack GLSL compiles for, from the features and extensions {@code device} is created with. */
     public static PackDevice describe(VkPhysicalDevice device, Collection<String> features,
                                       Collection<String> extensions) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -176,7 +176,7 @@ public final class ChimeraDevice {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer count = stack.ints(0);
             vkEnumerateDeviceExtensionProperties(device, (String) null, count, null);
-            // A device lists a few hundred extensions of 260 bytes each: too many for the stack.
+            // a device lists a few hundred extensions of 260 bytes each, too many for the stack
             try (VkExtensionProperties.Buffer extensions = VkExtensionProperties.malloc(count.get(0))) {
                 vkEnumerateDeviceExtensionProperties(device, (String) null, count, extensions);
                 for (VkExtensionProperties extension : extensions) {

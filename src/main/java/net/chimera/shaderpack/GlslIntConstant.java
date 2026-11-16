@@ -6,20 +6,21 @@ import java.util.OptionalInt;
 import java.util.function.LongBinaryOperator;
 
 /**
- * An integral constant expression of literals, read as GL reads an array size: decimal, octal and
- * hexadecimal integer literals with or without {@code u}, parentheses, unary {@code + - ~} and the
- * binary {@code * / % + - << >> & ^ |} with C's precedence. Photon sizes its histogram varying
- * {@code vec4[HISTOGRAM_BINS / 4]}, which reaches translation as {@code vec4[32 / 4]}. A name reads
- * only as one of the constants the caller passes (a file-scope {@code const int}); any other name, a
- * float, a comparison, or a value GL leaves undefined (division by zero, a shift outside 0..31, a
- * result outside {@code int}) is not read.
+ * Reads an integral constant expression as GL reads an array size: decimal, octal and hexadecimal integer
+ * literals with or without {@code u}, parentheses, unary {@code + - ~} and binary {@code * / % + - << >> & ^ |}
+ * with C's precedence. Photon's histogram varying {@code vec4[HISTOGRAM_BINS / 4]} reaches translation as
+ * {@code vec4[32 / 4]}.
+ *
+ * A name reads only as one of the constants the caller passes, such as a file-scope {@code const int}. Any
+ * other name, a float, a comparison, or a value GL leaves undefined (division by zero, a shift outside 0..31,
+ * a result outside {@code int}) is not read.
  */
 final class GlslIntConstant {
     /** Binary operators, binding tighter as the level rises; each level is left-associative. */
     private static final List<List<String>> LEVELS = List.of(List.of("|"), List.of("^"), List.of("&"),
             List.of("<<", ">>"), List.of("+", "-"), List.of("*", "/", "%"));
 
-    /** An expression this does not read; it carries no stack trace. */
+    /** An expression this does not read; thrown without a stack trace. */
     private static final class Unreadable extends RuntimeException {
         Unreadable() {
             super(null, null, false, false);
@@ -63,7 +64,7 @@ final class GlslIntConstant {
         return left;
     }
 
-    /** Each binary operator on two longs; a divisor of zero or a shift outside 0..31 is not read. */
+    /** Evaluated on longs so {@code checked} can refuse a result outside {@code int}. */
     private static final Map<String, LongBinaryOperator> OPERATORS = Map.of(
             "|", (left, right) -> left | right,
             "^", (left, right) -> left ^ right,

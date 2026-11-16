@@ -10,22 +10,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A material map's own animation table, read from its {@code .mcmeta} with
- * Minecraft's {@link AnimationMetadataSection} parser and frame-size rule.
+ * A material map's own animation table, read from its {@code .mcmeta} with Minecraft's
+ * {@link AnimationMetadataSection} parser and frame-size rule.
  *
- * <p>A map keeps its own frame order, durations and interpolation flag,
- * independent of the albedo beside it. The whole table is validated up
- * front: a frame size that does not divide the image, an out-of-range
- * frame index, or a non-positive duration rejects the map, so that one
- * sprite and kind stays flat instead of animating a wrong region.</p>
+ * A map keeps its own frame order, durations and interpolation flag, whatever the albedo beside it does. The
+ * whole table is checked up front: a frame size that does not divide the image, a frame index out of range or
+ * a non-positive duration rejects the map, so that sprite and kind stays flat instead of animating the wrong
+ * region.
  */
 record MaterialAnimationSchedule(int frameWidth, int frameHeight, int columns,
         List<MaterialAnimation.Frame> frames, boolean interpolate) {
 
     /**
-     * Parses {@code mcmeta} for an image of the given size. Returns null when
-     * the file has no {@code animation} section; throws
-     * {@link IllegalArgumentException} for an invalid table.
+     * Parses {@code mcmeta} for an image of the given size; null when it has no {@code animation} section.
+     *
+     * @throws IllegalArgumentException for an invalid table
      */
     static MaterialAnimationSchedule parse(String mcmeta, int imageWidth, int imageHeight) {
         JsonElement root = JsonParser.parseString(mcmeta);
@@ -60,7 +59,7 @@ record MaterialAnimationSchedule(int frameWidth, int frameHeight, int columns,
             frames.add(new MaterialAnimation.Frame(index, time));
         });
         if (frames.isEmpty()) {
-            // No frame list: every frame in order, as Minecraft's sprites play it.
+            // no frame list: every frame in order, as Minecraft's sprites play it
             if (section.getDefaultFrameTime() <= 0) {
                 throw new IllegalArgumentException("MATERIAL_MAP_ANIMATION:frame duration "
                         + section.getDefaultFrameTime());
@@ -73,7 +72,7 @@ record MaterialAnimationSchedule(int frameWidth, int frameHeight, int columns,
                 List.copyOf(frames), section.isInterpolatedFrames());
     }
 
-    /** True when the table cycles; a single entry is a static frame, as for the game's sprites. */
+    /** False for a single entry, which is a static frame as for the game's sprites. */
     boolean animated() {
         return frames.size() > 1;
     }

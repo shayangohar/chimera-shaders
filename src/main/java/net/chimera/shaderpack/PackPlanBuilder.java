@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Builds the one load-time source, interface, and translation plan. */
+/** Builds each program's load-time plan: its prepared sources, interface and translation. */
 public final class PackPlanBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     /** The deviation of a program whose planning threw; its argument is the failure (failureReason). */
@@ -45,7 +45,7 @@ public final class PackPlanBuilder {
     ) {
         List<PackProgramPlan> plans = new ArrayList<>();
         if (programs != null) {
-            // Each program plans from the shared, unchanging inputs alone, so the workers share them.
+            // each program plans from the shared, unchanging inputs alone, so the workers share them
             plans.addAll(PackWorkers.map((resolution == null ? PackResolutionPlan.empty() : resolution)
                     .executablePrograms(programs), program -> build(program, config, resolution, advancedResources)));
         }
@@ -89,11 +89,10 @@ public final class PackPlanBuilder {
     }
 
     /**
-     * The plan of a program whose planning threw: it does not run, and the rest of the pack plans
-     * on. The throw is a Chimera defect, so the corpus gate fails on this deviation
-     * (PackCompileTest). A stack overflow, from a source that recursed too deep, unwinds clean and
-     * falls back the same way. The plan keeps the targets its fragment declares where they still
-     * parse, as a program refused for any other reason does.
+     * The plan of a program whose planning threw. It does not run, and the rest of the pack plans on. A throw is a
+     * Chimera defect, which PackCompileTest fails on. A stack overflow from a source that recurses too deep unwinds
+     * cleanly and falls back the same way. The plan keeps the targets its fragment declares where they still parse,
+     * as a program refused for any other reason does.
      */
     static PackProgramPlan planningFailed(PackProgram program, PackConfig.PackConfigData config,
                                           Throwable failure) {
@@ -121,9 +120,9 @@ public final class PackPlanBuilder {
     }
 
     /**
-     * One program's plan, built in order: prepare the sources for their family, plan the shared
-     * interface, decide whether the program can execute, convert the vertex and fragment stages,
-     * then apply the pack-wide storage, resolution, alpha-test and blend contracts.
+     * One program's plan, built in order: prepare the sources for their family, plan the shared interface, decide
+     * whether the program can execute, convert the stages, then apply the pack-wide storage, resolution,
+     * alpha-test and blend contracts.
      */
     private static final class ProgramBuild {
         private final PackProgram program;
@@ -274,15 +273,15 @@ public final class PackPlanBuilder {
 
         /**
          * Iris core-profile names (vaPosition, modelViewMatrix) become the compatibility built-ins every converter
-         * serves. A pack's own gbuffers_line vertex keeps Iris's unbound UVs (prepareLineVertex). A fullscreen pass
-         * reads centerDepthSmooth from Iris's smoothed texture (CenterDepthSmooth). An unknown sampler2D reads unit 0:
-         * colortex0 in a fullscreen pass, the albedo texture in a world program (UnitZeroSampler).
+         * serves; a vertex under the line patch keeps its source for prepareLineVertex. A fullscreen pass reads
+         * centerDepthSmooth from Iris's smoothed texture (CenterDepthSmooth). An unknown sampler2D reads unit 0,
+         * which is colortex0 in a fullscreen pass and the albedo texture in a world program (UnitZeroSampler).
          */
         private void prepareIrisCoreProfile() {
             String overlay = stage == UniformRegistry.Stage.POST
                     || FamilyAdapterRegistry.isTerrainMaterialFamily(name) ? IrisCoreProfile.NO_OVERLAY : "UV1";
             IrisCoreProfile.Patch patch = irisPatch();
-            // Iris's core transformers serve the core names in every stage (IrisCoreProfile.servedUniforms).
+            // Iris's core transformers serve the core names in every stage (IrisCoreProfile.servedUniforms)
             eachStage((programStage, source) -> {
                 boolean vertexStage = programStage == GlslInterfaceScanner.Stage.VERTEX;
                 if (vertexStage && patch == IrisCoreProfile.Patch.LINES) return source;
@@ -297,10 +296,7 @@ public final class PackPlanBuilder {
                     UnitZeroSampler.apply(CenterDepthSmooth.apply(source, name), config, deviations, name));
         }
 
-        /**
-         * Runs one preparation over every stage the program has, in the order GL links them. A
-         * preparation written stage by stage missed the stages added after it.
-         */
+        /** Runs one preparation over every stage the program has, in the order GL links them. */
         private void eachStage(BiFunction<GlslInterfaceScanner.Stage, String, String> preparation) {
             for (GlslInterfaceScanner.Stage programStage : GlslInterfaceScanner.Stage.values()) {
                 String source = source(programStage);
@@ -330,8 +326,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * A stage's source as the pack wrote it, where Iris reads whether the stage compiles in core
-         * mode: before the modern post and terrain normalizations drop its version line.
+         * A stage's source as the pack wrote it, from which Iris reads whether the stage compiles in core mode, before
+         * the modern post and terrain normalisations drop its version line.
          */
         private String sourceAsWritten(GlslInterfaceScanner.Stage programStage) {
             return switch (programStage) {
@@ -345,8 +341,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * The file a stage's includes resolve against. The stages between vertex and fragment are
-         * prepared with their includes already expanded, as is every stage of a prepared snapshot.
+         * The file a stage's includes resolve against. The stages between vertex and fragment are prepared with their
+         * includes already expanded, as is every stage of a prepared snapshot.
          */
         private Path stageFile(GlslInterfaceScanner.Stage programStage) {
             return switch (programStage) {
@@ -357,18 +353,17 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Iris's handling of a host-layout lane rewrites the authored sources before anything
-         * reads their interface: a widened line declares and reads the screen size, glint reads
-         * the glint strength, and a lane whose format Iris does not entity-patch reads entityId as
-         * a per-draw uniform.
+         * Rewrites a host-layout lane's sources as Iris does, before anything reads their interface. A widened line
+         * declares and reads the screen size, glint reads the glint strength, and a lane whose format Iris does not
+         * entity-patch reads entityId as a per-draw uniform.
          */
         private void prepareHostLayout() {
             if (hostLayoutLane == null || vertex == null) {
                 return;
             }
             try {
-                // Iris widens every program drawn on the line layout except a pack's own
-                // gbuffers_line (ShaderAttributeInputs.newLines from the LineWidth element).
+                // Iris widens every program drawn on the line layout except a pack's own gbuffers_line
+                // (ShaderAttributeInputs.newLines, from the LineWidth element)
                 vertex = FamilyAdapterRegistry.isGlintFamily(name)
                         ? IrisCoreProfile.prepareGlintVertex(vertex, vertexFile())
                         : lineLayout()
@@ -386,10 +381,9 @@ public final class PackPlanBuilder {
 
         /**
          * The entity-style vertex preambles declare the host's inputs under vanilla's core names
-         * (GlslVertexPreambles.hostNameCollisions). A pack identifier of such a name is renamed in
-         * every stage before their interfaces are matched, so a varying keeps its pair: Mellow's
-         * entities and Reverie's shadow lanes write their own Normal, and a tessellated hand's
-         * control stage reads it.
+         * (GlslVertexPreambles.hostNameCollisions). A pack identifier with such a name is renamed in every stage
+         * before their interfaces are matched, so a varying keeps its pair. Mellow's entities write their own
+         * {@code Normal}, for one, and a tessellated hand's control stage reads it.
          */
         private void renameHostNameCollisions() {
             if (vertex == null || !usesEntityPreamble()) return;
@@ -408,10 +402,9 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Iris repairs every pair of adjacent stages, in the order GL links them, before anything
-         * matches their interfaces (CompatibilityTransformer.transformGrouped): vertex and fragment,
-         * or each pair through a geometry or tessellation stage between them. Chimera repaired only
-         * a vertex/fragment pair, and refused a geometry program with an unwritten input Iris runs.
+         * Repairs every pair of adjacent stages, in the order GL links them, before anything matches their
+         * interfaces, as Iris's CompatibilityTransformer.transformGrouped does: vertex and fragment, or each pair
+         * through a geometry or tessellation stage between them.
          */
         private void repairStageInterfaces() {
             GlslInterfaceScanner.Stage earlier = null;
@@ -428,11 +421,11 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Serves the stage values Iris fixes per program (servedStageValues). Only a program that
-         * can execute (entity families need a vertex stage) receives the host alpha test.
+         * Serves the stage values Iris fixes per program (servedStageValues). Only a program that can execute
+         * receives the host alpha test; entity families need a vertex stage.
          */
         private void injectAlphaTest() {
-            // Every stage reads Iris's values alike.
+            // every stage reads Iris's values alike
             eachStage((programStage, source) -> servedStageValues(source, stageFile(programStage)));
             if (vertex == null) {
                 return;
@@ -440,7 +433,7 @@ public final class PackPlanBuilder {
             boolean irisTests = irisAppendsAlphaTest();
             if (FamilyAdapterRegistry.isEntityLike(name) || FamilyAdapterRegistry.isParticleLike(name)
                     || FamilyAdapterRegistry.isWeatherFamily(name) || FamilyAdapterRegistry.isGlintFamily(name)) {
-                // Iris draws ENTITIES_ALPHA (the dying dragon) with gbuffers_entities alone.
+                // Iris draws ENTITIES_ALPHA (the dying dragon) with gbuffers_entities alone
                 if (irisTests) fragment = alphaTestPlan.injectDrawTest(fragment, name.equals("gbuffers_entities"));
                 if (FamilyAdapterRegistry.isEntityLike(name) && !name.equals("gbuffers_damagedblock")) {
                     fragment = EntityOverlayColor.inject(fragment);
@@ -448,13 +441,12 @@ public final class PackPlanBuilder {
                 }
             } else if (irisTests && (!FamilyAdapterRegistry.isCloudFamily(name)
                     || !AuthoredOutput.producesNothing(vertex, fragment))) {
-                // Any other program tests as its plan says (Iris ShaderCreator: the pack's
-                // alphaTest.<program>, else its key's), and an untested one is left alone. Terrain
-                // and shadow terrain test by layer and entity casters at 0.1, set per layer by the
-                // main and shadow passes (WorldRendererMixin, PackShadowPass); the sky by format
-                // (ChimeraSkyBridge); text backgrounds by their lane (TEXT_BG); clouds at a fixed
-                // reference. A cloud program that draws nothing keeps its discarding main, which is
-                // how the plan proves it (AuthoredOutput).
+                // any other program tests as its plan says, alphaTest.<program> or else its key's (Iris ShaderCreator)
+                // terrain and shadow terrain test by layer, entity casters at 0.1, set per layer by
+                // WorldRendererMixin and PackShadowPass
+                // the sky tests by format (ChimeraSkyBridge), text backgrounds by their TEXT_BG lane, clouds at a
+                // fixed reference
+                // a cloud program that draws nothing keeps its discarding main, which AuthoredOutput reads as proof
                 fragment = alphaTestPlan.injectDrawTest(fragment);
             }
             if (!FamilyAdapterRegistry.isShadowEntityFamily(name)) return;
@@ -465,10 +457,9 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Whether Iris appends the alpha test to this program's fragment: only in compatibility
-         * mode (CommonTransformer.transform's {@code !core}; the Sodium and composite core
-         * transformers never call it). A core-profile fragment, and every stage of a pack's own
-         * gbuffers_line, tests itself against alphaTestRef.
+         * Whether Iris appends the alpha test to this program's fragment, which it does only in compatibility mode
+         * (CommonTransformer.transform's {@code !core}; the Sodium and composite core transformers never call it).
+         * A core-profile fragment, and every stage of a pack's own gbuffers_line, tests itself against alphaTestRef.
          */
         private boolean irisAppendsAlphaTest() {
             return fragment != null && !IrisCoreProfile.coreMode(program.executableFragmentSource())
@@ -481,10 +472,11 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * A stage with the values Iris fixes for its program served into it, its includes expanded first. A world
-         * program's alphaTestRef reads its alpha-test reference; a post program reads the constants of a fullscreen
-         * pass (ServedUniforms.servePostValues) and keeps refusing alphaTestRef, which Iris leaves the last world
-         * draw's (UniformRegistry.IRIS_UNSERVED). A uniform Iris never sets reads its initializer
+         * A stage with the values Iris fixes for its program served into it, its includes expanded first.
+         *
+         * A world program's alphaTestRef reads its alpha-test reference. A post program reads the constants of a
+         * fullscreen pass (ServedUniforms.servePostValues) and still refuses alphaTestRef, which Iris leaves at the
+         * last world draw's value (UniformRegistry.IRIS_UNSERVED). A uniform Iris never sets reads its initialiser
          * (ServedUniforms.readInitializers). A stage whose includes do not resolve is left for the converters to
          * refuse.
          */
@@ -501,7 +493,7 @@ public final class PackPlanBuilder {
                 if (names.stream().noneMatch(served -> GlslTokenRewriter.containsIdentifier(expanded, served))) {
                     return initialized.names().isEmpty() ? source : expanded;
                 }
-                // FinalPassRenderer and ShadowCompositeRenderer apply no blend directive.
+                // Iris's FinalPassRenderer and ShadowCompositeRenderer apply no blend directive
                 boolean blends = !directiveProgram.equals("final") && !directiveProgram.startsWith("shadowcomp");
                 return post ? ServedUniforms.servePostValues(expanded,
                         blends ? PackBlendPlan.forProgram(directiveProgram, settings()).program() : null)
@@ -584,10 +576,10 @@ public final class PackPlanBuilder {
 
         /** Whether the planned sources may execute, recording each contract they break. */
         private boolean admitted() {
-            // Every check runs, so the report names every reason a program is refused.
+            // every check runs, so the report names every reason a program is refused
             boolean admitted = geometryStages.isEmpty() || geometryStageRuns() || tessellationRuns();
             if (!admitted) {
-                // A lane resolved to such a program (shadow_lines to Spring's shadow) too.
+                // so is a lane resolved to such a program, such as shadow_lines to Spring's shadow
                 deviations.add("UNSUPPORTED_PACK_STAGE");
             }
             admitted &= interfaceAdmitted();
@@ -598,9 +590,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Whether the program's stages between vertex and fragment run: a geometry stage alone, on
-         * every shadow lane, on the hand lanes, and on the terrain or water lane after a modern
-         * vertex stage (Spring's gbuffers_terrain and gbuffers_hand).
+         * Whether the program's geometry stage runs: a lone geometry stage on a shadow lane, a hand lane, or the
+         * terrain or water lane after a modern vertex stage (Spring's gbuffers_terrain and gbuffers_hand).
          */
         private boolean geometryStageRuns() {
             return geometry != null && geometryStages.equals(List.of("geometry"))
@@ -609,8 +600,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Whether the program's tessellation stages run: both alone, on the hand lanes, or on the terrain or water lane
-         * after a modern vertex stage (TessellationStageBridge). The shadow lanes stay refused.
+         * Whether the program's tessellation stages run: both and nothing else, on a hand lane, or on the terrain or
+         * water lane after a modern vertex stage (TessellationStageBridge). The shadow lanes stay refused.
          */
         private boolean tessellationRuns() {
             return tessControl != null && tessEvaluation != null && geometryStages.equals(List.of("tess_control",
@@ -623,8 +614,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * What the vertex stage feeds: a running geometry or tessellation control stage, after which
-         * a later stage converts the clip depth, or the fragment.
+         * What the vertex stage feeds: a running tessellation control or geometry stage, after which a later stage
+         * converts the clip depth, or else the fragment.
          */
         private String vertexConsumer() {
             if (tessellationRuns()) return TessellationStageBridge.consumerView(tessControl);
@@ -695,10 +686,9 @@ public final class PackPlanBuilder {
         private boolean targetsAdmitted() {
             boolean admitted = true;
             if (geometryOutputPlan != null) {
-                // A world draw samples pack targets as shader-read images while its own outputs
-                // are colour attachments; one image cannot be both inside a render pass. An
-                // output it also samples (BSL's MCBL_SS water reads colortex8) reads a copy.
-                // colortex0 is the live HDR image, which has no target-shaped copy.
+                // inside a render pass one image cannot be both a sampled target and a colour attachment
+                // an output the draw also samples reads a copy, as BSL's MCBL_SS water reads colortex8
+                // colortex0 is the live HDR image, which has no target-shaped copy
                 List<Integer> snapshots = new ArrayList<>();
                 for (UniformRegistry.SamplerBinding sampler : interfacePlan.effective(stage).samplers()) {
                     Integer target = PackResourcePlan.targetIndex(sampler.name());
@@ -765,8 +755,7 @@ public final class PackPlanBuilder {
                     && !FamilyAdapterRegistry.isEntityLike(name)
                     && !FamilyAdapterRegistry.isParticleLike(name)
                     && !FamilyAdapterRegistry.isWeatherFamily(name)) {
-                // MRT geometry requires a complete vertex/fragment pair; the fragment-only
-                // single-target adapter stays as it was.
+                // MRT geometry needs a vertex and fragment pair; a fragment-only program draws a single target
                 deviations.add("MRT_NOT_SUPPORTED");
                 return false;
             }
@@ -786,8 +775,8 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * Records a vertex conversion, or the deviation that keeps the program from executing with
-         * the failure that names why.
+         * Records a vertex conversion, or the deviation that keeps the program from executing along with the failure
+         * that names why.
          */
         private void acceptVertex(Supplier<LegacyGlslConverter.TerrainVertexConversion> converter,
                                   String bridged, String unsupported) {
@@ -825,8 +814,7 @@ public final class PackPlanBuilder {
                                 vertexSamplerPlan(interfacePlan, stage, vertex)),
                         "SKY_VERTEX_BRIDGE", "SKY_VERTEX_BRIDGE_UNSUPPORTED");
             } else if (FamilyAdapterRegistry.isCloudFamily(name) && AuthoredOutput.producesNothing(vertex, fragment)) {
-                // The selected branch draws no cloud at all. There is no pipeline to build; the
-                // runtime skips the host cloud draw.
+                // the selected branch draws no cloud, so no pipeline is built and the runtime skips the host cloud draw
                 deviations.add(PackProgramPlan.CLOUD_AUTHORED_NO_OUTPUT);
                 executable = false;
             } else if (FamilyAdapterRegistry.isCloudFamily(name)) {
@@ -837,7 +825,7 @@ public final class PackPlanBuilder {
                                 vertexSamplerPlan(interfacePlan, stage, vertex)),
                         "CLOUD_VERTEX_BRIDGE", "CLOUD_VERTEX_BRIDGE_UNSUPPORTED");
             } else if (FamilyAdapterRegistry.isShadowLaneFamily(name) && hostLayoutFailure == null) {
-                // The host-layout preparation already expanded the includes.
+                // the host-layout preparation already expanded the includes
                 acceptVertex(() -> HostLayoutVertexBridge.convertShadowLaneVertexChecked(
                                 familyAdapter.vertexContract(), vertex, vertexConsumer(),
                                 interfacePlan.project("vertex", stage), allowStorageBuffers, geometryStageRuns()),
@@ -988,7 +976,7 @@ public final class PackPlanBuilder {
         }
 
         private void convertHostLayout() {
-            // The line and glint preparation already expanded the includes.
+            // the line and glint preparation already expanded the includes
             acceptVertex(() -> HostLayoutVertexBridge.convertHostLayoutVertexChecked(
                             familyAdapter.vertexContract(), vertex, fragment, stageMatch.locations(),
                             allowStorageBuffers, interfacePlan.effective(stage).executableUniforms(),
@@ -1072,10 +1060,10 @@ public final class PackPlanBuilder {
         }
 
         /**
-         * The program's blend directives as Iris applies them: a world program blends each buffer
-         * through its MRT output route, a shadow program each shadow attachment, and a fullscreen
-         * pass as PackBlendPlan.forFullscreenPass says. A world program with no route keeps the
-         * directive as a named gap.
+         * The program's blend directives as Iris applies them: a world program blends each buffer through its MRT
+         * output route, a shadow program each shadow attachment, and a fullscreen pass as
+         * PackBlendPlan.forFullscreenPass says. A world program with no route reports its directive unsupported and
+         * keeps the host blend.
          */
         private PackBlendPlan blendPlan() {
             PackBlendPlan blendPlan = PackBlendPlan.forProgram(directiveProgram, settings())
@@ -1100,13 +1088,10 @@ public final class PackPlanBuilder {
         }
     }
 
-    // Stage preparation, ProgramBuild's first step: a program's stage sources as planning reads them, its
-    // prepared snapshots or its executable sources, with modern post and extended-terrain stages normalized.
-
     /**
-     * The stages of a program planned under {@code name}, without a tessellation stage the pack does
-     * not enable ({@code tessellation}, PackProgram.runsBetweenStages); post and terrain-material
-     * stages normalized.
+     * The stages of a program planned under {@code name}, from its prepared snapshot or its executable sources,
+     * without a tessellation stage the pack does not enable ({@code tessellation}, PackProgram.runsBetweenStages).
+     * Modern post and extended-terrain stages are normalised.
      */
     private static Map<String, PreparedShaderSource> prepareStages(PackProgram program, String name,
                                                                    boolean terrainMaterial, boolean tessellation) {
@@ -1145,9 +1130,9 @@ public final class PackPlanBuilder {
             "tess_evaluation", "_te", "geometry", "_gs", "fragment", "");
 
     /**
-     * Every stage with its interface blocks as plain varyings (InterfaceBlockFlattener). Each
-     * stage's inputs carry the suffix of the stage before it and its outputs its own, so a stage
-     * between the vertex and fragment stages can read and write blocks of one name.
+     * Every stage with its interface blocks as plain varyings (InterfaceBlockFlattener). Each stage's inputs carry
+     * the suffix of the stage before it and its outputs its own, so a stage between the vertex and fragment stages
+     * can read and write blocks of one name.
      */
     private static Map<String, PreparedShaderSource> flattenInterfaceBlocks(Map<String, PreparedShaderSource> stages) {
         if (!Set.copyOf(LINK_ORDER).containsAll(stages.keySet())) return stages;
@@ -1170,13 +1155,12 @@ public final class PackPlanBuilder {
     }
 
     /**
-     * Each stage without the image declarations nothing in it reads. GL leaves such a uniform
-     * inactive, and Vulkan GLSL would need a binding for it: Reverie's programs all declare its
-     * screen-sized images (image0-2, water_depth_min, atm_image) and most read none of them. A read
-     * in a function main never reaches is none: GL compiles it away, and so do the converters
-     * (Rethinking Voxels' composite7 comments out the call that reaches its voxel images). Such a
-     * stage goes on without its dead functions, so no converter meets a read of an image that is
-     * no longer declared. Line breaks stay, so line numbers do not move.
+     * Each stage without the image declarations nothing in it reads. GL leaves such a uniform inactive, and Vulkan
+     * GLSL would need a binding for it; Reverie's programs all declare its screen-sized images and most read none.
+     *
+     * A read in a function main never reaches counts as none, since GL compiles it away and so do the converters.
+     * Such a stage goes on without its dead functions, so no converter meets a read of an image whose declaration
+     * is gone. Line breaks stay, so line numbers do not move.
      */
     private static Map<String, PreparedShaderSource> withoutInactiveImages(Map<String, PreparedShaderSource> stages) {
         Map<String, PreparedShaderSource> result = new TreeMap<>(stages);
@@ -1255,8 +1239,7 @@ public final class PackPlanBuilder {
                         ? TerrainVertexBridge.normalizeModernTerrainFragment(prepared.source())
                         : TerrainVertexBridge.normalizeModernTerrain(prepared.source());
             } catch (IllegalArgumentException unsupportedVersion) {
-                // Leave unsupported versions authored so the program plan can
-                // record a per-program fallback instead of rejecting the pack.
+                // an unsupported version stays as written, so this program falls back and the pack still loads
                 continue;
             }
             List<String> deviations = new ArrayList<>(prepared.deviations());

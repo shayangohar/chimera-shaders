@@ -3,9 +3,11 @@ package net.chimera.shaderpack;
 import java.util.List;
 
 /**
- * Name resolution over a {@link GlslTree}: a name declared in an inner block hides one outside it
- * until that block closes, and a declaration counts from its name on. Kappa names a parameter after
- * its {@code lightDir} uniform; inside that function, {@code lightDir} is the parameter.
+ * Name resolution over a {@link GlslTree}. A name declared in an inner block hides one outside it until that
+ * block closes, and a variable is visible from its name on, or after its initializer when it has one.
+ *
+ * Kappa names a parameter after its {@code lightDir} uniform; inside that function, {@code lightDir} is the
+ * parameter.
  */
 final class GlslScopes {
     private GlslScopes() {}

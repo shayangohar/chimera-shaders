@@ -66,8 +66,8 @@ final class AdvancedImagePlanTest {
 
         PackProbe.Analysis unsupported = PackProbe.analyze(unsupportedPath);
         PackAdvancedResourcePlan unsupportedPlan = unsupported.plan().advancedResources();
-        // 1024^3 R16UI texels, 2 GiB: Iris creates any size the driver takes, so the plan admits it and
-        // the device's axis limit and the allocation bound it at creation.
+        // 1024^3 R16UI texels, 2 GiB: Iris creates any size the driver takes, so the plan admits it
+        // and the device's axis limit and the allocation bound it at creation
         assertTrue(unsupportedPlan.capabilityPossible() && unsupportedPlan.images().get("too_large").supported()
                         && unsupportedPlan.deviations().stream().noneMatch(value -> value.contains("BUDGET")),
                 "a large image has no session budget: " + unsupportedPlan.deviations());
@@ -90,8 +90,7 @@ final class AdvancedImagePlanTest {
     /**
      * A relative image whose refit allocation fails keeps its old image, and is not tried again
      * while the screen keeps the failed size. Any other size drops the failure, the image's own
-     * included: 1080p, a failed 4K, back to 1080p and to 4K again retries the 4K image, where the
-     * failure kept until a success never did.
+     * included, so 1080p, a failed 4K, back to 1080p and to 4K again retries the 4K image.
      */
     @Test
     void aFailedRefitIsRetriedOnceTheScreenLeavesTheFailedSize() {
@@ -104,8 +103,8 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * A custom image takes any InternalTextureFormat Iris knows (ShaderProperties, GlImage): Chimera
-     * knew only r8ui, r16ui and rgba16f, so Pegasus's R32UI and RGBA8 images were refused.
+     * A custom image takes any InternalTextureFormat Iris knows (ShaderProperties, GlImage), such as
+     * Pegasus's R32UI and RGBA8 images.
      */
     @Test
     void imageFormatsFollowIris() {
@@ -140,14 +139,14 @@ final class AdvancedImagePlanTest {
                 "lineSampler RED_INTEGER R32UI UNSIGNED_INT false false 64", Map.of());
         PackAdvancedResourcePlan.ImageSpec plane = AdvancedImageDeclarations.parseImage("image.plane",
                 "none RGBA RGBA8 BYTE false false 32 16", Map.of());
-        // ShaderProperties splits on single spaces: a tab or a double space shifts the values.
+        // ShaderProperties splits on single spaces: a tab or a double space shifts the values
         assertTrue(!AdvancedImageDeclarations.parseImage("image.tabbed", "none\tRGBA RGBA8\tBYTE false false 32\t16",
                 Map.of()).supported() && !AdvancedImageDeclarations.parseImage("image.spaced",
                 "none RGBA  RGBA8 BYTE false false 32 16", Map.of()).supported());
         PackAdvancedResourcePlan.ImageSpec screen = AdvancedImageDeclarations.parseImage("image.screen",
                 "screenSampler RGBA RGBA16F HALF_FLOAT true true SHARE 0.25", Map.of("SHARE", "0.5"));
         assertTrue(line.supported() && plane.supported() && screen.supported());
-        // No per-axis cap below the device's: Alpha Piscium's 1056x832 image, Bloop's 2048-texel line.
+        // no per-axis cap below the device's: Alpha Piscium's 1056x832 image, Bloop's 2048-texel line
         assertTrue(AdvancedImageDeclarations.parseImage("image.probe",
                         "probeSampler RGBA RGBA16F HALF_FLOAT false false 1056 832", Map.of()).supported()
                 && AdvancedImageDeclarations.parseImage("image.blocks",
@@ -202,8 +201,7 @@ final class AdvancedImagePlanTest {
 
     /**
      * Iris creates custom images whatever programs the pack has and runs each program on its own.
-     * Chimera served them only alongside a supported shadowcomp, so Pegasus's gbuffers programs,
-     * which read an image its prepare computes write, fell back.
+     * Pegasus's gbuffers programs read an image that only its prepare computes write.
      */
     @Test
     void imagesServeEachProgramWithoutAShadowcomp(@TempDir Path root) throws Exception {
@@ -225,9 +223,8 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * Audit FD13: negotiating custom images prepares the sources again and redoes the preparation
-     * deviations, but a stage file the first scan could not read stays reported. Its
-     * SOURCE_READ_FAILED was cleared with the rest.
+     * Negotiating custom images prepares the sources again and redoes the preparation deviations,
+     * but a stage file the first scan could not read stays reported (SOURCE_READ_FAILED).
      */
     @Test
     void anUnreadableStageFileStaysReportedWhenImagesAreNegotiated(@TempDir Path root) throws Exception {
@@ -235,7 +232,7 @@ final class AdvancedImagePlanTest {
         Files.writeString(shaders.resolve("shaders.properties"),
                 "image.light = lightSampler RGBA RGBA8 BYTE false false 16 16 16\n");
         writeVolumeReader(shaders, "composite", "lightSampler");
-        // Malformed UTF-8, which Files.readString refuses.
+        // malformed UTF-8, which Files.readString refuses
         Files.write(shaders.resolve("unreadable.fsh"), new byte[] {(byte) 0xC3, (byte) 0x28});
         PackProbe.Analysis analysis = PackProbe.analyze(root);
         assertTrue(analysis.plan().advancedResources().capabilityPossible());
@@ -347,7 +344,7 @@ final class AdvancedImagePlanTest {
     /**
      * Shrimple's composite18 keeps {@code //layout(r32f) uniform readonly image2D imgDepthNear;} in a
      * comment. With MATERIAL_SPECULAR=0 no program reads the image, so it gets no slot, and the
-     * commented declaration refused the pass (ADVANCED_IMAGE_UNSERVED) that Iris runs.
+     * commented declaration must not refuse a pass (ADVANCED_IMAGE_UNSERVED) that Iris runs.
      */
     @Test
     void aCommentedImageDeclarationDeclaresNothing(@TempDir Path root) throws Exception {
@@ -430,7 +427,7 @@ final class AdvancedImagePlanTest {
                 .contains("ADVANCED_IMAGE_FORMAT_INCOMPATIBLE:csr:rgba16i"),
                 wider.advancedResources().deviations().toString());
 
-        // One descriptor binds the image for the whole program: two stages cannot read two views.
+        // one descriptor binds the image for the whole program, so two stages cannot read two views
         Files.writeString(shaders.resolve("composite.fsh"), fragment.formatted("r32i"));
         Files.writeString(shaders.resolve("composite.vsh"), """
                 #version 430 compatibility
@@ -460,8 +457,8 @@ final class AdvancedImagePlanTest {
 
     /**
      * The budget fixture's plan, which admits both images and keeps compute. Its 512^3 RGBA16F image,
-     * 1 GiB, is the size of Rethinking Voxels' distanceFieldI at VX_VOL_SIZE=3; Chimera's 768 MiB
-     * session budget refused it, where Iris creates any size the driver takes.
+     * 1 GiB, is the size of Rethinking Voxels' distanceFieldI at VX_VOL_SIZE=3, and Iris creates any
+     * size the driver takes.
      */
     private static PackAdvancedResourcePlan budgetIsolationPlan(Path budgetPath) {
         assertTrue(Files.isDirectory(budgetPath), "budget fixture is missing");
@@ -639,9 +636,8 @@ final class AdvancedImagePlanTest {
     /** The converted shadow vertex keeps the canonical matrix UBO and drops gl_VertexID. */
     private static void verifyShadowAdapter(PackProgramPlan shadow, String label) {
         String vertex = shadow.executableVertexSource();
-        // Camera gbuffer uniforms stay distinct from the legacy
-        // shadow-stage built-ins. Do not require a camera matrix to
-        // survive conversion when only the shadow draw pair is used.
+        // camera gbuffer uniforms stay distinct from the legacy shadow-stage built-ins
+        // a camera matrix need not survive conversion when only the shadow draw pair is used
         assertTrue(vertex.contains("ChimeraShadowUniforms")
                         && vertex.contains("shadowModelView")
                         && vertex.contains("shadowProjection"),
@@ -706,7 +702,7 @@ final class AdvancedImagePlanTest {
                 "Complementary storage reader was not planned");
     }
 
-    /** Complementary's composite reads storage and normalized fog, without a generated or source-only sampler. */
+    /** Complementary's composite reads storage and normalised fog, without a generated or source-only sampler. */
     private static void verifyComplementaryComposite(PackProbe.Analysis analysis, PackAdvancedResourcePlan plan) {
         PackPlan packPlan = analysis.plan();
         PackProgramPlan composite = packPlan.program("composite");
@@ -846,7 +842,7 @@ final class AdvancedImagePlanTest {
         PackFrameSchedulePlan schedule = PackFrameSchedulePlan.build(
                 analysis.plan().programs(), graph);
         PackFrameSchedulePlan.PostStage deferred = schedule.postStage("deferred");
-        // Iris order: BSL's deferred reads depthtex2 and still runs before translucents.
+        // in Iris's order BSL's deferred reads depthtex2 and still runs before translucents
         if (label.equals("BSL") && deferred != null) {
             assertTrue(deferred.window() == PackFrameSchedulePlan.PostWindow.EARLY
                             && !schedule.deviations().contains("SCHEDULE_POST_AFTER_DEPTH:deferred"),

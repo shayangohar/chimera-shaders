@@ -11,12 +11,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Continuous enforcement for GUI shading parity: setScreen only fires when a
- * screen opens/closes, but level transitions happen MID-screen (respawn,
- * nether portal - the screen opens while the old level is still live, then
- * it goes null and a new one arrives). WorldRenderer.setLevel is the exact
- * teardown/swap point, so parity hands off to the host here and reinstalls
- * the moment a live level exists again.
+ * Follows level swaps under an open screen, which setScreen never sees.
+ *
+ * On a respawn or a nether portal the screen opens while the old level is live, then the level goes null and a
+ * new one arrives. While it is null the host renders; Chimera reinstalls once a live level exists again, and the
+ * new level selects the pack's dimension variant.
  */
 @Mixin(value = WorldRenderer.class, remap = false)
 public abstract class WorldRendererLevelMixin {

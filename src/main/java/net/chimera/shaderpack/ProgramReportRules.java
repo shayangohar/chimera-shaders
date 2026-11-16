@@ -29,10 +29,9 @@ final class ProgramReportRules {
     static final String REPORT_FAILED = "PROGRAM_REPORT_FAILED";
 
     /**
-     * A program's report row. When the rules throw, the row still names the program and why, and
-     * the rest of the report is built. Without the rules' verdict the runtime cannot know
-     * whether they would refuse the program, so the row skips it. The corpus gate fails on this
-     * deviation (PackCompileTest).
+     * A program's report row. When the rules throw, the row still names the program and why, and the rest of the
+     * report is built. Without the rules' verdict the runtime cannot know whether they would refuse the program, so
+     * the row skips it. PackCompileTest fails a pack on this deviation.
      */
     static ConformanceReport.ProgramReport reportRow(
             PackProbe.Inventory inventory,
@@ -74,15 +73,13 @@ final class ProgramReportRules {
         String fragment = sources.fragment();
         String stripped = stripComments(source);
         boolean postName = PostTargetPlan.isPostProgramName(name);
-        // The labels of what runs: a shadowcomp pass converts as a fullscreen program too (audit FD12).
+        // a shadowcomp pass converts as a fullscreen program too
         boolean fullscreen = PostTargetPlan.isFullscreenProgramName(name);
         boolean hasFragment = inventory.stages.contains("fragment");
         boolean modern = !modernTerrainPlan(name, programPlan) && !validatedConversion(inventory, programPlan, packPlan)
                 && usesUnsupportedModernGlsl(stripped, fullscreen, FamilyAdapterRegistry.isEntityLike(name));
         List<String> samplers = InterfacePlanner.scanDeclaredSamplerNames(stripped);
-        // The report has historically exposed all uniform declarations,
-        // including samplers. Keep that public inventory stable while the
-        // shared interface plan continues to separate samplers for bindings.
+        // the report lists samplers among the uniforms; the interface plan keeps them apart for bindings
         List<String> uniformNames = declaredNames(stripped, samplers);
         PostTargetPlan.ParseResult targetResult = targetResult(inventory, fragment, packConfig, programPlan, postName);
         List<Integer> targets = targetResult != null
@@ -123,12 +120,13 @@ final class ProgramReportRules {
     }
 
     /**
-     * The sources a program's report reads, joined by stage name: a variant's prepared sources when
-     * it has them, else the authored ones. Advanced declarations are judged per stage, as each stage
-     * compiles alone and as the plan judges them (PackAdvancedResourcePlan.addUnplannedDeclarations):
-     * an image both stages only declare is no use of it. A pass's own compute ({@code <pass>.csh}
-     * beside its fragment) is planned apart (PassComputePlan) and dispatched before the program, as
-     * Iris's CompositeRenderer does, so the program's row leaves it out, as its plan does.
+     * The sources a program's report reads, joined in stage-name order: a world folder program's prepared sources
+     * when it has them, else the authored ones.
+     *
+     * Advanced declarations are judged per stage, as each stage compiles alone and as the plan judges them, so an
+     * image each stage only declares is no use of it. A pass's own {@code <pass>.csh} beside its fragment is
+     * planned apart and dispatched before the program, as Iris's CompositeRenderer does, so the program's row
+     * leaves it out.
      */
     private record ReportSources(boolean relaxed, String source, String fragment, boolean advancedDeclarations) {
         static ReportSources of(PackProbe.Inventory inventory) {
@@ -204,10 +202,9 @@ final class ProgramReportRules {
     }
 
     /**
-     * Whether Iris would run a stage of the program that Chimera does not: a geometry stage, or a
-     * tessellation stage the pack enables, that the plan did not convert, or a compute
-     * stage that is not a pass compute (Noble's composite99.csh is one, planned and run apart from
-     * composite99's draw).
+     * Whether Iris would run a stage of the program that Chimera does not: a geometry stage, or a tessellation
+     * stage the pack enables, that the plan did not convert, or a compute stage that is not a pass compute. A pass
+     * compute such as Noble's composite99.csh is planned and run apart from its pass's draw.
      */
     private static boolean runsUnsupportedStage(PackProbe.Inventory inventory, PackPlan packPlan,
                                                 PackProgramPlan programPlan) {
@@ -237,15 +234,12 @@ final class ProgramReportRules {
             packPlan.advancedResources().unservedImages(inventory.name)
                     .forEach(image -> deviations.add("ADVANCED_IMAGE_UNSERVED:" + image));
         }
-        // PackPlanBuilder already resolved standard aliases and pack-owned
-        // sampler slots through the shared interface plan. Keep the legacy
-        // scan only for compatibility callers that do not have a plan.
+        // PackPlanBuilder resolves a planned program's samplers; only an unplanned root program needs this scan
         if (!relaxed && programPlan == null) {
             addUnmappedSamplerDeviations(inventory.name, samplers, deviations);
         }
         if (samplers.contains("noisetex")) {
-            // Runtime performs the exact file check. The report records the
-            // standard resource requirement without embedding a path.
+            // the runtime checks the file; the report records the requirement without a path
             deviations.add("NOISETEX_PACK_RESOURCE");
         }
     }
@@ -273,9 +267,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * A validated conversion is authoritative for every family, not just post and particles: the
-     * lexical modern-GLSL veto must not reject a program whose converters already accepted it. A
-     * cloud program that runs empty (PackPlan.cloudRunsEmpty) has nothing left to convert.
+     * Whether the program's converters accepted it, which overrides the lexical modern-GLSL check in every family.
+     * A cloud program that runs empty has nothing left to convert.
      */
     static boolean validatedConversion(PackProbe.Inventory inventory, PackProgramPlan programPlan, PackPlan packPlan) {
         if (packPlan != null && packPlan.cloudRunsEmpty(inventory.name)) return true;
@@ -295,8 +288,8 @@ final class ProgramReportRules {
             return new PostTargetPlan.ParseResult(programPlan.targetPlan(), programPlan.targetPlan().deviations());
         }
         if (programPlan != null && programPlan.geometryOutputPlan() != null) {
-            // The plan routes the prepared source, whose #if already chose one
-            // DRAWBUFFERS directive; an authored scan would count every branch.
+            // the plan routes the prepared source, whose #if already chose one DRAWBUFFERS directive;
+            // an authored scan would count every branch
             return new PostTargetPlan.ParseResult(programPlan.geometryOutputPlan().targetPlan(),
                     programPlan.geometryOutputPlan().deviations());
         }
@@ -358,8 +351,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * Whether the plan lets the program run: no plan judges it, the plan admits it, or it is an
-     * authored-empty cloud program, which the runtime installs as drawing nothing (PackPlan.cloudRunsEmpty).
+     * Whether the plan lets the program run: no plan judges it, the plan admits it, or it is an authored-empty
+     * cloud program, which the runtime installs as drawing nothing.
      */
     static boolean planRuns(PackProgramPlan plan, PackPlan packPlan, String name) {
         return plan == null || plan.executable() || packPlan != null && packPlan.cloudRunsEmpty(name);
@@ -379,8 +372,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * How a planned program's vertex stage is bridged, as its report names it; null when it has none.
-     * A cloud program that runs empty (PackPlan.cloudRunsEmpty) has no vertex bridge to name.
+     * How a planned program's vertex stage is bridged, as its report names it; null when it has none. A cloud
+     * program that runs empty reports that instead of a bridge.
      */
     static String plannedVertexBridge(
             String name, boolean hasVertex, PackProgramPlan plan, PackPlan packPlan, boolean fullscreen) {
@@ -411,9 +404,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * The bridge as reported. A plan its admission refused first never runs the entity,
-     * host-layout or particle bridges, so an unconverted vertex with no failed bridge recorded
-     * reports the bridge as not reached ({@code <LANE>_VERTEX_BRIDGE_NOT_REACHED}).
+     * The bridge as reported. A plan refused at admission never runs the entity, host-layout or particle bridges,
+     * so an unconverted vertex with no failed bridge recorded reports {@code <LANE>_VERTEX_BRIDGE_NOT_REACHED}.
      */
     private static String reached(String bridge, boolean converted, PackProgramPlan plan) {
         boolean attempted = converted || plan.deviations().stream().anyMatch(deviation ->
@@ -471,7 +463,7 @@ final class ProgramReportRules {
      */
     static String vertexBridgeLabel(String name) {
         if (FamilyAdapterRegistry.isShadowTerrain(name)) return "SHADOW";
-        // Every entity-like family converts on the entity bridge (PackPlanBuilder.convertEntityVertex).
+        // every entity-like family converts on the entity bridge
         if (FamilyAdapterRegistry.isEntityLike(name)) {
             return VertexBridgeDeviations.entity(name, false).replace("_VERTEX_BRIDGE", "");
         }
@@ -513,7 +505,7 @@ final class ProgramReportRules {
             case PARTICLE -> List.of("FAMILY_ADAPTER_INSTALLED", "PARTICLE_STATE_FIXED_TO_HOST");
             case PARTICLE_TRANSLUCENT -> List.of("FAMILY_ADAPTER_INSTALLED", "PARTICLE_TRANSLUCENT_INSTALLED");
             case WEATHER -> List.of("FAMILY_ADAPTER_INSTALLED", "WEATHER_STATE_FIXED_TO_HOST");
-            // Depth and cull follow each caster's host pipeline; blending is off, as in Iris.
+            // depth and cull follow each caster's host pipeline; blending is off, as in Iris
             case SHADOW_ENTITIES, SHADOW_BLOCK -> List.of("FAMILY_ADAPTER_INSTALLED", "ENTITY_VERTEX_FORMAT_EXTENDED",
                     "SHADOW_ENTITY_STATE_FIXED_TO_HOST");
             default -> family.vertexContract().hostLayout()
@@ -564,11 +556,11 @@ final class ProgramReportRules {
                 || FamilyAdapterRegistry.isHostLayoutFamily(name);
     }
 
-    /** The report of a program that is only a compute: a pass compute; else null. */
+    /** The row of a pass compute that reports on its own; null otherwise. */
     private static ConformanceReport.ProgramReport computeOnlyProgram(PackProbe.Inventory inventory, PackPlan packPlan,
                                                                       PassComputePlan passComputes) {
         PassComputePlan.PassCompute passCompute = passComputes == null ? null : passComputes.compute(inventory.name);
-        // <pass>_x.csh is its own row; <pass>.csh shares the pass's, which is the compute's when it runs alone.
+        // <pass>_x.csh is its own row; <pass>.csh shares the pass's, which is the compute's when it runs alone
         if (passCompute != null && (!passCompute.name().equals(passCompute.pass())
                 || PassComputePlan.runsAlone(packPlan, passCompute.pass()))) {
             return passComputeProgram(inventory, passCompute);
@@ -577,8 +569,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * The report of {@code <pass>[_x].csh} in a pass with no fragment stage: its own translation.
-     * Iris runs it before the pass, or alone as a ComputeOnlyPass where the pass has no program.
+     * The row of {@code <pass>[_x].csh}, from its own translation. Iris runs it before the pass, or alone as a
+     * ComputeOnlyPass where the pass has no program.
      */
     static ConformanceReport.ProgramReport passComputeProgram(PackProbe.Inventory inventory,
                                                              PassComputePlan.PassCompute compute) {
@@ -615,10 +607,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * Advanced image declarations are not an old generic-resource
-     * failure when the shared plan has admitted the program. The runtime
-     * still performs the final pipeline/resource checks, so an individual
-     * build failure remains an explicit identity fallback.
+     * Whether the advanced resource plan serves every image and storage buffer the program uses. The runtime still
+     * checks the pipeline and its resources, so a build failure there still falls back.
      */
     static boolean advancedResourcesArePlanned(String program, PackPlan packPlan) {
         if (packPlan == null || packPlan.advancedResources() == null) {
@@ -636,22 +626,21 @@ final class ProgramReportRules {
     }
 
     /**
-     * Programs Iris 1.21.1 reads only as other programs' fallback sources: no shader key draws them
-     * (ShaderKey, SodiumPrograms), so neither does Chimera; the programs they stand in for do.
+     * Programs Iris 1.21.1 reads only as other programs' fallback sources. No ShaderKey draws them, so neither does
+     * Chimera; the programs they stand in for do.
      */
     static final Set<String> IRIS_FALLBACK_SOURCES = Set.of(
             "gbuffers_textured_lit", "gbuffers_item", "gbuffers_entities_glowing");
 
-    /** Names why a world program runs in no lane (unlanedProgram); {@code skip} a post or fragmentless one. */
+    /** Records why a world program runs in no lane; {@code skip} is set for a post or fragmentless one. */
     static void addUnlanedDeviation(PackProbe.Inventory inventory, boolean skip, Set<String> deviations) {
         String unlaned = skip ? null : unlanedProgram(inventory.name, inventory);
         if (unlaned != null) deviations.add(unlaned);
     }
 
     /**
-     * Why a world program with a fragment stage runs in no lane, or null when it has one
-     * (laneReason); or, in a lane that needs an authored vertex stage, that it has none, where
-     * Iris draws it with a default one (ProgramSet.readProgramSource).
+     * Why a world program with a fragment stage runs in no lane, or null when it has one. In a lane that needs an
+     * authored vertex stage, a program without one is reported too; Iris draws it with a default vertex stage.
      */
     static String unlanedProgram(String name, PackProbe.Inventory inventory) {
         if (!FamilyAdapterRegistry.isExecutableFamily(name)) return laneReason(name);
@@ -659,11 +648,10 @@ final class ProgramReportRules {
     }
 
     /**
-     * Why Chimera runs a world program in no lane: Iris draws it under no key of its own; it is a
-     * begin program, which Iris's composite renderer runs and Chimera does not; Iris
-     * draws it and Chimera routes none of those draws to it (the per-layer terrain and shadow
-     * programs, dh_*); or Iris never runs a program
-     * of that name at all (setup.fsh, names that are no ProgramId).
+     * Why Chimera runs a world program in no lane. Iris draws it under no key of its own; or it is a begin program,
+     * which Iris's composite renderer runs and Chimera does not; or Iris draws it but Chimera routes none of those
+     * draws to it, as with the per-layer terrain and shadow programs and dh_*; or Iris never runs a program of that
+     * name, such as setup.fsh or a name that is no ProgramId.
      */
     private static String laneReason(String name) {
         if (IRIS_FALLBACK_SOURCES.contains(name)) return "IRIS_FALLBACK_SOURCE_ONLY";
@@ -673,7 +661,7 @@ final class ProgramReportRules {
                 : "IRIS_PROGRAM_UNUSED:" + name;
     }
 
-    /** A host-layout lane (LINE, GLINT, LIGHTNING, ...) whose vertex could not be bridged. */
+    /** The bridge failures of the host-layout lanes, such as LINE, GLINT and LIGHTNING. */
     static final Set<String> HOST_LAYOUT_BRIDGE_FAILURES = FamilyAdapterRegistry.hostLayoutLanes().stream()
             .map(lane -> lane + "_VERTEX_BRIDGE_UNSUPPORTED")
             .collect(Collectors.toUnmodifiableSet());
@@ -731,28 +719,25 @@ final class ProgramReportRules {
             "buffer");
 
     /**
-     * Labels a program whose conversion failed: a version outside the one rule
-     * (GlslVersion), or syntax beyond the legacy subset. A validated conversion
-     * clears it, so the version number alone never rejects a program.
+     * Whether a source declares a GLSL version GlslVersion does not support, or uses syntax beyond the legacy
+     * subset. A validated conversion skips this check, so the version number alone never rejects a program.
      */
     static boolean usesUnsupportedModernGlsl(String source, boolean post, boolean entity) {
         if (!GlslVersion.supportedIfDeclared(source)) {
             return true;
         }
         if (post || entity) {
-            // Stage declarations convert in these families; the converter still
-            // performs the authoritative feature check.
+            // stage declarations convert in these families, and the converter makes the final feature check
             return GlslTokenRewriter.containsIdentifier(source, CONVERTED_STAGE_SYNTAX::contains);
         }
         return GlslTokenRewriter.containsIdentifier(source, MODERN_STAGE_SYNTAX::contains);
     }
 
     /**
-     * The pack's target deviations that concern a target the program writes, and the integer targets
-     * whose mip chain it asks for. The GL spec refuses glGenerateMipmap on a format it cannot filter,
-     * so Iris's chain depends on the driver (incomplete, reading zero, or built); Chimera downsamples
-     * it nearest (PackTargetImages). A route over the shadowcolor targets, a shadow-pass program's
-     * or a shadowcomp pass's, is one colortex deviations never concern (audit FD3).
+     * The pack's target deviations that concern a target the program writes, and the integer targets whose mip
+     * chain it asks for. GL refuses glGenerateMipmap on a format it cannot filter, so under Iris that chain depends
+     * on the driver; Chimera downsamples it nearest. Colortex deviations never concern a route over the shadowcolor
+     * targets.
      */
     static List<String> relevantTargetDeviations(PackConfig.PackConfigData config,
                                                  PostTargetPlan.ParseResult targetResult) {

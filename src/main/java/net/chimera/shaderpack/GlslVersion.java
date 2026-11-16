@@ -8,12 +8,11 @@ import java.util.Set;
 /**
  * A stage's {@code #version} directive, with the one rule every converter applies to it.
  *
- * <p>Chimera compiles every stage as GLSL 460 for Vulkan, so the authored number only tells a
- * converter which syntax to expect. Every desktop version from 110 to 460 is accepted, in the
- * compatibility or core profile. What a program may use is decided by its features
- * (geometry and tessellation stages, compute, image load/store, storage buffers), never by the
- * number. GLSL ES is not a desktop profile and is refused. {@code 120e}, which Chimera's early
- * fixtures use, reads as 120.</p>
+ * Chimera compiles every stage as GLSL 460 for Vulkan, so the authored number only tells a converter which
+ * syntax to expect. Every desktop version from 110 to 460 is accepted, in the compatibility or core profile.
+ * What a program may use is decided by its features, such as geometry and tessellation stages, compute, image
+ * load/store and storage buffers, never by the number. GLSL ES is not a desktop profile and is refused.
+ * {@code 120e} reads as 120.
  */
 public record GlslVersion(int number, String profile) {
     /** The rule, as converters name it in a refusal. */
@@ -26,9 +25,9 @@ public record GlslVersion(int number, String profile) {
     }
 
     /**
-     * Every directive in the source, in order: a prepared source can carry more than one. A
-     * directive is {@code #version}, in any case, then a number and an optional profile word,
-     * with nothing after them but a line comment.
+     * Every directive in the source, in order, since a prepared source can carry more than one. A directive is
+     * {@code #version} in any case, then a number and an optional profile word, with nothing after them but a
+     * line comment. A number too large for {@code int} reads as -1.
      */
     public static List<GlslVersion> all(String source) {
         List<GlslVersion> result = new ArrayList<>();
@@ -97,9 +96,9 @@ public record GlslVersion(int number, String profile) {
     }
 
     /**
-     * Iris's core-profile mode (TransformPatcher: OptiFine's special core profile): the core
-     * profile, or 150 and above with no profile. Such a program reads vaPosition and the other
-     * core inputs and matrices instead of the compatibility built-ins.
+     * Whether Iris patches the program in core-profile mode, as TransformPatcher decides: the core profile, or
+     * 150 and above with no profile. Such a program reads {@code vaPosition} and the other core inputs and
+     * matrices instead of the compatibility built-ins.
      */
     public boolean irisCore() {
         return profile.equals("core") || (number >= 150 && profile.isEmpty());

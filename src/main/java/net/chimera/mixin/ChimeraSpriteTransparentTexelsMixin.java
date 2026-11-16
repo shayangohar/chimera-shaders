@@ -14,9 +14,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Loads every atlas sprite with the transparent-texel colour Iris setups give it
- * (SpriteTransparentTexels): Sodium recolours them as this constructor stores the image, before any
- * mip level is built from it.
+ * Gives every atlas sprite's transparent texels the colour they get under Iris with Sodium
+ * (SpriteTransparentTexels). Sodium recolours them as this constructor stores the image, before any mip
+ * level is built from it.
  */
 @Mixin(SpriteContents.class)
 public abstract class ChimeraSpriteTransparentTexelsMixin {

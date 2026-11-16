@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-/** Immutable plan for the active pack variant. */
+/** The load-time plan for the active pack variant. */
 public record PackPlan(
         PackConfig.PackConfigData config,
         List<PackProgramPlan> programs,
@@ -69,7 +69,7 @@ public record PackPlan(
         return null;
     }
 
-    /** One eligibility result shared by probe and runtime pipeline construction. */
+    /** Whether to build {@code name}'s pipeline; the probe and the runtime both ask here, so they agree. */
     public boolean shouldAttempt(String name) {
         PackProgramPlan program = program(name);
         return program != null && program.executable() && resolution.shouldAttempt(name)
@@ -84,10 +84,9 @@ public record PackPlan(
     }
 
     /**
-     * Whether the program writes a colortex target whose declared format has no Vulkan image here, as
-     * the report reads it. The target keeps the default format, which the program's output does not
-     * fit. A shadow-pass program or a shadowcomp pass writes shadowcolor targets, which a colortex
-     * format never concerns (audit FD3).
+     * Whether the program writes a colortex target whose declared format has no Vulkan image here, as the report
+     * reads it; the target keeps the default format, which the program's output does not fit. Shadow-pass
+     * programs and shadowcomp passes write shadowcolor targets, which a colortex format never concerns.
      */
     private boolean writesUnsupportedFormat(PackProgramPlan program) {
         PostTargetPlan targets = program.targetPlan() != null ? program.targetPlan()
@@ -127,12 +126,12 @@ public record PackPlan(
         return resolution.fingerprint();
     }
 
-    /** Immutable runtime smoothing and custom scalar settings for the pack session. */
+    /** Smoothing and custom scalar settings for the pack session. */
     public PackRuntimeSettings runtimeSettings() {
         return settings.runtimeSettings();
     }
 
-    /** Shared load-time macros used by runtime-only stages such as shadowcomp. */
+    /** The settings plan's preprocessor defines, for sources read after the plan is built: pass computes, id maps. */
     public Map<String, String> settingsPreprocessorDefines() {
         return settings.preprocessorDefines();
     }
@@ -142,7 +141,7 @@ public record PackPlan(
         return settings.unsupportedRequiredFeatures();
     }
 
-    /** Explicit option names whose values must survive source defaults. */
+    /** Option names a {@code chimera.option.*} JVM property sets, whose values override the source defaults. */
     public Set<String> settingsOverriddenNames() {
         return settings.overriddenNames();
     }
@@ -153,9 +152,9 @@ public record PackPlan(
     }
 
     /**
-     * Whether the pack switches a program or pass off. A pass of computes alone has no resolved
-     * program, so its switch is read directly: Iris's source provider then reads none of its files
-     * (ShaderPack), and the pass runs nothing. Shrimple switches off its compute-only composite1.
+     * Whether the pack switches a program or pass off. A pass of computes alone has no resolved program, so its
+     * switch is read directly; Iris's ShaderPack then reads none of its files and the pass runs nothing. Shrimple
+     * switches off its compute-only composite1 this way.
      */
     public boolean isProgramDisabled(String name) {
         PackProgramResolution value = resolution.resolution(name);
@@ -164,9 +163,9 @@ public record PackPlan(
     }
 
     /**
-     * Whether {@code name} runs as a cloud program whose selected branch draws nothing: the runtime
-     * builds no pipeline and skips the host cloud draw, as Iris's program draws no fragment. A
-     * disabled, aliased or resource-refused program falls back instead.
+     * Whether {@code name} runs as a cloud program whose selected branch draws nothing. The runtime then builds no
+     * pipeline and skips the host cloud draw, as Iris's program draws no fragment. A disabled, aliased or
+     * resource-refused program falls back instead.
      */
     public boolean cloudRunsEmpty(String name) {
         PackProgramPlan program = program(name);
@@ -175,10 +174,9 @@ public record PackPlan(
     }
 
     /**
-     * Iris's {@code clouds} directive: "off", "fast" or "fancy", or null when
-     * the pack leaves the player's setting alone (Iris logs and ignores other values).
-     * "false" also means "off": Iris and OptiFine ignore it, but RedHat v34 writes it to turn the
-     * vanilla clouds off, as it draws its own.
+     * Iris's {@code clouds} directive: "off", "fast" or "fancy", or null when the pack leaves the player's setting
+     * alone; Iris logs and ignores other values. "false" also means "off". Iris and OptiFine ignore it, but RedHat
+     * writes it to turn the vanilla clouds off, as it draws its own.
      */
     public String cloudSetting() {
         String value = settings.propertyValues().get("clouds");
@@ -198,7 +196,7 @@ public record PackPlan(
         return WeatherDirectives.fromProperties(settings.propertyValues());
     }
 
-    /** Which entities and block entities the pack lets cast shadows (Iris shadowEntities and friends). */
+    /** Which entities and block entities the pack lets cast shadows (Iris shadowEntities and related keys). */
     public ShadowCasterDirectives shadowCasters() {
         return ShadowCasterDirectives.fromProperties(settings.propertyValues());
     }
@@ -230,16 +228,16 @@ public record PackPlan(
     }
 
     /**
-     * Whether the pack converts to the player's colour space itself (shaders.properties
-     * supportsColorCorrection): it reads currentColorSpace, and Iris's converter leaves its image alone.
+     * Whether the pack converts to the player's colour space itself (supportsColorCorrection). It reads
+     * currentColorSpace, and Iris's converter leaves its image alone.
      */
     public boolean supportsColorCorrection() {
         return settings.supportsColorCorrection();
     }
 
     /**
-     * How the shadow pass culls its casters: Iris's shadow.culling, the shadow distances, and
-     * whether the shadow program has a geometry stage.
+     * How the shadow pass culls its casters, from Iris's shadow.culling, the shadow distances and whether the
+     * shadow program has a geometry stage.
      */
     public ShadowCullingPlan shadowCulling() {
         PackConfig.ShadowSettings shadow = config != null ? config.shadowSettings()
@@ -251,9 +249,9 @@ public record PackPlan(
     }
 
     /**
-     * The programs that take part in the frame. Iris removes a program the pack switches off
-     * ({@code program.<name>.enabled}) from the pipeline entirely, so it neither runs nor counts
-     * as a producer; the schedule and target graph are built from these, never from a gap.
+     * The programs that take part in the frame, which the schedule and target graph are built from. Iris removes a
+     * program the pack switches off ({@code program.<name>.enabled}) from the pipeline, so it neither runs nor
+     * counts as a producer.
      */
     public List<PackProgramPlan> activePrograms() {
         return programs().stream().filter(program -> !isProgramDisabled(program.name())).toList();
@@ -269,9 +267,9 @@ public record PackPlan(
     }
 
     /**
-     * The shadowcolor targets the shadow pass's programs sample, by index: each executable shadow
-     * program's sampler that reads the target itself, not a pack texture in its place
-     * (ChimeraShadowMap.snapshotPassReads copies them as the pass opens).
+     * The shadowcolor targets the shadow pass's programs sample, by index: each executable shadow program's
+     * sampler that reads the target itself rather than a pack texture in its place.
+     * ChimeraShadowMap.snapshotPassReads copies them as the pass opens.
      */
     public Set<Integer> shadowPassColorReads() {
         Set<Integer> reads = new TreeSet<>();

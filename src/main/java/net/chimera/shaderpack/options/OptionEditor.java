@@ -5,10 +5,10 @@ import java.util.Map;
 /**
  * The option values the settings screen shows for a loaded pack, and the edits it makes.
  *
- * <p>Three sets of values meet here: the defaults from the sources, the applied values the pack was
- * built with, and the pending view, which is the applied values with {@link PendingOptions} on top.
- * Every edit goes to the queue; nothing reaches the pack before its next load. An option is
- * modified while its pending value differs from its applied one.
+ * The screen works from the sources' defaults, the applied values the pack was built with, and the
+ * pending view: the applied values with {@link PendingOptions} on top. Every edit goes to the queue,
+ * and nothing reaches the pack before its next load. An option is modified while its pending value
+ * differs from its applied one.
  */
 public final class OptionEditor {
     private final ShaderPackOptions pack;
@@ -40,8 +40,8 @@ public final class OptionEditor {
     }
 
     /**
-     * True while the queue would change this option at the next load. A choice compares what its
-     * cell shows, so a pending value off the list (which shows the applied one) is not marked.
+     * Whether the queue would change this option at the next load. A choice compares what its cell
+     * shows, so a pending value off the list, which shows the applied one, is not marked.
      */
     public boolean modified(String name) {
         OptionSet.Declared<ShaderOption.Choice> choice = pack.options().choices().get(name);

@@ -10,31 +10,32 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Iris's BufferFlipper, run once at load. IrisRenderingPipeline builds the begin, prepare, deferred
- * and composite pass groups in that order over one flipper, so every pass's flipped set, and the
- * sets the world and final read, are fixed before the first frame; nothing flips at runtime.
- * Each state is a mask of colour targets: a target in it is read from its alt side, and a post
- * pass writes its draw buffers to the side it does not read (CompositeRenderer). Gbuffers read and
- * write the side the state names (RenderTargets.createGbufferFramebuffer). At frame end each target
- * the final state flips that is not cleared every frame is copied from alt back into main
- * (FinalPassRenderer's swap passes), so every frame starts unflipped.
+ * Iris's BufferFlipper, run once at load.
  *
- * <p>In a group, the {@code <group>_pre=true} entries flip as it opens; they do not count as
- * written. After each pass every draw buffer flips, unless its {@code flip.<pass>.<buffer>=false}
- * holds it, then each {@code true} entry flips: a true entry on a draw buffer cancels its flip.
- * Every group is built, passes or none, so a pre-flip of an empty group still applies.
+ * IrisRenderingPipeline builds the begin, prepare, deferred and composite pass groups in that order over one
+ * flipper, so each pass's flipped set, and the sets the world and final read, are fixed before the first frame.
+ * Nothing flips at runtime.
+ *
+ * Each state is a mask of colour targets. A target in it is read from its alt side, and a post pass writes its
+ * draw buffers to the side it does not read (CompositeRenderer). Gbuffers read and write the side the state names
+ * (RenderTargets.createGbufferFramebuffer). At frame end FinalPassRenderer's swap passes copy each target the final
+ * state flips, unless it is cleared every frame, from alt back to main, so every frame starts unflipped.
+ *
+ * In a group, the {@code <group>_pre=true} entries flip as it opens and do not count as written. After each pass,
+ * every draw buffer flips unless {@code flip.<pass>.<buffer>=false} holds it, then each {@code true} entry flips,
+ * so a true entry on a draw buffer cancels its flip. Every group is built even with no passes, so an empty
+ * group's pre-flip still applies.
  */
 public final class PackFlipPlan {
-    /** The pass groups in Iris's order, with the window each runs in and its pre-flip key. */
+    /** The pass groups in Iris's build order, by the window each runs in. */
     private static final List<PackFrameSchedulePlan.PostWindow> GROUPS = List.of(
             PackFrameSchedulePlan.PostWindow.BEGIN, PackFrameSchedulePlan.PostWindow.PREPARE,
             PackFrameSchedulePlan.PostWindow.EARLY, PackFrameSchedulePlan.PostWindow.LATE);
 
     /**
-     * One pass: the state it reads ({@code before}), the state after its flips, its draw buffers,
-     * and the targets it marks flipped at least once ({@code marks}): its draw buffers no false entry
-     * holds and its true entries. Later passes of its group no longer see those targets' stage
-     * texture overrides.
+     * One pass: the state it reads ({@code before}), the state after its flips, and its draw buffers.
+     * {@code marks} are the targets it marks flipped at least once, its unheld draw buffers and its true entries;
+     * later passes of its group then ignore those targets' stage texture overrides.
      */
     public record Step(String program, PackFrameSchedulePlan.PostWindow window, int before, int after,
                        List<Integer> drawBuffers, int marks) {
@@ -42,12 +43,11 @@ public final class PackFlipPlan {
             drawBuffers = List.copyOf(drawBuffers);
         }
 
-        /** Whether this pass reads {@code target} from its alt side. */
         public boolean readsAlt(int target) {
             return flipped(before, target);
         }
 
-        /** The side this pass writes {@code target} to, as a draw buffer: the one it does not read. */
+        /** The side this pass writes {@code target} to as a draw buffer, the one it does not read: 0 main, 1 alt. */
         public int writeSide(int target) {
             return readsAlt(target) ? 0 : 1;
         }
@@ -81,8 +81,8 @@ public final class PackFlipPlan {
     }
 
     /**
-     * The plan for a pack's active programs: each begin, prepare, deferred and composite program
-     * with a target plan, in Iris's order, with the pack's flip directives. Final flips nothing.
+     * The plan for each begin, prepare, deferred and composite program with a target plan, in Iris's order, under
+     * the pack's flip directives. Final flips nothing.
      */
     public static PackFlipPlan of(List<PackProgramPlan> programs, PackConfig.PackConfigData config) {
         Map<String, List<Integer>> trues = config == null ? Map.of() : config.flips();
@@ -118,10 +118,7 @@ public final class PackFlipPlan {
         return new PackFlipPlan(open, close, written, steps);
     }
 
-    /**
-     * One pass over {@code before}: each draw buffer no false entry holds flips and is marked, then
-     * each true entry flips and is marked (CompositeRenderer).
-     */
+    /** One pass, as CompositeRenderer runs it: each unheld draw buffer flips, then each true entry; all are marked. */
     private static Step pass(PackProgramPlan program, PackFrameSchedulePlan.PostWindow window, int before,
                              List<Integer> trues, List<Integer> held) {
         List<Integer> drawBuffers = drawBuffers(program.targetPlan());
@@ -193,8 +190,8 @@ public final class PackFlipPlan {
     }
 
     /**
-     * Whether {@code window}'s group changes the state as it opens: its pre-flips, net. Iris builds
-     * the group whether or not it has passes, so such a group opens even with none (audit FD4).
+     * Whether {@code window}'s pre-flips change the state, net, as its group opens. Iris builds the group whether
+     * or not it has passes, so such a group opens even with none.
      */
     public boolean preFlips(PackFrameSchedulePlan.PostWindow window) {
         int index = GROUPS.indexOf(window);
@@ -237,9 +234,9 @@ public final class PackFlipPlan {
     }
 
     /**
-     * The targets earlier passes of {@code pass}'s group flipped, Iris's flippedAtLeastOnce snapshot:
-     * a stage texture override of one of them no longer applies. Final reads the composite group's
-     * whole set. {@code pass} need not be a step: a compute-only pass takes its slot's snapshot.
+     * The targets earlier passes of {@code pass}'s group flipped, Iris's flippedAtLeastOnce snapshot; a stage
+     * texture override of one of them stops applying. Final reads the composite group's whole set.
+     * {@code pass} need not be a step, so a compute-only pass takes its slot's snapshot.
      */
     public Set<Integer> writtenBefore(String pass) {
         if ("final".equals(pass)) return targets(writtenInGroup.getOrDefault(PackFrameSchedulePlan.PostWindow.LATE, 0));
@@ -262,7 +259,7 @@ public final class PackFlipPlan {
         return Collections.unmodifiableSortedSet(result);
     }
 
-    /** One line per group and step, for tests and the graph snapshot. */
+    /** Each group's open and close states and its steps' transitions, for tests and the graph snapshot. */
     public String snapshot() {
         StringBuilder result = new StringBuilder();
         for (PackFrameSchedulePlan.PostWindow window : GROUPS) {

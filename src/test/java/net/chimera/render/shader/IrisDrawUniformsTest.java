@@ -17,12 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Iris's per-draw gtextureSize and blendFunc (CommonUniforms) and its selected block
- * (IrisExclusiveUniforms). No corpus pack reads them; they left UniformRegistry.IRIS_UNSERVED.
- */
+/** Iris's per-draw gtextureSize and blendFunc (CommonUniforms) and its selected block (IrisExclusiveUniforms). */
 final class IrisDrawUniformsTest {
-    // Minecraft's translucent blend in VkBlendFactor values: SRC_ALPHA, 1 - SRC_ALPHA, ONE, 1 - SRC_ALPHA.
+    // Minecraft's translucent blend in VkBlendFactor values: SRC_ALPHA, 1 - SRC_ALPHA, ONE, 1 - SRC_ALPHA
     private static final PipelineState.BlendInfo TRANSLUCENT = new PipelineState.BlendInfo(true, 6, 7, 1, 7, 0);
 
     @Test

@@ -11,14 +11,12 @@ import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The exact-pack custom-uniform inventory, for the two pinned packs.
+ * The custom-uniform inventory of the two pinned packs.
  *
- * <p>A pack authors derived uniforms in its {@code shaders.properties}, and Chimera either serves
- * one or refuses it. A refusal is only acceptable if it is loud: the declaration is reported, and
- * no program that reads the name may run. This audit reads both installed packs through the same
- * load-time path the game uses, prints the inventory, and fails when a consumed declaration was
- * rejected, when a rejected one left a consuming program executable, or when a served name was not
- * the pack's own declaration.
+ * A pack authors derived uniforms in its {@code shaders.properties}, and Chimera either serves one or
+ * refuses it. A refusal must be loud: the declaration is reported, and no program that reads the name
+ * runs. Both packs load through the path the game uses; the test prints the inventory and fails when a
+ * refused declaration has no diagnostic or an executable reader, or a served name is not the pack's own.
  */
 @Tag("packs")
 final class CustomUniformInventoryTest {
@@ -71,8 +69,7 @@ final class CustomUniformInventoryTest {
 
         inventory(label, settings, consumers);
 
-        // The names Chimera used to answer for the packs are gone from the catalog, so nothing can
-        // serve a synthetic value under them again.
+        // pack-authored names the catalog must never answer with a synthetic value
         for (String retired : new String[] {"eyeBrightnessM", "timeAngle", "timeBrightness",
                 "shadowFade", "rainFactor", "blindFactor", "framemod2", "framemod4", "framemod8",
                 "framemod600", "frameTimeSmooth", "starter", "isEyeInCave", "isCold", "isDesert",
@@ -104,7 +101,7 @@ final class CustomUniformInventoryTest {
                 "BSL timeAngle at noon is " + actual + ", expected " + expected);
     }
 
-    /** Per name, the first executable program whose stages actually read it. */
+    /** Per name, the first executable program whose stages read it. */
     private static Map<String, String> consumers(PackProbe.Analysis analysis) {
         Map<String, String> result = new TreeMap<>();
         for (PackProgramPlan program : analysis.plan().programs()) {

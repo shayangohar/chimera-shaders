@@ -26,7 +26,7 @@ final class HotSwapCommandTest {
         Path bsl = shaderpacks.resolve("BSL.zip");
         Files.writeString(bsl, "zip placeholder", StandardCharsets.UTF_8);
         Files.createDirectories(shaderpacks.resolve("Other").resolve("shaders"));
-        // Iris rule: a folder without a shaders folder is not a pack.
+        // as in Iris, a folder without a shaders folder is not a pack
         Files.createDirectories(shaderpacks.resolve("NotAPack"));
         Files.writeString(shaderpacks.resolve("ignored.txt"), "not a pack", StandardCharsets.UTF_8);
 

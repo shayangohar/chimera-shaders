@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Keeps GL row order in Chimera's GL-oriented passes by unflipping the rectangle VulkanMod hands
- * Vulkan. Reforged still records the viewport and scissor it was asked for: its render-state
- * snapshots restore them, and a world model drawn under an open screen takes such a snapshot.
+ * Keeps GL row order in Chimera's GL-oriented passes by flipping the rectangle VulkanMod hands Vulkan.
+ * Reforged still records the viewport and scissor it was asked for, since its render-state snapshots
+ * restore them and a world model drawn under an open screen takes such a snapshot.
  */
 @Mixin(value = Renderer.class, remap = false)
 public abstract class ChimeraRasterOrientationMixin {
@@ -30,8 +30,8 @@ public abstract class ChimeraRasterOrientationMixin {
         original.call(commandBuffer, first, viewports);
     }
 
-    // Reforged 0.3.5 records the scissor box in setScissor and issues it in applyScissor: the
-    // framebuffer's full rectangle while the scissor test is off, else the box in Vulkan rows.
+    // Reforged records the scissor box in setScissor and issues it in applyScissor: the framebuffer's full
+    // rectangle while the scissor test is off, else the box in Vulkan rows
     @WrapOperation(method = "applyScissor()V", at = @At(value = "INVOKE", target = "Lorg/lwjgl/vulkan/VK10;"
             + "vkCmdSetScissor(Lorg/lwjgl/vulkan/VkCommandBuffer;ILorg/lwjgl/vulkan/VkRect2D$Buffer;)V"), require = 2)
     private static void chimera$glScissor(VkCommandBuffer commandBuffer, int first, VkRect2D.Buffer scissors,

@@ -7,21 +7,21 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Iris's InternalTextureFormat list as colour-target formats. Each token maps to the Vulkan format
- * its texels are stored in, how many bytes one takes, and whether shaders read it as floats or as
- * unsigned or signed integers. A format Vulkan cannot draw to as GL declares it is approximated:
- * an RGB format gains alpha (which reads as 1, as GL's missing alpha does), and a packed or
- * low-precision one widens. Signed normalized formats are stored as such, so a write clamps to
- * [-1, 1] as GL's does; Rethinking Voxels' colortex5 relies on it (PackTargetImages checks the
- * device draws to them).
+ * Iris's InternalTextureFormat tokens as colour-target formats: the Vulkan format each is stored in, its bytes
+ * per texel, and whether shaders read it as floats or as unsigned or signed integers.
+ *
+ * A format Vulkan cannot draw to as GL declares it is approximated. An RGB format gains an alpha that reads 1,
+ * as GL's missing alpha does, and a packed or low-precision one widens. Signed normalized formats stay signed,
+ * so a write clamps to [-1, 1] as in GL; Rethinking Voxels' colortex5 relies on this. PackTargetImages checks
+ * the device can draw to them.
  */
 public final class IrisColorFormats {
     private IrisColorFormats() {}
 
-    /** How shaders read a format's texels: GL's normalized and float formats, or its integer ones. */
+    /** How shaders read a format's texels: as floats for normalized and float formats, else as integers. */
     public enum Kind { FLOAT, UINT, SINT }
 
-    /** One token: its Vulkan format, bytes per texel, kind, and whether Vulkan stores it exactly. */
+    /** A token's Vulkan storage; {@code exact} is false when it widens, {@code paddedAlpha} when it gains alpha. */
     public record Format(String token, int vkFormat, int bytes, Kind kind, boolean exact, boolean paddedAlpha) {}
 
     private static final Map<String, Format> FORMATS = new LinkedHashMap<>();
@@ -47,7 +47,7 @@ public final class IrisColorFormats {
         exact("R32F", 100, 4, Kind.FLOAT);          // VK_FORMAT_R32_SFLOAT
         exact("RG32F", 103, 8, Kind.FLOAT);         // VK_FORMAT_R32G32_SFLOAT
         exact("RGBA32F", 109, 16, Kind.FLOAT);      // VK_FORMAT_R32G32B32A32_SFLOAT
-        // VK_FORMAT_B10G11R11_UFLOAT_PACK32: unsigned like GL's, so a negative store is 0 and alpha reads 1.
+        // VK_FORMAT_B10G11R11_UFLOAT_PACK32: unsigned like GL's, so a negative store is 0 and alpha reads 1
         exact("R11F_G11F_B10F", 122, 4, Kind.FLOAT);
         exact("R8UI", 13, 1, Kind.UINT);            // VK_FORMAT_R8_UINT
         exact("R8I", 14, 1, Kind.SINT);             // VK_FORMAT_R8_SINT
@@ -105,7 +105,7 @@ public final class IrisColorFormats {
     /** The format a colortexNFormat token names; null for a token Iris does not know. */
     public static Format of(String token) {
         if (token == null) return null;
-        // Iris InternalTextureFormat.fromString reads the name in any case.
+        // any case, as Iris's InternalTextureFormat.fromString reads it
         String name = token.toUpperCase(Locale.ROOT);
         return FORMATS.get(ALIASES.getOrDefault(name, name));
     }

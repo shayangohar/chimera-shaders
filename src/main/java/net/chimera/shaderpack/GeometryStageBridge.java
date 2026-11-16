@@ -15,15 +15,17 @@ import static net.chimera.shaderpack.WorldBetweenStages.qualified;
 
 /**
  * A pack program's geometry stage (.gsh), which Iris runs between the vertex and fragment stages.
- * Its per-vertex inputs pair with the vertex stage's outputs and its outputs with the fragment
- * stage's inputs, each pair by name at one shared location (GlslInterfaceScanner.Stage.GEOMETRY).
- * A terrain, water or hand program's stage is converted as {@link #convertWorld} says; on a shadow lane
- * the stage reads the program's uniforms through the shadow block the other stages declare, binds
- * its samplers as they do, and converts GL's clip depth for each vertex it emits, as the vertex
- * stage does when nothing follows it (ShadowStageBuiltins). On a lane drawn with the draw's own
- * matrices (the entity casters and the host-layout keys) it also passes on the entity identities
- * the vertex stage reads from EntityIds, each from the primitive's first vertex, as Iris's
- * EntityPatcher passes iris_entityInfo through.
+ *
+ * Its per-vertex inputs pair with the vertex stage's outputs and its outputs with the fragment stage's
+ * inputs, each pair by name at one shared location (GlslInterfaceScanner.Stage.GEOMETRY). A terrain, water
+ * or hand program's stage converts as {@link #convertWorld} describes.
+ *
+ * On a shadow lane the stage reads the program's uniforms through the shadow block the other stages declare,
+ * binds its samplers as they do, and converts GL's clip depth for each vertex it emits, as the vertex stage
+ * does when nothing follows it (ShadowStageBuiltins). On a lane drawn with the draw's own matrices, the
+ * entity casters and host-layout keys, it also passes on the entity identities the vertex stage reads from
+ * EntityIds. Each comes from the primitive's first vertex, as Iris's EntityPatcher passes iris_entityInfo
+ * through.
  */
 final class GeometryStageBridge {
     private GeometryStageBridge() {}
@@ -35,8 +37,8 @@ final class GeometryStageBridge {
     /** The prefix of the global that keeps a geometry stage output's value across an emit. */
     static final String KEPT_PREFIX = "chimeraKept_";
     /**
-     * The legacy matrices of the entity and host-layout shadow lanes: the draw's own, which the
-     * host serves to the vertex stage alone (EntityVertexBridge.entityShadowMatrixBuiltinReplacements).
+     * The legacy matrices of the entity and host-layout shadow lanes. They are the draw's own, which the host
+     * serves to the vertex stage alone (EntityVertexBridge.entityShadowMatrixBuiltinReplacements).
      */
     private static final Set<String> DRAW_MATRICES = EntityVertexBridge.entityShadowMatrixBuiltinReplacements()
             .keySet();
@@ -48,10 +50,9 @@ final class GeometryStageBridge {
     record Conversion(String source, LegacyGlslConverter.TerrainVaryingLayout outputLayout) {}
 
     /**
-     * The stage as the vertex stage's consumer: each per-vertex input declared as the one vertex's
-     * value it reads, the rest unchanged, so the vertex bridge pairs with it as with a fragment
-     * stage. It also names each entity identity that only {@code fragment} reads, which the stage
-     * passes on.
+     * The stage as the vertex stage's consumer: each per-vertex input declared as the single vertex value it
+     * reads, the rest unchanged, so the vertex bridge pairs with it as with a fragment stage. It also names
+     * each entity identity that only {@code fragment} reads, which the stage passes on.
      */
     static String consumerView(String geometry, String fragment) {
         String view = GlslInterfaceScanner.rewrite(geometry, GlslInterfaceScanner.Stage.GEOMETRY, declaration ->
@@ -75,14 +76,14 @@ final class GeometryStageBridge {
     }
 
     /**
-     * Converts a shadow program's geometry stage. {@code inputLayout} holds the vertex stage's
-     * output locations; the fragment stage's inputs decide the output layout. On a lane drawn with
-     * the draw's own matrices ({@code drawMatrices}) the entity identities in {@code inputLayout}
-     * pass on to the fragment stage, and the stage reads them as the first vertex's.
+     * Converts a shadow program's geometry stage. {@code inputLayout} holds the vertex stage's output
+     * locations; the fragment stage's inputs decide the output layout. On a lane drawn with the draw's own
+     * matrices ({@code drawMatrices}) the entity identities in {@code inputLayout} pass on to the fragment
+     * stage, and the stage reads them as the first vertex's.
      *
-     * @throws IllegalArgumentException when the stage reads an input no vertex output feeds, an
-     *         output the layout cannot place, a storage buffer the plan did not admit, an
-     *         unplanned value uniform, or a draw matrix only the vertex stage is served
+     * @throws IllegalArgumentException when the stage reads an input no vertex output feeds, an output the
+     *         layout cannot place, a storage buffer the plan did not admit, an unplanned value uniform, or a
+     *         draw matrix only the vertex stage is served
      */
     static Conversion convertShadow(String geometry, LegacyGlslConverter.TerrainVaryingLayout inputLayout,
                                     String fragment, UniformRegistry.ProgramInterface interfacePlan,
@@ -116,15 +117,18 @@ final class GeometryStageBridge {
     }
 
     /**
-     * Converts a terrain, water or hand program's geometry stage (Spring's gbuffers_terrain and
-     * gbuffers_hand, which pass each triangle through). {@code inputLayout} holds the vertex stage's
-     * output locations; the fragment stage's inputs decide the output layout. The vertex stage hands
-     * it GL's clip position, as under Iris, and the stage reads the legacy matrices, its samplers and
-     * the pack's uniforms as the program's tessellation stages do (WorldBetweenStages): a terrain
-     * stage the host's matrices in GL's clip range, a {@code hand} stage its draw's own and the entity
-     * family's block. It converts the clip depth of each vertex it emits. A hand's stage passes on the
-     * values the entity vertex bridge adds for the fragment stage (WorldBetweenStages.PassedOn), each
-     * from the primitive's first vertex, as Iris's EntityPatcher passes iris_entityInfo[0] through.
+     * Converts a terrain, water or hand program's geometry stage, such as Spring's, which passes each
+     * triangle through. {@code inputLayout} holds the vertex stage's output locations; the fragment stage's
+     * inputs decide the output layout.
+     *
+     * The vertex stage hands it GL's clip position, as under Iris. The stage reads the legacy matrices, its
+     * samplers and the pack's uniforms as the program's tessellation stages do (WorldBetweenStages): a
+     * terrain stage gets the host's matrices in GL's clip range, a {@code hand} stage its draw's own and the
+     * entity family's block. It converts the clip depth of each vertex it emits.
+     *
+     * A hand's stage passes on the values the entity vertex bridge adds for the fragment stage
+     * (WorldBetweenStages.PassedOn), each from the primitive's first vertex, as Iris's EntityPatcher passes
+     * iris_entityInfo[0] through.
      *
      * @throws IllegalArgumentException as {@link #convertShadow}, but for the draw matrices
      */
@@ -151,23 +155,23 @@ final class GeometryStageBridge {
     }
 
     /**
-     * Converts the clip depth of every vertex the stage emits, just before the emit, once the stage
-     * has written its final position: the vertex stage leaves GL's clip range when a geometry stage
-     * follows it (ShadowStageBuiltins.vertexClipRange, and GL's range for a world program). The
-     * {@code passOn} statements, which write the values the stage passes on to the fragment stage,
-     * run there too.
+     * Converts the clip depth of every vertex the stage emits, just before the emit, once the stage has
+     * written its final position. The vertex stage leaves GL's clip range when a geometry stage follows it
+     * (ShadowStageBuiltins.vertexClipRange, and GL's range for a world program). The {@code passOn}
+     * statements, which write the values passed on to the fragment stage, run there too.
      *
-     * <p>GLSL leaves every output undefined after EmitVertex. NVIDIA's GL driver, which Iris runs on,
-     * keeps each output's last value, and NVIDIA's Vulkan driver does not: Spring's terrain stage writes
-     * its flat textureResolution once and emits three vertices, and RenderDoc read garbage on the last
-     * two. So the emit keeps every output of {@code source}, and the position the stage
-     * wrote, and writes them back after the emit: a later emit reads what GL would, and a position
-     * emitted twice is converted once each time. Other built-in outputs (gl_Layer, gl_PrimitiveID,
-     * gl_PointSize, gl_ClipDistance) are not kept, and EmitStreamVertex is left as written; no
-     * corpus pack writes one once before its emits or emits to a stream.</p>
+     * GLSL leaves every output undefined after EmitVertex. NVIDIA's GL driver, which Iris runs on, keeps each
+     * output's last value, and NVIDIA's Vulkan driver does not: Spring's terrain stage writes its flat
+     * textureResolution once and emits three vertices. So the emit keeps every output of {@code source}, and
+     * the position the stage wrote, and writes them back after the emit. A later emit then reads what GL
+     * would, and a position emitted twice is converted once each time.
      *
-     * <p>The emit is declared ahead of the stage's first function, which may call it, and defined at
-     * the end, after every output: Rethinking Voxels declares its outputs below included functions.</p>
+     * Other built-in outputs (gl_Layer, gl_PrimitiveID, gl_PointSize, gl_ClipDistance) are not kept, and
+     * EmitStreamVertex is left as written; no known pack writes one of those once before its emits, or emits
+     * to a stream.
+     *
+     * The emit is declared ahead of the stage's first function, which may call it, and defined at the end,
+     * after every output, since Rethinking Voxels declares its outputs below included functions.
      */
     private static String emitClipRange(String source, List<String> passOn) {
         List<GlslInterfaceScanner.Declaration> outputs = GlslInterfaceScanner.scan(source,
@@ -200,10 +204,9 @@ final class GeometryStageBridge {
     }
 
     /**
-     * A main, triangles in, no storage buffer the plan did not admit, and no value uniform the
-     * plan left out. Every shadow lane draws triangles (VulkanMod draws LINES, quads and strips as
-     * triangle lists); GL fails the draw of a stage that takes another primitive, Vulkan leaves it
-     * undefined.
+     * Requires a main, triangles in, no storage buffer the plan did not admit and no value uniform the plan
+     * left out. Every shadow lane draws triangles, since VulkanMod draws LINES, quads and strips as triangle
+     * lists; GL fails the draw of a stage that takes another primitive, and Vulkan leaves it undefined.
      */
     private static void requireSupported(String source, boolean allowStorageBuffers) {
         String stripped = GlslLexer.stripComments(source);
@@ -225,7 +228,7 @@ final class GeometryStageBridge {
         }
     }
 
-    /** No legacy matrix of the draw, which the host serves to the vertex stage alone. */
+    /** Rejects a read of the draw's legacy matrices, which the host serves to the vertex stage alone. */
     private static void requireServedMatrices(String source) {
         String stripped = GlslLexer.stripComments(source);
         String matrix = GlslTokenRewriter.firstIdentifier(stripped, DRAW_MATRICES::contains);
@@ -276,9 +279,9 @@ final class GeometryStageBridge {
     }
 
     /**
-     * Each input at the location of the vertex output it reads, and each output at the location
-     * the fragment stage reads it from; integer outputs are flat, as the fragment stage takes
-     * them. An input nothing reads goes, as GL leaves it inactive.
+     * Places each input at the location of the vertex output it reads, and each output at the location the
+     * fragment stage reads it from; integer outputs are flat, as the fragment stage takes them. An input
+     * nothing reads goes, as GL leaves it inactive.
      */
     private static String located(String source, LegacyGlslConverter.TerrainVaryingLayout inputs,
                                   LegacyGlslConverter.TerrainVaryingLayout outputs) {

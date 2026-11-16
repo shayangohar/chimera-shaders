@@ -6,22 +6,25 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The clip range a world stage writes. The host draws the world with matrices that already map
- * clip depth onto Vulkan's [0, w], and the legacy built-ins a world stage reads stand for them. The
- * pack's own projection uniforms carry GL's [-w, w], as under Iris, so a stage that
- * projects with them (Ebin's and Glimmer's gbuffers_main: gl_Position = gbufferProjection * view)
- * stored GL's normalized depth, 2d - 1 where GL keeps the window depth d, and every position a
- * later pass rebuilt from that depth landed at half its distance.
+ * The clip range a world stage writes.
  *
- * <p>Such a stage runs in GL's range throughout ({@link #GL}), as shadow (ShadowStageBuiltins),
- * hand and sky stages do: its clip built-ins take the host matrices into GL's range, and its final
- * clip depth comes back once, after the authored entry point. ftransform() keeps the host's depth
- * exactly: 2z - w and its sum with w are exact while 2z lies within a factor of two of w (Sterbenz),
- * which holds for every window depth from 0.25 on. A stage that reads a host clip built-in and no
- * pack projection keeps the host's matrices and depth ({@link #HOST}). A stage that reads neither
- * builds its clip position itself, in GL's range as under Iris: I Like Vanilla's isometric
- * projection scales the view position by constants, and with the host's range Vulkan clipped all
- * it drew within about 192 blocks in front of the camera.</p>
+ * The host draws the world with matrices that already map clip depth onto Vulkan's [0, w], and the
+ * legacy built-ins a world stage reads stand for them. The pack's own projection uniforms carry GL's
+ * [-w, w], as under Iris. A stage that projects with them (Ebin's and Glimmer's gbuffers_main:
+ * gl_Position = gbufferProjection * view) would otherwise store GL's normalized depth, 2d - 1 where GL
+ * keeps the window depth d, and every position a later pass rebuilt from that depth would land at half
+ * its distance.
+ *
+ * Such a stage runs in GL's range throughout ({@link #GL}), as shadow (ShadowStageBuiltins), hand and
+ * sky stages do: its clip built-ins take the host matrices into GL's range, and its final clip depth
+ * comes back once, after the authored entry point. ftransform() keeps the host's depth exactly: 2z - w
+ * and its sum with w are exact while 2z lies within a factor of two of w (Sterbenz), which holds for
+ * every window depth from 0.25 on.
+ *
+ * A stage that reads a host clip built-in and no pack projection keeps the host's matrices and depth
+ * ({@link #HOST}). A stage that reads neither builds its clip position itself, in GL's range as under
+ * Iris: I Like Vanilla's isometric projection scales the view position by constants, and in the host's
+ * range Vulkan would clip what it draws near the camera.
  */
 enum WorldClipRange {
     HOST,
@@ -30,8 +33,8 @@ enum WorldClipRange {
     /**
      * The pack's camera projections and their inverses, in GL's clip range. RenderPearl's terrain
      * clamps gl_ProjectionMatrix * view to the frustum and unprojects it with
-     * gbufferProjectionInverse alone; with the host's range there it placed each light at about
-     * twice its distance and culled every one past a few blocks.
+     * gbufferProjectionInverse alone; in the host's range it would place each light at about twice
+     * its distance and cull every one past a few blocks.
      */
     private static final Set<String> PACK_PROJECTIONS = Set.of(
             "gbufferProjection", "gbufferProjectionInverse", "gbufferPreviousProjection", "dhProjection",

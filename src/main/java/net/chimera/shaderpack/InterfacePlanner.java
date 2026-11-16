@@ -42,7 +42,7 @@ public final class InterfacePlanner {
 
     private InterfacePlanner() {}
 
-    /** Builds one program-level union from its prepared stage sources. */
+    /** A program interface over its fragment and vertex stages, without the pack's own values or slots. */
     public static ProgramInterfacePlan planProgram(
             String fragmentSource,
             String vertexSource,
@@ -54,10 +54,9 @@ public final class InterfacePlanner {
     }
 
     /**
-     * A program interface over every stage the program runs, with pack-owned sampler slots: the
-     * uniforms and samplers of each stage it runs between its vertex and fragment stages
-     * ({@code betweenStages}, by stage name; null for none) join the program's, and project
-     * answers for each of them.
+     * A program interface over every stage the program runs, with the pack's own values and sampler slots.
+     * The uniforms and samplers of each stage between the vertex and fragment stages ({@code betweenStages},
+     * by stage name; null for none) join the program's, and each stage keeps its own plan as well.
      */
     public static ProgramInterfacePlan planProgram(
             String fragmentSource,
@@ -95,18 +94,14 @@ public final class InterfacePlanner {
     }
 
     /**
-     * Builds the immutable declaration plan for one fragment source.
-     * Comments are ignored. Unsupported declarations remain visible in the
-     * deviation list and make the plan ineligible for pipeline construction.
+     * Plans one source's declarations, comments ignored. An unsupported declaration stays in the deviations
+     * and keeps the plan from building a pipeline.
      */
     public static ProgramInterface plan(String source, Stage stage) {
         return planInternal(source, stage, false, false);
     }
 
-    /**
-     * Plans a post program whose colortex bindings are backed by post target
-     * images rather than the older single-image seam aliases.
-     */
+    /** Plans a post program whose colortex samplers read the post target images, not the seam aliases. */
     public static ProgramInterface planPost(String source, PostTargetPlan targetPlan) {
         if (targetPlan == null) {
             throw new IllegalArgumentException("post target plan is required");
@@ -114,12 +109,12 @@ public final class InterfacePlanner {
         return planInternal(source, Stage.POST, true, false);
     }
 
-    /** Plans a source snapshot after the pack preprocessor has removed inactive declarations. */
+    /** Plans a prepared source, whose conditionals are resolved, so a declaration it never reads is only unused. */
     public static ProgramInterface planPrepared(String source, Stage stage) {
         return planInternal(source, stage, false, true);
     }
 
-    /** Prepared post source variant used by the real-pack loader. */
+    /** Plans a prepared post source, as {@link #planPost} plans an unprepared one. */
     public static ProgramInterface planPreparedPost(String source, PostTargetPlan targetPlan) {
         if (targetPlan == null) {
             throw new IllegalArgumentException("post target plan is required");
@@ -187,25 +182,22 @@ public final class InterfacePlanner {
         while (blockMatcher.find()) {
             deviations.add("UNIFORM_TYPE_UNSUPPORTED:" + blockMatcher.group(1));
         }
-        // Real packs sometimes expose standard Iris uniforms through a conditional include that is
-        // absent from the prepared snapshot. If the name is in the canonical catalog and has exactly
-        // one accepted type, synthesize the declaration from that catalog entry. This is
-        // deliberately table-driven and does not infer arbitrary GLSL types.
+        // a pack may declare a standard Iris uniform in a conditional include the prepared source lacks;
+        // a catalog name with exactly one accepted type is declared from the catalog, never a guessed type
         if (allowUnusedDeclarations) {
             declareReferencedCatalogValues(stripped, stage, declared, deviations);
         }
-        // The terrain bridge serves the legacy matrix built-ins from gbufferModelView
-        // (LegacyGlslConverter.modernTerrainInputReplacements); a pack that only writes
-        // gl_ModelViewMatrix never declares it.
+        // the terrain bridge serves the legacy matrix built-ins from gbufferModelView
+        // (TerrainVertexBridge.modernTerrainInputReplacements), which a pack using gl_ModelViewMatrix
+        // need not declare
         if ((stage == Stage.GEOMETRY || stage == Stage.TRANSLUCENT)
                 && usesLegacyModelView(stripped)
                 && !declared.uniforms().containsKey("gbufferModelView")
                 && !isLocallyDeclared(stripped, "gbufferModelView")) {
             declareImplicit("gbufferModelView", "mat4", declared, deviations);
         }
-        // The shadow bridge serves them from the shadow matrices
-        // (ShadowStageBuiltins.matrixReplacements): RenderPearl's shadow vertex
-        // reads modelViewMatrix, which Iris's core profile makes gl_ModelViewMatrix.
+        // the shadow bridge serves them from the shadow matrices (ShadowStageBuiltins.matrixReplacements);
+        // RenderPearl's shadow vertex reads modelViewMatrix, which Iris's core profile makes gl_ModelViewMatrix
         for (String name : shadowMatrixValues(stripped, stage)) {
             if (declared.uniforms().containsKey(name) || isLocallyDeclared(stripped, name)) continue;
             declareImplicit(name, "mat4", declared, deviations);
@@ -220,9 +212,7 @@ public final class InterfacePlanner {
             declared.samplers().putIfAbsent(variable.name(), type);
             return;
         }
-        // Writable 3D images belong to the advanced-resource plan, not to the ordinary
-        // generated UBO. Keeping them out of this catalog lets the graphics image bridge
-        // assign one explicit storage descriptor later.
+        // storage images stay out of the uniform block; the advanced-resource plan gives each a storage descriptor
         if (UniformRegistry.isStorageImageType(type)) {
             deviations.add("ADVANCED_IMAGE_DECLARATION:" + variable.name());
             return;
@@ -402,27 +392,27 @@ public final class InterfacePlanner {
         for (Map.Entry<String, String> sampler : samplerNames.entrySet()) {
             String name = sampler.getKey();
             String type = sampler.getValue();
-            // A shadow program's unread shadowcolor stays inactive, so the pass copies no target for it.
+            // a shadow program's unread shadowcolor stays inactive, so the pass copies no target for it
             boolean shadowColor = stage.shadowPass() && PackResourcePlan.shadowColorIndex(name) >= 0;
             if ((allowUnusedDeclarations || shadowColor) && isSamplerUnused(stripped, name)) {
                 deviations.add("SAMPLER_DECLARATION_UNUSED:" + name);
                 continue;
             }
-            // Iris gives the legacy shadow names a per-program meaning; look them up by it.
+            // Iris gives the legacy shadow names a per-program meaning; look them up by it
             String lookup = PackResourcePlan.isProgramShadowAlias(name)
                     ? PackResourcePlan.programResource(name, waterShadow) : name;
             Integer slot = samplerSlot(name, lookup, stage, customSamplerSlots);
             if (!mappedType(name, type, customSamplerSlots) || slot == null) {
-                // A sampler nothing reads is inactive, as GL leaves it: Escheridia's composites
-                // declare clouds, normals and shadowtex0HW in a shared header and read none of them.
+                // a sampler nothing reads is inactive, as GL leaves it: Escheridia's composites
+                // declare clouds, normals and shadowtex0HW in a shared header and read none of them
                 deviations.add(isSamplerUnused(stripped, name)
                         ? "SAMPLER_DECLARATION_UNUSED:" + name : unmappedSamplerDeviation(name, stage));
                 continue;
             }
-            // A pack texture takes a colour target's slot only when no program reads the target
-            // (PackSettingsPlan.customSamplerSlots), so GL leaves the target's declaration inactive in
-            // every stage. Strip it in each one, or a stage that keeps it puts two textures on the slot:
-            // with bloom off, Escheridia's unread colortex6 gives slot 10 to voxelFloodfill.
+            // a pack texture takes a colour target's slot only when no program reads the target
+            // (PackSettingsPlan.customSamplerSlots), so GL leaves the target's declaration inactive in every stage
+            // strip it in each one, or a stage that keeps it puts two textures on the slot: with bloom off,
+            // Escheridia's unread colortex6 gives slot 10 to voxelFloodfill
             if (slotOfAnotherCustomSampler(name, slot, customSamplerSlots) && isSamplerUnused(stripped, name)) {
                 deviations.add("SAMPLER_DECLARATION_UNUSED:" + name);
                 continue;
@@ -447,7 +437,7 @@ public final class InterfacePlanner {
                 .anyMatch(custom -> custom.getValue().equals(slot) && !custom.getKey().equals(name));
     }
 
-    /** 2D and shadow samplers always bind; 3D samplers bind only to the pack's own textures. */
+    /** 2D and shadow samplers always bind; 1D and 3D samplers bind only to the pack's own textures. */
     private static boolean mappedType(String name, String type, Map<String, Integer> customSamplerSlots) {
         return PLANAR_SAMPLER_TYPES.contains(type)
                 || PACK_ONLY_SAMPLER_TYPES.contains(type) && hasCustomSlot(customSamplerSlots, name);
@@ -467,7 +457,10 @@ public final class InterfacePlanner {
         };
     }
 
-    /** The slot a declared sampler binds to: the stage's map, the targets' samplers, then the pack's own textures. */
+    /**
+     * The slot a declared sampler binds to: the stage's map, the targets' samplers, the pack's own textures,
+     * then the material samplers in a material stage.
+     */
     static Integer samplerSlot(
             String name, String lookup, Stage stage, Map<String, Integer> customSamplerSlots) {
         Integer slot = stageSlots(stage).get(lookup);
@@ -494,10 +487,10 @@ public final class InterfacePlanner {
         if (stage == Stage.POST && CenterDepthSmooth.SAMPLER.equals(lookup)) {
             return SelectorNamespace.CENTER_DEPTH_SLOT;
         }
-        // Iris gives every program each shadowcolor target and the hardware shadow samplers
-        // (addShadowSamplers), shadow programs too. A shadow program reads a shadowcolor target as
-        // the pass opened (ChimeraShadowMap.snapshotPassReads); the hardware samplers bind outside
-        // the shadow pass. PackPlanBuilder refuses those the pack lacks.
+        // Iris gives every program, shadow programs too, each shadowcolor target and the hardware shadow
+        // samplers (addShadowSamplers)
+        // a shadow program reads a shadowcolor target as the pass opened (ChimeraShadowMap.snapshotPassReads)
+        // the hardware samplers bind outside the shadow pass; PackPlanBuilder refuses those the pack lacks
         if (stage.shadowPass()) return shadowPassColorSlot(lookup);
         int shadow = SelectorNamespace.shadowSamplerSlot(lookup);
         if (shadow >= 0) return shadow;
@@ -536,8 +529,7 @@ public final class InterfacePlanner {
         if (name.equals("noisetex")) {
             deviations.add("NOISETEX_PACK_RESOURCE");
         }
-        // The single-depth report keeps depthtex0 fixed to HDR; the target graph snapshots carry
-        // the semantic correction.
+        // the single-depth report keeps depthtex0 fixed to HDR, and the target graph snapshots correct it
         if (name.equals("depthtex0")) {
             deviations.add("DEPTH_INPUT_FIXED_TO_HDR");
         } else if (name.startsWith("depthtex")) {
@@ -572,18 +564,15 @@ public final class InterfacePlanner {
         return spec.accepts(type);
     }
 
-    // Source scanning and rewriting: the declarations a stage makes and reads, judged as GLSL words, and
-    // the declarations the generated uniform block replaces, removed.
-
     /** True when {@code name} appears as a whole word at least twice: a declaration and a use. */
     private static boolean isReferenced(String source, String name) {
         return wholeWordCount(source, name, 2) >= 2;
     }
 
     /**
-     * How often {@code name} appears as a whole word, counting no further than {@code limit}, word
-     * edges judged as Java's {@code \b} judges them. Planning asks this for every catalog uniform in
-     * every program, so it searches with {@code indexOf} rather than compiling a pattern each time.
+     * How often {@code name} appears as a whole word, counting no further than {@code limit}, with word edges
+     * as Java's {@code \b} judges them. Planning asks this for every catalog uniform in every program, so it
+     * searches with {@code indexOf} instead of compiling a pattern each time.
      */
     private static int wholeWordCount(String source, String name, int limit) {
         if (name.isEmpty() || !wordCharacter(name.charAt(0)) || !wordCharacter(name.charAt(name.length() - 1))) {
@@ -610,7 +599,7 @@ public final class InterfacePlanner {
                 || (value >= '0' && value <= '9');
     }
 
-    /** Accounts for stage-local legacy shadow matrix aliases during planning. */
+    /** Whether the stage reads {@code name}, counting the legacy matrix built-ins its bridge serves from it. */
     static boolean isReferencedForStage(String source, String name, Stage stage) {
         if (isReferenced(source, name)) {
             return true;
@@ -656,7 +645,7 @@ public final class InterfacePlanner {
 
     record Variable(String name, boolean array) {}
 
-    /** Returns all declared sampler names, including unsupported names, sorted. */
+    /** Every declared sampler name, supported or not, sorted. */
     public static List<String> scanDeclaredSamplerNames(String source) {
         String stripped = stripComments(source == null ? "" : source);
         TreeSet<String> names = new TreeSet<>();
@@ -671,12 +660,12 @@ public final class InterfacePlanner {
         return List.copyOf(names);
     }
 
-    /** Returns all ordinary uniform declarations, including unsupported ones. */
+    /** Every ordinary uniform declaration, supported or not. */
     public static List<UniformDeclaration> scanUniformDeclarations(String source) {
         return plan(source, Stage.POST).uniforms();
     }
 
-    /** Removes only accepted ordinary declarations, keeping sampler declarations for binding rewrite. */
+    /** Removes the ordinary declarations the generated uniform block replaces, and the unused ones. */
     public static String removeUniformDeclarations(String source, ProgramInterface plan) {
         String result = source == null ? "" : source;
         Set<String> executable = plan.executableUniforms().stream()
@@ -695,7 +684,7 @@ public final class InterfacePlanner {
         int last = 0;
         boolean changed = false;
         while (matcher.find()) {
-            // Samplers stay declared for the binding rewrite unless the pack never reads them.
+            // samplers stay declared for the binding rewrite unless the pack never reads them
             Set<String> removed = UniformRegistry.isSamplerType(matcher.group(1)) ? unusedSamplers : executable;
             List<Variable> variables = parseVariables(matcher.group(2));
             if (!variables.isEmpty()) {
@@ -703,7 +692,7 @@ public final class InterfacePlanner {
                         .filter(variable -> !removed.contains(variable.name()))
                         .toList();
                 if (retained.size() != variables.size()) {
-                    // A declaration removed whole takes its layout qualifier (layout(rgba8) uniform image2D).
+                    // a declaration removed whole takes its layout qualifier, as in layout(rgba8) uniform image2D
                     out.append(result, last, retained.isEmpty()
                             ? Math.max(last, GlslDeclarations.layoutStart(masked, matcher.start())) : matcher.start());
                     if (!retained.isEmpty()) {

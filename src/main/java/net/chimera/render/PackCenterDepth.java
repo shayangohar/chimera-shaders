@@ -26,10 +26,11 @@ import static org.lwjgl.vulkan.VK10.vkCmdDispatch;
 
 /**
  * Iris's CenterDepthSampler: the 1x1 R32F texture fullscreen passes read as iris_centerDepthSmooth.
- * Each frame at beginHand, before the hand and translucents, it moves toward the world depth at the
- * screen's centre by {@code 1 - exp(-decay * frameTime)}, with {@code decay = ln 2 / (halfLife * 0.1)}
- * from the pack's centerDepthHalflife; a NaN value takes the new depth whole. Iris reads the main
- * depth with its own nearest sampler. The image starts at zero, as Iris's unfilled texture reads.
+ *
+ * Each frame at beginHand, before the hand and translucents, the value moves toward the world depth at the
+ * screen's centre by {@code 1 - exp(-decay * frameTime)}, with {@code decay = ln 2 / (halfLife * 0.1)} from
+ * the pack's centerDepthHalflife; a NaN value takes the new depth whole. The main depth is read with a
+ * nearest sampler, as Iris reads it. The image starts at zero, as Iris's unfilled texture reads.
  */
 final class PackCenterDepth implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -62,8 +63,8 @@ final class PackCenterDepth implements AutoCloseable {
     }
 
     /**
-     * The smoothed centre depth when a program of {@code plan} reads it, else null. Without its
-     * kernel the image stays at zero, which every reader then gets.
+     * The smoothed centre depth when a program of {@code plan} reads it, else null. Without its kernel the
+     * image stays at zero, which every reader then gets.
      */
     static PackCenterDepth create(PackPlan plan) {
         if (plan == null || plan.resources().bindings().values().stream().flatMap(Collection::stream)
@@ -81,7 +82,7 @@ final class PackCenterDepth implements AutoCloseable {
                     new int[] {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE},
                     ComputeValueBlock.bufferSize(VALUES));
         } catch (RuntimeException failure) {
-            // No owner holds the image yet, so nothing else would free it (audit RD6).
+            // no owner holds the image yet, so nothing else would free it
             image.free();
             throw failure;
         }
@@ -96,8 +97,8 @@ final class PackCenterDepth implements AutoCloseable {
     }
 
     /**
-     * Iris's decay, {@code 1 / ((halfLife * 0.1) / ln 2)}, as a GLSL literal. A half-life of zero
-     * makes it infinite there; the largest float stands in, which takes the new depth whole.
+     * Iris's decay, {@code 1 / ((halfLife * 0.1) / ln 2)}, as a GLSL literal. A half-life of zero makes it
+     * infinite; the largest float stands in, which takes the new depth whole.
      */
     static String decayLiteral(float halfLife) {
         float decay = (float) (1.0 / ((halfLife * 0.1) / Math.log(2)));

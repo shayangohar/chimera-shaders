@@ -15,9 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * One program whose planning throws falls back alone; the pack still loads.
- * A gbuffers_entities fragment without main() makes the alpha-test injection throw, as a real
- * Chimera planning defect would.
+ * One program whose planning throws falls back alone, and the pack still loads. A gbuffers_entities
+ * fragment without main() makes the alpha-test injection throw, standing in for a Chimera planning defect.
  */
 final class ProgramPlanningIsolationTest {
     private static final String ENTITIES_VERTEX = """
@@ -41,7 +40,7 @@ final class ProgramPlanningIsolationTest {
 
     @Test
     void theInjectedFailureReallyThrowsInsidePlanning() {
-        // Pins the trigger, so the isolation tests below exercise a throw and not a refusal.
+        // pins the trigger, so the tests below exercise a throw rather than a refusal
         PackAlphaTestPlan entities = PackAlphaTestPlan.forProgram("gbuffers_entities", PackSettingsPlan.empty());
         assertThrows(RuntimeException.class, () -> entities.injectDrawTest(ENTITIES_FRAGMENT_WITHOUT_MAIN, true));
     }
@@ -84,7 +83,7 @@ final class ProgramPlanningIsolationTest {
         assertFalse(analysis.report().shouldAttempt("gbuffers_entities"));
         assertTrue(analysis.report().shouldAttempt("composite"),
                 analysis.report().program("composite").deviations().toString());
-        // The corpus gate names the catch-all, so a real pack can never carry it quietly.
+        // the pack compile check fails on the catch-all, so a real pack never carries it quietly
         var gate = PackCompileTest.run(root, analysis);
         assertTrue(gate.failures().stream().anyMatch(failure -> failure.startsWith("gbuffers_entities: "
                 + PackPlanBuilder.PLANNING_FAILED)), gate.failures().toString());

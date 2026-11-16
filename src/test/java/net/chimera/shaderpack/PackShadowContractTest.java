@@ -7,7 +7,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The bounded pack shadow contract: clip range, settings and the shadow vertex wrapper. */
+/** The pack shadow contract: clip range, settings and the shadow vertex wrapper. */
 final class PackShadowContractTest {
     @Test
     void shadowContract() {
@@ -42,7 +42,7 @@ final class PackShadowContractTest {
         assertTrue(TerrainVertexBridge.supportsShadowVertex(legacy,
                         "#version 120\nvoid main(){gl_FragColor=vec4(1.0);}"),
                 "legacy shadow compatibility regressed");
-        // Any desktop version converts (GlslVersion); GLSL ES is not one.
+        // any desktop version converts (GlslVersion); GLSL ES is not one
         assertTrue(TerrainVertexBridge.supportsModernShadow(
                 "#version 450\nvoid main(){gl_Position=vec4(0.0);}", ""),
                 "a desktop 450 shadow was refused");
@@ -50,8 +50,8 @@ final class PackShadowContractTest {
                 "#version 300 es\nvoid main(){gl_Position=vec4(0.0);}", ""),
                 "a GLSL ES shadow was accepted");
 
-        // The generated epilogue must be generic. Pack-authored Z compression
-        // remains in the renamed source entry point and is never duplicated.
+        // the generated epilogue is generic
+        // pack-authored Z compression stays in the renamed entry point and is never duplicated
         LegacyGlslConverter.TerrainVertexConversion fixtureShadow =
                 TerrainVertexBridge.convertShadowVertex(shadow.stageSource("vertex"), null,
                         shadow.stageSource("fragment"));
@@ -73,7 +73,7 @@ final class PackShadowContractTest {
                 "authored shadow z scale was rewritten");
     }
 
-    /** Checks the generic conversion appears once and only after authored main. */
+    /** The generic clip-range remap appears once, after the authored main. */
     private static void verifyShadowClipRange(String what, String source) {
         assertTrue(source != null, what + " shadow vertex has no source");
         assertTrue(source.contains("chimeraAuthoredShadowMain()"),
@@ -117,7 +117,7 @@ final class PackShadowContractTest {
                         && vertexInterface.executableUniforms().stream()
                         .anyMatch(value -> value.name().equals("shadowProjection")),
                 "shadow matrix built-ins did not synthesize the matching live UBO fields");
-        // The shadow vertex bridge with this interface, the shadow preamble and no storage buffers.
+        // the shadow vertex bridge with this interface, the shadow preamble and no storage buffers
         LegacyGlslConverter.TerrainVertexConversion converted = TerrainVertexBridge.convertModernTerrainVertexInternal(
                 vertex, null, fragment, GlslVertexPreambles.MODERN_SHADOW_VERTEX_PREAMBLE, vertexInterface, true,
                 false);

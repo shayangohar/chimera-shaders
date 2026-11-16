@@ -24,8 +24,8 @@ final class FlipPlanTest {
 
     /**
      * A {@code false} entry keeps a draw buffer from flipping after its pass (CompositeRenderer skips
-     * it): the pass still writes the other side, and later passes keep reading the old one. It is
-     * not marked written either. Chimera dropped false entries, so the buffer flipped.
+     * it): the pass still writes the other side, and later passes keep reading the side they read
+     * before. It is not marked written either.
      */
     @Test
     void aFalseEntryHoldsItsDrawBuffer(@TempDir Path root) throws Exception {
@@ -95,7 +95,7 @@ final class FlipPlanTest {
 
     /**
      * Iris builds every pass group, passes or none, so a group's pre-flip applies even when it has
-     * no pass, and later groups and the world read through it (audit FD4). The opaque world reads
+     * no pass, and later groups and the world read through it. The opaque world reads
      * and writes the state after prepare, the translucent world the state after deferred.
      */
     @Test
@@ -148,7 +148,6 @@ final class FlipPlanTest {
         assertEquals(Set.of(), plan.writtenBefore("deferred"), "a group's set starts empty");
     }
 
-    /** A pack's own flips and the empty plan: nothing flips without a post pass or a directive. */
     @Test
     void anEmptyPlanFlipsNothing() {
         PackFlipPlan plan = PackFlipPlan.empty();

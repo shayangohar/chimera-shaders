@@ -17,20 +17,16 @@ import java.util.regex.Pattern;
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
 /**
- * The rewrites every family's converter shares to turn legacy OptiFine-style GLSL into Vulkan
- * GLSL 460: source preparation with includes inlined, varying declarations with explicit
- * locations, injected pack constants, texture calls, and the pruning of unused declarations.
- * The families' converters are TerrainVertexBridge, EntityVertexBridge, HostLayoutVertexBridge,
- * PostVertexBridge and FragmentConverter.
+ * The rewrites every family's converter shares to turn legacy OptiFine-style GLSL into Vulkan GLSL 460: source
+ * preparation with includes inlined, varying declarations with explicit locations, texture calls, and the
+ * removal of pack metadata constants and unused declarations. The families' converters are TerrainVertexBridge,
+ * EntityVertexBridge, HostLayoutVertexBridge, PostVertexBridge and FragmentConverter.
  */
 public final class LegacyGlslConverter {
     /** The behaviours a removable GL_ARB_shader_texture_lod directive may ask for: the lookups are core. */
     private static final Set<String> TEXTURE_LOD_BEHAVIOURS = Set.of("enable", "require", "disable");
 
-    /**
-     * {@code source} without its {@code #version} lines: each goes with the blank lines and
-     * indentation before it, its line break staying, each span starting where the previous ended.
-     */
+    /** Removes every {@code #version} line with the blank lines and indentation before it; its line break stays. */
     static String withoutVersionLines(String source) {
         return withoutDirectives(source, LegacyGlslConverter::isVersionLine, false, Integer.MAX_VALUE);
     }
@@ -41,9 +37,8 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * {@code source} without its {@code #extension GL_ARB_shader_texture_lod} lines, whose texture
-     * lookups GLSL 1.30 made core: each goes with the blank lines before it and the whitespace
-     * after it through its last line break.
+     * Removes {@code #extension GL_ARB_shader_texture_lod} lines, whose lookups GLSL 1.30 made core, each with
+     * the blank lines before it and the whitespace after it through its last line break.
      */
     static String withoutKnownLegacyExtensions(String source) {
         return withoutDirectives(source, LegacyGlslConverter::isTextureLodExtension, true, Integer.MAX_VALUE);
@@ -63,9 +58,9 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Removes up to {@code limit} directive lines {@code removed} accepts, each from the first line
-     * start of the whitespace before it; through the trailing whitespace and last line break when
-     * {@code withTrailingWhitespace}, else to its line's end.
+     * Removes up to {@code limit} directive lines that {@code removed} accepts, each from the start of the blank
+     * lines before it. With {@code withTrailingWhitespace} a removal runs through the whitespace after the line
+     * and its last line break, else to the line's end.
      */
     private static String withoutDirectives(String source, Predicate<GlslDirectives.Line> removed,
                                             boolean withTrailingWhitespace, int limit) {
@@ -83,8 +78,8 @@ public final class LegacyGlslConverter {
         return edits.isEmpty() ? source : GlslDeclarations.apply(source, edits);
     }
 
-    // What follows a rewritten declaration on its line, as each rewrite's span has always ended: the
-    // tree finds the declarations, and these match only the trivia after one.
+    // the trivia after a rewritten declaration on its line, which each rewrite's span takes with it;
+    // the tree finds the declarations themselves
     private static final Pattern TAIL_TO_LINE_END = Pattern.compile("\\s*(?://.*)?$", Pattern.MULTILINE);
     private static final Pattern TAIL_PRECISION = Pattern.compile("\\s*$\\r?\\n?", Pattern.MULTILINE);
     private static final Pattern TAIL_UNIFORM = Pattern.compile("[ \\t]*(?://[^\\r\\n]*)?\\s*$", Pattern.MULTILINE);
@@ -98,7 +93,7 @@ public final class LegacyGlslConverter {
     private static final Pattern VALUE_TYPE = Pattern.compile("bool|int|float|vec[234]|ivec[234]|mat[234]");
     private static final Pattern OPAQUE_TYPE = Pattern.compile("[iu]?sampler\\w*|u?i?image\\w*");
 
-    /** Pack metadata declarations consumed by PackConfig, not executable GLSL. */
+    /** Target metadata constants PackConfig reads; they are not executable GLSL. */
     private static final Pattern METADATA_CONST_NAME = Pattern.compile(
             "(?:colortex|gaux)\\d+(?:Format|Clear|ClearColor|MipmapEnabled)");
 
@@ -135,7 +130,7 @@ public final class LegacyGlslConverter {
                 .map(span -> new GlslDeclarations.TextEdit(span.start(), span.end(), "")).toList());
     }
 
-    /** The source without its {@code precision lowp|mediump|highp float|int;} statements. */
+    /** Removes {@code precision lowp|mediump|highp float|int;} statements. */
     static String withoutPrecisionStatements(String source) {
         GlslTree tree = GlslTree.parse(source);
         List<GlslDeclarations.TextEdit> removals = new ArrayList<>();
@@ -167,11 +162,11 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * An interface declaration's {@code layout(...)} goes with the space after it, and its
-     * interpolation and storage qualifiers stay. Only a layout written on one line, on a line of
-     * its own declaration's, is removed. With {@code keepOutputs} (a fragment stage) an output keeps
-     * its layout: its location names the draw buffer it writes, as GL links it for Iris, and
-     * PostTargetPlan.modernOutputs routes it by that location.
+     * Removes each interface declaration's {@code layout(...)} with the space after it; interpolation and
+     * storage qualifiers stay. Only a one-line layout on a declaration that starts its line is removed.
+     *
+     * With {@code keepOutputs}, for a fragment stage, an output keeps its layout: the location names the draw
+     * buffer it writes, as GL links it for Iris, and PostTargetPlan.modernOutputs routes it by that location.
      */
     static String withoutInterfaceLayouts(String source, boolean keepOutputs) {
         GlslTree tree = GlslTree.parse(source);
@@ -199,7 +194,7 @@ public final class LegacyGlslConverter {
         return GlslDeclarations.apply(source, removals);
     }
 
-    /** Geometry fragments receive the fixed chimera terrain vertex's outputs by name. */
+    /** The fixed Chimera terrain vertex's output locations, which a geometry fragment reads by name. */
     private static final Map<String, Integer> GEOMETRY_VARYING_LOCATIONS = Map.of(
             "color", 0,
             "texcoord", 1,
@@ -207,7 +202,7 @@ public final class LegacyGlslConverter {
     );
     private LegacyGlslConverter() {}
 
-    /** Deterministic interface shared by the narrow terrain vertex and fragment bridge. */
+    /** The varyings a converted terrain vertex writes and its fragment reads, with their locations. */
     public record TerrainVaryingLayout(Map<String, String> types, Map<String, Integer> locations,
             Map<String, String> qualifiers) {
         public TerrainVaryingLayout(Map<String, String> types, Map<String, Integer> locations) {
@@ -219,7 +214,7 @@ public final class LegacyGlslConverter {
             qualifiers = Collections.unmodifiableMap(new TreeMap<>(qualifiers));
         }
 
-        /** Interpolation qualifier carried from the authored declaration, or empty when smooth. */
+        /** The authored interpolation qualifier, or empty when smooth. */
         public String qualifier(String name) {
             String qualifier = qualifiers.get(name);
             return qualifier == null ? "" : qualifier;
@@ -234,7 +229,7 @@ public final class LegacyGlslConverter {
         }
     }
 
-    /** Converted terrain vertex source plus the interface used by its fragment stage. */
+    /** A converted terrain vertex and the varying layout its fragment reads. */
     public record TerrainVertexConversion(String source, TerrainVaryingLayout layout) {}
 
     static UniformRegistry.Stage stageOf(boolean geometryStage) {
@@ -287,7 +282,7 @@ public final class LegacyGlslConverter {
         return src.substring(0, newline + 1) + line + src.substring(newline + 1);
     }
 
-    /** Names a stage declares at file scope as plain (non-uniform, non-interface) variables. */
+    /** Names a stage declares at file scope as plain variables, without a uniform, interface or storage qualifier. */
     static Set<String> fileScopeGlobals(String source) {
         Set<String> names = new HashSet<>();
         List<GlslLexer.Token> tokens = GlslLexer.lex(stripComments(source));
@@ -307,13 +302,11 @@ public final class LegacyGlslConverter {
         return names;
     }
 
-    /** Qualifiers that make a file-scope declaration a uniform, interface or storage variable. */
     private static final Set<String> GLOBAL_STORAGE_QUALIFIERS = Set.of(
             "uniform", "in", "out", "varying", "attribute", "buffer", "shared");
 
-    /** Whether the token at {@code index} is the name in a file-scope statement that declares a plain global. */
     private static boolean namesPlainGlobal(List<GlslLexer.Token> tokens, int statementStart, int index) {
-        // `type name =|;|[` opening a file-scope statement without uniform/in/out/varying/attribute.
+        // `type name` then `=`, `;` or `[`, with no storage qualifier earlier in the statement
         int next = GlslLexer.nextSignificant(tokens, index);
         if (tokens.get(index).kind() != GlslLexer.Kind.IDENTIFIER || next < 0
                 || !(tokens.get(next).symbol("=") || tokens.get(next).symbol(";")
@@ -328,7 +321,10 @@ public final class LegacyGlslConverter {
         return true;
     }
 
-    /** Compatibility adapter for callers that still pass raw source and a path. */
+    /**
+     * Inlines a stage's includes when it has a file, then normalises its legacy syntax. In a vertex stage, an
+     * input Iris binds no data to reads GL's generic default in every lane.
+     */
     static String prepareSource(String source, Path sourceFile, boolean vertexStage) {
         String preparedSource = source;
         if (sourceFile != null) {
@@ -346,7 +342,6 @@ public final class LegacyGlslConverter {
         if (!normalized.successful()) {
             throw new IllegalArgumentException(normalized.deviations().toString());
         }
-        // A vertex input Iris binds no data to reads GL's generic default in every lane.
         return vertexStage ? UnboundAttributes.substitute(normalized.source(), UnboundAttributes::irisUnbound)
                 : normalized.source();
     }
@@ -403,7 +398,7 @@ public final class LegacyGlslConverter {
 
     /** Gives a legacy geometry fragment's varyings the terrain layout's locations, or the fixed vertex's. */
     private static String convertLegacyGeometryVaryings(String src, TerrainVaryingLayout terrainLayout) {
-        // A legacy varying of any type the vertex layout sized: Sildur's passes varying mat3 tbnMatrix.
+        // a legacy varying of any type the vertex layout sized, such as Sildur's varying mat3 tbnMatrix
         GlslTree tree = GlslTree.parse(src);
         List<Span> varyings = new ArrayList<>();
         for (GlslDeclarations.Variable variable : GlslDeclarations.variables(tree)) {
@@ -467,12 +462,10 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Removes value-type uniform declarations the pipeline can already
-     * serve or safely ignore: every declarator is either served through
-     * the shared pack uniform block (a fragment-list member) or never
-     * referenced outside declarations. Initializers do not protect a
-     * declaration. Referenced unknowns stay visible so rejection names
-     * the first one instead of failing at shaderc.
+     * Removes value-type uniform declarations the pipeline serves or can ignore: each declarator is either a
+     * member of the shared pack uniform block ({@code fragmentUniforms}) or never referenced outside
+     * declarations. An initializer does not protect a declaration. Referenced unknowns stay, so rejection names
+     * the first one before shaderc fails on it.
      */
     static String stripUnusableUniformDeclarations(
             String source, List<UniformRegistry.UniformDeclaration> fragmentUniforms) {
@@ -518,10 +511,8 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Drops functions a stage's main never reaches, as GL compiles them away, so dead
-     * library code cannot ghost-reference samplers, images or uniforms into the feature
-     * checks. Best-effort: an unanalyzable source keeps its dead code and fails loudly
-     * downstream instead of being rewritten on a guess.
+     * Drops functions main never reaches, as GL compiles them away, so dead library code adds no samplers,
+     * images or uniforms to the feature checks. A source the analysis cannot read keeps its dead code.
      */
     static String pruneUnreachableFunctions(String src) {
         try {
@@ -546,15 +537,14 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Removes sampler declarations nothing reads. Vulkan requires
-     * layout(binding) on every opaque uniform, so even a dead sampler
-     * declaration fails compilation. Referenced samplers fail loudly in
-     * rejection instead; layout-qualified lines are never touched.
+     * Removes sampler and image uniform declarations nothing reads, since Vulkan requires layout(binding) on
+     * every opaque uniform and even a dead one fails to compile. Referenced ones stay for rejection to name;
+     * layout-qualified declarations are left alone.
      */
     static String stripUnreferencedSamplerDeclarations(String source) {
         if (source == null || source.isBlank()) return source;
         GlslTree tree = GlslTree.parse(source);
-        // A trailing line comment (Bliss: `uniform sampler2D noisetex;//depth`) still ends it.
+        // a trailing line comment still ends the span, as in Bliss's `uniform sampler2D noisetex;//depth`
         List<Span> unreferenced = new ArrayList<>();
         List<Span> samplers = lineSpans(source, tree, TAIL_SAMPLER, LegacyGlslConverter::isOpaqueUniform);
         for (Span span : onePerDeclaration(samplers)) {
@@ -567,7 +557,7 @@ public final class LegacyGlslConverter {
         return without(source, unreferenced);
     }
 
-    /** {@code statement} as the first line of main's body. */
+    /** Inserts {@code statement} as the first line of main's body. */
     static String injectMainPrologue(String source, String statement) {
         GlslTree tree = GlslTree.parse(source);
         GlslTree.Function main = GlslDeclarations.mainDefinition(tree);
@@ -626,9 +616,8 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Iris's legacy lightmap matrix for gl_TextureMatrix[1] and [2]: the light
-     * coordinates arrive raw (0..240, as UV2) and this scale and offset
-     * normalize them to the lightmap texel centre, (level + 0.5) / 16.
+     * Replaces gl_TextureMatrix[1] and [2] with Iris's legacy lightmap matrix. Light coordinates arrive raw, 0 to
+     * 240 as in UV2, and its scale and offset move them to the lightmap texel centre, (level + 0.5) / 16.
      */
     static String replaceLightmapTextureMatrices(String source) {
         return source.replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*[12]\\s*\\]",

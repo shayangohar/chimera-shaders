@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * The pack's option menu: a main screen and named sub-screens, each a grid of elements.
  *
- * <p>An element is {@code <empty>} (a blank cell), {@code <profile>} (the profile button, dropped
+ * An element is {@code <empty>} (a blank cell), {@code <profile>} (the profile button, dropped
  * when the pack has no profiles), {@code [ID]} (a link to sub-screen ID), or an option name. A name
  * the pack does not declare becomes a blank cell. {@code *} stands for every option no screen places,
  * filled in after all screens are read. Without a {@code screen} entry the main screen is just

@@ -24,14 +24,14 @@ final class NonCullingFrustumTest {
         AABB behind = new AABB(BEHIND[0], BEHIND[1], BEHIND[2], BEHIND[3], BEHIND[4], BEHIND[5]);
         assertTrue(NonCullingFrustum.INSTANCE.isVisible(behind), "entities, particles and block entities");
 
-        // VulkanMod's camera frustum culls the box, so the checks below see a frustum that would.
+        // VulkanMod's camera frustum culls the box, so the checks below see a frustum that would
         VFrustum camera = new VFrustum();
         camera.calculateFrustum(new Matrix4f(), new Matrix4f().perspective(1.2F, 16F / 9F, 0.05F, 2048F));
         camera.setCamOffset(0, 0, 0);
         assertTrue(camera.cubeInFrustum(BEHIND[0], BEHIND[1], BEHIND[2], BEHIND[3], BEHIND[4], BEHIND[5]) >= 0
                 && !camera.testFrustum(BEHIND[0], BEHIND[1], BEHIND[2], BEHIND[3], BEHIND[4], BEHIND[5]));
 
-        // SectionGraph.update offsets the frustum it reads before testing areas and sections.
+        // SectionGraph.update offsets the frustum it reads before testing areas and sections
         VFrustum sections = NonCullingFrustum.INSTANCE.customFrustum().offsetToFullyIncludeCameraCube(8);
         assertSame(NonCullingFrustum.INSTANCE.customFrustum(), sections);
         assertEquals(FrustumIntersection.INSIDE,

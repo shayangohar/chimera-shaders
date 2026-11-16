@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Reforged 0.3.5 ends the bound pass for a readback (Renderer.flushCmds, a screenshot among them) or
+ * Reforged ends the bound pass for a readback (Renderer.flushCmds, a screenshot among them) or
  * a render-target blit and begins MainPass.resumeRenderPass's answer, whose default is the same
  * pass. Chimera's world and output passes that clear would then clear what the frame drew before
  * the split, so each resumes with the twin that loads colour and depth.
@@ -34,7 +34,7 @@ final class MainPassResumeTest {
         List<FieldInsnNode> reads = MixinBytecode.instructionsThrough(MixinBytecode.nativeClass(TARGETS), "resumePass")
                 .stream().filter(instruction -> instruction.getOpcode() == Opcodes.GETFIELD)
                 .map(FieldInsnNode.class::cast).toList();
-        // The clearing passes are compared with the bound one; each comparison answers with a twin.
+        // resumePass compares the bound pass with each clearing pass and answers with its twin
         Set<String> clearing = Set.of("hdrRenderPass", "hdrAuxClearDepthRenderPass", "compositeRenderPass",
                 "compositeAuxClearDepthRenderPass");
         Set<String> twins = Set.of("hdrAuxRenderPass", "compositeAuxRenderPass");

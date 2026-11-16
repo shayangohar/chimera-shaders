@@ -47,9 +47,9 @@ final class PassComputeSamplerTest {
 
     /**
      * A sampler2D Iris does not register reads unit 0, and Iris binds colortex0 there in a fullscreen
-     * pass's computes as in its programs: Visual Vibrance's prepare2 sets its sky light
-     * from {@code texture(lightmap, vec2(0.0, 1.0))}, which an Iris capture shows reading colortex0. A
-     * shadowcomp compute registers no colour target, so its lightmap stays unserved.
+     * pass's computes as in its programs. Visual Vibrance's prepare2 sets its sky light from
+     * {@code texture(lightmap, vec2(0.0, 1.0))}, which reads colortex0 under Iris. A shadowcomp compute
+     * registers no colour target, so its lightmap stays unserved.
      */
     @Test
     void anUnregisteredComputeSamplerReadsColortex0WhereIrisBindsIt(@TempDir Path root) throws IOException {
@@ -65,10 +65,10 @@ final class PassComputeSamplerTest {
                 void main() { imageStore(%s, ivec2(0), texture(lightmap, vec2(0.0, 1.0))); }
                 """;
         Files.writeString(shaders.resolve("prepare.csh"), reader.formatted("colorimg2", "colorimg2"));
-        // A setup compute binds colortex0 to unit 0 too (IrisRenderingPipeline.createSetupComputes).
+        // a setup compute binds colortex0 to unit 0 too (IrisRenderingPipeline.createSetupComputes)
         Files.writeString(shaders.resolve("setup.csh"), reader.formatted("colorimg2", "colorimg2"));
         Files.writeString(shaders.resolve("shadowcomp.csh"), reader.formatted("shadowcolorimg0", "shadowcolorimg0"));
-        // Declaring colortex0 as well: both names read the one binding.
+        // with colortex0 declared as well, both names read the one binding
         Files.writeString(shaders.resolve("composite.csh"), reader.formatted("colorimg2", "colorimg2")
                 .replace("uniform sampler2D lightmap;", "uniform sampler2D colortex0;\nuniform sampler2D lightmap;")
                 .replace("vec2(0.0, 1.0))", "vec2(0.0, 1.0)) + texture(colortex0, vec2(0.5))"));
@@ -222,7 +222,7 @@ final class PassComputeSamplerTest {
         String error = PackCompileTest.compileComputeValues(compute.source(), PassComputePlan.VALUES_BLOCK, Map.of());
         assertTrue(error == null, "the translated pass compute compiles: " + error + "\n" + compute.source());
 
-        // Without SEPARATE_HARDWARE_SAMPLERS Iris registers no shadowtex1HW (IrisSamplers.addShadowSamplers).
+        // without SEPARATE_HARDWARE_SAMPLERS Iris registers no shadowtex1HW (IrisSamplers.addShadowSamplers)
         Files.writeString(shaders.resolve("shaders.properties"), "");
         PassComputePlan.PassCompute legacy = PassComputePlan.build(PackProbe.analyze(root).plan(), shaders)
                 .compute("composite_a");
@@ -373,11 +373,10 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Bloop's prepare reads depthtex1 with texture.prepare.depthtex1 = the vanilla clouds: there the
-     * name is the pack's texture, so the pass reads no depth snapshot from the frame and the graph
-     * copies none for it. Chimera refused the pass for a depthtex1 not yet captured. prepare2's
-     * gaux3 reads colortex6 from the frame; counted only as gaux3, the runtime never saw the input
-     * missing, and binding it failed the whole post chain.
+     * Bloop's prepare reads depthtex1 with texture.prepare.depthtex1 set to the vanilla clouds. There
+     * the name is the pack's texture, so the pass reads no depth snapshot from the frame and the graph
+     * copies none for it. prepare2's gaux3 reads colortex6 from the frame and counts as that target's
+     * read.
      */
     @Test
     void aStageTextureOnADepthNameIsNoFrameInput(@TempDir Path root) throws IOException {
@@ -401,7 +400,7 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris reads texture.<stage>.<sampler> for its seven texture stages only (TextureStage.parse)
+     * Iris reads {@code texture.<stage>.<sampler>} for its seven texture stages only (TextureStage.parse)
      * and ignores any other scope with a warning: a program name, shadow (Rethinking Voxels' texture.shadow
      * entries; shadow programs read the gbuffers stage), or *. A known stage replaces noisetex, which
      * the composite registers through the sampler interceptor.
@@ -419,7 +418,7 @@ final class PassComputeSamplerTest {
                 + "uniform sampler2D noisetex;\nvoid main() {\n/* RENDERTARGETS: 0 */\n"
                 + " gl_FragData[0] = texture2D(samA, vec2(0.5)) + texture2D(noisetex, vec2(0.5));\n}\n");
         PackPlan plan = PackProbe.analyze(root).plan();
-        // With no texture of its own, samA is a sampler Iris does not serve: it reads colortex0.
+        // with no texture of its own, samA is a sampler Iris does not serve, so it reads colortex0
         assertTrue(plan.resources().binding("composite1", "samA") == null
                 && plan.program("composite1").deviations().contains("SAMPLER_UNIT0_COLORTEX0:samA"),
                 plan.resources().bindings("composite1").toString());
@@ -494,7 +493,7 @@ final class PassComputeSamplerTest {
                 limits, PackTargetGraphPlan.ComputeUse.NONE);
         assertEquals(Set.of(), graph.depth().names(), "no program reads depth");
         assertTrue(graph.targets().stream().noneMatch(target -> target.index() == 3), "no program uses colortex3");
-        // Iris creates a target a compute names (IrisImages.addRenderTargetImages: createIfUnsure).
+        // Iris creates a target a compute names (IrisImages.addRenderTargetImages: createIfUnsure)
         PackTargetGraphPlan used = PackTargetGraphPlan.build(plan.activePrograms(), plan.config(), plan.resources(),
                 limits, new PackTargetGraphPlan.ComputeUse(Set.of(3), Set.of("depthtex0", "depthtex1")));
         assertEquals(Set.of("depthtex0", "depthtex1"), used.depth().names());

@@ -18,11 +18,10 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Stable, runtime-aware description of the shader-pack boundary.
+ * What a pack declares, how far each program is supported, and what installed at runtime.
  *
- * <p>The report deliberately keeps static support and runtime disposition
- * separate. A source can fit the current contract and still become an
- * identity fallback when conversion or pipeline creation fails.</p>
+ * Support and runtime disposition are kept apart: a supported program still falls back to identity when its
+ * conversion or pipeline creation fails.
  */
 public final class ConformanceReport {
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
@@ -109,7 +108,7 @@ public final class ConformanceReport {
         this.deviations = new TreeSet<>(deviations);
     }
 
-    /** A report of the same content that later runtime marks change apart from this one. */
+    /** A copy whose later runtime marks leave this report unchanged. */
     public ConformanceReport copy() {
         ConformanceReport copy = new ConformanceReport(packName, passListPresent, passInventory, metadataHashes,
                 settings, deviations, selectedDimension, selectedVariantFolder);
@@ -143,10 +142,7 @@ public final class ConformanceReport {
         }
     }
 
-    /**
-     * Returns true only for programs the runtime is allowed to build onto the
-     * current fixed-vertex pipelines.
-     */
+    /** Whether the runtime may build {@code name}: a supported program not attempted yet. */
     public boolean shouldAttempt(String name) {
         ProgramReport program = programs.get(name);
         return program != null
@@ -182,9 +178,10 @@ public final class ConformanceReport {
     }
 
     /**
-     * Records that a pass's computes loaded. A pass of computes alone is then installed. A pass that
-     * also draws keeps its disposition for its program's install, which decides it: Iris runs the
-     * pass's computes and then its program, so a program left unattempted here would never draw.
+     * Records that a pass's computes loaded, which installs a pass of computes alone.
+     *
+     * A pass that also draws keeps its disposition until its program installs. Iris runs the computes and
+     * then the program, and a program marked installed here would never be attempted, so it would never draw.
      */
     public void markPassComputeInstalled(String name) {
         ProgramReport program = programs.get(name);
@@ -203,8 +200,8 @@ public final class ConformanceReport {
     }
 
     /**
-     * The whole pack frame runs on the host: every program that was installed
-     * or still pending is recorded as fallback for one session-level reason.
+     * Records that the whole pack frame runs on the host: every installed or pending program becomes a
+     * fallback for one session-level reason.
      */
     public void markFrameFallback(String deviation, String reason) {
         addDeviation(deviation);
@@ -216,7 +213,7 @@ public final class ConformanceReport {
         }
     }
 
-    /** Concise startup summary that does not change the stable JSON schema. */
+    /** Installed and fallback program counts for the load log; not part of the JSON. */
     public String runtimeSummary() {
         int installed = 0;
         int fallback = 0;
@@ -273,11 +270,7 @@ public final class ConformanceReport {
         return sha256(toJson().getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Hash of a pack text file with CRLF folded to LF. A pack's line endings
-     * depend on how it was saved or checked out, not on what it says, so the
-     * same pack must identify the same way either way.
-     */
+    /** Hash of a pack text file with CRLF folded to LF, so a pack hashes the same however it was saved. */
     public static String textSha256(byte[] bytes) {
         int kept = 0;
         byte[] folded = new byte[bytes.length];

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (CompatibilityTransformer.transformGrouped): a read input the vertex never declares gets a
  * zeroed output, an output never written starts at zero, and an output of another type of the
  * same kind is converted at the end of main. Bloop's overworld shadow writes lmtexcoord without
- * declaring it, so every shadow lane fell back.
+ * declaring it.
  */
 final class CrossStageRepairTest {
     @Test
@@ -59,8 +59,8 @@ final class CrossStageRepairTest {
     }
 
     /**
-     * An output of another vector size takes the input's type: the vertex writes a global of the
-     * old type, widened with zeros or cut at the end of main. A local of the same name stays.
+     * An output of another vector size takes the input's type: the vertex writes a global of its
+     * declared type, widened with zeros or cut at the end of main. A local of the same name stays.
      */
     @Test
     void anOutputOfAnotherSizeIsConverted() {
@@ -181,8 +181,7 @@ final class CrossStageRepairTest {
 
     /**
      * Iris repairs each pair of adjacent stages, so a geometry stage that reads an input its vertex
-     * never declares gets a zeroed vertex output, as a fragment's would. Chimera repaired only the
-     * vertex/fragment pair and refused the program (PROGRAM_VARYING_UNMATCHED:v_tint).
+     * never declares gets a zeroed vertex output, as a fragment's would.
      */
     @Test
     void aGeometryInputTheVertexNeverWritesGetsAZeroedOutput(@TempDir Path root) throws IOException {

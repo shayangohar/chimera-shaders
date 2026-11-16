@@ -25,12 +25,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Pack compute passes: declaration lists, frame slots, uniform offsets and the advanced-resource inventory. */
 final class ComputePassTest {
     /**
-     * Solas declares its two floodfill images, and their samplers, each in one statement. The
-     * plan and the runtime translator must see both names: Solas fell to vanilla in game with
-     * "unsupported compute image: floodfill_img_copy". Solas also declares cameraPosition (vec3)
-     * before frameCounter. Dispatch wrote frameCounter after the vec3's padding word, implicit std140
-     * packed it into that word, so the compute read 0, wrote only floodfill_img_copy, and every light
-     * flickered as the gbuffers alternated images.
+     * Solas declares its two floodfill images, and their samplers, each in one statement; the plan and the
+     * runtime translator see both names.
+     *
+     * Solas also declares cameraPosition (vec3) before frameCounter, which std140 packs into the vec3's
+     * padding word. Dispatch writes each value where the compiled block reads it; a frameCounter read as 0
+     * leaves the compute writing one floodfill image while the gbuffers alternate, and every light flickers.
      */
     @Test
     void computeDeclarationListsAndUniformOffsets(@TempDir Path root) throws IOException {
@@ -86,8 +86,7 @@ final class ComputePassTest {
         for (var value : compute.values()) written.put(value.name(), value.offset());
         String error = PackCompileTest.compileComputeValues(compute.source(), PassComputePlan.VALUES_BLOCK, written);
         assertTrue(error == null, "the compiled block reads each value where dispatch writes it: " + error);
-        // The block as Chimera declared it before, with implicit offsets, against the offsets
-        // dispatch wrote then: frameCounter after the vec3's padding word, at 16.
+        // implicit offsets put frameCounter in the vec3's padding word; a write at 16 must be reported
         String implicit = """
                 #version 450
                 layout(local_size_x = 1) in;
@@ -107,9 +106,9 @@ final class ComputePassTest {
     }
 
     /**
-     * A compute's uniform block is written while a frame is recorded, so each frame in flight
-     * owns one: a single block could be rewritten while the GPU still ran the previous frame's
-     * dispatch. The pass computes, shadowcomp.csh included, bind ComputeKernel's current frame slot.
+     * A compute's uniform block is written while a frame records, so each frame in flight owns one; a
+     * shared block could be rewritten while the GPU still runs the previous frame's dispatch. Pass computes,
+     * shadowcomp.csh included, bind ComputeKernel's current frame slot.
      */
     @Test
     void computeFrameSlots() throws IOException {
@@ -137,10 +136,9 @@ final class ComputePassTest {
     }
 
     /**
-     * Iris reads a work-group directive only where a line starts with it (ConstDirectiveParser), a
-     * commented-out one too when the comment is a block, and keeps the last one whose value
-     * ComputeDirectiveParser parses. Chimera took the first match anywhere: a line comment, a
-     * {@code const const}, or a declaration after other code.
+     * Iris reads a work-group directive only where a line starts with it (ConstDirectiveParser), inside a
+     * block comment too, and keeps the last one whose value ComputeDirectiveParser parses. A line comment,
+     * a {@code const const} or a declaration after other code on its line does not count.
      */
     @Test
     void workGroupDirectivesFollowIrisLineRule(@TempDir Path root) throws IOException {
@@ -232,7 +230,7 @@ final class ComputePassTest {
                 computes.computes().stream().map(PassComputePlan.PassCompute::name).toList(),
                 "pass order, and nothing after the disabled deferred1_b: " + deviations);
         assertEquals(List.of("PASS_COMPUTE_SAMPLER_UNSUPPORTED:lut"), deviations.get("deferred_a"));
-        // composite has no program: its computes run alone (ComputeOnlyPass), so only the 3D sampler stops it.
+        // composite has no program: its computes run alone (ComputeOnlyPass), so only the 3D sampler stops it
         assertEquals(List.of("PASS_COMPUTE_SAMPLER_UNSUPPORTED:lut"), deviations.get("composite_a"));
         PassComputePlan.PassCompute sky = computes.before("deferred1").get(0);
         assertEquals(List.of(
@@ -252,8 +250,7 @@ final class ComputePassTest {
 
     /**
      * A pass compute keeps its own extensions ahead of Chimera's declarations, and an extension line
-     * in a comment is none: photon comments out its subgroup and half-float extensions, which the
-     * module enabled.
+     * in a comment is none: Photon comments out its subgroup and half-float extensions.
      */
     @Test
     void passComputesKeepOnlyTheirLiveExtensions(@TempDir Path root) throws IOException {
@@ -413,7 +410,7 @@ final class ComputePassTest {
         Files.writeString(shaders.resolve("composite.fsh"), "#version 120\nuniform sampler2D colortex0;\n"
                 + "/*\nconst int colortex8Format = RGBA32UI;\n*/\n"
                 + "void main() {\n/* RENDERTARGETS: 0 */\n gl_FragData[0] = texture2D(colortex0, vec2(0.5));\n}\n");
-        // colortex8 is an integer target, which Iris binds to a usampler2D as graphics programs do.
+        // colortex8 is an integer target, which Iris binds to a usampler2D as graphics programs do
         Files.writeString(shaders.resolve("composite_a.csh"), """
                 #version 430
                 layout(local_size_x = 8, local_size_y = 8) in;
@@ -469,7 +466,7 @@ final class ComputePassTest {
                 layout(std430, binding = 5) buffer Missing { float value; };
                 void main() { value = 1.0; }
                 """);
-        // Blocks nothing reads are inactive in GL, whatever they name; a shared one has no Vulkan layout.
+        // blocks nothing reads are inactive in GL, whatever they name; a shared one has no Vulkan layout
         Files.writeString(shaders.resolve("composite2_a.csh"), """
                 #version 430
                 layout(local_size_x = 1) in;
@@ -527,7 +524,7 @@ final class ComputePassTest {
         compute.values().forEach(value -> offsets.put(value.name(), value.offset()));
         String error = PackCompileTest.compileComputeValues(compute.source(), PassComputePlan.VALUES_BLOCK, offsets);
         assertTrue(error == null, "the translated pass compute compiles: " + error + "\n" + compute.source());
-        // iris_Fog has no other field: a compute reading one does not compile under Iris either.
+        // iris_Fog has no other field: a compute reading one does not compile under Iris either
         Files.writeString(shaders.resolve("composite_b.csh"), """
                 #version 430 compatibility
                 layout(local_size_x = 1) in;
@@ -554,7 +551,7 @@ final class ComputePassTest {
         Files.writeString(shaders.resolve("composite.fsh"), "#version 120\nconst int colortex0Format = RGBA16F;\n"
                 + "uniform sampler2D colortex0;\n"
                 + "void main() {\n/* RENDERTARGETS: 0 */\n gl_FragData[0] = texture2D(colortex0, vec2(0.5));\n}\n");
-        // GLSL 4.20 takes qualifiers in any order: RenderPearl writes uniform before layout.
+        // GLSL 4.20 takes qualifiers in any order: RenderPearl writes uniform before layout
         Files.writeString(shaders.resolve("composite_a.csh"), """
                 #version 430
                 layout(local_size_x = 8, local_size_y = 8) in;
@@ -620,9 +617,9 @@ final class ComputePassTest {
     }
 
     /**
-     * Iris's buffers take any size the driver does: a 1 GiB buffer only pass computes bind
-     * plans as supported, with no session budget, and the device's storage range and the allocation
-     * bound it at load (PackStorageBufferOwner).
+     * Iris's buffers take any size the driver does. A 1 GiB buffer that only pass computes bind plans as
+     * supported, with no session budget; the device's storage range and the allocation limit it at load
+     * (PackStorageBufferOwner).
      */
     @Test
     void buffersHaveNoSessionBudget(@TempDir Path root) throws IOException {
@@ -659,7 +656,7 @@ final class ComputePassTest {
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(plan.activePrograms(), plan.config(), plan.resources(),
                 limits, new PackTargetGraphPlan.ComputeUse(Set.of(3), Set.of()));
         assertTrue(graph.target(3) != null && graph.target(3).persistent(), graph.targets().toString());
-        // Allocated, so the first frame clears it, as Iris clears every target then (PostTargetSides).
+        // allocated, so the first frame clears it, as Iris clears every target then (PostTargetSides)
         assertTrue(!graph.geometryReads().contains(3), "no world program reads colortex3");
     }
 
@@ -686,7 +683,7 @@ final class ComputePassTest {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
         Files.writeString(shaders.resolve("shaders.properties"),
                 "program.composite2.enabled = false\nprogram.composite5.enabled = false\n");
-        // A pass of computes alone switched off runs nothing: Shrimple switches off its composite1.csh.
+        // a switched-off pass of computes alone runs nothing: Shrimple switches off its composite1.csh
         Files.writeString(shaders.resolve("composite5.csh"), "#version 430\nlayout(local_size_x = 1) in;\n"
                 + "void main() {}\n");
         String fragment = "#version 120\nuniform sampler2D colortex0;\n"
@@ -694,7 +691,7 @@ final class ComputePassTest {
         for (String pass : List.of("composite", "composite2")) {
             Files.writeString(shaders.resolve(pass + ".fsh"), fragment);
         }
-        // A vertex stage alone is no program (ProgramSource.isValid); Iris supplies a missing one.
+        // a vertex stage alone is no program (ProgramSource.isValid); Iris supplies a missing one
         Files.writeString(shaders.resolve("composite1.vsh"),
                 "#version 120\nvoid main() { gl_Position = ftransform(); }\n");
         Files.writeString(shaders.resolve("composite4.vsh"),
@@ -715,7 +712,7 @@ final class ComputePassTest {
         assertTrue(plan.isProgramDisabled("composite5") && !plan.isProgramDisabled("composite3"),
                 "a switched-off pass of computes alone is disabled; a missing one is not");
         assertTrue(PassComputePlan.build(plan, shaders).compute("composite5") == null, "its compute does not run");
-        // composite4.csh shares composite4's row, which stays the program's.
+        // composite4.csh shares composite4's report row, which stays the program's
         assertTrue(analysis.report().program("composite4").deviations().stream()
                 .noneMatch(deviation -> deviation.startsWith("PASS_COMPUTE_")),
                 analysis.report().program("composite4").deviations().toString());
@@ -785,7 +782,7 @@ final class ComputePassTest {
                 Map.of("composite2", Set.of("depthtex0"), "deferred3", Set.of("depthtex0")));
         assertEquals(PackFrameSchedulePlan.PostWindow.LATE, schedule.postStage("composite2").window());
         assertEquals(PackFrameSchedulePlan.PostWindow.EARLY, schedule.postStage("deferred3").window());
-        // A deferred compute reads the opaque depth, captured before the window as for a deferred program.
+        // a deferred compute reads the opaque depth, captured before the window as for a deferred program
         assertTrue(schedule.earlyReadsDepthtex0()
                 && schedule.deviations().contains("SCHEDULE_DEPTH_TEX0_OPAQUE_AT_DEFERRED:deferred3")
                 && !schedule.deviations().contains("SCHEDULE_DEPTH_TEX0_OPAQUE_AT_DEFERRED:composite2"),
@@ -828,7 +825,7 @@ final class ComputePassTest {
         assertTrue(computes.computes().stream().allMatch(compute -> compute.supported()
                 && compute.pass().equals(compute.name()) && PassComputePlan.isSetup(compute.pass())
                 && Arrays.equals(new int[] {4, 1, 1}, compute.groups(1, 1))), computes.computes().toString());
-        // Iris pushes no custom uniform to a setup compute, so myScale reads zero, as GL leaves it.
+        // Iris pushes no custom uniform to a setup compute, so myScale reads zero, as GL leaves it
         PassComputePlan.PassCompute setup = computes.compute("setup");
         assertTrue(setup.deviations().contains("PASS_COMPUTE_CUSTOM_UNIFORM_UNSET:myScale")
                 && setup.values().stream().noneMatch(value -> value.name().equals("myScale")),
@@ -966,7 +963,7 @@ final class ComputePassTest {
                         "real image type missed: " + prefix + "image" + shape);
             }
         }
-        // A declaration nothing reads is inactive, as GL leaves it; preparation drops it.
+        // a declaration nothing reads is inactive, as GL leaves it; preparation drops it
         assertTrue(!PackAdvancedResourcePlan.containsAdvancedDeclarations("uniform image2D resource;\n"),
                 "an unread image declaration became an advanced resource");
         String storage = "layout(std430, binding=0) readonly buffer Data { float x; };\n";

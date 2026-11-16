@@ -8,12 +8,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * GL_NV_gpu_shader5, the extension NVIDIA's GL drivers offer for explicitly sized arithmetic types,
- * as Vulkan GLSL provides them. Alpha Piscium's "Assume NVIDIA GPU" enables it for float16_t and
- * f16vecN, and Iris defines MC_GL_NV_gpu_shader5 on such a driver; shaderc does not know it, and
- * failed every stage at its first float16_t. The directive becomes the extensions below when the
- * device enables their types; otherwise it stays, and the stage fails to compile as on a GL driver
- * without it.
+ * GL vendor extensions and leniencies that shaderc lacks, rewritten as Vulkan GLSL provides them.
+ *
+ * GL_NV_gpu_shader5 is the extension NVIDIA's GL drivers offer for explicitly sized arithmetic types. Alpha
+ * Piscium's "Assume NVIDIA GPU" enables it for {@code float16_t} and {@code f16vecN}, and Iris defines
+ * {@code MC_GL_NV_gpu_shader5} on such a driver. shaderc does not know it and fails the stage at its first
+ * {@code float16_t}. The directive becomes the extensions in {@code VULKAN} when the device enables their
+ * types; otherwise it stays, and the stage fails to compile as on a GL driver without it.
  */
 public final class GlslVendorExtensions {
     private GlslVendorExtensions() {}
@@ -29,13 +30,14 @@ public final class GlslVendorExtensions {
 
     private static final String NVIDIA = "GL_NV_gpu_shader5";
     /**
-     * Its half-float, 16-bit and 64-bit types in Vulkan GLSL; for Vulkan 1.2 each emits only its
-     * capability (Float16, Int16, Int64), and no vendor SPIR-V extension. These keep glslang's GLSL
-     * 4.00 overload rules, which resolve a built-in call that mixes float16_t with float literals
-     * (Alpha Piscium's smoothstep(0.0, 1.0, edgeWeight)) as NVIDIA's compiler does. Any
-     * GL_EXT_shader_explicit_arithmetic_types extension turns on glslang's explicit-types rules,
-     * which call that call ambiguous, so the 8-bit types, which only those extensions provide, stay
-     * out: a stage that uses them fails as before.
+     * GL_NV_gpu_shader5's half-float, 16-bit and 64-bit types in Vulkan GLSL. For Vulkan 1.2 each emits only
+     * its capability (Float16, Int16, Int64) and no vendor SPIR-V extension.
+     *
+     * These keep glslang's GLSL 4.00 overload rules, which resolve a built-in call mixing {@code float16_t}
+     * with float literals, such as Alpha Piscium's {@code smoothstep(0.0, 1.0, edgeWeight)}, as NVIDIA's
+     * compiler does. Any GL_EXT_shader_explicit_arithmetic_types extension switches glslang to rules that call
+     * it ambiguous. The 8-bit types come only from those extensions, so they stay out, and a stage that uses
+     * them fails to compile.
      */
     private static final List<String> VULKAN = List.of("GL_AMD_gpu_shader_half_float", "GL_AMD_gpu_shader_int16",
             "GL_ARB_gpu_shader_int64");
@@ -49,9 +51,9 @@ public final class GlslVendorExtensions {
     private static final String TRINARY = "GL_AMD_shader_trinary_minmax";
     /**
      * GL_AMD_shader_trinary_minmax's functions as the extension defines them, for a device without
-     * VK_AMD_shader_trinary_minmax, whose SPIR-V crashed NVIDIA's driver (PackDevice.missing).
-     * RenderPearl requires the extension on any GPU it does not know to be NVIDIA's, and defines
-     * the same two macros itself when it does not.
+     * VK_AMD_shader_trinary_minmax, whose SPIR-V crashes NVIDIA's driver ({@link PackDevice#missing}).
+     * RenderPearl requires the extension on any GPU it does not know to be NVIDIA's, and defines the same
+     * macros itself on NVIDIA.
      */
     private static final List<String> TRINARY_BUILT_INS = List.of(
             "#define min3(a, b, c) min(a, min(b, c))",
@@ -64,8 +66,8 @@ public final class GlslVendorExtensions {
     }
 
     /**
-     * {@link #forVulkan(String, SizedTypes)}, and GL_AMD_shader_trinary_minmax's functions written
-     * with min and max in place of its directive when the device lacks it ({@code trinaryMinmax}).
+     * {@link #forVulkan(String, SizedTypes)}, with GL_AMD_shader_trinary_minmax's functions written with min
+     * and max in place of its directive when the device lacks it ({@code trinaryMinmax}).
      */
     public static String forVulkan(String source, SizedTypes types, boolean trinaryMinmax) {
         if (source == null) return null;
@@ -85,7 +87,7 @@ public final class GlslVendorExtensions {
             if (lines.isEmpty()) {
                 lines.add(line.group());
             } else if (line.group(4) != null) {
-                // The directive's comment stays on the first line written in its place.
+                // the directive's comment stays on the first line written in its place
                 lines.set(0, lines.get(0) + line.group(4));
             }
             line.appendReplacement(result, Matcher.quoteReplacement(String.join("\n", lines)));
@@ -95,13 +97,15 @@ public final class GlslVendorExtensions {
     }
 
     /**
-     * {@code source} as the {@code device} compiles it: GL_NV_gpu_shader5 as its Vulkan extensions,
-     * GL_AMD_shader_trinary_minmax as min and max without the device extension, 16-bit stage
-     * inputs and outputs as their 32-bit types without storageInputOutput16 ({@link #widenInterfaces}),
-     * a sampler chosen by ?: moved out of the call it feeds, as GL drivers accept it (OpaqueSelections),
-     * and three forms NVIDIA's takes: any() of boolean vectors joined by || taken per vector
-     * (VectorLogicalOperators), an array's length read without () (ArrayLengthCalls), and a vector
-     * compared with a number (VectorScalarComparisons).
+     * {@code source} as the {@code device} compiles it. Extension lines move up to follow {@code #version}
+     * ({@link #hoistExtensions}); GL_NV_gpu_shader5 becomes its Vulkan extensions, and
+     * GL_AMD_shader_trinary_minmax becomes min and max without the device extension. Without
+     * storageInputOutput16, 16-bit stage inputs and outputs take their 32-bit types ({@link #widenInterfaces}).
+     *
+     * GL driver leniencies are rewritten as well: a sampler chosen by {@code ?:} moves out of the call it feeds
+     * (OpaqueSelections), and three forms NVIDIA's driver takes become standard GLSL: {@code any()} of boolean
+     * vectors joined by {@code ||} (VectorLogicalOperators), an array's length read without {@code ()}
+     * (ArrayLengthCalls), and a vector compared with a number (VectorScalarComparisons).
      */
     public static String forVulkan(String source, PackDevice device) {
         String lenient = VectorScalarComparisons.widen(ArrayLengthCalls.complete(
@@ -114,11 +118,10 @@ public final class GlslVendorExtensions {
     private static final Pattern DIRECTIVE = Pattern.compile("^[ \\t]*#[ \\t]*(extension|version)\\b");
 
     /**
-     * {@code source} with its {@code #extension} lines moved up to follow its {@code #version}
-     * line, when code comes before one of them, and unchanged otherwise. Chimera declares a
-     * stage's outputs and uniforms ahead of the pack's source, and RenderPearl's AMD path declares
-     * them f16vec3, which is no type before its GL_AMD_gpu_shader_half_float directive. A directive
-     * in a comment is no directive and stays.
+     * {@code source} with its {@code #extension} lines moved up to follow its {@code #version} line, when code
+     * comes before one of them, and unchanged otherwise. Chimera declares a stage's outputs and uniforms ahead
+     * of the pack's source, and RenderPearl's AMD path declares them {@code f16vec3}, which is no type before
+     * its GL_AMD_gpu_shader_half_float directive. A directive inside a comment stays.
      */
     static String hoistExtensions(String source) {
         if (source == null || !source.contains("extension")) return source;
@@ -149,7 +152,7 @@ public final class GlslVendorExtensions {
         StringBuilder rest = new StringBuilder(source.substring(0, versionEnd));
         int at = versionEnd;
         for (int[] line : extensions) {
-            // One above the version line stays, as the compiler would read it.
+            // an extension line above #version stays where it is, as the compiler would read it
             if (line[0] < versionEnd) continue;
             hoisted.append(source, line[0], line[1]).append(source.charAt(line[1] - 1) == '\n' ? "" : "\n");
             rest.append(source, at, line[0]);
@@ -184,11 +187,10 @@ public final class GlslVendorExtensions {
     }
 
     /**
-     * {@code source} with its 16-bit stage inputs and outputs declared as their 32-bit types. A
-     * Vulkan stage interface of a 16-bit type needs storageInputOutput16, which NVIDIA's GPUs lack,
-     * while their GL driver takes RenderPearl's {@code out f16vec4 colortex1}. A 16-bit value written
-     * to the output widens implicitly, and the target stores it in its own format; an input reads
-     * as the wider type.
+     * {@code source} with its 16-bit stage inputs and outputs declared as their 32-bit types. A Vulkan stage
+     * interface of a 16-bit type needs storageInputOutput16, which NVIDIA's GPUs lack, while their GL driver
+     * takes RenderPearl's {@code out f16vec4 colortex1}. A 16-bit value written to the output widens
+     * implicitly and the target stores it in its own format; an input reads as the wider type.
      */
     static String widenInterfaces(String source) {
         if (source == null || WIDENED.keySet().stream().noneMatch(source::contains)) return source;

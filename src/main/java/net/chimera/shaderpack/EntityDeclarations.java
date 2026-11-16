@@ -7,10 +7,9 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 /**
- * The entity bridge's declaration rewrites: Iris's per-vertex identities (entityId,
- * blockEntityId, currentRenderedItemId) and the terrain attributes the entity layout lacks. Each
- * reads its declarations from the GLSL tree and edits the characters the declaration pattern it
- * replaces took, so a comment no longer decides whether a declaration is seen.
+ * The entity bridge's declaration rewrites: Iris's per-vertex identities (entityId, blockEntityId,
+ * currentRenderedItemId) and the terrain attributes the entity layout lacks. Each finds its declarations
+ * in the GLSL tree, so a declaration inside a comment is never matched.
  */
 final class EntityDeclarations {
     private EntityDeclarations() {}
@@ -28,13 +27,13 @@ final class EntityDeclarations {
     private static final Pattern SPACE_TAIL = Pattern.compile("[ \\t]*");
 
     /**
-     * One {@code storage int|float ...;} declaration that names an entity identity: its characters
-     * from the storage keyword through the whitespace after it, and each declarator's name and text.
+     * A {@code storage int|float ...;} declaration that names an entity identity. {@code start} and
+     * {@code end} span the storage keyword through the whitespace after the declaration.
      */
     record IdentityDeclaration(int start, int end, String storage, String type, List<String> names,
                                List<String> declarators) {}
 
-    /** The file-scope declarations, storage their last qualifier, whose declarators read an identity. */
+    /** File-scope declarations whose declarators read an identity; the last qualifier is the storage. */
     static List<IdentityDeclaration> identityDeclarations(String source) {
         GlslTree tree = GlslTree.parse(source);
         List<IdentityDeclaration> declarations = new ArrayList<>();
@@ -69,8 +68,8 @@ final class EntityDeclarations {
     }
 
     /**
-     * Drops the identity declarators, and those the program's uniform plan serves, from each
-     * identity declaration; a declaration left with none goes with the whitespace after it.
+     * Drops the identity declarators, and those the program's uniform plan serves, from each identity
+     * declaration; a declaration left with none goes with the whitespace after it.
      */
     static String removeEntityIdDeclarations(String source, UniformRegistry.ProgramInterface interfacePlan) {
         String input = source == null ? "" : source;
@@ -100,10 +99,11 @@ final class EntityDeclarations {
     }
 
     /**
-     * Terrain-format programs carry no iris_Entity, and Iris applies EntityPatcher only
-     * to vanilla-format programs, so an entityId/blockEntityId attribute there stays
-     * unbound and GL reads 0 (MakeUp 9.5g declares attribute int blockEntityId in its
-     * shared block vertex). Serve that value instead of rejecting the program.
+     * Turns an entityId or blockEntityId attribute into a zero constant, the value GL reads under Iris.
+     *
+     * Iris applies EntityPatcher only to vanilla-format programs, so a terrain-format program has no
+     * iris_Entity and the attribute stays unbound. MakeUp declares {@code attribute int blockEntityId} in its
+     * shared block vertex stage.
      */
     static String defaultUnboundIdentityAttributes(String source) {
         String input = source == null ? "" : source;
@@ -124,10 +124,11 @@ final class EntityDeclarations {
     }
 
     /**
-     * Removes the line-starting terrain attribute inputs the entity layout lacks, with the blank
-     * lines before each and the spaces after it, each span starting where the previous one ended.
-     * Iris's entity vertex format has no mc_Entity or at_midBlock (terrain inputs), so GL reads
-     * the unbound attribute's default (0, 0, 0, 1): those two become that constant.
+     * Removes the line-starting terrain attribute inputs the entity layout lacks, with the blank lines before
+     * each and the spaces after it; each span starts where the previous one ended.
+     *
+     * Iris's entity vertex format has no mc_Entity or at_midBlock, so GL reads the unbound attribute's
+     * default (0, 0, 0, 1). Those two become that constant.
      */
     static String removeEntityAttributes(String source) {
         String input = source == null ? "" : source;
@@ -156,9 +157,8 @@ final class EntityDeclarations {
     }
 
     /**
-     * Mid-texture coordinates arrive as a host vec2. A vec4-authored
-     * declaration (BSL advanced materials) keeps matrix-multiplication
-     * shape through an explicit constructor; vec2 uses the value directly.
+     * What mc_midTexCoord reads: the host's vec2, widened to a vec4 when the stage declares one, as BSL's
+     * advanced materials do, so matrix products keep their shape.
      */
     static String midTexCoordValue(String strippedSource) {
         GlslTree tree = GlslTree.parse(strippedSource);
@@ -170,10 +170,7 @@ final class EntityDeclarations {
         return vec4 ? "vec4(MidTexCoord, 0.0, 1.0)" : "MidTexCoord";
     }
 
-    /**
-     * The source with each {@code const float|vecN mc_Entity = ...;} reading {@code value} of its
-     * type instead, the declaration written {@code const type mc_Entity = value;}.
-     */
+    /** Gives each {@code const float|vecN mc_Entity = ...;} the initializer {@code value} returns for its type. */
     static String withEntityConstants(String source, UnaryOperator<String> value) {
         GlslTree tree = GlslTree.parse(source);
         List<GlslDeclarations.TextEdit> edits = new ArrayList<>();

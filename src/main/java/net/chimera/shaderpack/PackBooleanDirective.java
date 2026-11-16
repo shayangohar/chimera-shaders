@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * One shaders.properties boolean switch, read as Iris ShaderProperties.handleBooleanDirective
- * reads it: "true" or "1" switches on, "false" or "0" switches off, and any other value keeps
- * the directive's default and is reported (Iris logs a warning and leaves it unset).
+ * A shaders.properties boolean switch, read as Iris's ShaderProperties.handleBooleanDirective reads it: "true"
+ * or "1" switches on, "false" or "0" off. Any other value keeps the directive's default and is reported, where
+ * Iris logs a warning and leaves it unset.
  */
 final class PackBooleanDirective {
     private PackBooleanDirective() {}

@@ -6,13 +6,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Immutable load-time plan for one complete pack program. Probe and runtime
- * pipeline construction consume the same instance, so eligibility cannot
- * drift between reporting and execution. {@code shadowAttachmentFormats} is the shadow pass's
- * colour attachment contract, shadowcolor0 onward, that a shadow-stage pipeline declares; it is
- * empty for every other stage. {@code betweenStages} holds the converted geometry and tessellation
- * stages, which run between the program's vertex and fragment stages; BetweenStages refuses a lone
- * tessellation stage, so a plan cannot carry one (audit FD2, proposal 4).
+ * Load-time plan for one pack program. The probe and pipeline construction read the same instance, so what the
+ * report calls executable is what runs.
+ *
+ * {@code shadowAttachmentFormats} are the shadow pass's colour attachment formats from shadowcolor0 on, which a
+ * shadow-stage pipeline declares; they are empty for every other stage. {@code betweenStages} holds the converted
+ * geometry and tessellation stages. BetweenStages refuses a lone tessellation stage, so a plan never carries one.
  */
 public record PackProgramPlan(
         PackProgram program,
@@ -89,14 +88,13 @@ public record PackProgramPlan(
         return betweenStages.tessEvaluation();
     }
 
-    /** The authored cloud program provably draws nothing (see AuthoredOutput). */
+    /** Deviation for an authored cloud program that provably draws nothing (AuthoredOutput). */
     public static final String CLOUD_AUTHORED_NO_OUTPUT = "CLOUD_AUTHORED_NO_OUTPUT";
 
     public String name() {
         return program == null ? "" : program.name();
     }
 
-    /** True when executing the authored cloud program would draw nothing. */
     public boolean cloudDrawsNothing() {
         return deviations.contains(CLOUD_AUTHORED_NO_OUTPUT);
     }

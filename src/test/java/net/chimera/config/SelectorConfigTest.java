@@ -78,7 +78,7 @@ final class SelectorConfigTest {
         ShaderpackDirectory.copyInto(packs, dropped.getParent());
         assertTrue(Files.isRegularFile(packs.resolve("Dropped").resolve("shaders").resolve("final.fsh")),
                 "a dropped folder pack is copied whole");
-        // Iris refuses to overwrite a pack already in the folder.
+        // Iris refuses to overwrite a pack already in the folder
         assertThrows(FileAlreadyExistsException.class, () -> ShaderpackDirectory.copyInto(packs, dropped.getParent()),
                 "a second copy overwrote the pack");
     }

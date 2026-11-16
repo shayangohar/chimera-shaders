@@ -27,17 +27,19 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-/** Render-thread context for a guarded pack geometry dynamic-rendering window. */
+/**
+ * The pack window open on the render thread: the attachments a coverage, geometry or shadow window renders
+ * into with dynamic rendering, and what its first rendering clears.
+ */
 public final class PackGeometryContext {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private static final boolean TRACE = Boolean.getBoolean("chimera.traceTransitions");
 
     /**
-     * An open window: its attachments, whether it is a geometry window (else a coverage window), and
-     * what its first rendering clears. {@code clearFirstColor} clears a fresh coverage window's
-     * target to 0; {@code shadowClears}, when not null, clears a shadow window's depth to 1 and each
-     * colour to its own clear colour, a null one loading. Both apply once, when the window first
-     * begins rendering, not per terrain layer.
+     * An open window: its attachments, whether it is a geometry window (else a coverage window), and what its
+     * first rendering clears. {@code clearFirstColor} clears a fresh coverage window's target to 0;
+     * {@code shadowClears}, when not null, clears a shadow window's depth to 1 and each colour to its own clear
+     * colour, a null one loading. Both apply only to the window's first rendering, so later terrain layers load.
      */
     private record Window(List<VulkanImage> colors, VulkanImage depth, boolean geometry, boolean clearFirstColor,
                           List<float[]> shadowClears) {
@@ -47,7 +49,6 @@ public final class PackGeometryContext {
         }
     }
 
-    /** The open window, or null. */
     private static Window window;
 
     private PackGeometryContext() {}
@@ -62,14 +63,14 @@ public final class PackGeometryContext {
         open(List.of(targetImage, coverageImage), depthImage, false, false, null);
     }
 
-    /** Begins a geometry window with the exact pack output attachment list. */
+    /** Opens a geometry window over the program's pack outputs, in attachment order. */
     public static void beginGeometry(List<VulkanImage> colorImages, VulkanImage depthImage) {
         open(colorImages, depthImage, false, true, null);
     }
 
     /**
-     * Opens the authored shadow MRT, clearing depth and each colour with its clear colour once, not
-     * per terrain layer. A null clear colour keeps that target's contents.
+     * Opens the pack's shadow targets, clearing depth and each colour once, at the first rendering. A null
+     * clear colour keeps that target's contents.
      */
     public static void beginShadow(List<VulkanImage> colorImages, VulkanImage depthImage, List<float[]> clears) {
         if (clears.size() != colorImages.size()) {
@@ -110,8 +111,8 @@ public final class PackGeometryContext {
     public static List<VulkanImage> colors() { return window == null ? List.of() : window.colors(); }
 
     /**
-     * Begins dynamic rendering into the window's attachments and returns the pass VulkanMod binds
-     * for it, in GL row order when {@code glOriented}.
+     * Begins dynamic rendering into the window's attachments and returns the pass VulkanMod binds for it, in
+     * GL row order when {@code glOriented}.
      */
     public static ChimeraRenderingPass beginRendering(VkCommandBuffer commandBuffer, MemoryStack stack,
                                                       boolean glOriented) {
@@ -151,8 +152,8 @@ public final class PackGeometryContext {
     }
 
     /**
-     * The color attachments: a shadow window's colours clear to their own colours as it opens, a
-     * fresh coverage window's target to 0, the rest load.
+     * The colour attachments: a shadow window's colours clear to their own colours as it opens, a fresh
+     * coverage window's target to 0, and the rest load.
      */
     private static VkRenderingAttachmentInfo.Buffer colorAttachments(Window open, MemoryStack stack) {
         List<VulkanImage> colors = open.colors();

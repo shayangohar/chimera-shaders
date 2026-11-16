@@ -2,7 +2,7 @@ package net.chimera.render;
 
 import java.util.Arrays;
 
-/** Pure per-frame logical state for scene-seed coverage. */
+/** Per-frame state for scene-seed coverage, with no GPU objects. */
 public final class PackCoverageState {
     private boolean frameActive;
     private boolean seedApplied;

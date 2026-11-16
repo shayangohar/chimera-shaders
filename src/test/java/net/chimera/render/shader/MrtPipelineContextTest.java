@@ -177,12 +177,12 @@ final class MrtPipelineContextTest {
     }
 
     /**
-     * The per-pipeline state is a field every GraphicsPipeline carries (ChimeraPipelineSideMixin),
-     * not maps keyed by the pipeline, so it goes with the pipeline and a draw reads it without a lookup.
+     * The per-pipeline state is a field every GraphicsPipeline carries (ChimeraPipelineSideMixin), so
+     * it goes with the pipeline and a draw reads it without a map lookup.
      */
     @Test
     void everyGraphicsPipelineCarriesItsSide() throws IOException {
-        // MixinTargetAuditTest checks that it is registered and resolves against GraphicsPipeline.
+        // MixinTargetAuditTest checks that it is registered and resolves against GraphicsPipeline
         ClassNode mixin = MixinBytecode.nativeClass("net/chimera/mixin/ChimeraPipelineSideMixin");
         assertTrue(mixin.interfaces.contains("net/chimera/render/shader/PipelineSide$Holder"));
         for (String owner : List.of(CONTEXT, "net/chimera/render/shader/IrisDrawState",

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 
 /**
- * Chimera's pipeline configs parse into the layouts VulkanMod's PipelineConfig.fromJson read from them,
+ * Chimera's pipeline configs parse into the layouts VulkanMod's PipelineConfig.fromJson reads from them,
  * and a pack program's samplers take its layout's bindings.
  */
 final class PackDescriptorLayoutTest {
@@ -62,9 +62,9 @@ final class PackDescriptorLayoutTest {
 
     /**
      * A program's samplers take the bindings of its descriptor layout, whatever their type. Alpha
-     * Piscium's shadow fragment reads its PBR tables through usampler1D custom textures; left at the
-     * converter's provisional binding, usam_pbrLUT1 shared binding 5 with the GlobalData storage
-     * buffer, and the layout check stopped the game (DESCRIPTOR_LAYOUT_MISMATCH:usam_pbrLUT1).
+     * Piscium's shadow fragment reads its PBR tables through usampler1D custom textures; at the
+     * converter's provisional binding, usam_pbrLUT1 would share binding 5 with the GlobalData storage
+     * buffer and fail the layout check (DESCRIPTOR_LAYOUT_MISMATCH).
      */
     @Test
     void aOneDimensionalIntegerSamplerTakesItsLayoutBinding() {

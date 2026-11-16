@@ -5,10 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The shaders.properties {@code oldHandLight} switch, read as Iris reads it (PackDirectives:
- * {@code getOldHandLight().orElse(true)}). While it is on, heldBlockLightValue reports the
- * brighter of the two hands, as OptiFine did; packs that light each hand separately turn it off
- * and read heldBlockLightValue2 for the off hand.
+ * The shaders.properties {@code oldHandLight} switch, read as Iris's PackDirectives reads it, on by default.
+ * While it is on, heldBlockLightValue reports the brighter of the two hands, as OptiFine does; packs that
+ * light each hand separately turn it off and read heldBlockLightValue2 for the off hand.
  */
 public record HandLightDirectives(boolean oldHandLight, List<String> deviations) {
     public static final HandLightDirectives DEFAULTS = new HandLightDirectives(true, List.of());

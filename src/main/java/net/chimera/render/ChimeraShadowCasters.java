@@ -32,14 +32,14 @@ import java.util.Set;
 import java.util.SequencedMap;
 
 /**
- * Entities and block entities in the pack shadow map, as Iris ShadowRenderer draws them: after
- * the opaque terrain, so shadowtex1 holds them, and before the translucent layer.
+ * Entities and block entities in the pack shadow map, as Iris's ShadowRenderer draws them: after the opaque
+ * terrain, so shadowtex1 holds them, and before the translucent layer.
  *
- * <p>Like Iris it owns its buffers, draws every entity its shadow frustum keeps (the camera entity
- * included, so the player casts in first person) and the block entities of the sections the shadow
- * culling keeps, with the light view on the model-view stack and the light projection as the
- * projection. The bridge's caster window routes each caster batch to its shadow family:
- * shadow_block for a block entity's models, shadow_entities for the rest.</p>
+ * Like Iris it owns its buffers and draws every entity its shadow frustum keeps, the camera entity included so
+ * the player casts in first person, and the block entities of the sections the shadow culling keeps. The light
+ * view goes on the model-view stack and the light projection is the projection. The bridge's caster window
+ * routes each caster batch to its shadow family: shadow_block for a block entity's models, shadow_entities for
+ * the rest.
  */
 public final class ChimeraShadowCasters implements AutoCloseable {
     private static ChimeraShadowCasters instance;
@@ -48,7 +48,7 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     private final SequencedMap<RenderType, ByteBufferBuilder> fixed = ChimeraHandRenderer.fixedBuffers();
     private final FamilyBufferSource buffers =
             new FamilyBufferSource(MultiBufferSource.immediateWithBuffers(fixed, vertices));
-    /** The last frame's casters drawn, for F3, as Iris counts its renderedShadowEntities and BlockEntities. */
+    // the last shadow frame's casters, for F3, as Iris counts renderedShadowEntities and renderedShadowBlockEntities
     private int entitiesDrawn;
     private int blockEntitiesDrawn;
 
@@ -67,8 +67,8 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     }
 
     /**
-     * Draws this frame's casters into the open shadow map. The light matrices are
-     * camera-relative, like the terrain casters'; culling is Iris's entity shadow frustum.
+     * Draws this frame's casters into the open shadow map. The light matrices are camera-relative, like the
+     * terrain casters'; culling is Iris's entity shadow frustum.
      */
     static void render(double cameraX, double cameraY, double cameraZ, Matrix4f lightView,
                        Matrix4f lightProjection, ShadowCasterDirectives directives,
@@ -118,9 +118,9 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     }
 
     /**
-     * Iris ShadowRenderer.renderEntities: every entity the shadow frustum keeps, without vanilla's
-     * camera-entity exclusion; spectators cast nothing. With shadowEntities off, shadowPlayer
-     * still draws the player with its passengers and vehicle ({@link #playerCasters}).
+     * Iris ShadowRenderer.renderEntities: every entity the shadow frustum keeps, without vanilla's camera-entity
+     * exclusion; spectators cast nothing. With shadowEntities off, shadowPlayer still draws the player with its
+     * passengers and vehicle ({@link #playerCasters}).
      */
     private void drawEntities(Minecraft minecraft, ClientLevel level, Frustum frustum, DeltaTracker delta,
                               ShadowCasterDirectives directives, PoseStack poses,
@@ -146,9 +146,9 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     }
 
     /**
-     * Iris ShadowRenderer.renderPlayerEntity, for shadowPlayer without shadowEntities: nothing for a
-     * spectator or a player outside the shadow frustum, else the player's passengers, its vehicle and
-     * the player, in that order. An invisible player still draws: its armour and held items cast.
+     * Iris ShadowRenderer.renderPlayerEntity, for shadowPlayer without shadowEntities: nothing for a spectator or
+     * a player outside the shadow frustum, else the player's passengers, its vehicle and the player, in that
+     * order. An invisible player still draws, since its armour and held items cast.
      */
     static <E> List<E> playerCasters(boolean casts, E player, List<? extends E> passengers, E vehicle) {
         if (!casts) return List.of();
@@ -172,10 +172,9 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     }
 
     /**
-     * Block entities in the sections the shadow culling keeps, and the level's globally rendered
-     * ones, as Iris draws them from its shadow-culled sections. lightsOnly keeps only those whose
-     * block emits light (shadowLightBlockEntities without shadowBlockEntities). Block cracks are
-     * not shadow casters.
+     * Block entities in the sections the shadow culling keeps, and the level's globally rendered ones, as Iris
+     * draws them from its shadow-culled sections. lightsOnly keeps only those whose block emits light
+     * (shadowLightBlockEntities without shadowBlockEntities). Block cracks are not shadow casters.
      */
     private void drawBlockEntities(Minecraft minecraft, float partialTick, boolean lightsOnly, PoseStack poses,
                                    double cameraX, double cameraY, double cameraZ) {
@@ -215,10 +214,10 @@ public final class ChimeraShadowCasters implements AutoCloseable {
     }
 
     /**
-     * Iris's entity shadow frustum (ShadowRenderer.createShadowFrustum), with its safe zone kept
-     * whole, as for terrain. Like Iris it tests no projection volume: most packs scale shadow clip
-     * depth, so a caster past the ortho's near or far plane still lands in their map. Entities
-     * that ignore culling, such as lightning bolts, never reach this test, as in Iris.
+     * Iris's entity shadow frustum (ShadowRenderer.createShadowFrustum), with its safe zone kept whole, as for
+     * terrain. Like Iris it tests no projection volume: most packs scale shadow clip depth, so a caster past the
+     * ortho's near or far plane still lands in their map. Entities that ignore culling, such as lightning bolts,
+     * never reach this test, as in Iris.
      */
     private static final class CasterFrustum extends Frustum {
         private final ShadowCullingFrustum culling;

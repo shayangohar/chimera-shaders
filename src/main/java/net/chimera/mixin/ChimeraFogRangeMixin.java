@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Serves each fog range RenderSystem takes to the pack draws that follow, as Iris's fogStart and
- * fogEnd follow these setters: the sky's, the terrain's, a boss's or water's fog, and the
+ * Passes each fog range RenderSystem takes to the pack draws that follow, as Iris's fogStart and fogEnd
+ * track these setters. That covers the sky's, the terrain's, a boss's or water's fog, and the
  * Float.MAX_VALUE start FogRenderer.setupNoFog leaves for the hand.
  */
 @Mixin(RenderSystem.class)

@@ -76,9 +76,9 @@ final class HostFamilyTest {
     }
 
     /**
-     * Each derived preamble edits its base by exact text. A target that went missing left the base's
-     * input bound where the derived layout has none, and nothing said so; each target must now occur
-     * exactly once, or the preambles fail to load.
+     * Each derived preamble edits its base by exact text, and each target must occur exactly once or
+     * the preambles fail to load. A missing target would silently leave the base's input bound where
+     * the derived layout has none.
      */
     @Test
     void aPreambleEditsTargetsThatOccurExactlyOnce() {
@@ -99,8 +99,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * A commented main ahead of the real one took the overlay fetch and varying: the inserted text
-     * landed in the line comment, its line break ended the comment, and the rest became code.
+     * The overlay fetch and varying go into the live main, never a commented-out one ahead of it: text
+     * inserted into a line comment would end at the comment's line break and turn the rest into code.
      */
     @Test
     void theOverlayIsServedInTheLiveMain() {
@@ -175,7 +175,7 @@ final class HostFamilyTest {
                                     + " gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w); }"),
                     "authored hand returns must still reach exactly one Vulkan clip conversion");
             if (computedNormal) {
-                // Iris GLYPH: text has a per-quad normal, ahead of the material inputs.
+                // Iris GLYPH: text has a per-quad normal, ahead of the material inputs
                 assertTrue(source.contains("layout(location = 4) in vec3 Normal;")
                                 && source.contains("layout(location = 5) in uvec4 EntityIds;")
                                 && source.contains("const ivec2 UV1 = ivec2(0);"), "GLYPH text inputs");
@@ -185,7 +185,7 @@ final class HostFamilyTest {
                                         "Iris missing normal/overlay defaults");
             }
         }
-        // World and sign text: the entity and block programs take the same GLYPH layout.
+        // world and sign text: the entity and block programs take the same GLYPH layout
         var entity = EntityVertexBridge.convertEntityVertexChecked(vertex, null, fragment, Map.of(), false, List.of());
         var block = EntityVertexBridge.convertBlockVertexChecked(vertex, null, fragment, Map.of(), false, List.of());
         for (var program : List.of(entity, block)) {
@@ -197,7 +197,7 @@ final class HostFamilyTest {
                             "entity-family GLYPH inputs");
         }
         // Minecraft 1.21.1's GL projection; the host (Reforged's VRenderSystem.applyProjectionMatrix)
-        // maps the depth row onto Vulkan's [0,1].
+        // maps the depth row onto Vulkan's [0,1]
         var raster = new Matrix4f().perspective(1.1F, 1.6F, 0.05F, 128F, false);
         var snapshot = new Matrix4f(raster);
         var squeezed = ChimeraHandRenderer.projection(raster);
@@ -246,7 +246,7 @@ final class HostFamilyTest {
         assertTrue(moving.contains("const vec4 mc_Entity = vec4(-1.0, -1.0, 0.0, 1.0);")
                         && block.source().contains("const vec4 mc_Entity = vec4(0.0, 0.0, 0.0, 1.0);"),
                 "mc_Entity reads (-1, -1) on the block layout and the unbound default on the entity layout");
-        // A shadow program reads mc_Entity through its preamble's helper.
+        // a shadow program reads mc_Entity through its preamble's helper
         assertTrue(EntityVertexBridge.movingBlockEntity(GlslVertexPreambles.ENTITY_SHADOW_VERTEX_PREAMBLE)
                         .matches("(?s).*vec2 chimeraMcEntityValue\\(\\) \\{\\s*return vec2\\(-1\\.0\\);.*"),
                 "shadow casters read mc_Entity (-1, -1) on the block layout");
@@ -432,7 +432,7 @@ final class HostFamilyTest {
             var ordinary = PackDescriptorContracts.ordinaryDescriptorContract(handPlan, Set.of());
             var boolField = ordinary.layout().uniformBlocks().stream().flatMap(block -> block.fields().stream())
                     .filter(field -> field.name().equals("hasSkylight")).findFirst().orElseThrow();
-            // Regression: the host builder rejects "not admitted type: bool"; std140 stores it as int.
+            // the host builder rejects "not admitted type: bool"; std140 stores a bool as an int
             assertEquals("int", boolField.type(), "std140 bool storage");
         }
     }
@@ -560,8 +560,8 @@ final class HostFamilyTest {
     @Test
     void glintLane(@TempDir Path root) throws IOException {
         assertEquals(0.0001F, HostLayoutLane.GLINT.alphaReference(), "Iris GLINT uses AlphaTests.NON_ZERO_ALPHA");
-        // A held foil item flushes its glint inside the hand scope; the hand lane has no
-        // POSITION_TEX variant, so the lookup must answer host fallback, not throw.
+        // a held foil item flushes its glint inside the hand scope; the hand lane has no
+        // POSITION_TEX variant, so the lookup must answer host fallback, not throw
         assertTrue(new PackPipelines.PackHand(Map.of()).forFormat(DefaultVertexFormat.POSITION_TEX) == null,
                 "hand glint must fall back to its host draw");
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -641,7 +641,7 @@ final class HostFamilyTest {
                 "textured_color", "shadow_tex", "shadow_tex_color")) {
             assertTrue(servedPrograms.contains(program), program + " has no host-layout lane");
         }
-        // Iris BEACON converts as a host-layout key but draws on BLOCK widened to TERRAIN: a family lane.
+        // Iris BEACON converts as a host-layout key but draws on BLOCK widened to TERRAIN: a family lane
         assertTrue(HostLayoutLane.forProgram("gbuffers_beaconbeam").isEmpty()
                         && FamilyAdapterRegistry.isHostLayoutFamily("gbuffers_beaconbeam"),
                 "beacon beams convert as Iris BEACON and batch on the widened block layout");
@@ -676,7 +676,7 @@ final class HostFamilyTest {
         assertEquals(0.0F, IrisShaderKeys.reference("rendertype_beacon_beam", ChimeraEntityBridge.Family.BEACON_BEAM,
                 false), "Iris BEACON uses AlphaTests.OFF");
         // Iris TEXTURED tests NON_ZERO_ALPHA and TEXTURED_COLOR ONE_TENTH_ALPHA (ShaderKey), with
-        // their texture on unit 0; the sun and moon stay with the sky keys.
+        // their texture on unit 0; the sun and moon stay with the sky keys
         assertTrue(HostLayoutLane.TEXTURED.alphaReference() < HostLayoutLane.TEXTURED_COLOR.alphaReference()
                 && HostLayoutLane.TEXTURED_COLOR.alphaReference() == HostLayoutLane.TEXT_BG.alphaReference()
                 && !HostLayoutLane.TEXTURED.whiteAlbedo() && !HostLayoutLane.TEXTURED_COLOR.whiteAlbedo());
@@ -687,7 +687,7 @@ final class HostFamilyTest {
     /**
      * Iris registers its white pixel under lightmap where a draw's ShaderKey has no light input: a
      * format without UV2, or a FULLBRIGHT key (IrisSamplers.addLevelSamplers, ShaderAttributeInputs).
-     * Miniature lights its lightning bolt by lightmap; on the real night lightmap the bolt drew purple.
+     * Miniature lights its lightning bolt by lightmap, and the real night lightmap would turn it purple.
      */
     @Test
     void lanesReadTheLightmapExactlyWithLightCoordinates() {
@@ -702,7 +702,10 @@ final class HostFamilyTest {
         }
     }
 
-    /** The FULLBRIGHT keys Iris 1.21.1 picks: ENTITIES_EYES and _TRANS, BEACON and CRUMBLING. */
+    /**
+     * Families Iris 1.21.1 lights with white: its FULLBRIGHT keys ENTITIES_EYES and _TRANS, BEACON and
+     * CRUMBLING, and lightning, whose format has no UV2.
+     */
     @Test
     void fullbrightFamiliesReadWhite() {
         for (Family family : List.of(Family.SPIDER_EYES, Family.BEACON_BEAM, Family.DAMAGED_BLOCK, Family.LIGHTNING)) {
@@ -773,14 +776,14 @@ final class HostFamilyTest {
     }
 
     /**
-     * LIGHTNING (through the entity fallback), BEACON and LEASH converted and compiled with
+     * LIGHTNING (through the entity fallback), BEACON and LEASH convert and compile with
      * Iris's host-layout inputs and identity: entityId per draw, blockEntityId -1. BEACON's inputs
      * are the block layout Iris widens to TERRAIN, at EXTENDED_BLOCK's locations.
      */
     @Test
     void hostLayoutLanePrograms(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
-        // No gbuffers_lightning: lightning falls back to gbuffers_entities, as in BSL and MakeUp.
+        // no gbuffers_lightning: lightning falls back to gbuffers_entities, as in BSL and MakeUp
         Files.writeString(shaders.resolve("gbuffers_entities.vsh"), """
                 #version 120
                 uniform int entityId;
@@ -828,7 +831,7 @@ final class HostFamilyTest {
                 "gbuffers_lightning", List.of("layout(location = 1) in vec4 Color;",
                         "const vec2 UV0 = vec2(0.5);", "const ivec2 UV2 = ivec2(240);",
                         "const vec3 Normal = vec3(0.0, 0.0, 1.0);"),
-                // Iris BEACON: BLOCK widened to TERRAIN, fullbright, no block begun for mc_Entity.
+                // Iris BEACON: BLOCK widened to TERRAIN, fullbright, no block begun for mc_Entity
                 "gbuffers_beaconbeam", List.of("layout(location = 2) in vec2 UV0;",
                         "const ivec2 UV2 = ivec2(240);", "layout(location = 4) in vec3 Normal;",
                         "layout(location = 6) in vec2 MidTexCoord;",
@@ -841,7 +844,7 @@ final class HostFamilyTest {
         for (var entry : expected.entrySet()) {
             assertHostLayoutProgram(analysis, entry.getKey(), entry.getValue());
         }
-        // No gbuffers_entities_translucent: Iris TEXT_BG runs EntitiesTrans's chain, here gbuffers_entities.
+        // no gbuffers_entities_translucent: Iris TEXT_BG runs EntitiesTrans's chain, here gbuffers_entities
         assertEquals("gbuffers_entities", analysis.resolution().resolution("text_bg").selectedProgram(),
                 "text_bg resolves through gbuffers_entities_translucent's chain");
         var textBackground = executablePlan(analysis, "text_bg", "text_bg");
@@ -856,7 +859,7 @@ final class HostFamilyTest {
         assertTrue(compiled.failures().isEmpty(), "host-layout lane compilation: " + compiled.failures());
     }
 
-    /** The test vertex stage also reading the TERRAIN attributes Iris binds for every program (ProgramCreator). */
+    /** Makes the test vertex stage also read the TERRAIN attributes Iris binds for every program (ProgramCreator). */
     private static void readTerrainAttributes(Path vertex) throws IOException {
         Files.writeString(vertex, Files.readString(vertex)
                 .replace("varying float block;", """
@@ -875,7 +878,7 @@ final class HostFamilyTest {
         for (String line : inputs) {
             assertTrue(vertex.contains(line), program + " lost Iris host input " + line + ": " + vertex);
         }
-        // Iris reads its fallback entityId per draw: 0 by the time these batches draw.
+        // Iris reads its fallback entityId per draw: 0 by the time these batches draw
         assertTrue(vertex.contains("(Color * ColorModulator)")
                         && vertex.contains("(chimeraHostEntityId) == 10101")
                         && vertex.contains("float((-1))")
@@ -927,7 +930,7 @@ final class HostFamilyTest {
         }
         assertEquals(0.1F, HostLayoutLane.TEXT_BG.alphaReference(), "Iris TEXT_BG tests ONE_TENTH_ALPHA");
         var glyphs = DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP;
-        // TrueType glyphs (Iris TEXT_INTENSITY and TEXT_INTENSITY_BE) read their RRRR page alike.
+        // TrueType glyphs (Iris TEXT_INTENSITY and TEXT_INTENSITY_BE) read their RRRR page alike
         for (String text : List.of("rendertype_text", "rendertype_text_see_through", "position_color_tex_lightmap",
                 "rendertype_text_intensity", "rendertype_text_intensity_see_through")) {
             assertTrue(IrisShaderKeys.worldFamily(text, glyphs, ChimeraEntityBridge.Family.ENTITY)

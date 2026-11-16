@@ -9,10 +9,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
- * VulkanMod bakes a counter-clockwise front face into every pipeline. A GL
- * row-order pass mirrors the image, so pipelines created for it take the
- * mirrored face. PipelineState is keyed by RenderPass, so the host and GL
- * variants of one pipeline never share a cache entry.
+ * VulkanMod bakes a counter-clockwise front face into every pipeline. A GL row-order pass mirrors the image,
+ * so pipelines created for it take the mirrored face. PipelineState is keyed by RenderPass, so the host and
+ * GL variants of one pipeline never share a cache entry.
  */
 @Mixin(value = GraphicsPipeline.class, remap = false)
 public abstract class ChimeraPipelineFrontFaceMixin {

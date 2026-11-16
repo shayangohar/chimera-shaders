@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The lossless GLSL tree: the declaration shapes the corpus showed, scopes, and edits by range. */
+/** The lossless GLSL tree: the declaration shapes packs write, scopes, and edits by range. */
 final class GlslTreeTest {
     private static final String SOURCE = """
             #version 450 compatibility
@@ -152,8 +152,8 @@ final class GlslTreeTest {
     }
 
     /**
-     * An empty range inserts: at a node's first token, where the old printer dropped it
-     * at the end of the source, and in the given order ahead of a replacement there.
+     * An empty range inserts at a node's first token or at the end of the source, in the given order
+     * and ahead of a replacement at the same place.
      */
     @Test
     void emptyEditsInsert() {

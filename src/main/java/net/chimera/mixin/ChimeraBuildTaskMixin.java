@@ -17,10 +17,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Iris's voxelizeLightBlocks in VulkanMod's chunk build. A light block has no model, so under the
- * pack's directive each one gets a zero-area quad in the cutout-mipped mesh, before the block's
- * fluid or model, as Iris's MixinChunkMeshBuildTask adds it to Sodium's; a pack that voxelizes
- * terrain in its shadow pass reads the block's id and emission from it.
+ * Iris's voxelizeLightBlocks in VulkanMod's chunk build. A light block has no model, so under the pack's
+ * directive each one gets a zero-area quad in the cutout-mipped mesh, before the block's fluid or model, as
+ * Iris's MixinChunkMeshBuildTask adds one to Sodium's. A pack that voxelises terrain in its shadow pass reads
+ * the block's id and emission from it.
  */
 @Mixin(value = BuildTask.class, remap = false)
 public abstract class ChimeraBuildTaskMixin {
@@ -33,7 +33,7 @@ public abstract class ChimeraBuildTaskMixin {
                                         @Local BlockPos.MutableBlockPos blockPos,
                                         @Local ThreadBuilderPack bufferBuilders) {
         if (!(blockState.getBlock() instanceof LightBlock) || !ChimeraTerrainPipelines.voxelizeLightBlocks()) return;
-        // Pack meshes only: the host builder has no block-data words.
+        // pack meshes only; the host builder has no block-data words
         if (bufferBuilders.builder(TerrainRenderType.CUTOUT_MIPPED) instanceof ChimeraExtTerrainBuilder extended) {
             extended.lightBlockQuad(blockState, blockPos.getX() & 15, blockPos.getY() & 15, blockPos.getZ() & 15);
         }

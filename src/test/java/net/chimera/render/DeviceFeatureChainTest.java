@@ -24,8 +24,8 @@ import static org.lwjgl.vulkan.VK13.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3
 
 /**
  * Chimera's device features join the structs VulkanMod's create info already chains, each struct
- * type once (audit LD5): Reforged 0.3.5 chains its Vulkan 1.1 struct alone, and a host that chained
- * its own 1.2, 1.3 or dynamic rendering struct would have met a second one.
+ * type once. Reforged 0.3.5 chains its Vulkan 1.1 struct alone; a host that chains its own 1.2, 1.3
+ * or dynamic rendering struct gets Chimera's features merged into it.
  */
 final class DeviceFeatureChainTest {
     private static final Set<String> VULKAN12 = Set.of("shaderFloat16", "shaderInt8");

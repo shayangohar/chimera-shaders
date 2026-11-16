@@ -12,16 +12,16 @@ import java.util.Set;
 
 /**
  * The order Iris draws a frame's buffered batches in (batchedentityrendering's
- * GraphTranslucencyRenderOrderManager behind FullyBufferedMultiBufferSource). Batches draw by
- * transparency kind. Within a kind every buffered type is a vertex, added at its first use, and
- * consecutive uses of the kind inside one group (one entity's render, or one banner's patterns) add
- * an edge from the earlier type to the later. A kind draws in reverse depth-first finishing order
- * over its vertices taken in first-use order: an edge's source draws before its target, and types
- * no edge relates draw in reverse first-use order, so block entities, written after the entities,
- * draw before them.
+ * GraphTranslucencyRenderOrderManager behind FullyBufferedMultiBufferSource).
  *
- * <p>Iris first removes a minimum-weight feedback arc set from a cyclic kind; here the search
- * breaks a cycle where it meets it.</p>
+ * Batches draw by transparency kind. Within a kind every buffered type is a vertex, added at its first use,
+ * and consecutive uses of the kind inside one group (one entity's render, or one banner's patterns) add an
+ * edge from the earlier type to the later. A kind draws in reverse depth-first finishing order over its
+ * vertices taken in first-use order. An edge's source draws before its target, and types no edge relates
+ * draw in reverse first-use order, so block entities, written after the entities, draw before them.
+ *
+ * Iris first removes a minimum-weight feedback arc set from a cyclic kind; here the search breaks a cycle
+ * where it meets it.
  */
 final class IrisBatchOrder<T> {
     private final EnumMap<IrisTransparency, Map<T, Set<T>>> graphs = new EnumMap<>(IrisTransparency.class);

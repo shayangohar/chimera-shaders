@@ -35,15 +35,14 @@ import java.util.TreeSet;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Manages the shadow map: framebuffer, light-space matrices, and rendering.
+ * The shadow map: its images, its light-space matrices and the matrices of the map receivers sample.
  *
- * The shadow map keeps an RGBA8 color buffer for the fixed host path, the pack's shadowcolor
- * targets in their directive formats (Iris ShadowRenderTargets), and a
- * stored depth attachment for pack shadowtex0 sampling. Resolution and light
- * distance are selected once when the pack session is created.
+ * It keeps an RGBA8 colour buffer for the fixed host path, the pack's shadowcolor targets in their directive
+ * formats (Iris ShadowRenderTargets), a stored depth attachment sampled as shadowtex0, and its pre-translucent
+ * copy, shadowtex1. Resolution and distance are set once per pack session.
  *
- * Light matrices: ortho projection looking from the sun toward the player, or Iris's perspective
- * one for a pack's shadowMapFov. Updated each frame from the celestial angle.
+ * The light projection is an ortho looking from the sun toward the player, or Iris's perspective one for a
+ * pack's shadowMapFov, rebuilt each frame from the celestial angle.
  */
 public class ChimeraShadowMap {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -73,33 +72,29 @@ public class ChimeraShadowMap {
     private boolean passReadsOpen;
     private GraphicsPipeline shadowPipeline;
     private final DepthSampleView depthSampleView = DepthSampleView.shadow();
-    /**
-     * Iris shadowtex1: the caster depth before translucent terrain draws.
-     * The main depth attachment is shadowtex0 and holds every caster.
-     */
+    /** Iris shadowtex1, the caster depth before translucent terrain; the depth attachment is shadowtex0. */
     private VulkanImage opaqueDepth;
     private final DepthSampleView opaqueDepthSampleView = DepthSampleView.shadow();
     /** True when opaqueDepth holds the current map's opaque casters. */
     private boolean opaqueDepthCurrent;
     private long shadowSampler;
 
-    // CPU-side buffer for the light MVP, read by the Uniforms system during upload
+    // the fixed receiver's LightMVP, which VulkanMod's Uniforms read at upload
     private MappedBuffer lightMVPBuffer;
 
-    // Current caster state. Host and pack projections intentionally use
-    // different Vulkan clip-depth conventions.
+    // this frame's caster matrices; the host projection has [0,1] clip depth, the pack one GL's [-1,1]
     private final Matrix4f hostLightProjection = new Matrix4f();
     private final Matrix4f packLightProjection = new Matrix4f();
     private final Matrix4f lightView = new Matrix4f();
     private final Matrix4f lightMVP = new Matrix4f();
     private final float[] matrixScratch = new float[16];
     private final Matrix4f receiverScratch = new Matrix4f();
-    // Clip X that the fixed receiver maps to u = 1.5, outside the map.
+    // clip x the fixed receiver maps to u = 1.5, outside the map
     private static final float OUTSIDE_MAP_X = 2.0F;
-    // False while the bound image holds pack-caster depth.
+    // false while the bound image holds pack-caster depth
     private boolean hostReadableMap = true;
 
-    // State that describes the depth image currently bound to receivers.
+    // the map receivers sample now, with the matrices and camera it was drawn with
     private final Matrix4f mapLightView = new Matrix4f();
     private final Matrix4f mapPackProjection = new Matrix4f();
     private final Matrix4f samplingView = new Matrix4f();
@@ -109,7 +104,7 @@ public class ChimeraShadowMap {
     private boolean mapSnapshotValid;
     private long mapGeneration;
 
-    // The pack's settings: its depth range follows the render distance when a plane is -1.
+    // the pack's settings; a depth plane of -1 follows the render distance
     private PackConfig.ShadowSettings settings = new PackConfig.ShadowSettings(
             PackConfig.DEFAULT_SHADOW_MAP_RESOLUTION, PackConfig.DEFAULT_SHADOW_DISTANCE, Map.of(), List.of());
     private int shadowMapSize = PackConfig.DEFAULT_SHADOW_MAP_RESOLUTION;
@@ -129,22 +124,20 @@ public class ChimeraShadowMap {
         this.shadowMapSize = deviceResolution(settings.resolution());
         this.shadowDistance = settings.distance();
         this.intervalSize = settings.intervalSize();
-        // The celestial frame derives the light direction from the pack's sun path, so the shadow
-        // matrix follows the same numbers the pack reads instead of repeating the trigonometry.
+        // the celestial frame derives the light direction from the pack's sun path, so the shadow matrix
+        // follows the same numbers the pack reads
         PackUniformProvider.installSunPath(settings.sunPathRotation(), settings.sunPathOffset());
 
         try {
             createResources(settings);
         } catch (RuntimeException failure) {
-            // Frees whatever was made before the failure; the map stays uninitialized.
+            // frees whatever was made before the failure; the map stays uninitialised
             cleanUp();
             throw failure;
         }
 
-        // Register the light MVP supplier so the terrain pipeline's LightMVP
-        // UBO field is filled with our matrix during upload. The map lives as
-        // long as the game and init runs once a pack load, so one buffer serves
-        // every init; a new one each time leaked the last (audit W8).
+        // fills the terrain pipeline's LightMVP UBO field at upload
+        // the map lives as long as the game and init runs once per pack load, so one buffer serves every init
         if (this.lightMVPBuffer == null) this.lightMVPBuffer = new MappedBuffer(64);
         Uniforms.mat4f_uniformMap.put("LightMVP", () -> this.lightMVPBuffer);
 
@@ -162,7 +155,8 @@ public class ChimeraShadowMap {
         this.targets = settings.targets();
         this.shadowColors = createColorTargets(settings.colorTargetCount());
         this.computeColors = createComputeColors(settings.colorTargetCount());
-        // Receivers sample this D24S8 image; VulkanMod's view carries both aspects.
+        // receivers sample a depth-only view that reads R, R, R, 1 as Iris's shadow depth does;
+        // VulkanMod's own view of a depth-stencil format carries both aspects
         VulkanImage depth = this.shadowFramebuffer.getDepthAttachment();
         ChimeraDepthViewOverride.registerOwned(depth, this.depthSampleView.ensure(depth));
         this.opaqueDepth = VulkanImage.builder(this.shadowMapSize, this.shadowMapSize)
@@ -231,10 +225,9 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Clears the compute-named shadowcolor targets as the frame opens (PackShadowPass, before setup
-     * and begin, as Iris clears its shadow targets in beginLevelRendering), each that clears every
-     * frame or all of them on the full clear after creation (colorClears), and leaves them sampleable.
-     * Recorded outside a render pass.
+     * Clears the compute-named shadowcolor targets as the frame opens, as Iris clears its shadow targets in
+     * beginLevelRendering: those that clear every frame, or all of them on the full clear after creation. Leaves
+     * them sampleable; recorded outside a render pass.
      */
     void clearComputeColors(MemoryStack stack, VkCommandBuffer commandBuffer, boolean fullClear) {
         this.computeColors.forEach((index, image) -> {
@@ -246,8 +239,8 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * The clear colour of each shadowcolor target as the shadow pass opens: its own for a target
-     * that clears every frame, or for every target on the full clear after creation (Iris
+     * The clear colour of each shadowcolor target as the shadow pass opens: its own for a target that clears
+     * every frame, or for every target on the full clear after creation (Iris
      * ClearPassCreator.createShadowClearPasses); null keeps the last frame's contents.
      */
     List<float[]> colorClears(boolean fullClear) {
@@ -294,19 +287,15 @@ public class ChimeraShadowMap {
         this.shadowSampler = ChimeraSamplers.flat(true, true);
     }
 
-    /**
-     * Builds camera-relative light-space matrices from the frame's celestial shadow rotation.
-     * Called each frame before the shadow pass.
-     */
+    /** Builds camera-relative light-space matrices from this frame's celestial rotation, before the shadow pass. */
     public void updateLight(Matrix4f lightRotation, double cameraX, double cameraY, double cameraZ,
                             int renderDistanceChunks) {
-        // DrawBuffers already subtracts the render camera from terrain
-        // positions, so the light view is Iris's rotation about that origin,
-        // snapped to its grid; the ortho depth range reaches toward the sun.
+        // DrawBuffers already subtracts the render camera from terrain positions, so the light view is Iris's
+        // rotation about that origin, snapped to its grid; the ortho depth range reaches toward the sun
         this.lightView.set(lightRotation);
         snapToGrid(this.lightView, this.intervalSize, cameraX, cameraY, cameraZ);
 
-        // Iris's halfPlaneLength is the pack's shadowDistance itself.
+        // Iris's halfPlaneLength is the pack's shadowDistance itself
         float near = this.settings.nearPlane(renderDistanceChunks);
         float far = this.settings.farPlane(renderDistanceChunks);
         Float fov = this.settings.fieldOfView();
@@ -319,16 +308,15 @@ public class ChimeraShadowMap {
             createLightProjection(this.packLightProjection, this.shadowDistance, near, far, false);
         }
 
-        // Combined MVP
         this.lightMVP.set(this.hostLightProjection).mul(this.lightView);
         writeHostReceiverMatrix();
     }
 
     /**
-     * Fills the fixed receiver's LightMVP for the map currently bound. A map
-     * written by the pack caster holds authored distortion and clip depth the
-     * fixed shader cannot decode, so its receivers get a constant coordinate
-     * outside the map, which chimera_terrain.fsh defines as lit. Host fallback
+     * Fills the fixed receiver's LightMVP for the map currently bound.
+     *
+     * A map the pack caster wrote holds authored distortion and clip depth the fixed shader cannot decode, so its
+     * receivers get a constant coordinate outside the map, which chimera_terrain.fsh treats as lit. Host fallback
      * programs then match Iris's unshadowed vanilla fallback.
      */
     private void writeHostReceiverMatrix() {
@@ -351,12 +339,13 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Iris's {@code ShadowMatrices.snapModelViewToGrid}: shifts the camera-relative view to the
-     * centre of the grid cell the camera is in, so the shadow texels stay fixed in the world while
-     * the player moves. Without it every caster edge, and above all a thin one like a glass pane's
-     * frame, slides and changes width with the camera. Iris keeps Java's truncating remainder
-     * (negative for negative coordinates) and so does this; the remainder is taken in double
-     * because Iris's float cast loses the sub-block phase far from the origin.
+     * Iris's {@code ShadowMatrices.snapModelViewToGrid}: shifts the camera-relative view to the centre of the
+     * grid cell the camera is in, so shadow texels stay fixed in the world while the player moves. Without it
+     * every caster edge, a thin one like a glass pane's frame most of all, slides and changes width with the
+     * camera.
+     *
+     * Java's truncating remainder (negative for negative coordinates) is kept as in Iris, but taken in double,
+     * since Iris's float cast loses the sub-block phase far from the origin.
      */
     static void snapToGrid(Matrix4f view, float intervalSize,
             double cameraX, double cameraY, double cameraZ) {
@@ -369,8 +358,8 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Iris ShadowMatrices.createOrthoMatrix: a square of half the pack's shadowDistance on each
-     * side, between the pack's depth planes. Packs tune their shadow depth bias to this range.
+     * Iris ShadowMatrices.createOrthoMatrix: a square reaching {@code halfExtent} each way, between the pack's
+     * depth planes. Packs tune their shadow depth bias to this range.
      */
     static void createLightProjection(
             Matrix4f destination, float halfExtent, float near, float far, boolean zZeroToOne) {
@@ -381,14 +370,14 @@ public class ChimeraShadowMap {
                 zZeroToOne);
     }
 
-    /** ShadowMatrices' depth planes for a perspective shadow projection. */
+    // Iris ShadowMatrices' NEAR and FAR, for a perspective shadow projection
     private static final float PERSPECTIVE_NEAR = -100.05F;
     private static final float PERSPECTIVE_FAR = 156.0F;
 
     /**
-     * Iris ShadowMatrices.createPerspectiveMatrix for a pack's shadowMapFov: a square perspective
-     * of {@code fov} degrees between ShadowMatrices' NEAR and FAR, written as Iris writes it, with
-     * 1 in the last column's w. The host's [0,1] depth form remaps this one.
+     * Iris ShadowMatrices.createPerspectiveMatrix for a pack's shadowMapFov: a square perspective of {@code fov}
+     * degrees between ShadowMatrices' NEAR and FAR, written as Iris writes it, with 1 in the last column's w.
+     * The host's [0,1] depth form remaps this one.
      */
     static void createPerspectiveProjection(Matrix4f destination, float fov) {
         float yScale = (float) (1.0F / Math.tan(Math.toRadians(fov) * 0.5F));
@@ -407,12 +396,12 @@ public class ChimeraShadowMap {
         return Math.min(resolution, limit);
     }
 
-    /** Seeds a newly cleared all-lit depth image with a coherent receiver matrix pair. */
+    /** Gives a newly cleared, all-lit map this frame's matrices, so receivers read a consistent pair. */
     void seedClearedMap(double cameraX, double cameraY, double cameraZ) {
         storeMapState(cameraX, cameraY, cameraZ);
     }
 
-    /** Commits the map state only after its producer and attachment transitions succeed. */
+    /** Records a drawn map's matrices; call only once its draw and attachment transitions have succeeded. */
     void commitRenderedMap(double cameraX, double cameraY, double cameraZ) {
         storeMapState(cameraX, cameraY, cameraZ);
         setHostReadableMap(false);
@@ -429,16 +418,13 @@ public class ChimeraShadowMap {
         this.mapGeneration++;
     }
 
-    /**
-     * Invalidates the matrix/image association after a partial write. The next
-     * frame must clear and reinitialize the image before any pack samples it.
-     */
+    /** Drops the map's matrices after a partial write; the image must be cleared again before a pack samples it. */
     void invalidateMapSnapshot() {
         this.mapSnapshotValid = false;
         this.needsInitialSamplingLayout = true;
     }
 
-    /** Invalidates pack-facing matrices when the fixed host pipeline wrote the image. */
+    /** Drops the pack-facing matrices after the fixed host pipeline wrote the image. */
     void invalidatePackMapSnapshot() {
         this.mapSnapshotValid = false;
         this.opaqueDepthCurrent = false;
@@ -446,10 +432,9 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Copies the caster depth drawn so far into shadowtex1. The pack shadow
-     * pass calls this after the opaque and cutout layers and before the
-     * translucent layer, which Iris keeps out of shadowtex1. No render pass
-     * may be open; the depth attachment returns to its attachment layout.
+     * Copies the caster depth drawn so far into shadowtex1, after the opaque and cutout layers and before the
+     * translucent layer, which Iris keeps out of shadowtex1. No render pass may be open; the depth attachment
+     * returns to its attachment layout.
      */
     void captureOpaqueDepth(VkCommandBuffer commandBuffer) {
         VulkanImage depth = this.shadowFramebuffer.getDepthAttachment();
@@ -484,8 +469,8 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * The image packs sample as shadowtex1. Without a pack caster pass the
-     * map holds no translucent casters, so shadowtex0 already is shadowtex1.
+     * The image packs sample as shadowtex1. Until the pack caster pass copies it, as on a cleared map or one the
+     * host pipeline drew, the map holds no translucent casters and shadowtex0 serves as shadowtex1.
      */
     public VulkanImage opaqueDepth() {
         if (this.shadowFramebuffer == null) return null;
@@ -493,9 +478,9 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * shadowtex1 for a shadow program: always the copy, never the depth attachment the pass draws
-     * into. As Iris copies it before the translucent layer (ShadowRenderer copyPreTranslucentDepth),
-     * casters read last frame's copy and the translucent layer this frame's.
+     * shadowtex1 for a shadow program: always the copy, never the depth attachment the pass draws into. As Iris
+     * copies it before the translucent layer (ShadowRenderer copyPreTranslucentDepth), casters read last frame's
+     * copy and the translucent layer this frame's.
      */
     public VulkanImage opaqueDepthCopy() {
         return this.shadowFramebuffer == null ? null : this.opaqueDepth;
@@ -530,7 +515,7 @@ public class ChimeraShadowMap {
             double mapX, double mapY, double mapZ,
             double currentX, double currentY, double currentZ
     ) {
-        // Subtract in world-space double precision before storing the local delta.
+        // subtract in double world space before narrowing the delta to float
         return destination.set(mapView).translate(
                 (float) (currentX - mapX),
                 (float) (currentY - mapY),
@@ -545,18 +530,18 @@ public class ChimeraShadowMap {
         return this.mapGeneration;
     }
 
-    /** Binds the shadow map texture for sampling by the terrain shader. */
+    /** Binds the shadow map for the terrain shaders to sample. */
     public void bindShadowTexture() {
         if (this.shadowFramebuffer == null) return;
         VulkanImage shadowColor = this.shadowFramebuffer.getColorAttachment();
         VulkanImage shadowDepth = this.shadowFramebuffer.getDepthAttachment();
         ((ChimeraVulkanImageAccessor) shadowColor).chimera$setSampler(this.shadowSampler);
-        // Iris filters each shadow depth linearly unless shadowtexNNearest (ShadowRenderer.configureSampler).
+        // Iris filters each shadow depth linearly unless shadowtexNNearest (ShadowRenderer.configureSampler)
         ((ChimeraVulkanImageAccessor) shadowDepth).chimera$setSampler(ChimeraSamplers.flat(!depthNearest(0), true));
         ((ChimeraVulkanImageAccessor) this.opaqueDepth).chimera$setSampler(
                 ChimeraSamplers.flat(!depthNearest(1), true));
-        VTextureSelector.bindTexture(3, shadowColor); // slot 3 for shadow map
-        VTextureSelector.bindTexture(5, shadowDepth); // slot 5 for pack shadowtex0
+        VTextureSelector.bindTexture(3, shadowColor); // the fixed path's shadow map
+        VTextureSelector.bindTexture(5, shadowDepth); // pack shadowtex0
     }
 
     /**
@@ -570,14 +555,14 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Takes the contents the shadow pass's programs sample each attached shadowcolor target in
-     * {@code indices} through, and serves them until closePassReads. Iris attaches only the targets
-     * the shadow program draws and binds every target to its samplers (addGbufferOrShadowSamplers), so
-     * a program reads what a target held as the pass opened: its clear colour if it clears every
-     * frame, else its contents. The pass here attaches every target up to the highest a program
-     * names, and sampling one while it is attached is a feedback loop. Rethinking Voxels' interactive
-     * water reads shadowcolor2 this way. A compute-only target is not attached and is read as it is.
-     * Recorded outside a render pass.
+     * Copies each attached shadowcolor target in {@code indices} for the shadow pass's programs to sample, and
+     * serves the copies until closePassReads. Recorded outside a render pass.
+     *
+     * Iris attaches only the targets the shadow program draws and binds every target to its samplers
+     * (addGbufferOrShadowSamplers), so a program reads what a target held as the pass opened: its clear colour if
+     * it clears every frame, else its contents. The pass here attaches every target up to the highest a program
+     * names, and sampling an attached target is a feedback loop. Rethinking Voxels' interactive water reads
+     * shadowcolor2 this way. A compute-only target is not attached and is read as it is.
      */
     void snapshotPassReads(VkCommandBuffer commandBuffer, Set<Integer> indices) {
         this.passReadsOpen = false;
@@ -600,8 +585,8 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * The shadow pass's last draw is recorded: shadowcolor reads and shadowcolorimg writes return to
-     * the targets themselves, before shadowcomp runs.
+     * Called once the shadow pass's last draw is recorded, before shadowcomp: shadowcolor reads and
+     * shadowcolorimg writes go to the targets themselves again.
      */
     void closePassReads() {
         this.passReadsOpen = false;
@@ -650,26 +635,27 @@ public class ChimeraShadowMap {
 
     public List<VulkanImage> shadowColors() { return this.shadowColors; }
 
-    /** Initial contents must be defined before geometry samples the first shadow frame. */
+    /** Clears every target and the opaque copy, so geometry samples defined contents in the first shadow frame. */
     public void initializeSampling(VkCommandBuffer commandBuffer) {
         clearPassTargets(commandBuffer, true);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             clearComputeColors(stack, commandBuffer, true);
-            // Before its first copy the opaque copy reads as a cleared map: Chimera's defined start.
+            // until its first copy, the opaque copy reads as a cleared map
             clearToFarDepth(stack, commandBuffer, this.opaqueDepth);
         }
-        // The cleared map has no translucent casters: shadowtex1 is shadowtex0.
+        // the cleared map has no translucent casters, so shadowtex1 is shadowtex0
         this.opaqueDepthCurrent = false;
         this.needsInitialSamplingLayout = false;
     }
 
     /**
-     * Clears the map on a frame whose pack shadow pass draws nothing (Max Shadow Distance 0). Iris
-     * clears its shadow targets as every frame opens (IrisRenderingPipeline.beginLevelRendering):
-     * shadowtex0, and both sides of each shadowcolor target that clears every frame
-     * (ClearPassCreator.createShadowClearPasses writes main and alt). ShadowRenderer.renderShadows
-     * then returns before drawing, so receivers find no casters. shadowtex1 keeps the last pass's
-     * copy, as Iris copies it only inside renderShadows. Recorded outside a render pass.
+     * Clears the map on a frame whose pack shadow pass draws nothing (Max Shadow Distance 0). Iris clears its
+     * shadow targets as every frame opens (IrisRenderingPipeline.beginLevelRendering): shadowtex0, and both
+     * sides of each shadowcolor target that clears every frame (ClearPassCreator.createShadowClearPasses).
+     * ShadowRenderer.renderShadows then returns before drawing, so receivers find no casters.
+     *
+     * shadowtex1 keeps the last pass's copy, as Iris copies it only inside renderShadows. Recorded outside a
+     * render pass.
      */
     void clearUndrawnFrame(VkCommandBuffer commandBuffer) {
         clearPassTargets(commandBuffer, false);
@@ -682,9 +668,8 @@ public class ChimeraShadowMap {
     }
 
     /**
-     * Opens and closes the shadow pass with nothing drawn, so its load ops clear shadowtex0 to the
-     * far plane and each shadowcolor target as colorClears(fullClear) says, as the pass's own opening
-     * does, and leaves the attachments sampleable.
+     * Opens and closes the shadow pass with nothing drawn, so its load ops clear shadowtex0 to the far plane and
+     * each shadowcolor target as colorClears(fullClear) says, then leaves the attachments sampleable.
      */
     private void clearPassTargets(VkCommandBuffer commandBuffer, boolean fullClear) {
         VulkanImage color = this.shadowFramebuffer.getColorAttachment();
@@ -709,12 +694,12 @@ public class ChimeraShadowMap {
         }
     }
 
-    /** Forward [0,1] projection for the fixed VulkanMod fallback pipeline. */
+    /** The light projection with [0,1] clip depth, for the fixed fallback pipeline. */
     public Matrix4f getHostLightProjection() {
         return this.hostLightProjection;
     }
 
-    /** Legacy [-1,1] projection for converted pack shadow programs. */
+    /** The light projection with GL's [-1,1] clip depth, for converted pack shadow programs. */
     public Matrix4f getPackLightProjection() {
         return this.packLightProjection;
     }

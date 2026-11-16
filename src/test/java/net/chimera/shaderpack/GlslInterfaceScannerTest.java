@@ -9,7 +9,6 @@ class GlslInterfaceScannerTest {
     /**
      * A statement that declares several names, where emit replaces some and leaves others: each
      * name left alone keeps a declaration of its own, with the statement's qualifiers and type.
-     * The rewrite appended only the replaced names, so {@code out vec2 a, b;} lost b.
      */
     @Test
     void aNameEmitLeavesAloneKeepsItsDeclaration() {

@@ -12,7 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The corpus gate's shards (CorpusChecks) cover every pack exactly once and share the bytes evenly. */
+/** CorpusChecks' shards cover every pack exactly once and share the bytes evenly. */
 final class TestPacksShardTest {
     @Test
     void everyPackLandsInExactlyOneShardAndTheShardsAreEven(@TempDir Path root) throws IOException {

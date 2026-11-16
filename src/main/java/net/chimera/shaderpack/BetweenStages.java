@@ -8,9 +8,8 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 
 /**
- * The stages a program runs between its vertex and fragment stages, in the order they run: the
- * tessellation control and evaluation stages, then the geometry stage. Each is null when the
- * program has none; the two tessellation stages come together or not at all.
+ * The stages a program runs between vertex and fragment: tessellation control and evaluation, then geometry.
+ * Each is null when the program has none; the two tessellation stages come together or not at all.
  */
 public record BetweenStages(String tessControl, String tessEvaluation, String geometry) {
     /** Vertices per patch of a tessellated draw: terrain draws triangle lists, as Iris draws GL_PATCHES of 3. */
@@ -27,7 +26,7 @@ public record BetweenStages(String tessControl, String tessEvaluation, String ge
         return tessControl != null;
     }
 
-    /** One present stage: its program stage name (PackProbe's), its Vulkan stage bit and its source. */
+    /** A present stage, named as PackProbe names program stages. */
     public record Stage(String name, int stageBit, String source) {}
 
     /** The present stages, in the order they run. */
@@ -41,7 +40,6 @@ public record BetweenStages(String tessControl, String tessEvaluation, String ge
         return stages;
     }
 
-    /** What one present stage's source becomes. */
     @FunctionalInterface
     public interface Mapping {
         String apply(Stage stage);

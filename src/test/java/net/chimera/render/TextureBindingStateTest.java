@@ -13,7 +13,7 @@ import static org.lwjgl.opengl.GL11.GL_LINEAR;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 import static org.lwjgl.opengl.GL14.GL_COMPARE_R_TO_TEXTURE;
 
-/** Behavioral checks for the scoped image-plus-sampler binding state. */
+/** Image and sampler bindings restore by scope, and only a shadow sampler type gets the compare sampler. */
 final class TextureBindingStateTest {
     @Test
     void scopedBindings() {
@@ -51,9 +51,8 @@ final class TextureBindingStateTest {
 
     @Test
     void shadowCompareSampler() {
-        // The converted shadow image needs a compare-enabled sampler for
-        // sampler2DShadow lookups, and only for those: a program that declares the
-        // same texture as sampler2D keeps the image's non-compare sampler.
+        // sampler2DShadow lookups on the converted shadow image need a compare sampler; a program that
+        // declares the same texture as sampler2D keeps the image's non-compare sampler
         assertTrue(PackShadowDepth.requiresCompareSampler("sampler2DShadow"),
                 "sampler2DShadow did not request the compare sampler");
         assertTrue(!PackShadowDepth.requiresCompareSampler("sampler2D"),

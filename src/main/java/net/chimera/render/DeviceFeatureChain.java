@@ -16,21 +16,22 @@ import static org.lwjgl.vulkan.VK12.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2
 import static org.lwjgl.vulkan.VK13.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 
 /**
- * Puts Chimera's Vulkan 1.2 features and dynamic rendering on the device VulkanMod creates, into
- * the structs its pNext chain already holds. A chain may hold each struct type once
- * (VUID-VkDeviceCreateInfo-sType-unique), and one with VkPhysicalDeviceVulkan13Features may not
- * also hold the dynamic rendering struct (VUID-VkDeviceCreateInfo-pNext-06532). Reforged 0.3.5 chains
- * only its Vulkan 1.1 struct, so Chimera's structs are added; a host that chains its own is
- * merged into instead. A host's single-feature struct that the 1.2 struct covers (such as
- * VkPhysicalDevice8BitStorageFeatures) would still conflict with it; Reforged chains none.
+ * Puts Chimera's Vulkan 1.2 features and dynamic rendering on the device VulkanMod creates, into the structs its
+ * pNext chain already holds.
+ *
+ * A chain may hold each struct type once (VUID-VkDeviceCreateInfo-sType-unique), and one with
+ * VkPhysicalDeviceVulkan13Features may not also hold the dynamic rendering struct
+ * (VUID-VkDeviceCreateInfo-pNext-06532). Reforged 0.3.5 chains only its Vulkan 1.1 struct, so Chimera's structs
+ * are added; a host that chains its own is merged into instead. A host's single-feature struct that the 1.2
+ * struct covers, such as VkPhysicalDevice8BitStorageFeatures, would still conflict with it; Reforged chains none.
  */
 public final class DeviceFeatureChain {
     private DeviceFeatureChain() {}
 
     /**
-     * Enables the ChimeraDevice.VULKAN12_FEATURES named in {@code offered} and, when
-     * {@code dynamicRendering}, the dynamic rendering feature on {@code info}'s chain. New structs
-     * are allocated on {@code stack}, whose frame must outlast vkCreateDevice.
+     * Enables the ChimeraDevice.VULKAN12_FEATURES named in {@code offered} and, when {@code dynamicRendering},
+     * the dynamic rendering feature on {@code info}'s chain. New structs are allocated on {@code stack}, whose
+     * frame must outlast vkCreateDevice.
      */
     public static void apply(VkDeviceCreateInfo info, MemoryStack stack, Collection<String> offered,
                              boolean dynamicRendering) {

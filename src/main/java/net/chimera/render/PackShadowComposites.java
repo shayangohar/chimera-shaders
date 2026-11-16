@@ -31,12 +31,11 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.vkCmdSetScissor;
 
 /**
- * The pack's shadowcomp passes, run after the shadow map is drawn as Iris's ShadowCompositeRenderer
- * runs them: a pass's computes first, then its fragment program as a fullscreen draw at the shadow
- * map's size, unblended, into the other side of each shadowcolor target it draws. The pass then flips
- * those targets, so the next pass and every later program sample what it wrote
- * (ChimeraShadowMap.shadowColor). Kappa's shadowcomp turns the shadow pass's albedo into the light
- * transmittance its lighting reads; without it, lighting took the raw albedo as a tint.
+ * The pack's shadowcomp passes, run after the shadow map is drawn as Iris's ShadowCompositeRenderer runs
+ * them: a pass's computes first, then its program as an unblended fullscreen draw at the map's size, into
+ * the other side of each shadowcolor target it draws. The pass then flips those targets, so the next pass
+ * and every later program sample what it wrote (ChimeraShadowMap.shadowColor). Kappa's shadowcomp, for
+ * example, turns the shadow pass's albedo into the light transmittance its lighting reads.
  */
 final class PackShadowComposites {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -52,9 +51,8 @@ final class PackShadowComposites {
     }
 
     /**
-     * A new pack session: its first failed pass is logged again, and the old session's framebuffer,
-     * which wraps a freed shadow target, is dropped. The pass lives as long as the game, so a second
-     * pack's failures went unlogged (audit RD4).
+     * Starts a pack session: its first failed pass is logged again, and the last session's framebuffer,
+     * which wraps a freed shadow target, is dropped. This object outlives every session.
      */
     void resetSession() {
         this.failureLogged = false;
@@ -147,7 +145,7 @@ final class PackShadowComposites {
                 .renderArea(renderArea)
                 .layerCount(1)
                 .pColorAttachments(attachments);
-        // ShadowCompositeRenderer draws with blending disabled.
+        // ShadowCompositeRenderer draws with blending disabled
         MrtPipelineContext.begin(formats, ChimeraMainPass.deviceMaxColorAttachments(), null);
         if (this.boundFramebuffer == null || this.boundFramebuffer.getColorAttachment() != first) {
             this.boundFramebuffer = Framebuffer.builder(first, null).build();

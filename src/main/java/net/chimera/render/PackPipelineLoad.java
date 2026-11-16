@@ -21,8 +21,8 @@ import java.util.stream.Collectors;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Loads a pack's pipelines into the pass: installs each admitted program through its family's
- * installer, then holds the whole session to the host frame when a mask-critical family is missing.
+ * Installs a pack's pipelines into the pass, each program through its family's installer. A missing
+ * mask-critical family or an unsupported required feature drops the whole session to the host frame.
  */
 final class PackPipelineLoad {
     static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -33,29 +33,20 @@ final class PackPipelineLoad {
     }
 
     /**
-     * Loads the active OptiFine-format pack and builds
-     * its composite/final programs onto the post seams, gbuffers_terrain onto
-     * the opaque terrain path, and gbuffers_water onto the translucent path.
-     * A program that fails to load, convert, or
-     * compile keeps the identity pipeline for its seam, so a bad pack can
-     * never break the frame.
+     * Installs the loaded pack's programs: composite and final onto the post seams, gbuffers programs onto
+     * their geometry paths. A program that does not build keeps its seam's identity pipeline.
      */
     void loadPackPipelines() {
         if (pass.session.packPipelinesLoaded) {
-            // Pack pipelines are pass-agnostic (VulkanMod builds pipeline
-            // variants from the state at bind, render pass included), so a
-            // retained object stays correct across createResources' pass
-            // recreations. Keeping them session-long removes pack
-            // pipeline/descriptor-set destruction (immediate vkDestroyPipeline
-            // in GraphicsPipeline.cleanUp) from the createResources churn
-            // that fires at screen openings - wedge objects must not churn
-            // at frame boundaries. They are destroyed in cleanUp() only.
+            // once per session; VulkanMod picks pipeline variants from the state at bind, render pass included,
+            // so a pipeline outlives createResources' render pass rebuilds
+            // this keeps immediate vkDestroyPipeline out of screen openings; cleanUpPackVariant destroys them
             return;
         }
         resetSessionPipelines();
 
         if (pass.packPrograms == null) {
-            // loadPackConfig found no pack (or no programs).
+            // no pack, or the session renders vanilla (packFrameUnsupported)
             reportConformance();
             return;
         }
@@ -85,12 +76,12 @@ final class PackPipelineLoad {
     }
 
     /**
-     * Clears the previous session's pipelines and marks this load. The session's flags and logs
-     * start clear: cleanUpPackVariant replaced them (PackSessionState) before any load. All but one:
-     * createResources configures the post targets before it loads the pipelines, so a target
-     * allocation that failed just now has already marked the chain rejected. The load clears that
-     * mark, so the world programs, entity bridge and pack shadows still run without post, as
-     * PackPostChain's failure notice says; a later failure, mid-session, keeps the mark.
+     * Clears the last session's pipelines and marks this load.
+     *
+     * cleanUpPackVariant has already reset the session's flags, all but one: createResources configures the
+     * post targets before this load, so a target allocation that just failed has marked the chain rejected.
+     * Clearing the mark lets the world programs, entity bridge and pack shadows run without post, as
+     * PackPostChain's failure notice says. A failure later in the session keeps the mark.
      */
     private void resetSessionPipelines() {
         pass.pipelines.clear();
@@ -100,14 +91,13 @@ final class PackPipelineLoad {
         pass.session.packPipelinesLoaded = true;
     }
 
-    /** Hands the installed entity, block, hand, particle and caster pipelines to the family bridge. */
     private void installFamilyBridge() {
         ChimeraEntityBridge.install(pass.pipelines.lanes(pass.packPlan == null ? null : pass.packPlan.entityIds()));
         LOGGER.debug("[chimera] family bridge: targets entity={}, block={}",
                 familyTargets(pass.pipelines.entity), familyTargets(pass.pipelines.block));
     }
 
-    /** The targets a family pipeline writes, for the bridge log; "none" when it is not installed. */
+    /** Targets a family pipeline writes, for the bridge log; target 0 alone without an output plan. */
     private static Object familyTargets(PackPipelines.PackEntity family) {
         if (family == null) {
             return "none";
@@ -126,7 +116,7 @@ final class PackPipelineLoad {
             }
             LOGGER.warn("[chimera] pack shadow: fixed host fallback (terrain consumer unavailable)");
         }
-        // shadow_cutout and shadow_water draw only inside the pack shadow pass, so without it they never run.
+        // shadow_cutout and shadow_water draw only inside the pack shadow pass, so without it they never run
         if (!pass.shadowPass.usePackShadowRuntime() && pass.conformanceReport != null) {
             String reason = pass.pipelines.shadowPipeline == null
                     ? "SHADOW_PROGRAM_UNAVAILABLE" : "SHADOW_CONSUMER_UNAVAILABLE";
@@ -144,14 +134,14 @@ final class PackPipelineLoad {
             if (pass.conformanceReport != null) {
                 pass.conformanceReport.addDeviation("SHADOW_PROGRAM_MISSING");
             }
-            // A pack without a shadow program has no shadow pass in Iris either: nothing changes.
+            // Iris has no shadow pass for such a pack either
             LOGGER.debug("[chimera] pack shadow: fallback=IDENTITY (SHADOW_PROGRAM_MISSING)");
         }
     }
 
     /**
-     * Marks every program never attempted as a fallback, logs the session's conformance report, and
-     * tells in chat of each program skipped where Iris would have run it (SkippedPrograms).
+     * Logs the conformance report, with programs never attempted as fallbacks, and tells in chat of each
+     * program skipped where Iris would have run it.
      */
     private void reportConformance() {
         if (pass.conformanceReport != null) {
@@ -182,13 +172,11 @@ final class PackPipelineLoad {
     }
 
     /**
-     * Mask-critical family contract. Entity and
-     * block draws cover world pixels the pack's post passes classify by
-     * material metadata, and pack geometry writes authored targets only post
-     * presents. A frame missing either family therefore has no coherent pack
-     * form: post over host entities ghosts, and pack geometry without post is
-     * invisible. The whole session falls back to the host frame, as if no pack
-     * were selected, and says why. Returns false when the session was released.
+     * Drops the session to the host frame, and returns false, when the pack authors entity or block programs
+     * that did not install.
+     *
+     * The pack's post passes classify those pixels by material, and pack geometry writes targets only post
+     * presents. Post over host entities ghosts them, and pack geometry without post is invisible.
      */
     boolean enforceMaskCriticalFamilyContract() {
         List<String> missing = maskCriticalFamilyFallback();
@@ -227,8 +215,8 @@ final class PackPipelineLoad {
         }
         LOGGER.warn("[chimera] pack frame unsupported: {}; vanilla rendering for {}",
                 reason, PackSessionLifecycle.packLabel(pass.sessions.packPath));
-        // Nothing built this session has drawn yet, but a raw texture's upload may still be running:
-        // its handles wait for their frames (HandleRetirement), outside any idle teardown.
+        // no idle wait: nothing built this session has drawn yet, and a raw texture upload still in flight
+        // keeps its handles until its frames end (HandleRetirement)
         pass.sessions.cleanUpPackVariant();
         String pack = PackSessionLifecycle.packLabel(pass.sessions.packPath);
         PackFailureNotices.record(new PackFailureNotices.Failure(pack, "pack", "load",
@@ -237,12 +225,7 @@ final class PackPipelineLoad {
         PackFailureNotices.publish();
     }
 
-    /**
-     * Authored mask-critical families without an installed pipeline. Pure
-     * predicate over install state; the enforcement above consumes it once
-     * per install, and target reconfiguration honors the stored verdict so
-     * a resize cannot reopen mixed frames.
-     */
+    /** Authored mask-critical families with no installed pipeline. */
     List<String> maskCriticalFamilyFallback() {
         List<String> missing = new ArrayList<>();
         if (pass.packPlan == null) {

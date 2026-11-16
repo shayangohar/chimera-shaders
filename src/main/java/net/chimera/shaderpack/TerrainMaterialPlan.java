@@ -3,7 +3,7 @@ package net.chimera.shaderpack;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Immutable pack-wide material contract for terrain and water vertices. */
+/** The material vertex inputs the pack's terrain, water and shadow programs read, merged pack-wide. */
 public record TerrainMaterialPlan(
         boolean modern,
         boolean midTexCoord,
@@ -19,7 +19,7 @@ public record TerrainMaterialPlan(
         return new TerrainMaterialPlan(false, false, false, false, List.of());
     }
 
-    /** The common modern contract appends twelve bytes to the 24-byte host prefix. */
+    /** Bytes per vertex: the modern layout adds twelve to the host's 24. */
     public int stride() {
         return modern ? 24 + 12 : 24;
     }

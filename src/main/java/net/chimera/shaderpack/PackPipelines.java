@@ -32,25 +32,23 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
- * Builds GraphicsPipelines from pack programs: a {@link PackDescriptorLayout}
- * (samplers take the bindings after the uniform blocks, in slot order) applied
- * through {@link HostPipelineLayout},
- * vertex stage = a chimera fixed source or the narrow terrain bridge, fragment stage = the converted
- * legacy GLSL. Shader compilation failures return null for per-program
- * fallback; typed descriptor/preparation/native failures abort the install.
+ * Builds GraphicsPipelines from pack programs.
  *
- * <p>Post build (buildPost): fullscreen triangle vertex, one optional generated
- * fragment UBO at binding 0, and samplers after it. No-uniform programs keep
- * sampler bindings 0,1,... .
- * <p>Terrain-like builds (buildTerrain/buildTranslucent): the extended compressed terrain inputs,
- * the terrain config's UBO blocks (bindings 0/1/2) and push constants kept
- * verbatim, sampler bindings 3,4,... .
+ * Each program gets a {@link PackDescriptorLayout}, applied through {@link HostPipelineLayout}, in which samplers
+ * take the bindings after the uniform blocks, in slot order. The stages are the converted pack GLSL, with a fixed
+ * Chimera vertex source where the pack has none. A failed build returns null and the program falls back, except a
+ * typed PreparationFailure from anything but shader compilation, which aborts the install.
+ *
+ * A post build draws a fullscreen triangle, with one optional generated fragment UBO at binding 0 and the samplers
+ * after it; a program without uniforms keeps sampler bindings from 0. A terrain build takes the extended terrain
+ * vertex inputs and keeps the terrain config's uniform blocks (bindings 0 to 2) and push constants as they are,
+ * with samplers from binding 3.
  */
 public final class PackPipelines {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     /**
-     * An image declaration's qualifiers, a layout among them in any order (GLSL 4.20): RenderPearl
-     * writes {@code uniform layout(rg8) restrict writeonly image2D edge}.
+     * An image declaration's qualifiers, with a layout among them in any order (GLSL 4.20). RenderPearl writes
+     * {@code uniform layout(rg8) restrict writeonly image2D edge}.
      */
     static final String IMAGE_QUALIFIERS =
             "(?:layout\\s*\\([^)]*\\)\\s*|(?:uniform|writeonly|readonly|coherent|volatile|restrict)\\s+)*";
@@ -90,9 +88,10 @@ public final class PackPipelines {
                 plan.convertedVertex() == null ? fixedVertex : plan.convertedVertex());
     }
 
-    /** Package-visible preparation seam: builds sources, descriptors, and the
-     * image manifest without allocating a native pipeline, so headless gates
-     * can exercise the exact descriptor-contract layer runtime installs. */
+    /**
+     * Binds the sources and builds the descriptors and image manifest without a native pipeline, so headless tests
+     * check the same descriptor contract the runtime installs.
+     */
     static PreparedPipeline prepare(PackProgramPlan plan, PackAdvancedResourcePlan resources,
             UniformRegistry.Stage stage, String vertex) {
         return prepare(plan, resources, stage, vertex, plan.convertedFragment());
@@ -189,15 +188,15 @@ public final class PackPipelines {
         }
     }
 
-    /** All build families share the same fallback boundary. Contract defects remain fatal. */
+    /** Logs and records a failed build so the program falls back; a typed non-compile failure is rethrown. */
     static void handleBuildFailure(String program, Exception failure) {
         handleBuildFailure(program, program, failure);
     }
 
     /**
-     * The same for one of {@code program}'s pipelines, such as a sky format or an entity layout,
-     * named {@code pipeline} in the log and Copy Info. The notice names the program: the load's
-     * skip of it is then the same failure, told once (PackFailureNotices).
+     * The same for one of {@code program}'s pipelines, such as a sky format or an entity layout, named
+     * {@code pipeline} in the log and Copy Info. The notice names the program, so the load's skip of it is the same
+     * failure, told once (PackFailureNotices).
      */
     static void handleBuildFailure(String program, String pipeline, Exception failure) {
         if (failure instanceof PreparationFailure typed
@@ -211,7 +210,7 @@ public final class PackPipelines {
         Throwable cause = failure.getCause() == null ? failure : failure.getCause();
         HostPipelineLayout.ShaderCompilationFailure compile =
                 cause instanceof HostPipelineLayout.ShaderCompilationFailure shaderc ? shaderc : null;
-        // One line in latest.log; the stack trace goes to debug.log, the detail to Copy Info and the report.
+        // one line in latest.log; the stack trace goes to debug.log, the detail to Copy Info and the report
         LOGGER.warn("[chimera] {} skipped: {}", pipeline,
                 compile == null ? phase + " failed (" + reason + ")" : errorSummary(compile.getMessage()));
         LOGGER.debug("[chimera] {} build failure", pipeline, cause);
@@ -226,8 +225,8 @@ public final class PackPipelines {
     }
 
     /**
-     * A compiler report's first error, without the translated file and line it names. Warnings come
-     * before errors in shaderc's report.
+     * A compiler report's first error, without the translated file and line it names. shaderc lists warnings
+     * before errors.
      */
     static String compileError(String report) {
         String first = firstError(report);
@@ -247,9 +246,8 @@ public final class PackPipelines {
                 .orElse(text.lines().findFirst().orElse(""));
     }
     /**
-     * A successfully built pack post pipeline plus the slots its samplers occupy, the frame
-     * resources they read (PackResourcePlan.frameResource), and the blend its pass draws with
-     * (PackBlendPlan.forFullscreenPass).
+     * A built post pipeline with the slots its samplers occupy, the frame resources they read
+     * (PackResourcePlan.frameResource), and the blend its pass draws with (PackBlendPlan.forFullscreenPass).
      */
     public record PackPost(
             String name,
@@ -303,7 +301,7 @@ public final class PackPipelines {
         default void cleanUp() { variants().values().forEach(value -> value.pipeline().cleanUp()); }
     }
 
-    /** A successfully built pack geometry (terrain) pipeline plus its sampler slots. */
+    /** A built terrain pipeline with its sampler slots. */
     public record PackTerrain(
             GraphicsPipeline pipeline,
             int[] samplerSlots,
@@ -314,13 +312,13 @@ public final class PackPipelines {
         public PackTerrain { Objects.requireNonNull(imageBindings); }
     }
 
-    /** A successfully built pack shadow pipeline plus its sampler slots. */
+    /** A built shadow pipeline with its sampler slots. */
     public record PackShadow(GraphicsPipeline pipeline, int[] samplerSlots, String convertedFragment,
             ProgramImageBindingManifest imageBindings) {
         public PackShadow { Objects.requireNonNull(imageBindings); }
     }
 
-    /** A successfully built world-entity pipeline plus its sampler slots. */
+    /** A built entity-family pipeline with its sampler slots. */
     public record PackEntity(
             GraphicsPipeline pipeline,
             int[] samplerSlots,
@@ -343,7 +341,7 @@ public final class PackPipelines {
         }
     }
 
-    /** A successfully built host particle pipeline plus its sampler slots. */
+    /** A built particle or host-layout pipeline with its sampler slots. */
     public record PackParticle(
             GraphicsPipeline pipeline,
             int[] samplerSlots,
@@ -437,11 +435,10 @@ public final class PackPipelines {
     ) {}
 
     /**
-     * Builds one geometry-family pipeline: the converted shaders bound to the plan's interface
-     * for {@code stage}, its advanced resources, and its authored output route. A shadow-lane
-     * program renders into the shadow map's colour attachments with blending off (Iris shadow
-     * programs: BlendModeOverride.OFF), never the gbuffers. Returns null when the plan cannot
-     * serve {@code stage} or the build fails.
+     * Builds one geometry-family pipeline: the converted shaders bound to the plan's interface for {@code stage},
+     * its advanced resources and its authored output route. A shadow-lane program renders into the shadow map's
+     * colour attachments with blending off, as Iris's shadow programs use BlendModeOverride.OFF. Null when the
+     * plan cannot serve {@code stage} or the build fails.
      */
     static BuiltGeometry buildGeometry(
             PackProgramPlan plan, UniformRegistry.Stage stage, String pipelineName, VertexFormat format,
@@ -493,21 +490,18 @@ public final class PackPipelines {
         }
     }
 
-    /**
-     * Whether an executable plan has both converted stages and an interface, and a stage to build for.
-     * effective(stage) returns {@code stage} whenever it is given, so asking it again tested only that.
-     */
+    /** Whether an executable plan has both converted stages, an interface, and a stage to build for. */
     private static boolean buildsGeometry(PackProgramPlan plan, UniformRegistry.Stage stage, String convertedVertex) {
         return plan != null && plan.executable() && plan.convertedVertex() != null && convertedVertex != null
                 && plan.convertedFragment() != null && plan.interfacePlan() != null && stage != null;
     }
 
     /**
-     * The blend a pipeline with no attachment contract draws with in VulkanMod's render pass, one
-     * mode for that pass's single attachment (colortex0): the program's {@code blend.<program>}, or
-     * its {@code blend.<program>.colortex0}, as Iris's BlendModeOverride replaces the host blend for
-     * every draw of the program. Null keeps the host blend. Kappa's glint (SRC_ALPHA ONE ZERO ONE)
-     * otherwise drew with vanilla's SRC_COLOR, ONE, which squares its dim colour.
+     * The blend a pipeline with no attachment contract draws with in VulkanMod's render pass, one mode for its
+     * single attachment, colortex0. It is the program's {@code blend.<program>} or
+     * {@code blend.<program>.colortex0}, as Iris's BlendModeOverride replaces the host blend for every draw of the
+     * program; null keeps the host blend. Without it Kappa's glint (SRC_ALPHA ONE ZERO ONE) would draw with
+     * vanilla's SRC_COLOR ONE, squaring its dim colour.
      */
     static PackBlendPlan.Mode[] hostPassBlends(PackBlendPlan blendPlan) {
         return blendPlan == null ? null : blendPlan.attachments(List.of(0));
@@ -525,10 +519,10 @@ public final class PackPipelines {
     }
 
     /**
-     * Creates the pipeline under its attachment contract, when it has one, and registers that
-     * contract for the variants VulkanMod creates lazily. Without a contract, {@code attachmentBlends}
-     * holds the modes for VulkanMod's render pass (hostPassBlends). The program's
-     * {@code blend.<program>} directive is registered for its draws' blendFunc.
+     * Creates the pipeline under its attachment contract, when it has one, and registers that contract for the
+     * variants VulkanMod creates lazily. Without a contract, {@code attachmentBlends} holds the modes for
+     * VulkanMod's render pass (hostPassBlends). The {@code blend.<program>} directive is registered for its draws'
+     * blendFunc.
      */
     private static GraphicsPipeline createRouted(
             String name, VertexFormat format, PackDescriptorLayout layout, String vertex, BetweenStages between,
@@ -554,10 +548,10 @@ public final class PackPipelines {
     }
 
     /**
-     * The blend a program's draws report as blendFunc in place of the host's, or null to report
-     * the host blend. SodiumShader applies a {@code blend.<program>} directive before its uniforms
-     * update, so an off directive reads zero there. ExtendedShader updates its uniforms first, and
-     * only an enabled directive's glBlendFuncSeparate notifies the uniform.
+     * The blend a program's draws report as blendFunc in place of the host's, or null to report the host blend.
+     * Iris's SodiumShader applies a {@code blend.<program>} directive before its uniforms update, so an off
+     * directive reads zero there. ExtendedShader updates its uniforms first, and only an enabled directive's
+     * glBlendFuncSeparate notifies the uniform.
      */
     private static PackBlendPlan.Mode blendFuncOverride(PackProgramPlan plan, UniformRegistry.Stage stage) {
         PackBlendPlan.Mode directive = plan.blendPlan().program();
@@ -626,11 +620,7 @@ public final class PackPipelines {
                 advancedResources, storageOwner);
     }
 
-    /**
-     * Builds the shadow pipeline using the pack-wide terrain format. Shadow
-     * shaders remain on the legacy source contract, but their vertices must
-     * match the active terrain builder when a modern terrain family is live.
-     */
+    /** Builds the shadow pipeline on the pack-wide terrain format, so its vertices match the terrain builder's. */
     public static PackShadow buildShadow(
             PackProgramPlan plan,
             TerrainMaterialPlan materialPlan,
@@ -667,8 +657,8 @@ public final class PackPipelines {
     }
 
     /**
-     * ChimeraShadowMap's colour attachments in the pack's shadowcolor formats (PackProgramPlan);
-     * a plan made without pack settings gets Iris's default, two RGBA8 targets.
+     * ChimeraShadowMap's colour attachments in the pack's shadowcolor formats (PackProgramPlan). A plan made
+     * without pack settings gets Iris's default, two RGBA8 targets.
      */
     private static int[] shadowAttachmentFormats(PackProgramPlan plan) {
         List<Integer> formats = plan.shadowAttachmentFormats();
@@ -677,8 +667,8 @@ public final class PackPipelines {
     }
 
     /**
-     * Builds shadow_entities, or shadow_block, on EXTENDED_ENTITY for the shadow pass's caster
-     * lanes (Iris SHADOW_ENTITIES_CUTOUT and SHADOW_BLOCK).
+     * Builds shadow_entities or shadow_block on EXTENDED_ENTITY for the shadow pass's caster lanes, Iris's
+     * SHADOW_ENTITIES_CUTOUT and SHADOW_BLOCK.
      */
     public static PackEntity buildShadowEntities(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
@@ -688,7 +678,7 @@ public final class PackPipelines {
                 ChimeraVertexFormats.EXTENDED_ENTITY, advancedResources, storageOwner);
     }
 
-    /** Builds the guarded world entity pipeline on the append-only entity format. */
+    /** Builds gbuffers_entities on the extended entity format. */
     public static PackEntity buildEntity(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
@@ -740,8 +730,8 @@ public final class PackPipelines {
             PackDescriptorContracts.verifyAdvancedLayout(descriptors, plan.name(), advancedResources, vertex, between,
                     fragment, storageOwner);
             ProgramImageBindingManifest imageBindings = ProgramImageBindingManifest.from(layout, ordinary);
-            // An authored route takes its own attachments; otherwise a coverage build writes the
-            // pack colour plus a coverage depth.
+            // an authored route takes its own attachments; otherwise a coverage build writes the pack colour and a
+            // coverage depth
             GeometryOutputPlan outputPlan = plan.geometryOutputPlan();
             boolean dynamicAttachments = outputPlan != null && outputPlan.requiresDynamicAttachments();
             int[] attachmentFormats = dynamicAttachments ? outputPlan.outputFormatsArray()
@@ -763,12 +753,9 @@ public final class PackPipelines {
     }
 
     /**
-     * The fixed terrain vertex reads its LightMap at descriptor index 1
-     * (layout(binding = 4), registry slot 2). Force registry slot 2 into the
-     * pack's emitted sampler array at that position: without it the vertex's
-     * lightmap fetch lands on the wrong descriptor (with the simplex fixture,
-     * the shadow map) - torch/sky light never reaches geometry and the shadow
-     * content renders as blotchy per-vertex darkening.
+     * Puts registry slot 2, the lightmap, at index 1 of the sampler slots, after the atlas. The fixed terrain
+     * vertex reads its lightmap at descriptor index 1 ({@code layout(binding = 4)}); anywhere else its fetch reads
+     * another descriptor, such as the shadow map, and block and sky light never reach the terrain.
      */
     static int[] interleaveLightmap(int[] slots) {
         int[] withoutLightmap = Arrays.stream(slots)
@@ -786,7 +773,7 @@ public final class PackPipelines {
         return out;
     }
 
-    /** Keep the host's atlas/lightmap positions when a shadow shader asks for lightmap. */
+    /** The declared slots in order, with the atlas added when a shadow shader samples the lightmap. */
     static int[] shadowSamplerSlots(int[] declaredSlots) {
         boolean hasLightmap = Arrays.stream(declaredSlots).anyMatch(slot -> slot == 2);
         TreeSet<Integer> slots = new TreeSet<>();
@@ -795,7 +782,7 @@ public final class PackPipelines {
         return slots.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    /** Preserve the registry slots used by the host entity draw. */
+    /** The declared registry slots in order, as the host entity draw binds them. */
     public static int[] entitySamplerSlots(int[] declaredSlots) {
         return Arrays.stream(declaredSlots).distinct().sorted().toArray();
     }
@@ -813,10 +800,7 @@ public final class PackPipelines {
         return result;
     }
 
-    // The host geometry families a pack program can replace: entities, block entities, hands and their
-    // glint, particles, and the host-layout lanes.
-
-    /** Builds any world entity-family adapter with the family-specific host contract. */
+    /** Builds any entity-family program with its family's stage: block, hand or entity. */
     public static PackEntity buildEntityFamily(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
@@ -835,8 +819,7 @@ public final class PackPipelines {
 
     /**
      * The converted vertex a family draws with. The spider-eyes family is Iris's ENTITIES_EYES and
-     * ENTITIES_EYES_TRANS, fullbright keys, so its light reads (240, 240)
-     * (EntityVertexBridge.fullbrightLight).
+     * ENTITIES_EYES_TRANS, both fullbright keys, so its light reads (240, 240) (EntityVertexBridge.fullbrightLight).
      */
     static String familyVertex(PackProgramPlan plan) {
         String vertex = plan.convertedVertex();
@@ -845,10 +828,9 @@ public final class PackPipelines {
     }
 
     /**
-     * gbuffers_damagedblock on the crumbling overlay's BLOCK buffers widened to EXTENDED_BLOCK, as Iris
-     * widens every BLOCK buffer to TERRAIN: the mid-coordinate and tangent come per quad, from the
-     * decal's own coordinates. The overlay draws fullbright, and its entity ids read 0
-     * (EntityVertexBridge.crumblingInputs).
+     * gbuffers_damagedblock on the crumbling overlay's BLOCK buffers widened to EXTENDED_BLOCK, as Iris widens
+     * every BLOCK buffer to TERRAIN. The mid-coordinate and tangent come per quad from the decal's own
+     * coordinates. The overlay draws fullbright, and its entity ids read 0 (EntityVertexBridge.crumblingInputs).
      */
     public static PackEntity buildDamagedBlock(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
@@ -857,7 +839,7 @@ public final class PackPipelines {
                 EntityVertexBridge::crumblingInputs);
     }
 
-    /** Builds the block-entity adapter on the same append-only host format. */
+    /** Builds gbuffers_block on the extended entity format. */
     public static PackEntity buildBlock(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
@@ -866,10 +848,9 @@ public final class PackPipelines {
     }
 
     /**
-     * The same entity or block program built for another native host layout, as Iris
-     * draws TEXT with IrisVertexFormats.GLYPH through gbuffers_entities_translucent,
-     * TEXT_BE through gbuffers_block_translucent (falling back to gbuffers_block) and
-     * MOVING_BLOCK with IrisVertexFormats.TERRAIN through gbuffers_block.
+     * The same entity or block program built for another native host layout. Iris draws TEXT with
+     * IrisVertexFormats.GLYPH through gbuffers_entities_translucent, TEXT_BE through gbuffers_block_translucent
+     * (falling back to gbuffers_block), and MOVING_BLOCK with IrisVertexFormats.TERRAIN through gbuffers_block.
      */
     public static PackEntity buildLayoutVariant(
             PackProgramPlan plan, VertexFormat host, String layout,
@@ -894,7 +875,7 @@ public final class PackPipelines {
         }
     }
 
-    /** Builds the first-person hand adapter on the same append-only host format. */
+    /** Builds the first-person hand program once per native hand mesh shape. */
     public static PackHand buildHand(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
@@ -957,11 +938,10 @@ public final class PackPipelines {
     }
 
     /**
-     * Builds a host-layout lane on the vertex format of its contract: in the main pass lines,
-     * glint, lightning, beacon beams and leads (Iris ShaderKey.LINES, GLINT, LIGHTNING, BEACON and
-     * LEASH); in the shadow pass the shadow keys Iris draws on those layouts, into the
-     * shadow map's attachments with the shadow blend (PackBlendPlan.shadowAttachments), as
-     * shadow_entities is built.
+     * Builds a host-layout lane on its contract's vertex format. In the main pass these are lines, glint,
+     * lightning, beacon beams and leads (Iris ShaderKey.LINES, GLINT, LIGHTNING, BEACON and LEASH). In the shadow
+     * pass they are the shadow keys Iris draws on those layouts, built as shadow_entities is, into the shadow map's
+     * attachments with the shadow blend (PackBlendPlan.shadowAttachments).
      */
     public static PackParticle buildHostLayout(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
@@ -979,8 +959,8 @@ public final class PackPipelines {
     }
 
     /**
-     * The vertex format a host-layout contract draws on: the host's own, and for beacon beams the
-     * block layout widened as Iris widens it to TERRAIN.
+     * The vertex format a host-layout contract draws on: the host's own, or for beacon beams the block layout
+     * widened as Iris widens it to TERRAIN.
      */
     public static VertexFormat hostLayoutFormat(FamilyAdapterPlan.VertexContract contract) {
         return switch (contract) {

@@ -18,7 +18,7 @@ final class HostPipelineLayoutImagesTest {
 
     @Test
     void packImagesOtherThanAlbedoAndLightmapSkipRenderSystem() {
-        // The overlay (1), shadowtex0 (5) and shadowtex1 (15) are Chimera's to bind; an eyes draw leaves unit 1 empty.
+        // Chimera binds the overlay (1), shadowtex0 (5) and shadowtex1 (15); an eyes draw leaves unit 1 empty
         assertEquals(List.of(true, false, true, false, false), vanillaBinding(HostPipelineLayout.images(LAYOUT, true)));
     }
 

@@ -104,7 +104,7 @@ final class FixturePackTest {
     void postColorInputOrder() {
         assertEquals(List.of(0, 2, 3), PackPipelines.colorInputTargets(
                 List.of("colortex3", "depthtex0", "colortex0", "colortex2")), "post color input ordering");
-        // Bloop's prepare2 reads gaux3: colortex6 must be an input, or the pass binds a missing target.
+        // Bloop's prepare2 reads gaux3: colortex6 must be an input, or the pass binds a missing target
         assertEquals(List.of(1, 6), PackPipelines.colorInputTargets(List.of("gaux3", "gdepth", "noisetex")),
                 "legacy aliases name their targets");
     }
@@ -161,13 +161,13 @@ final class FixturePackTest {
                 "unsupported MRT deviation");
         assertEquals(ConformanceReport.SupportStatus.SUPPORTED,
                 numbered.support(), "numbered post pass support");
-        // setup.csh is a setup compute, which Iris runs once the pipeline is made (PassComputePlan.isSetup).
+        // setup.csh is a setup compute, which Iris runs once the pipeline is made (PassComputePlan.isSetup)
         assertEquals(ConformanceReport.SupportStatus.SUPPORTED_WITH_DEVIATION,
                 compute.support(), "setup compute support");
         assertTrue(compute.deviations().contains("PASS_COMPUTE_BRIDGE:setup")
                 && !compute.deviations().contains("UNSUPPORTED_PACK_STAGE"), "setup compute deviation");
-        // customImage0 is no key Iris reads (images are image.<name>), so both ignore it; the
-        // required COMPUTE_SHADERS is a feature Chimera provides.
+        // customImage0 is no key Iris reads (images are image.<name>), so Iris and Chimera ignore it;
+        // the required COMPUTE_SHADERS is a feature Chimera provides
         assertTrue(!report.shouldAttempt("gbuffers_terrain"), "MRT terrain must not execute");
         assertTrue(report.shouldAttempt("composite1"), "numbered post pass must execute");
         assertEquals(List.of(), report.deviations(), "unsupported deviations");
@@ -181,7 +181,7 @@ final class FixturePackTest {
         assertEquals(ConformanceReport.SupportStatus.SUPPORTED_WITH_DEVIATION,
                 terrain.support(), "material terrain support");
         assertEquals(List.of("fragment", "vertex"), terrain.stages(), "material terrain stages");
-        // The alpha test reads the per-layer reference, a live uniform.
+        // the alpha test reads the per-layer reference, a live uniform
         assertEquals(List.of("ALPHA_TEST_DYNAMIC:gbuffers_terrain",
                         "LEGACY_TERRAIN_VERTEX_BRIDGE", "LIVE_UNIFORM_BRIDGE"), terrain.deviations(),
                 "material terrain deviations");
@@ -216,8 +216,8 @@ final class FixturePackTest {
         assertTrue(convertedFragment != null && convertedFragment.contains("layout(location = 0) in"),
                 "material fragment varying bridge failed");
 
-        // The version number no longer gates (GlslVersion); the legacy converter still refuses
-        // modern syntax, which the modern terrain path converts, and GLSL ES.
+        // the legacy converter refuses by syntax, whatever the version number (GlslVersion): modern
+        // syntax, which the modern terrain path converts, GLSL ES and an unsupported normal read
         assertTrue(TerrainVertexBridge.convertTerrainVertex(
                 "#version 330\nin vec3 Position;\nvoid main() { gl_Position = vec4(Position, 1.0); }", null,
                         "") == null,
@@ -323,14 +323,14 @@ final class FixturePackTest {
         assertTrue(struct.deviations().contains("UNIFORM_TYPE_UNSUPPORTED:PackValues"),
                 "uniform block deviation is missing");
 
-        // Iris leaves a uniform it does not provide unset, so GL reads zero and the program runs.
+        // Iris leaves a uniform it does not provide unset, so GL reads zero and the program runs
         UniformRegistry.ProgramInterface unknown = InterfacePlanner.plan(
                 "uniform float arbitraryValue; void main() { gl_FragColor = vec4(arbitraryValue); }",
                 UniformRegistry.Stage.POST);
         assertTrue(unknown.executable(), "a name Iris does not serve must run on zero");
         assertTrue(unknown.deviations().contains("UNIFORM_UNSET_ZERO:arbitraryValue"),
                 "unset uniform deviation is missing");
-        // An Iris name Chimera does not serve yet must not run on a zero Iris would never give.
+        // an Iris uniform Chimera does not serve must not run on a zero Iris would never give
         UniformRegistry.ProgramInterface unserved = InterfacePlanner.plan(
                 "uniform float alphaTestRef; void main() { gl_FragColor = vec4(alphaTestRef); }",
                 UniformRegistry.Stage.POST);
@@ -364,7 +364,7 @@ final class FixturePackTest {
         ConformanceReport.ProgramReport composite = report.program("composite");
         assertEquals(ConformanceReport.SupportStatus.IDENTITY_FALLBACK,
                 composite.support(), "unsupported composite support");
-        // GL leaves a sampler nothing reads inactive; the dvec2 uniform still refuses the program.
+        // GL leaves a sampler nothing reads inactive; the dvec2 uniform is what refuses the program
         assertTrue(composite.deviations().contains("SAMPLER_DECLARATION_UNUSED:unknownTexture"),
                 "unread sampler deviation is missing");
         assertTrue(composite.deviations().contains("UNIFORM_TYPE_UNSUPPORTED:unsupportedToggle"),
@@ -466,7 +466,7 @@ final class FixturePackTest {
         assertTrue(malformed.deviations().contains("POST_TARGET_DIRECTIVE_MALFORMED"),
                 "malformed target deviation is missing");
 
-        // Iris takes the last directive whichever word it uses, and refuses none of them.
+        // Iris takes the last directive whichever word it uses, and refuses none of them
         PostTargetPlan laterRenderTargets = PostTargetPlan.parse(
                 "composite", "/* DRAWBUFFERS:01 */\n/* RENDERTARGETS: 0,2 */").plan();
         assertTrue(laterRenderTargets.executable(), "two target directives are not a conflict");
@@ -474,7 +474,7 @@ final class FixturePackTest {
         PostTargetPlan laterDrawBuffers = PostTargetPlan.parse(
                 "composite", "/* RENDERTARGETS: 0,2 */\n/* DRAWBUFFERS:13 */").plan();
         assertEquals(List.of(1, 3), laterDrawBuffers.targetSlots(), "the later DRAWBUFFERS wins");
-        // Ebin's DEBUG exit (lib/Exit.glsl) writes its own route after the program's.
+        // Ebin's DEBUG exit (lib/Exit.glsl) writes its own route after the program's
         PostTargetPlan ebinDebug = PostTargetPlan.parse(
                 "composite", "/* DRAWBUFFERS:2 */\n/* DRAWBUFFERS:3 */").plan();
         assertTrue(ebinDebug.executable(), "Ebin's debug exit route was refused");
@@ -487,8 +487,8 @@ final class FixturePackTest {
                 "unsupported target deviation is missing");
 
         // Iris draws final into Minecraft's main framebuffer and never applies its directive:
-        // output 0 reaches the screen, any other is discarded. Ebin's DEBUG exit writes
-        // DRAWBUFFERS:3 in final.
+        // output 0 reaches the screen, any other is discarded
+        // Ebin's DEBUG exit writes DRAWBUFFERS:3 in final
         PostTargetPlan finalMrt = PostTargetPlan.parse("final",
                 "/* RENDERTARGETS: 0,1 */ gl_FragData[0] = vec4(1.0); gl_FragData[1] = vec4(0.0);").plan();
         assertTrue(finalMrt.executable(), "a final with two targets runs as in Iris: " + finalMrt.deviations());
@@ -545,8 +545,8 @@ final class FixturePackTest {
         UniformRegistry.ProgramInterface interfacePlan = InterfacePlanner.plan(
                 waterProgram.fragmentSource(), UniformRegistry.Stage.TRANSLUCENT);
         assertTrue(interfacePlan.executable(), "water interface is not executable");
-        // Water plans on the terrain contract, so its uniforms are the
-        // live Iris catalog (atlasSize, fogStart), not host UBO field aliases.
+        // water plans on the terrain contract, so its uniforms come from the live Iris catalog
+        // (atlasSize, fogStart), not host UBO field aliases
         assertEquals(List.of(
                         new UniformRegistry.UniformDeclaration("atlasSize", "ivec2"),
                         new UniformRegistry.UniformDeclaration("fogColor", "vec4"),
@@ -590,15 +590,15 @@ final class FixturePackTest {
 
     @Test
     void translucentInterfaceEdgeCases() {
-        // A sampler nothing reads is inactive in GL, so each probe reads the one it tests. Iris gives
-        // water all three depth textures (addWorldDepthSamplers); depthtex0 is a capture.
+        // a sampler nothing reads is inactive in GL, so each probe reads the one it tests
+        // Iris gives water all three depth textures (addWorldDepthSamplers); depthtex0 is a capture
         UniformRegistry.ProgramInterface depth = InterfacePlanner.plan(
                 "uniform sampler2D texture; uniform sampler2D depthtex0; uniform sampler2D depthtex2;"
                         + " void main() { gl_FragColor = texture2D(depthtex0, vec2(0.5))"
                         + " + texture2D(depthtex2, vec2(0.5)); }",
                 UniformRegistry.Stage.TRANSLUCENT);
         assertTrue(depth.executable(), "depth inputs were refused: " + depth.deviations());
-        // Terrain, sky and clouds read them too (Mellow's terrain reads depthtex1).
+        // terrain, sky and clouds read them too (Mellow's terrain reads depthtex1)
         UniformRegistry.ProgramInterface terrain = InterfacePlanner.plan(
                 "uniform sampler2D depthtex1; void main() { gl_FragColor = texture2D(depthtex1, vec2(0.5)); }",
                 UniformRegistry.Stage.GEOMETRY);
@@ -669,7 +669,7 @@ final class FixturePackTest {
         assertEquals(List.of("fragment", "vertex"), shadow.stages(), "shadow stages");
         assertEquals(ConformanceReport.SupportStatus.SUPPORTED_WITH_DEVIATION,
                 shadow.support(), "shadow support");
-        // LIVE_UNIFORM_BRIDGE: the per-layer shadow alpha-test reference.
+        // LIVE_UNIFORM_BRIDGE is the per-layer shadow alpha-test reference
         assertEquals(List.of("LIVE_UNIFORM_BRIDGE", "SHADOW_VERTEX_BRIDGE"), shadow.deviations(),
                 "shadow deviations");
         assertEquals(List.of("lightmap", "texture"), shadow.samplers(),
@@ -773,12 +773,12 @@ final class FixturePackTest {
                 "uniform sampler2D texture; uniform sampler2D shadowcolor0;"
                         + " void main() { gl_FragColor = texture2D(shadowcolor0, vec2(0.5)); }",
                 UniformRegistry.Stage.SHADOW);
-        // Iris binds the shadowcolor targets in the shadow pass too; the pass reads a copy.
+        // Iris binds the shadowcolor targets in the shadow pass too; the pass reads a copy
         assertTrue(colorInput.executable() && colorInput.samplers().stream().anyMatch(sampler ->
                         sampler.name().equals("shadowcolor0")
                                 && sampler.slot() == SelectorNamespace.shadowColorSlot(0)),
                 "a shadow program binds the shadowcolor target it reads: " + colorInput);
-        // shadowtex1 is the opaque copy, never the attachment the pass draws (Glimmer's shadow reads it).
+        // shadowtex1 is the opaque copy, never the attachment the pass draws (Glimmer's shadow reads it)
         UniformRegistry.ProgramInterface opaque = InterfacePlanner.plan(
                 "uniform sampler2D shadowtex1; void main() { gl_FragColor = texture2D(shadowtex1, vec2(0.5)); }",
                 UniformRegistry.Stage.SHADOW);
@@ -826,7 +826,7 @@ final class FixturePackTest {
         report.markPassComputeInstalled("composite4");
         report.markPassComputeInstalled("setup");
 
-        // Glimmer's composite4 runs its fog compute and then draws; the compute must not stand for the draw.
+        // Glimmer's composite4 runs its fog compute and then draws; the compute must not stand for the draw
         assertTrue(report.shouldAttempt("composite4"));
         assertEquals(ConformanceReport.RuntimeDisposition.NOT_ATTEMPTED, report.program("composite4").runtime());
         assertTrue(report.program("composite4").deviations().contains("PASS_COMPUTE_INSTALLED"));

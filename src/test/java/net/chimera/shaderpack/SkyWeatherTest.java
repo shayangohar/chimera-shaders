@@ -390,14 +390,14 @@ final class SkyWeatherTest {
             assertTrue(ChimeraSkyBridge.programFor("position", DefaultVertexFormat.POSITION) == null,
                     "sky selection leaked outside the sky window");
             ChimeraSkyBridge.beginSky();
-            // The sky disc, stars and void draw with "position", the sunrise fan with "position_color".
+            // the sky disc, stars and void draw with "position", the sunrise fan with "position_color"
             for (var draw : Map.of("position", DefaultVertexFormat.POSITION,
                     "position_color", DefaultVertexFormat.POSITION_COLOR).entrySet()) {
                 var sky = ChimeraSkyBridge.programFor(draw.getKey(), draw.getValue());
                 assertTrue(sky != null && sky.outputPlan().equals(plan.geometryOutputPlan()),
                         "wrong sky family for " + draw.getKey());
             }
-            // The sun and moon draw with "position_tex", the end sky with "position_tex_color".
+            // the sun and moon draw with "position_tex", the end sky with "position_tex_color"
             for (var draw : Map.of("position_tex", DefaultVertexFormat.POSITION_TEX,
                     "position_tex_color", DefaultVertexFormat.POSITION_TEX_COLOR).entrySet()) {
                 var sky = ChimeraSkyBridge.programFor(draw.getKey(), draw.getValue());

@@ -15,9 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. The
- * binding the default variant made, an unset zero, kept serving after WAVES was switched on in
- * game, and the water lay flat. Each session resolves the shared bindings again.
+ * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Each session
+ * resolves the shared bindings again, so switching WAVES on serves the declared value in place of the
+ * unset zero the default variant bound.
  */
 final class SessionUniformBindingTest {
     @Test
@@ -60,8 +60,7 @@ final class SessionUniformBindingTest {
 
     /**
      * Iris 1.21.1 never registers its HardcodedCustomUniforms, so a pack that only declares
-     * blindFactor or velocity reads GL's unset zero. The frame state served blindFactor as
-     * blindness, and an unset declaration looked its own name up there.
+     * blindFactor or velocity reads GL's unset zero, never a frame value of the same name.
      */
     @Test
     void anUnsetDeclarationNamesNoFrameValue() {

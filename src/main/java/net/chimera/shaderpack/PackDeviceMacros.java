@@ -7,15 +7,17 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 
 /**
- * Iris's device macros (StandardMacros): one MC_GL_VENDOR_* from the GL driver's GL_VENDOR and one
- * MC_GL_RENDERER_* from its GL_RENDERER, each matched by prefix, and MC_ before each extension the
- * driver lists. Chimera has no GL driver, so it names them from the PackDevice as that vendor's GL
- * driver reports them: NVIDIA's "NVIDIA Corporation", AMD's own driver "ATI Technologies Inc.",
- * Mesa's "AMD" and "Intel", with the device name as the renderer, which Mesa's Intel driver
- * prefixes with "Mesa". It lists an extension only when that driver offers it and the device runs
- * what its directive compiles to. Packs choose vendor paths by them: RenderPearl and Noble take
- * NVIDIA's half floats with MC_GL_VENDOR_NVIDIA alone, Alpha Piscium and photon with
- * MC_GL_NV_gpu_shader5 or MC_GL_AMD_gpu_shader_half_float.
+ * Iris's device macros, as StandardMacros defines them: one MC_GL_VENDOR_* from the GL driver's GL_VENDOR and
+ * one MC_GL_RENDERER_* from its GL_RENDERER, each matched by prefix, and MC_ before each extension the driver
+ * lists.
+ *
+ * Chimera has no GL driver, so it names them from the PackDevice as that vendor's GL driver reports them:
+ * NVIDIA's "NVIDIA Corporation", AMD's own driver "ATI Technologies Inc.", Mesa's "AMD" and "Intel". The
+ * renderer is the device name, which Mesa's Intel driver prefixes with "Mesa". An extension is listed only
+ * when that driver offers it and the device runs what its directive compiles to.
+ *
+ * Packs choose vendor paths by these macros: RenderPearl and Noble take NVIDIA's half floats on
+ * MC_GL_VENDOR_NVIDIA alone, Alpha Piscium and Photon on MC_GL_NV_gpu_shader5 or MC_GL_AMD_gpu_shader_half_float.
  */
 public final class PackDeviceMacros {
     /** A GL extension a driver lists, and when the device runs what its directive compiles to. */
@@ -28,7 +30,7 @@ public final class PackDeviceMacros {
     private static final int SUBGROUP_OPERATIONS = 0xFF;
     private static final int PARTITIONED_OPERATIONS = 0x100;
 
-    /** It compiles as its Vulkan types (GlslVendorExtensions). */
+    /** GlslVendorExtensions compiles it to Vulkan's sized types, so it needs them all. */
     private static final Extension NV_GPU_SHADER5 = new Extension("GL_NV_gpu_shader5",
             device -> device.sizedTypes().all());
     private static final Extension NV_PARTITIONED = new Extension("GL_NV_shader_subgroup_partitioned",
@@ -37,7 +39,7 @@ public final class PackDeviceMacros {
     private static final Extension KHR_SUBGROUP = new Extension("GL_KHR_shader_subgroup",
             device -> (device.subgroupStages() & SUBGROUP_STAGES) == SUBGROUP_STAGES
                     && (device.subgroupOperations() & SUBGROUP_OPERATIONS) == SUBGROUP_OPERATIONS);
-    /** Bliss reads it as leave to store into its light volume from the shadow pass. */
+    /** Bliss reads it as permission to store into its light volume from the shadow pass. */
     private static final Extension IMAGE_LOAD_STORE = new Extension("GL_EXT_shader_image_load_store",
             device -> device.features().containsAll(List.of("vertexPipelineStoresAndAtomics",
                     "fragmentStoresAndAtomics")));
@@ -47,7 +49,7 @@ public final class PackDeviceMacros {
             device -> device.features().containsAll(List.of("shaderFloat16", "storageBuffer16BitAccess")));
     private static final Extension AMD_INT16 = new Extension("GL_AMD_gpu_shader_int16",
             device -> device.features().containsAll(List.of("shaderInt16", "storageBuffer16BitAccess")));
-    /** Served natively or written with min and max (GlslVendorExtensions). */
+    /** Served natively, or written with min and max by GlslVendorExtensions. */
     private static final Extension AMD_TRINARY = new Extension("GL_AMD_shader_trinary_minmax", device -> true);
 
     private static final List<Extension> NVIDIA = List.of(NV_GPU_SHADER5, NV_PARTITIONED, KHR_SUBGROUP,

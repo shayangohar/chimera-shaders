@@ -19,9 +19,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * An entity's context for the family lanes while EntityRenderDispatcher.render draws it, as Iris
- * MixinEntityRenderDispatcher captures it: everything it writes, its held items, fire and name
- * tag included, batches in the entity lanes with its entity.properties id.
+ * Sets an entity's context for the family lanes while EntityRenderDispatcher.render draws it, as Iris's
+ * MixinEntityRenderDispatcher does: everything it writes, held items, fire and name tag included, batches in
+ * the entity lanes with its entity.properties id.
  */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class ChimeraEntityRenderDispatcherMixin {
@@ -54,10 +54,7 @@ public abstract class ChimeraEntityRenderDispatcherMixin {
         }
     }
 
-    /**
-     * Iris MixinEntityRenderDispatcher: a pack that renders its own shadow map replaces the
-     * vanilla ground-shadow decal, so the decal is not drawn. Without a pack shadow pass it stays.
-     */
+    /** Skips vanilla's ground-shadow decal while the pack renders its own shadow map, as Iris does. */
     @WrapWithCondition(method = "render", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;renderShadow("
                     + "Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;"

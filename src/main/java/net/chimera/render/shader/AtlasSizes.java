@@ -7,11 +7,10 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Stitched atlas dimensions by image, so {@code atlasSize} answers for the
- * texture a draw samples, as Iris does: an atlas reports its size and any
- * other texture reports zero. Packs divide by it to step between atlas
- * texels (Complementary's POM slope normals), so a zero on the block atlas
- * turns those lookups into infinities.
+ * Stitched atlas dimensions by image, so {@code atlasSize} answers for the texture a draw samples, as Iris
+ * does: an atlas reports its size and any other texture reports zero. Packs divide by it to step between
+ * atlas texels (Complementary's POM slope normals), so a zero on the block atlas turns those lookups into
+ * infinities.
  */
 public final class AtlasSizes {
     private static final int[] NONE = {0, 0};
@@ -27,7 +26,7 @@ public final class AtlasSizes {
         if (blockAtlas) blocks = image;
     }
 
-    /** The atlas size of {@code image}, or zero when it is not an atlas. */
+    /** The atlas size of {@code image}, or zeros when it is not an atlas. */
     public static int[] of(VulkanImage image) {
         int[] size = image == null ? null : SIZES.get(image);
         return size == null ? NONE : size;

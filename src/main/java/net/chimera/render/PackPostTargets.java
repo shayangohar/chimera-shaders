@@ -42,11 +42,12 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.vkCmdSetScissor;
 
 /**
- * Render-thread executor for the immutable target graph. Which side of each target a pass, the
- * world and final read and write is the load-time flip plan's, through PostTargetSides; this class
- * makes the images, records the copies and clears that plan asks for, and keeps logical validity
- * apart from physical images, so a skipped pass cannot make a cleared or stale image visible to a
- * later pass.
+ * Runs the pack's target graph on the render thread. The load-time flip plan decides which side of each
+ * target a pass, the world and final read and write (PostTargetSides); this class makes the images and
+ * records the copies and clears the plan asks for.
+ *
+ * Whether a target holds valid content is tracked apart from its images, so a skipped pass cannot expose a
+ * cleared or stale image to a later pass.
  */
 public final class PackPostTargets {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -87,10 +88,9 @@ public final class PackPostTargets {
     private PostTargetPlan currentPlan;
 
     /**
-     * Installs the validated graph and allocates only the physical sides it needs, the targets a pass
-     * compute writes allowing storage in the formats it binds them in (PackPassComputes.storageTargets).
-     * Each target gets main, and alt when the flip plan flips or writes it; the first frame clears
-     * every side.
+     * Installs the graph and allocates the sides it needs: main for each target, and alt when the flip plan
+     * flips or writes it. A target a compute or post pass stores to also allows storage, in each format it is
+     * bound in. The first frame clears every side.
      */
     public boolean configure(PackTargetGraphPlan graph, Map<Integer, Set<Integer>> storageTargets) {
         trace("configure begin oldTarget0=" + imageId(this.images[0][0])
@@ -141,7 +141,7 @@ public final class PackPostTargets {
         if (!this.configured || this.graph == null) {
             throw new IllegalStateException("pack target graph is not configured");
         }
-        // A screen change makes a new HDR image between frames: it holds nothing to write back.
+        // a screen change makes a new HDR image between frames, holding nothing to write back
         if (hdrColor != this.hdrIdentitySource) this.sides.hdrReplaced();
         this.hdrIdentitySource = hdrColor;
         this.colortex0Clear = colortex0Clear;
@@ -152,15 +152,14 @@ public final class PackPostTargets {
         boolean full = this.sides.fullClearDue();
         withOps(commandBuffer, ops -> this.sides.beginFrame(ops));
         if (hdrColor != null && carriesColortex0()) {
-            // It holds the colortex0 side the world draws first; the world target opens on it next, loading it.
+            // it holds the colortex0 side the world draws first; the world target opens on it next, loading it
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 hdrColor.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
             }
         }
-        // Every target opens the frame readable, as under Iris, which samples whatever a target holds:
-        // a cleared one its clear colour, an uncleared one what it carried. A target a skipped pass
-        // invalidated last frame must be readable again, or a pass that reads its own history, as a
-        // TAA pass does, would fall back on every later frame after one missing input.
+        // every target opens the frame readable, as under Iris, which samples whatever a target holds
+        // a target a skipped pass invalidated last frame must be readable again, or a pass reading its own
+        // history, such as TAA, would fall back on every frame after one missing input
         for (int target = 0; target < TARGET_COUNT; target++) {
             if (!this.used[target]) continue;
             this.valid[target] = true;
@@ -175,10 +174,9 @@ public final class PackPostTargets {
     }
 
     /**
-     * Whether colortex0 is not cleared every frame (colortex0Clear=false): the world target must
-     * open loading the HDR image, which beginFrame left holding the colortex0 side the world draws
-     * first (the opaque world's, under its horizon), as Iris keeps
-     * colortex0 from the last frame. A clearing open would wipe it.
+     * Whether colortex0 carries over from the last frame (colortex0Clear=false), as under Iris. The world
+     * target must then open loading the HDR image, which beginFrame left holding the colortex0 side the world
+     * draws first.
      */
     public boolean carriesColortex0() {
         return this.configured && this.sides.carriesColortex0();
@@ -206,9 +204,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * As above, for a program that also samples some of its outputs: Iris lets a gbuffer program
-     * read the target it draws into, which Vulkan forbids inside a render pass, so each such
-     * target's current contents are copied and the copy is what the window's draws sample.
+     * As above, for a program that also samples some of its outputs. Iris lets a gbuffer program read the
+     * target it draws into, which Vulkan forbids inside a render pass, so the window's draws sample a copy.
      */
     public void beginGeometry(VkCommandBuffer commandBuffer, VulkanImage hdrColor,
                               List<Integer> outputTargets, List<Integer> snapshotTargets) {
@@ -259,9 +256,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Returns attachments in the same order as fragment output locations: colortex0's is the HDR
-     * image, every other target's the side the world's flip state names, which Iris's gbuffers
-     * both read and write (RenderTargets.createGbufferFramebuffer).
+     * Attachments in fragment output order: colortex0's is the HDR image, every other target's the side the
+     * world's flip state names, which Iris's gbuffers both read and write (RenderTargets.createGbufferFramebuffer).
      */
     public List<VulkanImage> geometryAttachments(List<Integer> outputTargets) {
         if (outputTargets == null || outputTargets.isEmpty()) return List.of();
@@ -293,11 +289,12 @@ public final class PackPostTargets {
     }
 
     /**
-     * The world draws again after {@code window}'s pass group (BEGIN, PREPARE or EARLY): the group's
-     * steps that did not run pass through, the state is the one Iris's gbuffers read and write, and
-     * the HDR image takes colortex0's side, written back from wherever it held another
-     * (PostTargetSides.enterWorld). Iris has one colortex0 for the whole frame; this keeps that
-     * contract. The HDR image is sampled-layout here; the caller reopens it as the world target.
+     * Returns to the world after {@code window}'s pass group (BEGIN, PREPARE or EARLY). The group's steps that
+     * did not run pass through, and the state becomes the one Iris's gbuffers read and write. colortex0's side
+     * is written back into the HDR image, since Iris has one colortex0 for the whole frame
+     * (PostTargetSides.enterWorld).
+     *
+     * The HDR image is in the sampled layout here; the caller reopens it as the world target.
      */
     public void enterWorld(VkCommandBuffer commandBuffer, PackFrameSchedulePlan.PostWindow window,
                            VulkanImage hdrColor) {
@@ -325,7 +322,7 @@ public final class PackPostTargets {
         }
     }
 
-    /** Commits target 0 after the scene seed successfully merged host pixels. */
+    /** Commits target 0 after the scene seed merged host pixels. */
     public void commitSceneSeed(VulkanImage target) {
         if (target == null || target != geometryTarget0()) {
             throw new IllegalStateException("scene seed target does not match active target 0");
@@ -335,12 +332,12 @@ public final class PackPostTargets {
     }
 
     /**
-     * Invalidates a skipped stage's outputs for the rest of the frame, retaining physical images. An
-     * auxiliary target loses its producer, so its later readers fall back too: its image holds another pass's
-     * meaning (BSL's bloom atlas in colortex1). colortex0 keeps its last committed write, the
-     * scene as the passes that ran left it: the skipped step passes it through (PostTargetSides),
-     * where resetting it to the pre-post scene would also drop every earlier pass's output
-     * (Glimmer's composite3 water when composite4 was skipped).
+     * Invalidates a skipped stage's outputs for the rest of the frame, keeping their images.
+     *
+     * Later readers of an auxiliary target fall back too, since its image holds another pass's meaning, such
+     * as BSL's bloom atlas in colortex1. colortex0 keeps the scene as the passes that ran left it: the skipped
+     * step passes it through (PostTargetSides). Resetting it to the pre-post scene would drop every earlier
+     * pass's output too.
      */
     public void invalidateOutputs(List<Integer> targets) {
         if (targets == null) return;
@@ -353,10 +350,9 @@ public final class PackPostTargets {
     }
 
     /**
-     * Iris CompositeRenderer.setupMipmapping: before a program that declares
-     * colortexNMipmapEnabled, rebuild the chain of the image the program
-     * reads and sample that image through its mips until the next frame starts. Call before the
-     * program's images are bound.
+     * Before a program that declares colortexNMipmapEnabled, rebuilds the chain of each such image it reads
+     * and samples the image through its mips until the next frame starts, as Iris's
+     * CompositeRenderer.setupMipmapping does. Call before the program's images are bound.
      */
     public void generateMipmaps(VkCommandBuffer commandBuffer, String programName) {
         TargetStep step = this.graph == null ? null : this.graph.step(programName);
@@ -364,7 +360,7 @@ public final class PackPostTargets {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             for (int target : step.mipmapTargets()) {
                 if (target < 0 || target >= TARGET_COUNT || this.sourceImages[target] == null) continue;
-                // A minimized window sizes targets 1x1: their whole chain is level 0.
+                // a minimized window sizes targets 1x1, so their whole chain is level 0
                 if (!needsMipChain(graphImage(target, this.sides.readSide(target)).mipLevels)) continue;
                 VulkanImage image = image(this.sides.readGraph(target, false, ops(stack, commandBuffer)));
                 if (target == 0) this.sourceImages[0] = image(this.sides.read(0));
@@ -375,18 +371,17 @@ public final class PackPostTargets {
         trace("mipmaps program=" + programName + " targets=" + step.mipmapTargets());
     }
 
-    /** A chain of one level has nothing to generate; nothing written has nothing to mip. */
     static boolean needsMipChain(int levels) {
         return levels > 1;
     }
 
     /**
-     * Opens {@code window}'s pass group: the steps of earlier groups that did not run pass through,
-     * and the state is the group's as it opens, after its {@code flip.<group>_pre} flips, as Iris's
-     * CompositeRenderer applies them before any of its passes. Mip sampling carries on. Iris resets
-     * a target's filter only after final (FinalPassRenderer.resetRenderTarget), so a chain built in
-     * prepare is still read through its mips by deferred, the translucents, composite and final
-     * (Glimmer's sky in colortex7).
+     * Opens {@code window}'s pass group. Steps of earlier groups that did not run pass through, and the
+     * group's {@code flip.<group>_pre} flips apply first, as Iris's CompositeRenderer applies them before any
+     * of its passes.
+     *
+     * Mip sampling carries on: Iris resets a target's filter only after final
+     * (FinalPassRenderer.resetRenderTarget), so later groups still read a chain built in prepare through its mips.
      */
     public void openPostWindow(VkCommandBuffer commandBuffer, PackFrameSchedulePlan.PostWindow window) {
         if (!this.configured) return;
@@ -434,10 +429,9 @@ public final class PackPostTargets {
     }
 
     /**
-     * The image a pass compute or a pass writes as {@code colorimgN}: the target's read side, as
-     * Iris binds it (IrisImages), as a graph image. colortex0 held by the HDR image is written back
-     * to its graph side first: the HDR image is a render attachment without storage usage, while a
-     * graph image a compute writes has it.
+     * The graph image a pass or its computes write as {@code colorimgN}: the target's read side, as Iris binds
+     * it (IrisImages). colortex0 held by the HDR image is written back to its graph side first, since the HDR
+     * image has no storage usage.
      */
     public VulkanImage storageSource(VkCommandBuffer commandBuffer, int target) {
         if (!this.configured || target < 0 || target >= TARGET_COUNT || this.sourceImages[target] == null) return null;
@@ -447,7 +441,7 @@ public final class PackPostTargets {
         return image[0];
     }
 
-    /** Begins dynamic rendering for the graph step represented by this post. */
+    /** Begins dynamic rendering for {@code post}'s graph step. */
     public void prepare(PackPipelines.PackPost post, VkCommandBuffer commandBuffer) {
         if (!this.configured || this.graph == null || this.rendering) {
             throw new IllegalStateException("pack post target state is not ready");
@@ -472,8 +466,8 @@ public final class PackPostTargets {
         }
         try (MemoryStack stack = MemoryStack.stackPush()) {
             claimOutputSides(stack, commandBuffer, plan, flipStep);
-            // After the write-backs above, which move images through VulkanMod's tracked layouts, and
-            // outside the render pass: VulkanMod moves no image out of GENERAL ("Unexpected value:1").
+            // after the write-backs above, which move images through VulkanMod's tracked layouts, and outside
+            // the render pass; VulkanMod moves no image out of GENERAL ("Unexpected value:1")
             this.storage.begin(commandBuffer, target -> storageSource(commandBuffer, target), post.storageTargets());
             PostAttachments attachments = colorAttachments(stack, commandBuffer, plan, step);
             int renderWidth = attachments.width();
@@ -488,7 +482,7 @@ public final class PackPostTargets {
             renderingInfo.layerCount(1);
             renderingInfo.pColorAttachments(attachments.buffer());
 
-            // The pass draws unblended unless its blend.<program> says otherwise (CompositeRenderer).
+            // the pass draws unblended unless its blend.<program> says otherwise (CompositeRenderer)
             MrtPipelineContext.begin(plan.outputFormatsArray(), deviceLimit,
                     post.blendPlan().attachments(plan.targetSlots()));
             Renderer.getInstance().setBoundFramebuffer(standIn(this.standIns, attachments.first()));
@@ -511,10 +505,9 @@ public final class PackPostTargets {
     }
 
     /**
-     * Picks each draw buffer's write side, the one the pass does not read (CompositeRenderer). The
-     * side keeps what it held: a blend or a discard lands on that, as on Iris's, with no copy of the
-     * read side in first. A target the pass leaves unwritten keeps it too, and the flip after the
-     * pass makes it current, as Iris's does.
+     * Picks each draw buffer's write side, the one the pass does not read (CompositeRenderer). The side keeps
+     * what it held, so a blend or discard lands on that, as under Iris, with no copy of the read side first.
+     * A target the pass leaves unwritten keeps it too, and the flip after the pass makes it current, as Iris does.
      */
     private void claimOutputSides(MemoryStack stack, VkCommandBuffer commandBuffer, PostTargetPlan plan,
                                   PackFlipPlan.Step flipStep) {
@@ -527,7 +520,7 @@ public final class PackPostTargets {
         }
     }
 
-    /** One post draw's color attachments and its render extent, the first attachment's size. */
+    /** One post draw's colour attachments, and its extent: the first attachment's size. */
     private record PostAttachments(VkRenderingAttachmentInfo.Buffer buffer, VulkanImage first, int width, int height) {}
 
     /** Gives each extent among the session's target images a stand-in built on one of them. */
@@ -541,12 +534,11 @@ public final class PackPostTargets {
     }
 
     /**
-     * The framebuffer VulkanMod takes a post pass's size from: one of its first attachment's extent.
-     * Reforged 0.3.5 sets the viewport's y from the bound framebuffer's height (Renderer.setViewport),
-     * where 0.3.0 took it from the viewport's own height. Under colortex0's full-size stand-in, a
-     * pass drawing into a size.buffer target drew below its image: Pegasus's one-third-size sky pass
-     * left colortex6 at its clear colour and the sky black. Only the HDR image, which the window
-     * replaces, can lack a stand-in; that pass gets one of its own.
+     * The framebuffer VulkanMod takes a post pass's size from, one with its first attachment's extent.
+     *
+     * Reforged sets the viewport's y from the bound framebuffer's height (Renderer.setViewport), so under a
+     * full-size stand-in a pass drawing into a smaller size.buffer target would draw below its image. Only the
+     * HDR image, made outside the graph, can lack a stand-in; such a pass gets one of its own.
      */
     static Framebuffer standIn(Map<Long, Framebuffer> standIns, VulkanImage first) {
         Framebuffer standIn = standIns.get(extent(first));
@@ -620,7 +612,7 @@ public final class PackPostTargets {
         }
     }
 
-    /** Returns the pending images, and every target the current plan wrote, to the sampled layout. */
+    /** Returns the images the step wrote to the sampled layout. */
     private void transitionWrittenTargetsForSampling(MemoryStack stack, VkCommandBuffer commandBuffer) {
         for (VulkanImage image : this.pendingImages) {
             if (image != null) {
@@ -664,11 +656,12 @@ public final class PackPostTargets {
     public PackTargetGraphPlan graph() { return this.graph; }
 
     /**
-     * The images world programs read the targets through: each one's source, or, for a target a
-     * skipped pass dropped from the chain (invalidateOutputs), the image it still holds. A post
-     * reader of such a target falls back with its pass; a world program has no fallback, and Iris
-     * samples whatever the target holds. Reading it as missing crashed the game: Rethinking
-     * Voxels' terrain reads colortex8, which its unsupported prepare passes write.
+     * The images world programs read the targets through: each one's source, or the image still held by a
+     * target a skipped pass dropped (invalidateOutputs).
+     *
+     * A post reader of such a target falls back with its pass. A world program has no fallback, and Iris
+     * samples whatever the target holds; Rethinking Voxels' terrain reads colortex8, which its prepare passes
+     * write.
      */
     public VulkanImage[] worldImages() {
         for (int target = 0; target < TARGET_COUNT; target++) {

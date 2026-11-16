@@ -22,7 +22,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Read-only, deterministic inventory of the Chimera pack boundary. */
+/** Reads a loaded pack and builds its conformance report and the plans the runtime loads from. */
 public final class PackProbe {
     private static final Set<String> STAGE_EXTENSIONS = Set.of(
             ".vsh", ".fsh", ".gsh", ".tcs", ".tes", ".csh");
@@ -35,10 +35,7 @@ public final class PackProbe {
 
     private PackProbe() {}
 
-    /**
-     * Static analysis result shared by reporting and runtime pipeline loading, with the pass
-     * computes the report shows and the session runs.
-     */
+    /** One pack analysis, shared by the report and the runtime pipeline load, with the pass computes both use. */
     public record Analysis(
             ConformanceReport report,
             PackPlan plan,
@@ -71,17 +68,17 @@ public final class PackProbe {
         }
     }
 
-    /** Probes an already loaded source so runtime and static reports share one extraction. */
+    /** Probes an already loaded source, so the runtime and the static report share one extraction. */
     public static ConformanceReport probe(Path packPath, PackSource.LoadResult loaded) {
         return analyze(packPath, loaded).report();
     }
 
     /**
-     * Builds the report and the immutable runtime plan from one loaded source tree. A dimension
-     * this load analysed before is not analysed again: the load's options and sources are fixed,
-     * so its analysis still holds (PackSource.LoadResult.analyzed), as Iris builds a dimension's
-     * pipeline from the shader pack it loaded once. Each caller gets its own report, which the
-     * runtime marks.
+     * Builds the report and the runtime plan from one loaded source tree.
+     *
+     * A dimension this load analysed before is not analysed again. The load's options and sources are fixed, so
+     * its analysis still holds (PackSource.LoadResult.analyzed), as Iris builds each dimension's pipeline from the
+     * shader pack it loaded once. Each caller gets its own report, which the runtime marks.
      */
     public static Analysis analyze(Path packPath, PackSource.LoadResult loaded) {
         loaded.pinLoadInputs();
@@ -144,7 +141,7 @@ public final class PackProbe {
             ConformanceReport report = conformanceReport();
             inventoryAliases(packPlan);
             PassComputePlan passComputes = PassComputePlan.build(packPlan, shadersDir);
-            // PackResourceOwner makes one image per resource key for programs and pass computes alike.
+            // PackResourceOwner makes one image per resource key for programs and pass computes alike
             List<PackResourceBinding> bindings = new ArrayList<>();
             resourcePlan.bindings().values().forEach(bindings::addAll);
             passComputes.computes().forEach(compute -> bindings.addAll(compute.textures()));
@@ -229,18 +226,15 @@ public final class PackProbe {
 
         private void buildPlans() {
             planPreparedSources();
-            // Packs hide their image code behind Iris's custom-image capability. The first plan
-            // tells whether Chimera creates any image the pack declares; only then is the
-            // capability offered and every plan rebuilt from the same prepared sources, as Iris
-            // offers it whatever programs read or write the images.
+            // packs hide their image code behind Iris's custom-image capability
+            // offer it only when the first plan shows Chimera creates an image the pack declares, then prepare and
+            // plan again; Iris offers it whatever the programs do with the images
             if (advancedPlan.capabilityPossible()) {
                 prepareWithCustomImages();
                 planPreparedSources();
             }
-            // The first pass admits only property-declared blocks so the full
-            // source scan can build exact stage masks and bindings. Rebuild once
-            // from that immutable result so probing and pipeline construction use
-            // the same storage-buffer eligibility and rewritten GLSL.
+            // the first plan sees only the buffer properties, so the source scan can build exact stage masks and
+            // bindings; replanning from the scan gives the probe and the pipeline one buffer eligibility and GLSL
             planPrograms(advancedPlan);
             advancedPlan = PackAdvancedResourcePlan.build(initialPlan, shadersDir);
             planPrograms(advancedPlan);
@@ -270,8 +264,7 @@ public final class PackProbe {
                     PackEngineDefines.lockedNames(settingsPlan.lockedDefineNames(), true));
             settingsPlan = resolveLiveSamplerSlots(settingsPlan, loaded.programs());
             globalDeviations.addAll(loaded.deviations());
-            // Only preparation's deviations are redone: a stage file the scan could not read is still
-            // unread (audit FD13).
+            // only preparation's deviations are redone; a stage file the scan could not read is still unread
             inventories.values().forEach(inventory -> {
                 inventory.preparedSources.clear();
                 inventory.deviations.removeAll(inventory.preparationDeviations);
@@ -286,15 +279,13 @@ public final class PackProbe {
          */
         private void addPackDeviations() {
             globalDeviations.addAll(packConfig.deviations());
-            // Keep standard sampler aliases program-scoped. Adding every binding
-            // deviation to the pack-wide list changes old fixture support status
-            // even when the alias is already part of that family's contract.
+            // binding deviations such as standard sampler aliases stay on their program's row
             globalDeviations.addAll(settingsPlan.resourceDeviations());
             settingsPlan.deviations().stream()
                     .filter(value -> value.startsWith("SETTING_UNSUPPORTED:"))
                     .map(value -> "SETTING_NOT_APPLIED:" + value.substring("SETTING_UNSUPPORTED:".length()))
                     .forEach(globalDeviations::add);
-            // A texture file Iris could not read and skipped, which it logs as an error.
+            // a texture file Iris cannot read is skipped, with an error in its log
             settingsPlan.deviations().stream()
                     .filter(value -> value.startsWith("PACK_TEXTURE_DROPPED:"))
                     .forEach(globalDeviations::add);
@@ -302,8 +293,7 @@ public final class PackProbe {
         }
 
         private void inventoryAliases(PackPlan packPlan) {
-            // Aliases are real requested-family plans, not synthetic host fallbacks.
-            // Inventory the selected source too so probe and runtime share admission.
+            // an alias is a plan under the requested name; inventory its selected source so probe and runtime agree
             for (PackProgramPlan planned : packPlan.programs()) {
                 PackProgramResolution resolved = resolution.resolution(planned.name());
                 if (resolved == null || !resolved.executable()
@@ -311,8 +301,8 @@ public final class PackProbe {
                 PackProgram program = planned.program();
                 Inventory inventory = new Inventory(program.name());
                 addProgramSources(inventory, program, shadersDir);
-                // The scan's findings for the requested name stay on its row: a stage file it could
-                // not read, which is why the program falls back when that file is its fragment stage.
+                // the scan's findings for the requested name stay on its row, such as an unreadable stage file
+                // that finding is why the program falls back when the file is its fragment stage
                 Inventory requested = inventories.get(program.name());
                 if (requested != null) {
                     requested.deviations.stream().filter(value -> !requested.preparationDeviations.contains(value))
@@ -370,7 +360,7 @@ public final class PackProbe {
                 }
             }
         } catch (IOException ignored) {
-            // The load result already carries the path failure. The report remains deterministic.
+            // the load result already carries the path failure
         }
     }
 
@@ -450,7 +440,7 @@ public final class PackProbe {
                     live.addAll(usage.liveSamplers());
                     live.addAll(usage.liveImages());
                 }
-                // Iris binds every stage's samplers; Rethinking Voxels' shadow.gsh writes voxelCols.
+                // Iris binds every stage's samplers; Rethinking Voxels' shadow.gsh writes voxelCols
                 for (String source : program.preparedGeometryStages(settings.readsTessellation()).values()) {
                     GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(source);
                     live.addAll(usage.liveSamplers());
@@ -501,8 +491,8 @@ public final class PackProbe {
     }
 
     /**
-     * Lists the keys shaders.properties names. Which keys Chimera does not apply is
-     * PackSettingsPlan's to say (PackPropertyKeys), read through the pack's conditionals.
+     * Lists the keys shaders.properties names. PackSettingsPlan decides which keys Chimera does not apply
+     * (PackPropertyKeys), reading through the pack's conditionals.
      */
     private static void readProperties(Path properties, List<String> settings, List<String> deviations) {
         try {
@@ -577,7 +567,7 @@ public final class PackProbe {
         if (name.startsWith("gbuffers_")) return "gbuffers";
         if (name.startsWith("composite")) return "composite";
         if (name.equals("final")) return "final";
-        // Fullscreen passes and computes over the shadowcolor targets, not shadow-pass programs (audit FD12).
+        // shadowcomp passes are fullscreen passes and computes over the shadowcolor targets, not shadow-pass programs
         if (name.startsWith("shadowcomp")) return "shadowcomp";
         if (name.startsWith("shadow")) return "shadow";
         if (name.startsWith("deferred")) return "deferred";

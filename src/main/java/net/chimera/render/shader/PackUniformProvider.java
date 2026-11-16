@@ -28,11 +28,10 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Supplies stable generated-UBO buffers from one captured frame state.
+ * Supplies the uniform buffers pack pipelines read, written from one captured frame state.
  *
- * <p>The provider owns only Chimera buffers. VulkanMod's global uniform maps
- * remain authoritative for host fields. Pack suppliers never refresh game
- * state themselves, so two passes in one frame see the same values.</p>
+ * Owns only Chimera's buffers; host fields keep VulkanMod's global uniform maps. Suppliers never read game
+ * state themselves, so two passes in one frame see the same values.
  */
 public final class PackUniformProvider {
     private static final PackUniformProvider INSTANCE = new PackUniformProvider();
@@ -51,8 +50,8 @@ public final class PackUniformProvider {
     }
 
     /**
-     * The stable value buffer of pack uniform {@code name} of type {@code type}, for a pipeline
-     * being built (HostPipelineLayout), or null when the Chimera catalog does not serve it.
+     * The value buffer of pack uniform {@code name} of type {@code type}, for a pipeline being built
+     * (HostPipelineLayout), or null when the Chimera catalog does not serve it.
      */
     public Supplier<MappedBuffer> supplier(String name, String type) {
         UniformRegistry.UniformDescriptor descriptor = resolveUniform(name, type);
@@ -72,11 +71,10 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Gives each binding what its name resolves to in the session just installed; the buffer
-     * stays, as built pipelines read it. A name can change meaning between sessions: RenderPearl's
-     * water reads waveState in every variant but declares it only with WAVES on, so the unset
-     * binding the default variant made kept serving zero once WAVES was switched on, and the
-     * water lay flat. Iris builds each program's uniforms afresh with the pack.
+     * Gives each binding what its name resolves to in the session just installed; the buffer stays, as built
+     * pipelines read it. A name can change meaning between sessions, and Iris builds each program's uniforms
+     * afresh with the pack. RenderPearl's water reads waveState in every variant but declares it only with
+     * WAVES on, so the binding the default variant made must take the declaration when WAVES turns on.
      */
     private void resolveBindings() {
         bindings.replaceAll((key, binding) -> {
@@ -112,7 +110,7 @@ public final class PackUniformProvider {
         INSTANCE.updateFrame(camera, partialTick, modelView, projection);
     }
 
-    /** The frame's celestial frame, shared with the shadow matrix builder. */
+    /** This frame's world-space light direction, shared with the shadow matrix builder. */
     public static Vector3f currentSunLightVector() {
         return INSTANCE.frameState.sunLightVector();
     }
@@ -133,16 +131,16 @@ public final class PackUniformProvider {
     public static float currentFrameTimeCounter() { return INSTANCE.frameState.frameTimeCounter(); }
 
     /**
-     * The camera's gbufferProjection x gbufferModelView (GL clip range, camera-relative), written
-     * to dest: the view shadow culling keeps casters for, as Iris's frustum reads it.
+     * The camera's gbufferProjection x gbufferModelView (GL clip range, camera-relative), written to
+     * {@code dest}: the view shadow culling keeps casters for, as Iris's frustum reads it.
      */
     public static Matrix4f currentCameraViewProjection(Matrix4f dest) {
         return INSTANCE.frameState.cameraViewProjection(dest);
     }
 
     /**
-     * Records the density of the fog FogRenderer is setting up (Iris fogMode, fogDensity) and
-     * serves it to the draws that follow, as Iris's dynamic fog uniforms read it at each bind.
+     * Records the density of the fog FogRenderer is setting up (Iris fogMode, fogDensity) and serves it to
+     * the draws that follow, as Iris's dynamic fog uniforms read it at each bind.
      */
     public static void captureFogDensity(Camera camera) {
         INSTANCE.frameState.captureFogDensity(camera);
@@ -150,27 +148,27 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Records the shape of the fog FogRenderer has set up (Iris fogShape), which a program reads as
-     * it was at its first draw in the frame (latchProgramFog).
+     * Records the shape of the fog FogRenderer has set up (Iris fogShape), which a program reads as it was at
+     * its first draw in the frame (latchProgramFog).
      */
     public static void captureFogShape() {
         INSTANCE.frameState.captureFogShape();
     }
 
     /**
-     * Serves the fog range RenderSystem now holds to the draws that follow, as Iris's fogStart and
-     * fogEnd follow each RenderSystem.setShaderFogStart and setShaderFogEnd (ChimeraFogRangeMixin).
-     * Read once a frame, a pack's terrain saw the Float.MAX_VALUE start FogRenderer.setupNoFog left
-     * at the previous frame's end, and its linear fog came out zero in the Nether and underwater.
+     * Serves the fog range RenderSystem holds to the draws that follow, as Iris's fogStart and fogEnd follow
+     * each RenderSystem.setShaderFogStart and setShaderFogEnd (ChimeraFogRangeMixin). Read once a frame, a
+     * pack's terrain would see the Float.MAX_VALUE start FogRenderer.setupNoFog leaves at the end of the
+     * previous frame, and its linear fog would come out zero in the Nether and underwater.
      */
     public static void updateFogRange(float start, float end) {
         if (INSTANCE.frameState.setFogRange(start, end)) INSTANCE.rewrite(FOG_RANGE_KEYS);
     }
 
     /**
-     * Serves this frame's fog colour, as FogRenderer.setupColor left it, to every pack draw from the
-     * world clear on: Iris reads its per-frame fogColor at a program's first use in the frame, which
-     * follows setupColor. Read at renderLevel's head, it was the previous frame's colour.
+     * Serves this frame's fog colour, as FogRenderer.setupColor left it, to every pack draw from the world
+     * clear on. Iris reads its per-frame fogColor at a program's first use in the frame, which follows
+     * setupColor; read at renderLevel's head, it would be the previous frame's colour.
      */
     public static void latchFogColor(float[] color) {
         if (INSTANCE.frameState.setFogColor(color)) INSTANCE.rewrite(FOG_COLOR_KEYS);
@@ -194,7 +192,6 @@ public final class PackUniformProvider {
         if (frameState.latchProgramFog(program)) rewrite(PROGRAM_FOG_KEYS);
     }
 
-    /** Rewrites the bindings of the given names from the frame state. */
     private void rewrite(List<UniformKey> keys) {
         for (UniformKey key : keys) {
             Binding binding = bindings.get(key);
@@ -202,16 +199,16 @@ public final class PackUniformProvider {
         }
     }
 
-    /** Publishes the exact shadow state used by the shadow render. */
+    /** Serves the shadow matrices the shadow pass renders with; a null matrix keeps the current one. */
     public static void updateShadowState(Matrix4f modelView, Matrix4f projection) {
         INSTANCE.frameState.updateShadow(modelView, projection);
         INSTANCE.refreshBindings();
     }
 
     /**
-     * Sets the alpha-test reference for the next entity-family draw or shadow
-     * terrain layer. The pipeline copies its uniform buffers per draw, so only
-     * this one binding is rewritten, and only when the reference changes.
+     * Sets the alpha-test reference for the next entity-family draw or shadow terrain layer. The pipeline
+     * copies its uniform buffers per draw, so only this binding is rewritten, and only when the reference
+     * changes.
      */
     public static void updateDrawAlphaReference(float reference) {
         if (!INSTANCE.frameState.setEntityAlphaReference(reference)) return;
@@ -231,7 +228,7 @@ public final class PackUniformProvider {
         }
     }
 
-    /** Returns the enclosing phase for an exception-safe draw-scope restore. */
+    /** Sets renderStage and returns the previous phase, for the caller to restore in a finally. */
     public static PackRenderingPhase setRenderingPhase(PackRenderingPhase phase) {
         var previous = INSTANCE.frameState.setRenderingPhase(phase);
         Binding binding = INSTANCE.bindings.get(new UniformKey("renderStage", "int"));
@@ -242,10 +239,9 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Serves the next host-routed draw the size of the atlas it samples, or
-     * zero for a plain texture, as Iris answers {@code atlasSize} from
-     * texture unit 0. {@link #restoreFrameAtlasSize} puts the block atlas
-     * back once that draw's uniforms are uploaded.
+     * Serves the next host-routed draw the size of the atlas it samples, or zero for a plain texture, as Iris
+     * answers {@code atlasSize} from texture unit 0. {@link #restoreFrameAtlasSize} puts the block atlas back
+     * once that draw's uniforms are uploaded.
      */
     public static void updateDrawAtlasSize(VulkanImage sampled) {
         int[] size = AtlasSizes.of(sampled);
@@ -253,13 +249,13 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Serves the next draw Iris's per-draw texture and blend values (IrisDrawState): the size of
-     * the texture on unit 0 and the draw's blend, the blend the program reports in place of the
-     * host's (PackPipelines.blendFuncOverride) or the host draw's. It also serves the pipeline's
-     * per-frame fog values (latchProgramFog). Only changed bindings are rewritten.
+     * Serves the next draw Iris's per-draw texture and blend values (IrisDrawState): the size of the texture
+     * on unit 0, and the blend the program reports in place of the host's (PackPipelines.blendFuncOverride)
+     * or else the host draw's. Also serves the pipeline's per-frame fog values (latchProgramFog). Only
+     * changed bindings are rewritten.
      */
     public static void updateDrawState(Pipeline pipeline) {
-        // Without a pack session no binding reads them.
+        // no pack pipeline has asked for a uniform yet
         if (INSTANCE.bindings.isEmpty()) return;
         INSTANCE.latchProgramFog(pipeline);
         VulkanImage unit0 = VTextureSelector.getBoundTexture(0);
@@ -290,21 +286,21 @@ public final class PackUniformProvider {
         }
     }
 
-    /** Prevents stale pack matrices from describing a host-produced or invalid shadow image. */
+    /** Resets the shadow matrices, so stale ones never describe a host-drawn or invalid shadow map. */
     public static void clearShadowState() {
         INSTANCE.frameState.clearShadowState();
         INSTANCE.refreshBindings();
     }
 
     /**
-     * The pack's item.properties ids and oldHandLight for the held-item uniforms; an empty
-     * resolver when no pack is installed.
+     * The pack's item.properties ids and oldHandLight for the held-item uniforms; an empty resolver when no
+     * pack is installed.
      */
     public static void installHeldItems(PackItemIdResolver items, boolean oldHandLight) {
         INSTANCE.frameState.installHeldItems(items, oldHandLight);
     }
 
-    /** Installs the immutable runtime settings for the active pack session. */
+    /** Installs the session's custom values and re-resolves every binding against them. */
     public static void installRuntimeSettings(PackRuntimeSettings settings) {
         INSTANCE.runtimeSettings = settings == null ? PackRuntimeSettings.empty() : settings;
         INSTANCE.loggedValueFailures.clear();
@@ -375,9 +371,9 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Reports each declaration whose expression produced a non-finite result, once per session,
-     * with the expression and the inputs that produced it. The value itself is served as computed,
-     * as Iris serves it, so the report is what keeps it from being silent.
+     * Reports each declaration whose expression produced a non-finite result, once per session, with the
+     * expression and the inputs that produced it. The value is served as computed, as Iris serves it, so this
+     * report is the only sign of it.
      */
     private void logDerivedValueFailures() {
         for (Map.Entry<String, String> failure : frameState.valueFailures().entrySet()) {
@@ -389,11 +385,11 @@ public final class PackUniformProvider {
     }
 
     /**
-     * Rewrites every binding from the frame state, every frame. Iris 1.8.14 registers only its
-     * dynamic uniforms per program; every other one, rainStrength and cloudTime among them, reaches
-     * a program through CustomUniforms (IrisRenderingPipeline: CustomUniforms.Builder.build over
-     * addNonDynamicUniforms), which updates each frame whatever the uniform's frequency
-     * (CachedUniform.update). Newer Iris refreshes its PER_TICK uniforms only on a new tick.
+     * Rewrites every binding from the frame state, every frame. Iris 1.8.14 registers only its dynamic
+     * uniforms per program; every other one, rainStrength and cloudTime among them, reaches a program through
+     * CustomUniforms (IrisRenderingPipeline: CustomUniforms.Builder.build over addNonDynamicUniforms), which
+     * updates each frame whatever the uniform's frequency (CachedUniform.update). Newer Iris refreshes its
+     * PER_TICK uniforms only on a new tick.
      */
     private void refreshBindings() {
         for (Binding binding : bindings.values()) {

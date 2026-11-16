@@ -7,7 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-/** Selector transaction independent of Vulkan and Minecraft; snapshots include sampler overrides. */
+/**
+ * Binds a program's images to their selector slots and restores the previous bindings on close. Generic over
+ * the slot state, so it needs neither Vulkan nor Minecraft; ChimeraTextureBindingState's snapshots restore
+ * the sampler override with the image.
+ */
 public final class ProgramImageBindingTransaction<S> implements AutoCloseable {
     public interface Store<S> {
         S capture(int slot);
@@ -32,7 +36,7 @@ public final class ProgramImageBindingTransaction<S> implements AutoCloseable {
         }
         ProgramImageBindingTransaction<S> transaction = new ProgramImageBindingTransaction<>(store);
         try {
-            // Capture all slots before resolving: host aliases must see pre-transaction state.
+            // capture every slot before resolving, so host aliases see the state before this transaction
             for (var entry : manifest.entries()) {
                 if (!transaction.previous.containsKey(entry.slot())) {
                     transaction.previous.put(entry.slot(), store.capture(entry.slot()));

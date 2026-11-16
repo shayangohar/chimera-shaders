@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/** Immutable defaults-only interpretation of shaders.properties (ShadersPropertiesReader) and pack options. */
+/** A pack's shaders.properties settings, read by ShadersPropertiesReader, and the option defaults its sources hold. */
 record PackSettingsPlan(
         Map<String, Option> options,
         Map<String, String> defaults,
@@ -37,14 +37,14 @@ record PackSettingsPlan(
         Map<String, PackResourceDeclaration> resourceDeclarations,
         Map<String, Integer> samplerSlots,
         boolean samplerSlotsFinalized,
-        // The macros in force at the end of shaders.properties, option values included: Iris
-        // expands them throughout the file, so an image may be COLORED_LIGHTING texels wide.
+        // macros in force at the end of shaders.properties, option values included; Iris expands them
+        // throughout the file, so an image may be COLORED_LIGHTING texels wide
         Map<String, String> propertyMacros,
-        // Resolved during the parse: propertyValues is sorted, and Iris applies these keys in file order.
+        // resolved during the parse, since propertyValues is sorted and Iris applies these keys in file order
         ParticleDirectives particleDirectives
 ) {
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
-    // A directive's name follows its '#' directly: PropertiesPreprocessor reads "# define" as a comment.
+    // a directive's name follows its '#' directly; PropertiesPreprocessor reads "# define" as a comment
     static final Pattern DEFINE = Pattern.compile(
             "^\\s*#define\\s+([A-Za-z_]\\w*)(?:\\s+(.*?))?\\s*$");
     static final Pattern COMMENTED_DEFINE = Pattern.compile(
@@ -88,9 +88,11 @@ record PackSettingsPlan(
     }
 
     /**
-     * Parses settings with load-time overrides for names the sources do not declare (declared
-     * options are already edited into the sources) and what the pack's options bring to
-     * shaders.properties: their values as macros and the programs the matching profile switches off.
+     * Parses settings with JVM overrides for names the sources do not declare; declared options are already
+     * edited into the sources.
+     *
+     * {@code environment} is what the pack's options bring to shaders.properties: their values as macros and the
+     * programs the matching profile switches off.
      */
     static PackSettingsPlan parse(
             List<PackProgram> programs,
@@ -101,18 +103,15 @@ record PackSettingsPlan(
         Map<String, Option> options = new TreeMap<>();
         Map<String, String> defaults = new TreeMap<>();
         List<String> deviations = new ArrayList<>();
-        // Only executable entry files can author global pack defaults. Helper
-        // libraries contain implementation macros that must stay local to
-        // the source that includes them.
+        // only entry sources set pack-wide defaults; an included library's macros stay local to its includer
         for (Map.Entry<String, String> file : entrySourceFiles(programs, shadersDir).entrySet()) {
             collectSourceOptions(file.getValue(), file.getKey(), options, defaults, deviations);
         }
 
         Map<String, String> overrides = normalizeOverrides(explicitOverrides, deviations);
-        // Iris writes toggle options as true/false. On is the plain define,
-        // which Chimera writes as "1" (an active bare source define is
-        // empty); off means the macro is undefined, so it leaves the defaults
-        // and is locked out of the source below (overriddenNames without a value).
+        // toggle overrides are true/false, as in Iris's option file; true becomes the plain define, written as "1"
+        // false leaves the macro undefined: it drops out of the defaults and stays locked out of the source as an
+        // overridden name with no value
         Set<String> disabled = applyToggleOverrides(overrides);
         for (Map.Entry<String, String> override : overrides.entrySet()) {
             options.put(override.getKey(), new Option(override.getKey(), "chimera.option",
@@ -124,7 +123,7 @@ record PackSettingsPlan(
         defaults.keySet().removeAll(disabled);
 
         Map<String, Profile> profiles = new TreeMap<>();
-        // In file order until the plan sorts it: the particle directives depend on that order.
+        // file order until the plan sorts it; the particle directives depend on that order
         Map<String, String> properties = new LinkedHashMap<>();
         Map<String, Boolean> programEnabled = new TreeMap<>();
         Set<String> required = new TreeSet<>();
@@ -141,7 +140,7 @@ record PackSettingsPlan(
             AdvancedImageDeclarations.dropImagesPastIrisLimit(properties, deviations);
             dropMissingTextures(resourceDeclarations, shadersDir, deviations);
         }
-        // Iris drops a !program.NAME program of the matching profile whatever its own switch says.
+        // Iris drops the matching profile's !program.NAME programs whatever their own switch says
         environment.disabledPrograms().forEach(program -> programEnabled.put(program, false));
         Set<String> unsupportedRequired = unsupportedFeatures(required, deviations);
         PackRuntimeSettings runtimeSettings = PackRuntimeSettings.build(
@@ -185,7 +184,7 @@ record PackSettingsPlan(
         return disabled;
     }
 
-    /** The required features Chimera does not provide, each recorded as a deviation; Iris refuses the pack. */
+    /** The required features Chimera does not provide, each recorded as a deviation; Iris refuses such a pack. */
     private static Set<String> unsupportedFeatures(Set<String> required, List<String> deviations) {
         Set<String> unsupported = PackFeatureFlags.unprovided(required);
         unsupported.forEach(feature -> deviations.add("REQUIRED_FEATURE_UNSUPPORTED:" + feature));
@@ -193,9 +192,9 @@ record PackSettingsPlan(
     }
 
     /**
-     * The macros shaders.properties is read with, as Iris preprocesses it: the pack's option values,
-     * Iris's standard environment with {@code IS_IRIS} and the features Chimera provides, and the JVM
-     * overrides the pack does not declare (a false one leaves its name undefined).
+     * The macros shaders.properties is read with, as Iris preprocesses it: the pack's option values, Iris's
+     * standard environment with {@code IS_IRIS} and the features Chimera provides, and the JVM overrides the pack
+     * does not declare. A false override leaves its name undefined.
      */
     private static Map<String, String> mergedConditionMacros(
             Map<String, String> optionMacros,
@@ -234,10 +233,11 @@ record PackSettingsPlan(
     }
 
     /**
-     * The launcher's option choices seed the shared shader preprocessor, with Iris's defines for the
-     * optional features the pack lists and Chimera provides. Defines authored in an executable stage
-     * are local to that variant. Those in shaders.properties stay inside that file: Iris preprocesses
-     * it on its own (PropertiesPreprocessor), and nothing it defines reaches a program or an id map.
+     * Defines for the shader preprocessor: the JVM option overrides, Iris's defines for the optional features the
+     * pack lists and Chimera provides, and the colour spaces when the pack supports colour correction.
+     *
+     * A define in an entry source stays local to it. Those in shaders.properties stay inside that file, since Iris
+     * preprocesses it on its own and nothing it defines reaches a program or an id map.
      */
     Map<String, String> preprocessorDefines() {
         Map<String, String> result = new TreeMap<>();
@@ -248,8 +248,8 @@ record PackSettingsPlan(
             }
         });
         result.putAll(PackFeatureFlags.sourceDefines(optionalFeatures));
-        // Iris adds the colour spaces, in ColorSpace's order, to the shader and id-map defines of a
-        // pack that sets supportsColorCorrection (ShaderPack); currentColorSpace serves the setting.
+        // Iris's ShaderPack adds the colour spaces, in ColorSpace's order, to the shader and id-map defines of a
+        // pack that sets supportsColorCorrection; currentColorSpace serves the setting
         if (supportsColorCorrection()) {
             result.putAll(COLOR_SPACES);
         }
@@ -261,13 +261,13 @@ record PackSettingsPlan(
             "COLOR_SPACE_ADOBE_RGB", "4");
 
     /**
-     * Iris skips a custom texture whose file it cannot read ("Unable to read the custom texture",
-     * ShaderPack.readTexture), as if it were never declared: a stage texture then leaves its
-     * sampler to the program's own binding, a customTexture name reads unit 0, and a missing
-     * texture.noise leaves the generated noise. A raw texture stays declared and refuses its
-     * program, unlike Iris, which renames its sampler to customtexN and reads unit 0 there: a 1D or
-     * 3D sampler on unit 0's 2D image is a type mismatch. An unsafe path stays declared too. Mellow
-     * and Reverie name LUT files that only some LUT_FILE options ship.
+     * Drops custom textures whose file is missing, as Iris's ShaderPack.readTexture skips one it cannot read. A
+     * stage texture then leaves its sampler to the program's own binding, a customTexture name reads unit 0, and a
+     * missing texture.noise leaves the generated noise.
+     *
+     * A raw texture stays declared and refuses its program. Iris renames its sampler to customtexN on unit 0, where
+     * a 1D or 3D sampler would read a 2D image. An unsafe path stays declared too. Mellow and Reverie name LUT files
+     * that only some LUT_FILE choices ship.
      */
     private static void dropMissingTextures(Map<String, PackResourceDeclaration> declarations, Path shadersDir,
                                             List<String> deviations) {
@@ -294,9 +294,8 @@ record PackSettingsPlan(
     }
 
     /**
-     * The defines a prepared source keeps for the compiler as {@code #define} lines: the launcher's
-     * option values, and the colour spaces, which Kappa reads as values ({@code case
-     * COLOR_SPACE_SRGB:}) as well as in conditions.
+     * Defines a prepared source keeps for the compiler as {@code #define} lines: the overridden options, and the
+     * colour spaces, which Kappa reads as values ({@code case COLOR_SPACE_SRGB:}) as well as in conditions.
      */
     Set<String> lockedDefineNames() {
         Set<String> names = new TreeSet<>(overriddenNames());
@@ -306,7 +305,7 @@ record PackSettingsPlan(
         return Collections.unmodifiableSet(names);
     }
 
-    /** Names whose values were explicitly supplied by the Chimera launcher. */
+    /** Option names set by a {@code chimera.option.*} JVM property. */
     Set<String> overriddenNames() {
         return options.entrySet().stream()
                 .filter(entry -> "chimera.option".equals(entry.getValue().source()))
@@ -318,20 +317,20 @@ record PackSettingsPlan(
         return programEnabled.getOrDefault(name, true);
     }
 
-    /** Whether Iris reads the pack's tessellation stages: it lists TESSELLATION_SHADERS (ProgramSet). */
+    /** Whether tessellation stages are read; Iris's ProgramSet reads them when the pack lists TESSELLATION_SHADERS. */
     boolean readsTessellation() {
         return hasFeature(PackFeatureFlags.TESSELLATION_SHADERS);
     }
 
-    /** Iris ShaderPack.hasFeature: the pack lists the flag as required or optional. */
+    /** Whether the pack lists the flag as required or optional, as Iris's ShaderPack.hasFeature checks. */
     boolean hasFeature(String flag) {
         return PackFeatureFlags.active(requiredFeatures, optionalFeatures, flag);
     }
 
     /**
-     * Iris matches a switch to the program's path exactly: {@code program.world0/composite2.enabled}
-     * (Photon's form) names the dimension folder's program, and a bare {@code program.composite2}
-     * only the root one. Bliss switches a bare {@code composite5} that only its folders have.
+     * Iris matches a switch to the program's path exactly. {@code program.world0/composite2.enabled}, Photon's
+     * form, names the dimension folder's program, and a bare {@code program.composite2} only the root one. Bliss
+     * switches a bare {@code composite5} that only its folders have.
      */
     boolean enabled(String folder, String name) {
         return enabled(folder == null || folder.isBlank() ? name : folder + "/" + name);
@@ -381,7 +380,7 @@ record PackSettingsPlan(
                 .sorted().toList();
     }
 
-    /** Returns the resolved live sampler slots, or the compatibility default before resolution. */
+    /** The resolved live sampler slots, or a slot for every declared sampler before resolution. */
     Map<String, Integer> customSamplerSlots() {
         if (samplerSlotsFinalized) {
             return samplerSlots;
@@ -389,18 +388,16 @@ record PackSettingsPlan(
         return defaultSamplerSlots();
     }
 
-    /** Resolves only samplers proven live in the prepared source snapshot. */
+    /** Slots for the custom samplers the prepared sources read. */
     Map<String, Integer> customSamplerSlots(Set<String> liveSamplers) {
         Map<String, Integer> slots = new TreeMap<>();
         Set<Integer> reserved = reservedTargetSlots(liveSamplers);
         List<Integer> available = SelectorNamespace.PACK_SELECTOR_SLOTS.stream()
                 .filter(slot -> !reserved.contains(slot)).toList();
         int next = 0;
-        // Advanced image samplers are allocated first. They participate in
-        // compute and graphics producer/consumer schedules, so a decorative
-        // texture declaration must not starve a required image such as the
-        // WSR or voxel sampler. The ordering remains deterministic by the
-        // property key.
+        // image samplers take slots first, so a decorative texture cannot starve an image that compute or
+        // graphics passes write and read, such as a voxel image
+        // within each group the property key orders the slots
         for (Map.Entry<String, String> entry : propertyValues.entrySet()) {
             String sampler = imageSlotKey(entry);
             if (sampler == null) {
@@ -586,10 +583,8 @@ record PackSettingsPlan(
     }
 
     /**
-     * The dimension a world folder's programs name for themselves (world0 defines OVERWORLD). Like the
-     * stage macros, its define holds for those files only. Chimera applies option defaults to every
-     * program and to shaders.properties, so it must not become a pack-wide default. Iris edits an option's
-     * line in place and injects no defaults, so it needs no such rule (OptionAnnotatedSource).
+     * A dimension macro a world folder's programs define for themselves, such as OVERWORLD in world0. Like the
+     * stage macros, it holds for those files only, so it never becomes a pack-wide default.
      */
     static boolean isDimensionContextMacro(String name) {
         return name.equals("OVERWORLD") || name.equals("NETHER") || name.equals("END");

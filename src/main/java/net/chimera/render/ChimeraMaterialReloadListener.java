@@ -9,15 +9,12 @@ import org.slf4j.LoggerFactory;
 import java.util.function.Supplier;
 
 /**
- * Resource-reload generation boundary for material companions.
+ * Starts a new material map generation on each resource reload.
  *
- * <p>Registered through RegisterClientReloadListenersEvent, so it applies after
- * vanilla's listeners, textures included: atlas uploads observed during a
- * reload already belong to the incoming pack set when {@code apply} runs.
- * The listener only signals: {@code apply} advances the owner generation,
- * which retires built companions and identity caches at the next pump.
- * No file or GPU work happens here, and a missing owner (chimera idle) is
- * a silent no-op.</p>
+ * Registered through RegisterClientReloadListenersEvent, so it applies after vanilla's listeners, textures
+ * included, and atlas uploads seen during the reload already belong to the incoming packs. {@code apply} only
+ * bumps the owner's generation (MaterialMapOwner.bumpGeneration), which retires the simple-texture maps; they
+ * close at the next pump. It does no file or GPU work, and nothing while Chimera has no pass.
  */
 public final class ChimeraMaterialReloadListener extends SimplePreparableReloadListener<Integer> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChimeraMaterialReloadListener.class);
@@ -28,7 +25,7 @@ public final class ChimeraMaterialReloadListener extends SimplePreparableReloadL
         this.owners = owners;
     }
 
-    /** Production listener over the live renderer-owned material maps. */
+    /** The listener over the running renderer's material maps. */
     public static ChimeraMaterialReloadListener live() {
         return new ChimeraMaterialReloadListener(() -> {
             var pass = ChimeraRenderer.getMainPass();

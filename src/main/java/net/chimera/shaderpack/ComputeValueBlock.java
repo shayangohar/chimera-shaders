@@ -6,10 +6,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The std140 uniform block a translated compute stage reads its value uniforms from. Each member
- * states the offset dispatch writes it at: implicit std140 packs a scalar into a vec3's fourth
- * word, which this layout leaves empty. Solas's frameCounter, declared after cameraPosition, read
- * that empty word and stayed 0.
+ * The std140 uniform block a translated compute stage reads its value uniforms from.
+ *
+ * Each member states the offset dispatch writes it at. This layout gives a vec3 four whole words, where
+ * implicit std140 would pack a following scalar into the vec3's fourth word, which dispatch leaves empty.
  */
 public final class ComputeValueBlock {
     /** std140 sizes of the matrix value uniforms. */
@@ -20,7 +20,7 @@ public final class ComputeValueBlock {
 
     private ComputeValueBlock() {}
 
-    /** One live value of the block: dispatch writes it at offset, and the block declares it there. */
+    /** A live value, which dispatch writes and the block declares at {@code offset}. */
     public record Value(String name, String type, int offset, int size) {}
 
     /** Lays the values out in the map's order, each at its std140 alignment. */

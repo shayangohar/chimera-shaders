@@ -14,17 +14,13 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
- * Converts a pack fragment stage to Vulkan GLSL for its family (post, terrain, water, shadow,
- * entity, particle, sky and cloud): its outputs, sampler bindings and generated uniform blocks.
- * Deterministic, with no external state; a conversion that fails returns null, so the caller
- * falls back to the identity pipeline.
+ * Converts a pack fragment stage to Vulkan GLSL for its family (post, terrain, water, shadow, entity,
+ * particle, sky and cloud): its outputs, sampler bindings and generated uniform blocks. A conversion that
+ * fails returns null.
  *
- * <ul>
- * <li>Post stages draw fullscreen: varyings take location 0, an optional generated pack UBO
- *     sits at binding 0 and samplers follow at 1, 2, ... (0, 1, ... without uniforms).
- * <li>World stages read the converted vertex stage's varyings by location, and their samplers
- *     follow the host uniform blocks of their pipeline config.
- * </ul>
+ * Post stages draw fullscreen; the generated pack uniform block, if any, is binding 0 and the samplers follow
+ * it. World stages read the converted vertex stage's varyings by location, and their samplers follow the host
+ * and pack uniform blocks of their pipeline.
  */
 public final class FragmentConverter {
     private FragmentConverter() {}
@@ -35,19 +31,16 @@ public final class FragmentConverter {
     private static final Set<String> COVERAGE_PEER_TYPES = Set.of("float", "vec2", "vec3", "vec4");
 
     /**
-     * The host blocks ahead of a terrain-lane program's own uniform block: chimera_terrain.json's
-     * view and fog blocks for terrain and water, chimera_shadow.json's view block for shadow.
+     * How many host blocks precede a terrain-lane program's own uniform block: chimera_terrain.json's view
+     * and fog blocks for terrain and water, chimera_shadow.json's view block for shadow.
      */
     static int terrainHostBlocks(UniformRegistry.Stage stage) {
         return stage == UniformRegistry.Stage.SHADOW ? 1 : 2;
     }
 
     /**
-     * Immutable inputs for one fragment conversion. Replaces the former
-     * positional overload ladder: callers start from {@link #of} or
-     * {@link #withAutoPlan} and add only the plans their stage needs.
-     * Missing plans keep the old overload defaults (empty or disabled),
-     * so migrating a caller is behavior-preserving by construction.
+     * Inputs for one fragment conversion. Callers start from {@link #of} or {@link #withAutoPlan} and add the
+     * plans their stage needs; a plan left out is empty or disabled.
      */
     public record FragmentConversionRequest(
             String source,
@@ -65,14 +58,13 @@ public final class FragmentConverter {
             atlasSamplers = atlasSamplers == null ? Set.of() : atlasSamplers;
         }
 
-        /** Minimal request; every plan defaults to empty or disabled. */
         public static FragmentConversionRequest of(String source, Path sourceFile,
                 boolean geometryStage, int[] geometrySamplerSlots) {
             return new FragmentConversionRequest(source, sourceFile, geometryStage, geometrySamplerSlots,
                     null, null, null, null, null, Set.of());
         }
 
-        /** Minimal request with the interface plan derived from the source, as the old shims did. */
+        /** Like {@link #of}, with a terrain layout and the interface plan derived from the source. */
         public static FragmentConversionRequest withAutoPlan(String source, Path sourceFile,
                 boolean geometryStage, int[] geometrySamplerSlots,
                         LegacyGlslConverter.TerrainVaryingLayout terrainLayout) {
@@ -117,13 +109,12 @@ public final class FragmentConverter {
                     postVaryingLayout, atlasSamplers);
         }
 
-        /** Runs the conversion; returns null when the source is outside the executable contract. */
+        /** Runs the conversion; null if it fails. */
         public String convert() {
             return convertFragment(this);
         }
     }
 
-    /** Converts a post fragment with its output target plan. */
     public static String convertPostFragment(
             String source,
             Path sourceFile,
@@ -136,7 +127,7 @@ public final class FragmentConverter {
                 .convert();
     }
 
-    /** Converts a post fragment against a paired fullscreen vertex layout. */
+    /** Converts a post fragment that reads its varyings at the paired fullscreen vertex stage's locations. */
     public static String convertPostFragment(
             String source,
             Path sourceFile,
@@ -158,7 +149,7 @@ public final class FragmentConverter {
         try {
             return new FragmentConversion(request).convert();
         } catch (Exception e) {
-            // The planner reports POST_CONVERTER_UNSUPPORTED; the cause belongs in the log.
+            // the planner reports POST_CONVERTER_UNSUPPORTED; only the log gets the cause
             LoggerFactory.getLogger("chimera").warn(
                     "[chimera] fragment conversion failed: {}", e.toString());
             return null;
@@ -172,7 +163,7 @@ public final class FragmentConverter {
         private final UniformRegistry.Stage stage;
         private final boolean geometryStage;
         private String src;
-        /** A world stage authored for 450 and later keeps its own version line and layout. */
+        /** A world stage in modern GLSL: version 450 or later, or a shadow stage with in/out globals. */
         private boolean modern;
 
         FragmentConversion(FragmentConversionRequest request) {
@@ -223,7 +214,7 @@ public final class FragmentConverter {
             modern = (version != null && version.number() >= 450)
                     || (stage.shadowPass() && !TerrainDeclarations.modern(
                             src, TerrainDeclarations.MODERN_STORAGES).isEmpty());
-            // One version line for Vulkan, where an authored profile means nothing.
+            // Vulkan gets one version line; an authored profile means nothing there
             src = LegacyGlslConverter.withoutVersionLines(src);
             if (modern) {
                 src = "#version 460\n" + src;
@@ -247,16 +238,13 @@ public final class FragmentConverter {
         }
 
         /**
-         * Rewrites texture calls and binds each sampler to its descriptor. Only the projected
-         * stage resources are emitted; descriptor positions still come from the canonical program
-         * layout, never the filtered stage order.
+         * Rewrites texture calls and binds each sampler the stage declares. A sampler's binding comes from
+         * the program's layout, not from the stage's own sampler order.
          */
         private void bindSamplers() {
             if (geometryStage) {
-                // GLSL 460: 'texture' is the sampling function name, so a pack sampler declared as
-                // 'uniform sampler2D texture;' (the OptiFine atlas convention) is renamed uniformly.
-                // Runs BEFORE convertTextureCalls so the function-name rewrite below creates
-                // texture(chimeraTexture, ...) instead of renaming the function into a variable call.
+                // in GLSL 460 'texture' is the sampling function, so OptiFine's 'uniform sampler2D texture'
+                // atlas is renamed; this runs first so convertTextureCalls yields texture(chimeraTexture, ...)
                 src = GlslTokenRewriter.renameSamplerIdentifier(src, "texture", "chimeraTexture");
             }
             src = LegacyGlslConverter.convertTextureCalls(src);
@@ -279,7 +267,6 @@ public final class FragmentConverter {
             bindSamplerDeclarations();
         }
 
-        /** Rewrites each declared sampler to its descriptor binding. */
         private void bindSamplerDeclarations() {
             int bindingBase = geometryStage
                     ? geometrySamplerBindingBase(interfacePlan)
@@ -314,7 +301,7 @@ public final class FragmentConverter {
             }
             if (src.contains("gl_FragColor") || src.contains("gl_FragData")) {
                 src = GlslTokenRewriter.rewriteSingleOutput(src);
-                // A single-attachment pass consumes nothing beyond target 0.
+                // a single-attachment pass has nothing past target 0; drop gl_FragData writes beyond it
                 src = src.replaceAll("gl_FragData\\s*\\[\\s*[1-9][0-9]*\\s*\\]\\s*=\\s*[^;]+;\\s*", "");
                 return "layout(location = 0) out vec4 fragColor;";
             }
@@ -322,10 +309,10 @@ public final class FragmentConverter {
         }
 
         /**
-         * Each shadowcolor target the program writes is the shadow pass attachment of its index.
-         * Shadow colours keep the type the pack writes (Photon writes a vec3), as post outputs
-         * do; a colour below the highest written that the pack does not write is declared vec4,
-         * and its attachment's writes are masked.
+         * Each shadowcolor the program writes goes to the shadow pass attachment of its index, in the type
+         * the pack writes (Photon writes a vec3), as post outputs do. Every colour up to the highest written,
+         * and at least two, is declared; one the pack does not write is a vec4 whose attachment writes are
+         * masked.
          */
         private String rewriteShadowOutputs() {
             PostTargetPlan shadowOutputs = PostTargetPlan.parseShadow("shadow", src, Map.of()).plan();
@@ -375,9 +362,8 @@ public final class FragmentConverter {
         }
 
         /**
-         * GLSL requires global declarations to precede their first use; an output declared at the
-         * end of the file is a forward reference glslang rejects ("'fragColor' : undeclared
-         * identifier"). The declarations go directly after the version line.
+         * Puts the generated declarations right after the version line, since glslang rejects a use before
+         * the declaration ("'fragColor' : undeclared identifier").
          */
         private String assemble(String outputDeclarations, String uniformBlock) {
             String declarations = (stage.perVertexEntityIdentity()
@@ -399,17 +385,19 @@ public final class FragmentConverter {
     private static final Pattern FLOAT_OUTPUT = Pattern.compile("float|vec[234]|float16_t|f16vec[234]");
 
     /**
-     * {@code source} writing what a NaN shows in place of a NaN in its float outputs, at the end of
-     * main's body: a colour with a NaN component is opaque black, or nothing at alpha 0, and another
-     * output takes 0 for each NaN component. NVIDIA's GL driver blends a term weighed by zero to 0
-     * however NaN it is, and Vulkan to NaN. So under GL a NaN colour at alpha 0 adds nothing, and one
-     * at any other alpha blends to NaN, which shows black over what it covers; a later draw that
-     * weighs that NaN by zero then covers it. RenderPearl 2.8's float16 path computes NaN for texels
-     * of no colour: its rain quads' clear texels, at alpha 0, which drew a black quad over the world
-     * while opaque, and its name-tag background, at 25%, which Iris shows black under the glyphs. A 0
-     * there showed the unlit scene instead, bright at night, as the tag skips deferred lighting.
-     * Each output goes through a helper overloaded for its type, so it still resolves when a 16-bit
-     * output compiles as its 32-bit type.
+     * Replaces NaNs in {@code source}'s float outputs, at the end of main, with what they show under GL: a
+     * colour with a NaN component becomes opaque black, or nothing at alpha 0; other outputs take 0 for each
+     * NaN component.
+     *
+     * NVIDIA's GL driver blends a term weighed by zero to 0 even when it is NaN, where Vulkan gives NaN. So
+     * under GL a NaN colour at alpha 0 adds nothing, and at any other alpha it blends to NaN and shows black
+     * until a later draw weighs it by zero. RenderPearl 2.8's float16 path computes NaN for colourless texels:
+     * its rain quads' clear texels at alpha 0, and its name-tag background at 25%, which Iris shows black
+     * under the glyphs. Writing 0 there would show the unlit scene, bright at night, since the tag skips
+     * deferred lighting.
+     *
+     * A helper overloaded per type does the replacing, so it still resolves when a 16-bit output compiles as
+     * its 32-bit type.
      */
     static String withoutNanOutputs(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -417,15 +405,15 @@ public final class FragmentConverter {
         Set<String> types = new TreeSet<>();
         StringBuilder statements = new StringBuilder();
         for (GlslDeclarations.Variable output : GlslDeclarations.variables(tree)) {
-            // A built-in, as RenderPearl's depth_unchanged gl_FragDepth, and an output the program
-            // never writes stay unwritten: a write would store an undefined value.
+            // built-ins such as RenderPearl's depth_unchanged gl_FragDepth, and outputs the program never
+            // writes, stay unwritten; a write would store an undefined value
             if (!output.qualifiers().contains("out") || !output.plain() || output.name().startsWith("gl_")
                     || !FLOAT_OUTPUT.matcher(output.type()).matches()
                     || GlslTokenRewriter.identifierCount(source, output.name()) < 2) {
                 continue;
             }
             types.add(output.type());
-            // A 16-bit output may compile as its 32-bit type (GlslVendorExtensions.widenInterfaces).
+            // a 16-bit output may compile as its 32-bit type (GlslVendorExtensions.widenInterfaces)
             String widened = GlslVendorExtensions.widenedType(output.type());
             if (widened != null) types.add(widened);
             statements.append(output.name()).append(" = ").append(helper).append('(').append(output.name())
@@ -444,7 +432,7 @@ public final class FragmentConverter {
         int main = GlslTokenRewriter.mainDefinition(tree).range().start();
         String withHelpers = tree.print(List.of(new GlslTree.Edit(new GlslTree.Range(main, main),
                 helpers.toString())));
-        // At the end of main's body, after the alpha test PackAlphaTestPlan appended: a NaN alpha is discarded first.
+        // after the alpha test PackAlphaTestPlan appended, so a NaN alpha is discarded first
         return GlslTokenRewriter.appendMainBody(withHelpers, statements.toString().strip());
     }
 
@@ -458,7 +446,7 @@ public final class FragmentConverter {
         return GlslTokenRewriter.rewritePostOutputs(result, targetPlan);
     }
 
-    /** Keeps the historical single-attachment geometry symbol stable. */
+    /** A one-target geometry output is named {@code fragColor}, as on the single-output path. */
     static String convertGeometryOutputs(String source, GeometryOutputPlan outputPlan) {
         String result = convertPostOutputs(source, outputPlan.targetPlan());
         if (outputPlan.targetSlots().size() == 1) {
@@ -491,8 +479,8 @@ public final class FragmentConverter {
         for (PostTargetPlan.ModernOutput output : outputs) {
             String declaration = source.substring(output.start(), output.end());
             if (targetPlan.discardedOutputs().contains(output.location())) {
-                // Past the route: GL discards it, so it becomes a private global the
-                // pack still writes. Line breaks stay so line numbers do not move.
+                // past the route GL discards it: make it a private global the pack still writes, keeping
+                // the line breaks so line numbers hold
                 result.append(source, last, output.start())
                         .append(declaration.replaceAll("[^\\r\\n]", ""))
                         .append(output.type()).append(' ').append(output.name()).append(';');
@@ -503,7 +491,7 @@ public final class FragmentConverter {
                 throw new IllegalArgumentException("modern fragment output exceeds target route: " + output.name());
             }
             replacements.put(output.name(), "chimeraFragColor" + output.location());
-            // The generated declaration replaces this one; keep its line breaks.
+            // the generated declaration replaces this one; keep its line breaks
             result.append(source, last, output.start())
                     .append(declaration.replaceAll("[^\\r\\n]", ""));
             last = output.end();
@@ -536,7 +524,6 @@ public final class FragmentConverter {
         return declarations.toString();
     }
 
-    /** Converts a particle fragment with the shared host sampler and varying rules. */
     public static String convertParticleFragment(
             String source,
             Path sourceFile,
@@ -548,7 +535,6 @@ public final class FragmentConverter {
                 particleLayout, interfacePlan, null);
     }
 
-    /** Particle fragment conversion carrying the authored geometry output plan. */
     public static String convertParticleFragment(
             String source,
             Path sourceFile,
@@ -569,7 +555,6 @@ public final class FragmentConverter {
         }
     }
 
-    /** Converts an entity fragment with the shared varying and descriptor rules. */
     public static String convertEntityFragment(
             String source,
             Path sourceFile,
@@ -581,7 +566,6 @@ public final class FragmentConverter {
                 interfacePlan, null);
     }
 
-    /** Entity fragment conversion carrying the authored geometry output plan. */
     public static String convertEntityFragment(
             String source,
             Path sourceFile,
@@ -615,7 +599,7 @@ public final class FragmentConverter {
                 .convert();
     }
 
-    /** Adds the coverage output to a converted geometry fragment. */
+    /** Adds a {@code chimeraCoverage} output after the highest colour output, written with the fragment depth. */
     public static String withCoverageOutput(String source) {
         if (source == null || source.contains("gl_FragDepth")
                 || GlslTokenRewriter.containsIdentifier(source, "chimeraCoverage")) {
@@ -642,10 +626,9 @@ public final class FragmentConverter {
     }
 
     /**
-     * gbuffers_terrain and gbuffers_water share one terrain contract: the
-     * terrain vertex inputs, the generated pack uniform block at binding 2,
-     * the host terrain block at binding 1, and the terrain alpha test. They
-     * differ only in the sampled inputs their stage table admits.
+     * gbuffers_terrain and gbuffers_water share one contract: the terrain vertex inputs, the host blocks at
+     * bindings 0 and 1, the pack uniform block at 2 and the terrain alpha test. Only the samplers their stage
+     * tables admit differ.
      */
     static boolean terrainContract(UniformRegistry.Stage stage) {
         return stage == UniformRegistry.Stage.GEOMETRY || stage == UniformRegistry.Stage.TRANSLUCENT;
@@ -663,16 +646,14 @@ public final class FragmentConverter {
         if (terrainContract(stage) || stage == UniformRegistry.Stage.SHADOW) {
             return terrainHostBlocks(stage) + (uniforms ? 1 : 0);
         }
-        // Sky and clouds: binding 2 holds the pack's uniform block, or an empty block in its place
-        // (PackDescriptorContracts.familyLayout).
+        // sky and clouds: binding 2 holds the pack's uniform block, or an empty one in its place
+        // (PackDescriptorContracts.familyLayout)
         return 3;
     }
 
     /**
-     * Descriptor binding of one geometry-family sampler. Both stages of a
-     * program share one descriptor layout (VulkanMod exposes every image
-     * binding to all graphics stages), so the vertex and fragment stages
-     * declare a sampler at the same binding.
+     * Descriptor binding of one geometry-family sampler, or -1. VulkanMod exposes every image binding to all
+     * graphics stages, so the vertex and fragment stages declare a sampler at the same binding.
      */
     static int geometrySamplerBinding(
             String name, int[] slots, UniformRegistry.ProgramInterface interfacePlan
@@ -682,10 +663,10 @@ public final class FragmentConverter {
     }
 
     /**
-     * One block layout shared by both stages. A stage that declares its own file-scope global of
-     * a member's name (Bliss deferred.vsh: {@code vec3 sunVec = ...} beside the fragment's
-     * {@code uniform vec3 sunVec}) keeps the slot under a reserved name, so its global wins in
-     * that stage as it does under Iris, where each stage owns its uniforms.
+     * One block layout shared by both stages. A stage with its own file-scope global of a member's name
+     * (Bliss deferred.vsh declares {@code vec3 sunVec = ...} beside the fragment's {@code uniform vec3 sunVec})
+     * keeps the slot under a reserved name, so its global wins in that stage as under Iris, where each stage
+     * owns its uniforms.
      */
     static String generatedUniformBlock(List<UniformRegistry.UniformDeclaration> uniforms,
                                                 String stageSource) {
@@ -719,10 +700,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * Vulkan GLSL requires named shadow-block members to be accessed through
-     * the block instance. Keep canonical field names in PipelineConfig and
-     * qualify only executable source references; a parameter or local that
-     * shares a uniform's name keeps it (GlslScopedReferences).
+     * Reads shadow uniforms through the block instance; the members keep the names PipelineConfig uses. A
+     * parameter or local that shares a uniform's name keeps it (GlslScopedReferences).
      */
     static String qualifyShadowUniformReferences(
             String source,
@@ -748,7 +727,7 @@ public final class FragmentConverter {
         return block.append("};\n").toString();
     }
 
-    /** Generated entity fragment UBO. Vertex transform blocks are supplied by the host. */
+    /** Pack uniform block of entity, sky and cloud fragments, at binding 2 after the host's blocks. */
     static String entityUniformBlock(List<UniformRegistry.UniformDeclaration> uniforms) {
         StringBuilder block = new StringBuilder("layout(binding = 2) uniform ChimeraEntityUniforms {\n");
         for (UniformRegistry.UniformDeclaration uniform : uniforms) {
@@ -779,10 +758,9 @@ public final class FragmentConverter {
     }
 
     /**
-     * A modern terrain fragment's one {@code out vec4 name;} becomes fragColor at location 0, with
-     * or without the layout a fragment stage keeps. The declaration goes with the blank lines
-     * before it and the whitespace after it, as the {@code (?m)^\s*out vec4 name;\s*} pattern it
-     * replaces removed them.
+     * A modern terrain fragment's single {@code out vec4 name;}, with or without a layout, becomes
+     * {@code fragColor} at location 0; more than one is unsupported. The authored declaration goes with
+     * the blank lines before it and the whitespace after it.
      */
     static String convertModernGeometryOutputs(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -811,8 +789,7 @@ public final class FragmentConverter {
         if (!name.equals("fragColor")) {
             result = GlslTokenRewriter.replaceIdentifiers(result, Map.of(name, "fragColor"));
         }
-        // Keep the version directive at the start of the source. The final
-        // declaration pass inserts its other generated declarations after it.
+        // after the version line, where assemble also puts the other generated declarations
         return LegacyGlslConverter.insertAfterFirstLine(result, "layout(location = 0) out vec4 fragColor;\n");
     }
 
@@ -847,9 +824,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * Iris injects these scheduler constants before a shadow shader runs.
-     * Production sources receive these from PackEngineDefines before
-     * preprocessing. Direct converter fixtures still use the canonical ABI.
+     * Iris's render stage constants for shadow shaders. Pack sources already get them from PackEngineDefines
+     * before preprocessing; the guarded copies serve sources converted directly, as in tests.
      */
     static final String SHADOW_RENDER_STAGE_DEFINES = """
             #ifndef MC_RENDER_STAGE_TERRAIN_SOLID

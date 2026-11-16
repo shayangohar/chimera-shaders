@@ -43,7 +43,7 @@ final class ShadowTerrainProgramTest {
 
     @Test
     void opaqueLayersReadTheSolidStage() {
-        // Sodium draws Iris's cutout pass in the solid layer call; VulkanMod merges solid blocks into cutout_mipped.
+        // Sodium draws Iris's cutout pass in the solid layer call; VulkanMod merges solid blocks into cutout_mipped
         for (TerrainRenderType type : List.of(TerrainRenderType.SOLID, TerrainRenderType.CUTOUT_MIPPED,
                 TerrainRenderType.CUTOUT)) {
             assertEquals(PackRenderingPhase.TERRAIN_SOLID, TerrainLayers.phase(type), type.name());

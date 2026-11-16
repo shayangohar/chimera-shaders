@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Writes the running game's failure reports (PackFailureReport) from what the pass holds: the
- * versions, the device, and the pack as loaded with its options and conformance report.
+ * Writes the running game's failure reports (PackFailureReport) from what the pass holds: the versions, the
+ * device, and the pack as loaded with its options and conformance report.
  */
 final class PackFailureReporter implements PackFailureNotices.Reporter {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -29,8 +29,8 @@ final class PackFailureReporter implements PackFailureNotices.Reporter {
     }
 
     /**
-     * Writes {@code failure}'s report; null when it cannot. It runs inside failure handlers, a post
-     * window's among them, so nothing it does may throw out of it.
+     * Null when the report cannot be written. Runs inside failure handlers, such as a post window's, so
+     * nothing may throw out of it.
      */
     @Override
     public Path write(PackFailureNotices.Failure failure) {
@@ -54,7 +54,7 @@ final class PackFailureReporter implements PackFailureNotices.Reporter {
         return PackFailureReport.redact(text, List.of(System.getProperty("user.home", "")), names);
     }
 
-    /** The pack the failure struck, as loaded; null when it is not the loaded one (it did not load). */
+    /** The pack the failure struck, as loaded; null when that pack did not load. */
     private PackFailureReport.Pack pack(PackFailureNotices.Failure failure) {
         Path path = pass.sessions.packPath;
         if (path == null || !PackSessionLifecycle.packLabel(path).equals(failure.pack())) return null;

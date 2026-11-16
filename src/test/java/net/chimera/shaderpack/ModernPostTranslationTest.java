@@ -13,7 +13,7 @@ import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The measured modern post translation subset. */
+/** Post programs in modern GLSL: what translates, authored fullscreen vertices, and per-target fallback. */
 final class ModernPostTranslationTest {
     @Test
     void modernPostTranslation() {
@@ -44,7 +44,7 @@ final class ModernPostTranslationTest {
         assertTrue(!composite1.convertedFragment().contains("#version 400"),
                 "old version directive remains");
 
-        // Any desktop version converts (GlslVersion); GLSL ES is not one.
+        // any desktop version converts (GlslVersion); GLSL ES is not one
         assertTrue(!unsupported.executable(), "GLSL ES post was not rejected");
         assertTrue(unsupported.deviations().stream()
                         .anyMatch(value -> value.startsWith("TRANSLATION_UNSUPPORTED:")

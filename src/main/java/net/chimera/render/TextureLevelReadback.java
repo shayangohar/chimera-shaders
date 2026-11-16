@@ -29,9 +29,9 @@ public final class TextureLevelReadback {
     private TextureLevelReadback() {}
 
     /**
-     * Copies {@code level} of {@code image} into {@code destination}, an image {@code width} by
-     * {@code height} of {@code texelBytes} a texel. Only the part both cover is copied. A level the
-     * image lacks, or texels of another size, leave the destination as it was.
+     * Copies {@code level} of {@code image} into {@code destination}, an image {@code width} by {@code height}
+     * with {@code texelBytes} per texel. Only the part both cover is copied. A level the image lacks, or
+     * texels of another size, leave the destination as it was.
      */
     public static void read(VulkanImage image, int level, long destination, int width, int height, int texelBytes) {
         int copyWidth = Math.min(width, Math.max(1, image.width >> level));
@@ -57,14 +57,14 @@ public final class TextureLevelReadback {
         }
     }
 
-    /** Records and waits for the copy of the level's corner into {@code buffer}, then restores the image's layout. */
+    /** Copies the level's corner into {@code buffer}, restoring the image's layout, and waits for the GPU. */
     private static void copyLevel(MemoryStack stack, VulkanImage image, int level, long buffer, int width, int height) {
         int previous = image.getCurrentLayout();
         CommandPool.CommandBuffer commands = DeviceManager.getGraphicsQueue().beginCommands();
         image.transitionImageLayout(stack, commands.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         ImageUtil.copyImageToBuffer(commands.getHandle(), buffer, image.getId(), level, width, height,
                 0, 0, 0, 0, 0, image.aspect);
-        // As ImageUtil.downloadTexture leaves it: a texture that was never laid out becomes readable.
+        // as ImageUtil.downloadTexture leaves it: a texture that was never laid out becomes readable
         image.transitionImageLayout(stack, commands.getHandle(),
                 previous == VK_IMAGE_LAYOUT_UNDEFINED ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : previous);
         long fence = DeviceManager.getGraphicsQueue().submitCommands(commands);

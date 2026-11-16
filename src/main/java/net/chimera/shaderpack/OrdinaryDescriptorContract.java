@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** Finalized layout and its descriptor inventory; no Vulkan objects are allocated here. */
+/** A program's final descriptor layout and its bindings in order; allocates no Vulkan objects. */
 final class OrdinaryDescriptorContract {
     private final PackDescriptorLayout layout;
     private final List<PackAdvancedResourcePlan.DescriptorBinding> descriptors;

@@ -14,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris PackShadowDirectives' sampling settings. Chimera drew every pack's shadowcolor0 and
- * shadowcolor1 as RGBA8 cleared to white: Kappa's RGBA16, Spring's RGBA16F and BSL's grey clear
- * were all lost. The pack's shadow resolution, distance and depth range are read as Iris reads them.
+ * Iris PackShadowDirectives' sampling settings: each shadow target's format, clear and filtering, such
+ * as Kappa's RGBA16, Spring's RGBA16F and BSL's grey clear. The pack's shadow resolution, distance and
+ * depth range are read as Iris reads them.
  */
 final class ShadowTargetDirectivesTest {
     @Test
@@ -58,8 +58,8 @@ final class ShadowTargetDirectivesTest {
     }
 
     /**
-     * Chimera samples the base level of a shadow depth Iris mipmaps after its shadow pass
-     * and says so; a pack without a shadow program has no such pass and no chain.
+     * Chimera samples the base level of a shadow depth Iris mipmaps after its shadow pass, and says so;
+     * a pack without a shadow program has no such pass and no chain.
      */
     @Test
     void unbuiltShadowDepthMipmapsAreReportedWhereThereIsAShadowPass(@TempDir Path root) throws IOException {
@@ -125,7 +125,7 @@ final class ShadowTargetDirectivesTest {
         assertTrue(shadow.executable() && shadow.deviations().contains("SHADOW_DRAWBUFFERS_RESET:3"),
                 shadow.deviations().toString());
         assertTrue(legacy.plan().program("composite").deviations().contains("SAMPLER_UNIT0_COLORTEX0:shadowcolor5"));
-        // Unregistered, shadowcolor2 reads unit 0 in a world program too: the albedo texture.
+        // unregistered, shadowcolor2 reads unit 0 in a world program too, the albedo texture
         PackProgramPlan terrain = legacy.plan().program("gbuffers_terrain");
         assertTrue(terrain.deviations().contains("SAMPLER_UNIT0_ALBEDO:shadowcolor2") && terrain.executable(),
                 terrain.deviations().toString());
@@ -159,7 +159,7 @@ final class ShadowTargetDirectivesTest {
     /**
      * A shadow program with no target directive draws to {0, 1}, as Iris's shadow framebuffers do
      * when the draw buffers are unknown. Kappa writes its material ids to shadowcolor1 that way for
-     * its shadowcomp to read; routing that output to nothing left shadowcolor1 at its clear colour.
+     * its shadowcomp to read; routing that output to nothing would leave shadowcolor1 at its clear colour.
      */
     @Test
     void aShadowProgramWithoutADirectiveDrawsToTheFirstTwo(@TempDir Path root) throws IOException {

@@ -9,11 +9,12 @@ import net.vulkanmod.vulkan.util.MappedBuffer;
 import java.util.Set;
 
 /**
- * Iris's per-draw texture and blend uniforms (CommonUniforms), set as each draw uploads its
- * uniforms. gtextureSize is the size of the texture on unit 0, the draw's albedo (ExtendedShader
- * binds RenderSystem's shader texture 0 there before it updates its uniforms). blendFunc is the
- * draw's blend as GL factors, or zero with blending off: the vanilla render type's blend, or the
- * program's {@code blend.<program>} where Iris reports it (PackPipelines.blendFuncOverride).
+ * Iris's per-draw texture and blend uniforms (CommonUniforms), set as each draw uploads its uniforms.
+ *
+ * gtextureSize is the size of the texture on unit 0, the draw's albedo; ExtendedShader binds RenderSystem's
+ * shader texture 0 there before it updates its uniforms. blendFunc is the draw's blend as GL factors, or zero
+ * with blending off: the vanilla render type's blend, or the program's {@code blend.<program>} where Iris
+ * reports it (PackPipelines.blendFuncOverride).
  */
 final class IrisDrawState implements FrameValueSource {
     static final Set<String> NAMES = Set.of("gtextureSize", "blendFunc");
@@ -32,7 +33,7 @@ final class IrisDrawState implements FrameValueSource {
         return side == null ? null : side.programBlend;
     }
 
-    /** Sets the next draw's values, the program's blend or else the host's; true when either changed. */
+    /** Sets the next draw's values, with the program's blend over the host's; true when either changed. */
     boolean set(int width, int height, PackBlendPlan.Mode programBlend, PipelineState.BlendInfo host) {
         boolean changed = textureSize[0] != width || textureSize[1] != height;
         textureSize[0] = width;
@@ -45,7 +46,7 @@ final class IrisDrawState implements FrameValueSource {
                 host.dstAlphaFactor) || changed;
     }
 
-    /** Writes a blend's GL factors, or zero with blending off, in place; true when they changed. */
+    /** True when the blend's GL factors changed. */
     private boolean setBlend(boolean enabled, int srcColor, int dstColor, int srcAlpha, int dstAlpha) {
         int[] factors = {srcColor, dstColor, srcAlpha, dstAlpha};
         boolean changed = false;

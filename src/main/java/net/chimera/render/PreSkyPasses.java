@@ -10,17 +10,16 @@ import net.vulkanmod.vulkan.Renderer;
 
 /**
  * What Iris draws just before the sky (MixinLevelRenderer.iris$renderTerrainShadows,
- * IrisRenderingPipeline.renderShadows): the shadow pass, then the prepare passes. A prepare pass
- * so reads this frame's shadow map, and Escheridia's prepare.csh the voxels its shadow pass wrote
- * into a map cleared at frame start.
+ * IrisRenderingPipeline.renderShadows): the shadow pass, then the prepare passes. A prepare pass so reads this
+ * frame's shadow map, and Escheridia's prepare.csh reads the voxels its shadow pass wrote into a map cleared at
+ * frame start.
  *
- * <p>VulkanMod's per-frame section setup (WorldRenderer.setupRenderer) resets the frame's indirect
- * draw buffers, and the shadow pass records indirect draws. LevelRenderer.setupRender calls it
- * after the sky, so a frame that draws shadows here runs the setup first and skips that call
- * (WorldRendererMixin).</p>
+ * VulkanMod's per-frame section setup (WorldRenderer.setupRenderer) resets the frame's indirect draw buffers,
+ * and the shadow pass records indirect draws. LevelRenderer.setupRender runs that setup after the sky, so a
+ * frame that draws shadows here runs it first and skips the later call (WorldRendererMixin).
  */
 public final class PreSkyPasses {
-    // Render thread only.
+    // render thread only
     private static boolean setupRanEarly;
 
     private PreSkyPasses() {}
@@ -31,11 +30,12 @@ public final class PreSkyPasses {
     }
 
     /**
-     * The shadow pass when the frame armed it, then the prepare window. renderSky draws its disc
-     * with the shader current as it starts, which vanilla sets just before this; the shadow
-     * casters leave theirs current, so it is put back, as Iris sets the position shader again
-     * after its shadow pass (MixinLevelRenderer.iris$beginSky). Left over, a particle shader drew
-     * the disc of a pack without gbuffers_skybasic from attributes the disc does not have.
+     * Runs the shadow pass when the frame armed it, then the prepare window.
+     *
+     * renderSky draws its disc with the shader current as it starts, which vanilla sets just before this call.
+     * The shadow casters leave their own shader current, so the host shader is put back, as Iris sets the
+     * position shader again after its shadow pass (MixinLevelRenderer.iris$beginSky). Otherwise a pack without
+     * gbuffers_skybasic could draw the disc with a particle shader, from attributes the disc does not have.
      */
     public static void render(ChimeraMainPass pass, Camera camera, Frustum frustum, boolean capturedFrustum,
                               boolean spectator) {

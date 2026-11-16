@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** Immutable plan for pack-visible depth snapshots. */
+/** Which depth snapshots, depthtex0 to depthtex2, a pack's programs read. */
 public record DepthGraphPlan(
         boolean depthtex0,
         boolean depthtex1,

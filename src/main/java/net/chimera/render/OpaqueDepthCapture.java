@@ -14,20 +14,20 @@ import org.slf4j.LoggerFactory;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Snapshots the opaque depth before translucent terrain draws, as Iris gives depthtex1 to water and
- * deferred passes, and makes the world depth readable for the passes that sample it.
+ * Snapshots the opaque depth before translucent terrain draws, as Iris gives depthtex1 to water and deferred
+ * passes, and makes the world depth readable for the passes that sample it.
  *
- * <p>Iris's depthtex0 is the live depth texture, so a program that runs while the world still
- * draws reads the depth drawn so far. Vulkan forbids sampling the depth attachment being drawn
- * into, so such a program reads a depthtex0 capture of the world drawn before its group of draws
- * instead. The capture goes stale at the frame's start and after each terrain layer, family
- * flush and particle call, and is retaken before the next draw that samples depthtex0.</p>
+ * Iris's depthtex0 is the live depth texture, so a program that runs while the world still draws reads the
+ * depth drawn so far. Vulkan cannot sample the depth attachment being drawn into, so such a program reads a
+ * depthtex0 capture of the world drawn before its group of draws. The capture goes stale at the frame's start
+ * and after each terrain layer, family flush and particle call, and is taken again before the next draw that
+ * samples depthtex0.
  */
 final class OpaqueDepthCapture {
     static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
 
-    /** Tracks the one explicit HDR depth transition for the current level segment. */
+    /** The HDR depth is in a sampled layout; cleared when the world target opens or reopens as an attachment. */
     boolean hdrDepthReadable;
 
     /** The world has drawn since depthtex0 last captured it this frame. */
@@ -43,8 +43,8 @@ final class OpaqueDepthCapture {
     }
 
     /**
-     * True when {@code pipeline}'s program samples depthtex0 while the world depth is still the
-     * attachment world programs draw into, and the world has drawn since depthtex0's capture.
+     * True when {@code pipeline}'s program samples depthtex0 while the world depth is still the attachment
+     * world programs draw into, and the world has drawn since depthtex0's capture.
      */
     boolean needsDrawnDepth(GraphicsPipeline pipeline) {
         ChimeraMainPass.ProgramImages program = pass.images.programImages.get(pipeline);
@@ -71,7 +71,10 @@ final class OpaqueDepthCapture {
         }
     }
 
-    /** Captures opaque depth at the boundary immediately before translucency. */
+    /**
+     * At the boundary before translucent terrain: captures depthtex1, and depthtex2 when no hand has yet,
+     * then runs the deferred passes when they are due.
+     */
     public void captureOpaqueDepthBeforeTranslucent() {
         if (pass.shadowPass.shadowPassActive || !pass.levelPhase || pass.targets.hdrFramebuffer == null) {
             return;
@@ -107,9 +110,9 @@ final class OpaqueDepthCapture {
     }
 
     /**
-     * Samples the centre depth at Iris's beginHand: after the level's entity batches, before the
-     * hand and translucent terrain draw (IrisRenderingPipeline.beginHand,
-     * CenterDepthSampler.sampleCenterDepth). It reads the world depth, then reopens the main target.
+     * Samples the centre depth where Iris's beginHand does, after the level's entity batches and before the
+     * hand and translucent terrain draw (IrisRenderingPipeline.beginHand, CenterDepthSampler.sampleCenterDepth).
+     * Reads the world depth, then reopens the main target.
      */
     void sampleCenterDepthBeforeHand() {
         if (pass.packCenterDepth == null || pass.shadowPass.shadowPassActive || !pass.levelPhase
@@ -123,9 +126,9 @@ final class OpaqueDepthCapture {
     }
 
     /**
-     * Whether depthtex2 is captured before translucents. Iris beginHand copies it there; a pack solid
-     * hand already captured it at its segment, and otherwise no hand has drawn yet, so the opaque depth
-     * is the pre-hand depth water and the deferred passes read.
+     * Whether to capture depthtex2 before translucents, where Iris's beginHand copies it. A pack's solid hand
+     * has already captured it at its segment; otherwise no hand has drawn yet, so the opaque depth is the
+     * pre-hand depth that water and the deferred passes read.
      */
     private boolean capturesPreHandBeforeTranslucent() {
         return pass.packDepthTargets.isConfigured() && pass.packDepthTargets.plan().depthtex2()
@@ -134,9 +137,8 @@ final class OpaqueDepthCapture {
 
     /** Runs the deferred (EARLY) window over the opaque world, with the depth snapshots it reads. */
     private void runEarlyPostWindow(VkCommandBuffer commandBuffer) {
-        // Deferred passes read depthtex0 here, before translucents: the opaque depth, as Iris's
-        // live depth is when translucent terrain begins. finishLevelSegment re-captures it for
-        // composite.
+        // deferred passes read depthtex0 as the opaque depth, as Iris's live depth is when translucent terrain
+        // begins; finishLevelSegment captures it again for composite
         if (pass.packFrameSchedule.earlyReadsDepthtex0() && this.drawnDepthStale && drawnDepthCapturable()) {
             captureDrawnDepth(commandBuffer);
         }
@@ -147,8 +149,7 @@ final class OpaqueDepthCapture {
             pass.postChain.runPackPostWindow(commandBuffer, hdrColor,
                     PackFrameSchedulePlan.PostWindow.EARLY);
             pass.packEarlyPostCompleted = true;
-            // Translucents, particles and the rest of the world compose
-            // over the deferred result, as they do over Iris' colortex0.
+            // translucents, particles and the rest of the world draw over the deferred result, as over Iris's colortex0
             if (pass.session.packPostChainActive) {
                 pass.packPostTargets.enterWorld(commandBuffer, PackFrameSchedulePlan.PostWindow.EARLY, hdrColor);
             }
@@ -158,8 +159,8 @@ final class OpaqueDepthCapture {
     }
 
     /**
-     * Snapshots the world depth at level end, the pre-hand depthtex2 unless already captured and
-     * the scene depth, and makes the HDR depth readable for the post passes that sample it.
+     * At level end: captures depthtex2 unless the pre-hand depth is already in, makes the HDR depth readable
+     * for the post passes that sample it, and captures the scene depth.
      */
     void captureWorldDepth(MemoryStack stack, VkCommandBuffer commandBuffer) {
         if (pass.packDepthTargets.isConfigured()

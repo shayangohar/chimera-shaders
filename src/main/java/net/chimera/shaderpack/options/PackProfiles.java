@@ -16,9 +16,9 @@ import java.util.Optional;
  * ({@code profile.OTHER}), or switches a program off while the profile is current
  * ({@code !program.NAME}).
  *
- * <p>Detecting the current profile tries the profiles that set
- * the most options first, so one that adds a constraint to another wins over it; when none matches
- * the player has a custom set. Cycling steps through that same order, as Iris does.
+ * Detecting the current profile tries the profiles that set the most options first, so one that adds
+ * a constraint to another wins over it; when none matches the player has a custom set. Cycling steps
+ * through that same order, as Iris does.
  */
 public final class PackProfiles {
     /** One preset: the option values it sets and the programs it switches off. */
@@ -28,7 +28,7 @@ public final class PackProfiles {
             disabledPrograms = List.copyOf(disabledPrograms);
         }
 
-        /** True when every option it sets holds that value; options the pack lacks never disagree. */
+        /** Whether every option it sets holds that value; options the pack lacks never disagree. */
         public boolean matches(OptionValues current) {
             for (Map.Entry<String, String> entry : values.entrySet()) {
                 String name = entry.getKey();

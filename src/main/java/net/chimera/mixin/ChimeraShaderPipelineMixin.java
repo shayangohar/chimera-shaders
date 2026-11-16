@@ -12,12 +12,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * The pipeline seam of every immediate and vertex-buffer draw: VulkanMod asks the draw's
- * ShaderInstance for its pipeline (ShaderInstanceM.getPipeline, which this mixin's later priority
- * lets it inject into), binds it, binds its textures and uploads its uniforms. An open pack draw
- * (a family, host lane, sky or cloud draw) answers with its pack pipeline, so the host's state and
- * draw call stay and only the program changes. A widened family mesh without an open draw is
- * skipped: no host program reads its layout.
+ * The pipeline seam of every immediate and vertex-buffer draw: VulkanMod asks the draw's ShaderInstance for
+ * its pipeline (ShaderInstanceM.getPipeline, added by VulkanMod's mixin), binds it, binds its textures and
+ * uploads its uniforms. An open pack draw, whether family, host lane, sky or cloud, answers with its pack
+ * pipeline, so the host's state and draw call stay and only the program changes. A widened family mesh with
+ * no open draw is skipped, since no host program reads its layout.
  */
 @Mixin(ShaderInstance.class)
 public abstract class ChimeraShaderPipelineMixin {

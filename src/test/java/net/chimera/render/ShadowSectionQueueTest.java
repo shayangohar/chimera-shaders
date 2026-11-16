@@ -42,7 +42,7 @@ final class ShadowSectionQueueTest {
     /**
      * Iris's renderPlayerEntity (shadowPlayer without shadowEntities, Solas at its defaults): the
      * passengers, the vehicle, then the player, an invisible one too; nothing for a spectator or a
-     * player outside the frustum. Chimera skipped an invisible player and its passengers.
+     * player outside the frustum.
      */
     @Test
     void thePlayerOnlyPathDrawsAsIrisDoes() {
@@ -54,8 +54,8 @@ final class ShadowSectionQueueTest {
     }
 
     /**
-     * VulkanMod's StaticQueue.clear keeps its slots, so the queues held the last world's sections
-     * (and through them its level) after the player left it. A level change releases them.
+     * VulkanMod's StaticQueue.clear keeps its slots, so the queues would hold the last world's sections,
+     * and through them its level, after the player leaves it. A level change releases them.
      */
     @Test
     void aLevelChangeReleasesTheQueues() {

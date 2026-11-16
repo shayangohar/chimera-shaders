@@ -10,10 +10,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Adds only the unused selector names required by Chimera's bounded targets. */
+/**
+ * Backs the extended selector slots ({@link SelectorNamespace#FIRST_EXTENDED} through
+ * {@link SelectorNamespace#LAST_RESERVED}) with Chimera's own image array and resolves their {@code SamplerN} names.
+ */
 @Mixin(value = VTextureSelector.class, remap = false)
 public abstract class VTextureSelectorMixin {
-    /** Canonical image identity for every Chimera-owned extended selector. */
     @Unique
     private static final VulkanImage[] chimera$extendedTextures =
             new VulkanImage[SelectorNamespace.EXTENDED_CAPACITY];
@@ -27,7 +29,7 @@ public abstract class VTextureSelectorMixin {
                     cir.setReturnValue(index);
                 }
             } catch (NumberFormatException ignored) {
-                // VulkanMod handles malformed names as before.
+                // not a numbered sampler; VulkanMod resolves it
             }
         }
     }

@@ -17,14 +17,13 @@ public final class WindowBlendAttachments {
     private WindowBlendAttachments() {}
 
     /**
-     * Fills {@code attachments}: a null mode keeps the host's blend, an attachment whose bit in
-     * {@code written} is clear gets no colour writes (it keeps its contents, as a GL draw buffer
-     * does), and an integer format never blends, as GL skips blending for it.
+     * Fills {@code attachments}. A null mode keeps the host's blend. An attachment whose bit in {@code written}
+     * is clear gets no colour writes and keeps its contents, as a GL draw buffer does. An integer format never
+     * blends, as GL skips blending for it.
      *
-     * <p>The host's state is copied first, because attachment 0 is the first one overwritten.
-     * Kappa's gbuffers_water turns colortex1 off and leaves colortex3 to the host's translucent
-     * blend. Reading attachment 0 after its directive applied turned colortex3's blending off too,
-     * and stained glass drew black.</p>
+     * The host's state is copied first, since attachment 0 is the first one overwritten. Kappa's gbuffers_water
+     * turns blending off for colortex1 and leaves colortex3 to the host's translucent blend; read after its own
+     * directive, attachment 0 would turn colortex3's blending off too and stained glass would draw black.
      */
     public static void fill(VkPipelineColorBlendAttachmentState.Buffer attachments, PackBlendPlan.Mode[] blends,
                             int written, int[] formats) {

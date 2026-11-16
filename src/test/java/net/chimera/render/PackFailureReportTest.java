@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A failure's report says what failed, on what, with which pack, and names no user. */
+/** A failure report says what failed, on which system and pack, and names no user. */
 final class PackFailureReportTest {
     private static final LocalDateTime WHEN = LocalDateTime.of(2026, 11, 12, 19, 5, 3);
     private static final PackFailureReport.Environment ENVIRONMENT = new PackFailureReport.Environment(
@@ -67,7 +67,7 @@ final class PackFailureReportTest {
                 PackFailureReport.redact(text, List.of(), List.of()));
     }
 
-    /** A deviation keeps a path's word characters only (PackPlanBuilder.failureReason). */
+    /** A path a deviation spelled in word characters only (PackPlanBuilder.failureReason) names no one either. */
     @Test
     void aPathADeviationSpelledNamesNoOne() {
         String text = "PROGRAM_PLANNING_FAILED:UncheckedIOException_C_Users_Alex_Documents_pack_x.glsl; "

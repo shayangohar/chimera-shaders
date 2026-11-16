@@ -15,8 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The block atlas takes Iris's mip levels only while a pack's terrain directives are installed
- * (PackAtlasMipmaps): every lifecycle point records the wanted state, the frame boundary
- * reconciles it after any pack change, and a restitched atlas is reported.
+ * (PackAtlasMipmaps). Every lifecycle point records the wanted state, the frame boundary reconciles
+ * it after any pack change, and a restitched atlas is reported.
  */
 final class PackAtlasMipmapsWiringTest {
     private static final String OWNER = "net/chimera/render/PackAtlasMipmaps";
@@ -31,9 +31,9 @@ final class PackAtlasMipmapsWiringTest {
     }
 
     /**
-     * When a pack load and its rollback both fail, Chimera falls back to the host renderer. That
-     * path reset none of the pack's host directives, so vanilla kept the pack's atlas mips and its
-     * block.properties layers (glass drawn translucent, through ItemBlockRenderTypes).
+     * When a pack load and its rollback both fail, Chimera falls back to the host renderer. That path
+     * resets the pack's host directives, or vanilla keeps the pack's atlas mips and its block.properties
+     * layers, such as glass drawn translucent through ItemBlockRenderTypes.
      */
     @Test
     void aFailedRollbackFallsBackWithThePacksHostDirectivesReset() throws IOException {

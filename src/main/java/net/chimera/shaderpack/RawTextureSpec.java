@@ -5,15 +5,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * An Iris raw texture declaration, {@code <file> <type> <internalFormat> <x> [y] [z] <pixelFormat> <pixelType>}
- * (ShaderProperties: six words are 1D, seven 2D or RECTANGLE, eight 3D). The file holds the pixels
- * as glTexImage reads them: tightly packed except that each row starts on a 4-byte boundary
- * (Iris TextureUploadHelper sets GL_UNPACK_ALIGNMENT 4).
+ * An Iris raw texture declaration, {@code <file> <type> <internalFormat> <x> [y] [z] <pixelFormat> <pixelType>}.
+ * Six words are 1D, seven 2D or RECTANGLE, eight 3D, as in Iris's ShaderProperties. The file holds the pixels
+ * as glTexImage reads them: tightly packed, except that each row starts on a 4-byte boundary, since Iris's
+ * TextureUploadHelper sets GL_UNPACK_ALIGNMENT 4.
  *
- * <p>Chimera uploads the formats whose pixel type already is the internal storage, and 32-bit
- * floats into a 16-bit float format, which it halves as glTexImage does (Pixel Perfect's colour
- * LUT, RGB16F from FLOAT). A three-channel format widens to four with alpha 1, as Vulkan rarely
- * samples three-channel images. Anything else stays {@code PACK_RAW_TEXTURE_UNSUPPORTED}.</p>
+ * Chimera uploads formats whose pixel type already is the internal storage, and 32-bit floats into a 16-bit
+ * float format, halved as glTexImage does; Pixel Perfect's colour LUT is RGB16F from FLOAT. A three-channel
+ * format widens to four with alpha 1, since Vulkan devices rarely sample three-channel images. Anything else
+ * is {@code PACK_RAW_TEXTURE_UNSUPPORTED}.
  */
 public record RawTextureSpec(
         String file,
@@ -28,13 +28,13 @@ public record RawTextureSpec(
     /** Internal formats GL names by channels, bits and kind: RGBA8, RG16F, R32UI, RGB16_SNORM. */
     private static final Pattern INTERNAL_FORMAT = Pattern.compile("(RGBA|RGB|RG|R)(8|16|32)(F|I|UI|_SNORM)?");
 
-    /** Parses a declaration value, or returns null when it is not a well-formed raw declaration. */
+    /** Null when {@code value} is not a well-formed raw declaration. */
     public static RawTextureSpec parse(String value) {
         if (value == null) return null;
         String[] parts = value.trim().split("\\s+");
         if (parts.length < 6 || parts.length > 8) return null;
         try {
-            // Sizes the word count leaves out are 0, as Iris records them.
+            // sizes the word count leaves out are 0, as Iris records them
             int width = Integer.parseInt(parts[3]);
             int height = parts.length >= 7 ? Integer.parseInt(parts[4]) : 0;
             int depth = parts.length == 8 ? Integer.parseInt(parts[5]) : 0;
@@ -66,7 +66,7 @@ public record RawTextureSpec(
         return Math.max(depth, 1);
     }
 
-    /** The reason this declaration cannot be uploaded unchanged, or null when it can. */
+    /** Why this declaration cannot be uploaded, or null when it can. */
     public String unsupportedReason() {
         if (dimensions() == 0) return "type " + type;
         Storage storage = storage();

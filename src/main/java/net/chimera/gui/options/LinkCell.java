@@ -7,8 +7,8 @@ import net.minecraft.network.chat.Component;
 import java.util.Optional;
 
 /**
- * A button that opens one of the pack's sub-pages, named by {@code screen.ID}, with an arrow on the
- * right. Iris draws that arrow almost transparent; Chimera draws it white, as it was meant to be.
+ * A button that opens one of the pack's sub-pages, named by {@code screen.ID}, with an arrow on the right.
+ * Iris draws the arrow almost transparent; here it is white.
  */
 final class LinkCell extends OptionCell {
     private final String page;

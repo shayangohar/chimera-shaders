@@ -79,7 +79,7 @@ public final class ShaderPackOptions {
         return problems;
     }
 
-    /** True when every source file the includes name was read, so no declared option can be missing. */
+    /** Whether every source file the includes name was read, so no declared option can be missing. */
     public boolean complete() {
         return discovery.failures().isEmpty();
     }

@@ -23,28 +23,26 @@ import java.util.stream.Stream;
 /**
  * Applies the player's option values to a pack's sources before anything reads them.
  *
- * <p>Iris applies an option by editing the lines that declare it, so a {@code const} option changes
- * as well as a {@code #define}. Chimera makes the same edits on disk: a zip pack's extracted tree is
- * edited in place, and a folder pack is copied first, since that folder is the player's own.
+ * Edits the declaring lines as Iris does, so {@code const} options change as well as {@code #define}s.
+ * A zip's extracted tree is edited in place; a folder pack is copied first, since the folder is the player's.
  *
- * <p>The option file's values follow Iris's rules: a name the pack does not declare, or a toggle
- * that is not {@code true} or {@code false}, is ignored. A {@code chimera.option.*} JVM property for
- * a declared option applies on top, with {@code 1} and {@code 0} also accepted for a toggle. Any
- * other JVM property stays a locked preprocessor macro, for development runs.
+ * Option file values follow Iris: undeclared names and toggles other than {@code true}/{@code false} are
+ * ignored. {@code chimera.option.*} JVM properties override declared options, and toggles also take
+ * {@code 1}/{@code 0}. Any other JVM property stays a locked preprocessor macro for development runs.
  */
 final class PackOptionStaging {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
     private PackOptionStaging() {}
 
-    /** Where the sources are after staging, with the options they were staged with. */
+    /** Sources after staging, with the options they were staged with. */
     record Staged(Path shadersDir, Path temporaryRoot, StagedOptions options) {}
 
     /**
-     * Discovers the pack's options in {@code shadersDir}, applies the stored values and returns the
-     * tree to read. {@code temporaryRoot} is the extraction root of a zip pack and null for a folder.
-     * The stored values are the option file's with {@code pending} on top, or none at all when
-     * {@code pending} asks for a reset; they are what the option file should hold afterwards.
+     * Discovers options in {@code shadersDir}, applies the stored values and returns the tree to read.
+     *
+     * {@code temporaryRoot} is a zip's extraction root, null for a folder pack. Stored values are the option
+     * file's with {@code pending} on top, or none on a reset, and are what the option file holds afterwards.
      */
     static Staged stage(Path packPath, Path shadersDir, Path temporaryRoot, PendingOptions.Drained pending,
                         List<String> deviations) {
@@ -56,7 +54,7 @@ final class PackOptionStaging {
         return writeEdits(shadersDir, temporaryRoot, edits, options, deviations);
     }
 
-    /** The stored values, and whether the option file could be read (an unreadable one is kept as is). */
+    /** Stored values and whether the option file was readable; an unreadable file is left as is. */
     private record Stored(Map<String, String> values, boolean readable) {}
 
     private static Stored stored(Path packPath, PendingOptions.Drained pending, List<String> deviations) {
@@ -68,7 +66,7 @@ final class PackOptionStaging {
             try {
                 values.putAll(OptionFile.readStrict(file));
             } catch (IOException unreadable) {
-                // Iris refuses such a file rather than rewrite it; keep it for the player to fix.
+                // Iris refuses an unreadable file instead of rewriting it; leave it for the player to fix
                 LOGGER.warn("[chimera] cannot read the option file {}: {}", file, unreadable.getMessage());
                 deviations.add("PACK_OPTION_FILE_UNREADABLE");
                 readable = false;
@@ -78,7 +76,7 @@ final class PackOptionStaging {
         return new Stored(values, readable);
     }
 
-    /** The stored values with the JVM overrides for declared options on top. */
+    /** Stored values with JVM overrides for declared options on top. */
     private static StagedOptions withOverrides(ShaderPackOptions pack, boolean fileReadable,
                                                List<String> deviations) {
         OptionValues applied = pack.values().copy();
@@ -96,7 +94,7 @@ final class PackOptionStaging {
                 fileReadable);
     }
 
-    /** Writes the edited lines into the extracted tree, or into a copy of a folder pack. */
+    /** Writes edited lines into the extracted tree, or into a copy of a folder pack. */
     private static Staged writeEdits(Path shadersDir, Path temporaryRoot, Map<String, String> edits,
                                      StagedOptions options, List<String> deviations) {
         Path root = temporaryRoot;
@@ -121,7 +119,7 @@ final class PackOptionStaging {
         }
     }
 
-    /** The option-file text a JVM override means for a declared option; null when it is not one. */
+    /** Option file text a JVM override means for a declared option; null if it isn't one. */
     private static String declaredText(OptionSet options, String name, String text) {
         if (options.isChoice(name)) return text;
         if (!options.isToggle(name)) return null;
@@ -132,7 +130,7 @@ final class PackOptionStaging {
         };
     }
 
-    /** Copies a folder pack's sources; linked folders are copied too, as reading in place would see them. */
+    /** Copies a folder pack's sources, following linked folders as an in-place read would. */
     private static void copyTree(Path source, Path target) throws IOException {
         try (Stream<Path> paths = Files.walk(source, FileVisitOption.FOLLOW_LINKS)) {
             for (Path path : (Iterable<Path>) paths::iterator) {

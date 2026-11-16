@@ -42,7 +42,7 @@ final class PackFeatureFlagsTest {
     /**
      * Ebin declares its flood-fill light volume, and reversed shadow culling, under
      * IRIS_FEATURE_CUSTOM_IMAGES. Iris defines every usable flag while it reads shaders.properties,
-     * listed or not; Chimera left this one out, so Ebin lost its coloured block light.
+     * listed or not; without this one Ebin loses its coloured block light.
      */
     @Test
     void shadersPropertiesSeesCustomImages(@TempDir Path dir) throws IOException {

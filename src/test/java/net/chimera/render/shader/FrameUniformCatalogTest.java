@@ -49,7 +49,7 @@ final class FrameUniformCatalogTest {
         assertEquals(UniformRegistry.Availability.LIVE,
                 UniformRegistry.descriptor("eyeBrightnessSmooth").availability(),
                 "eye smoothing status");
-        // CommonUniforms' values outside the entity layout: the constant -1, and entityId after an entity, 0.
+        // outside the entity layout these take CommonUniforms' values: -1, and 0 for entityId after an entity
         for (String id : List.of("blockEntityId", "currentRenderedItemId", "entityId")) {
             assertEquals(UniformRegistry.Availability.LIVE, UniformRegistry.descriptor(id).availability(), id);
             assertEquals(id.equals("entityId") ? 0.0 : -1.0, new IrisPlayerState().value(id, 0), id);
@@ -93,7 +93,7 @@ final class FrameUniformCatalogTest {
     /**
      * Alpha Piscium's shadow vertex stage reconstructs each vertex's scene position with
      * shadowProjectionInverse * ftransform(). Its 512-block shadow projection has a determinant
-     * near 3e-8; served as identity, every caster shrank to a speck of the shadow map.
+     * near 3e-8; served as identity, every caster would shrink to a speck of the shadow map.
      */
     @Test
     void aFarShadowProjectionInvertsExactly() {
@@ -139,7 +139,7 @@ final class FrameUniformCatalogTest {
         state.advanceFrameTime(0.0f);
         assertFrameFloat(state, buffer, "frameTimeCounter", 0.0f, "new session first frame");
 
-        // Closed-form smoothing uses elapsed time too; a long frame needs no integrator cap.
+        // closed-form smoothing uses elapsed time too, so a long frame needs no integrator cap
         float oneStep = PackFrameState.smooth(0.0f, 1.0f, 600.0f, 200.0f, stalledFrame);
         float twoSteps = PackFrameState.smooth(
                 PackFrameState.smooth(0.0f, 1.0f, 600.0f, 200.0f, 0.320f),

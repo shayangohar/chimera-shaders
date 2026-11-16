@@ -22,7 +22,7 @@ import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
 /**
  * Iris swizzles its shadow depth textures to R, R, R, 1 (ShadowRenderer.configureDepthSampler), so a
  * pack that reads shadowtex0 or shadowtex1 without a depth compare finds the depth in every colour
- * channel, where a plain depth read gives (d, 0, 0, 1) (audit T-S3). A headless Vulkan run samples
+ * channel, where a plain depth read gives (d, 0, 0, 1). A headless Vulkan run samples
  * one depth texel through Chimera's shadow depth view, through an identity view, and with a compare
  * sampler through the shadow view.
  */
@@ -48,8 +48,8 @@ final class ShadowDepthViewTest {
             """;
 
     /**
-     * D32, which every device samples, and D24S8, the depth VulkanMod gives the shadow map here,
-     * whose view takes the depth aspect of a combined format, where the device samples it.
+     * D32, which every device samples, and D24S8, the depth format VulkanMod gives the shadow map; its
+     * view takes the depth aspect of the combined format, where the device samples it.
      */
     @Test
     void shadowDepthSamplesAsRedRedRedOne() {
@@ -98,7 +98,7 @@ final class ShadowDepthViewTest {
         private FloatBuffer mapped;
 
         Gpu(ByteBuffer code, int format) {
-            // The depth clear needs a graphics queue, the sampling a compute one.
+            // the depth clear needs a graphics queue, the sampling a compute one
             gpu = new HeadlessVulkan.Device("Chimera shadow depth view test",
                     VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
             device = gpu.device();

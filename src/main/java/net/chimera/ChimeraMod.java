@@ -38,9 +38,9 @@ public final class ChimeraMod {
         LOGGER.info("[chimera] Chimera {} (commit {})", version, COMMIT);
         NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class,
                 event -> ChimeraCommands.register(event.getDispatcher()));
-        // A pack failure found before a player is in a world waits for one, as Iris's notice does.
+        // a pack failure found before the player is in a world waits for one, as Iris's notice does
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> PackFailureNotices.flush());
-        // F3: the version, pack and profile on the right, the shadow map on the left, as Iris's.
+        // F3 lines as Iris places them: version, pack and profile on the right, shadow map on the left
         NeoForge.EVENT_BUS.addListener(CustomizeGuiOverlayEvent.DebugText.class, event -> {
             event.getLeft().addAll(ChimeraRenderer.shadowDebugLines());
             event.getRight().addAll(ChimeraRenderer.debugLines());
@@ -50,16 +50,16 @@ public final class ChimeraMod {
         PackTemporaryRoots.sweepInBackground();
         modBus.addListener(RegisterClientReloadListenersEvent.class,
                 event -> event.registerReloadListener(ChimeraMaterialReloadListener.live()));
-        // The mod list's Config button opens the shader pack selector, as Iris's does.
+        // the mod list's Config button opens the pack selector, as Iris's does
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> new ShaderPackScreen(parent));
     }
 
-    /** This mod's version, once NeoForge has constructed the mod. */
+    /** The mod version; "dev" until NeoForge constructs the mod. */
     public static String version() {
         return version;
     }
 
-    /** The commit this jar was built from (build.gradle stamps chimera-build.properties); unknown in a dev run. */
+    /** Commit the jar was built from, stamped into chimera-build.properties; "unknown" in a dev run. */
     public static String commit() {
         return COMMIT;
     }

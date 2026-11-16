@@ -10,12 +10,12 @@ import java.util.Set;
 /**
  * The colour output locations a fragment module writes.
  *
- * <p>A pack program can declare an output and, under the options in use, never write it: its
- * RENDERTARGETS names the buffer while the write sits in an inactive branch, or a shadow program
- * writes shadowcolor0 alone. A Vulkan attachment the shader leaves unwritten receives undefined
- * values. GL drivers leave such a draw buffer as it was, and packs rely on that, so Chimera masks
- * the colour writes of every attachment whose location the module never stores to
- * (GraphicsPipelineMrtMixin). An output array counts as written at every location it spans.</p>
+ * A pack program can declare an output and, under the options in use, never write it: its RENDERTARGETS
+ * names the buffer while the write sits in an inactive branch, or a shadow program writes shadowcolor0
+ * alone. A Vulkan attachment the shader leaves unwritten receives undefined values. GL drivers leave such a
+ * draw buffer as it was, and packs rely on that, so Chimera masks the colour writes of every attachment whose
+ * location the module never stores to (GraphicsPipelineMrtMixin). An output array counts as written at every
+ * location it spans.
  */
 public final class SpirvOutputWrites {
     /** The answer when a module cannot be read: every location counts as written. */
@@ -65,8 +65,8 @@ public final class SpirvOutputWrites {
         private final Map<Integer, Integer> arrayLengths = new HashMap<>();
         private final Map<Integer, Integer> constants = new HashMap<>();
         private final Map<Integer, Integer> variableTypes = new HashMap<>();
-        // Each pointer into an output variable, mapped to that variable. Definitions precede
-        // their uses in SPIR-V's block order, so one pass sees every chain before its stores.
+        // each pointer into an output variable, mapped to that variable
+        // definitions precede their uses in SPIR-V's block order, so one pass sees every chain before its stores
         private final Map<Integer, Integer> outputs = new HashMap<>();
         private final Set<Integer> written = new HashSet<>();
 
@@ -89,7 +89,7 @@ public final class SpirvOutputWrites {
                     if (output != null) outputs.put(words[at + 2], output);
                 }
                 case OP_STORE, OP_COPY_MEMORY -> markWritten(words[at + 1]);
-                // A pointer handed to a function or an extended instruction may be written there.
+                // a pointer handed to a function or an extended instruction may be written there
                 case OP_FUNCTION_CALL -> markOperands(words, at + 4, at + count);
                 case OP_EXT_INST -> markOperands(words, at + 5, at + count);
                 default -> { }

@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Iris's depthtex0 is the depth drawn so far. A program that runs while the world still draws
- * reads a capture of the world drawn before its group of draws; superDuperVanilla's end portal
- * read last frame's, which held the portal itself, and glowed over its whole surface.
+ * reads a capture of the world drawn before its group of draws. Reading last frame's instead,
+ * superDuperVanilla's end portal sees itself and glows over its whole surface.
  */
 final class DrawnDepthTest {
     @Test
@@ -40,7 +40,7 @@ final class DrawnDepthTest {
                 "chimera$lateParticles"}) {
             assertCalls("net/chimera/mixin/ChimeraLevelRendererMixin", particles, "markWorldDrawn");
         }
-        // A post pass that runs before the world ends, prepare among them, needs no earlier capture.
+        // post passes that run before the world ends, prepare among them, need no earlier capture
         assertCalls("net/chimera/render/PackPostChain", "packDepthInputsAvailable", "drawnDepthCapturable");
     }
 

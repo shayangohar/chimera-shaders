@@ -31,23 +31,22 @@ import static org.lwjgl.vulkan.KHRDynamicRendering.vkCmdEndRenderingKHR;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Scene coverage for a pack frame: which pixels pack geometry covered, the window that records it,
- * and the seed that fills uncovered pixels from the host scene before pack post runs.
+ * The terrain layers' pack windows, and scene coverage: which pixels pack geometry covered, and the seed that
+ * fills the rest from the host scene before post runs. Coverage is planned but switched off
+ * ({@link #PACK_COVERAGE_RUNTIME_ENABLED}).
  */
 final class PackSceneCoverage {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
 
     /**
-     * The coverage path remains load-time inventory until every host
-     * family can share the same coverage contract. Keeping the gate explicit
-     * prevents the deferred path from allocating live images or pipelines.
+     * Off until every host family can share one coverage contract. While off, coverage is planned at load
+     * but allocates no images or pipelines.
      */
     static final boolean PACK_COVERAGE_RUNTIME_ENABLED = false;
 
     GraphicsPipeline sceneSeedPipeline;
 
-    /** Session-owned scene-seed coverage state. */
     final PackCoverageOwner packCoverageOwner = new PackCoverageOwner();
 
     final PackCoverageState packCoverageState = new PackCoverageState();
@@ -59,8 +58,8 @@ final class PackSceneCoverage {
     }
 
     /**
-     * Retained as the terrain-family seam. Pack terrain stays on the live HDR
-     * render pass; the post graph reads that complete HDR image as colortex0.
+     * Opens a terrain layer's pack window. Terrain writing only colortex0 stays on the live HDR render pass,
+     * which the post graph reads as colortex0; terrain with more outputs gets a geometry window over them.
      */
     public void beginPackCoverageWindow(TerrainRenderType renderType) {
         if (suspendTranslucentWithoutInputs(renderType)) {
@@ -107,8 +106,7 @@ final class PackSceneCoverage {
                 || pass.images.packTranslucentInputsReady(pass.pipelines.waterRoute)) {
             return false;
         }
-        // The fixed pipeline draws this layer; the pack program never
-        // binds a stale or missing image.
+        // the fixed pipeline draws this layer, so the pack program never binds a stale or missing image
         ChimeraTerrainPipelines.suspendTranslucentOverride(true);
         pass.packTranslucentSuspended = true;
         if (!pass.session.packTranslucentSuspendLogged) {
@@ -122,14 +120,13 @@ final class PackSceneCoverage {
         return PACK_COVERAGE_RUNTIME_ENABLED;
     }
 
-    /** Ends the frame's coverage state when the coverage runtime is enabled. */
     void endCoverageFrame() {
         if (packCoverageRuntimeEnabled()) {
             this.packCoverageState.endFrame();
         }
     }
 
-    /** The direct-HDR terrain path has no separate coverage window to close. */
+    /** Closes a terrain layer's pack window, committing a geometry window's targets. */
     public void endPackCoverageWindow(TerrainRenderType renderType) {
         if (pass.shadowPass.shadowPassActive) return;
         pass.depth.markWorldDrawn();

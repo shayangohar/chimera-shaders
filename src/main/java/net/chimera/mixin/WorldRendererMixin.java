@@ -24,17 +24,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Chimera's frame around VulkanMod's section layers.
  *
- * <p>Every layer call runs in its Iris rendering phase. Only the layers VulkanMod draws
- * ({@link TerrainLayers}) open Chimera's windows:</p>
- * <ul>
- *   <li>Depth is captured before translucent terrain, ahead of the pack window, whose guarded
- *   attachments must not intercept that fullscreen pass. The entity batches a pack's
- *   separateEntityDraws held draw right after it (FamilyBufferSource).</li>
- *   <li>The pack coverage window spans the layer's draws.</li>
- *   <li>Every layer opens on the main target (ChimeraMainPass.rebindMainTarget), which opens the
- *   shadow pass or a pending pack geometry window. Upstream VulkanMod's renderSectionLayer did this
- *   itself; Reforged's draws into whatever is bound.</li>
- * </ul>
+ * Every layer call runs in its Iris rendering phase, and only the layers VulkanMod draws ({@link TerrainLayers})
+ * open Chimera's windows. Before translucent terrain, depth is captured and the deferred passes run ahead of the
+ * pack window, whose guarded attachments must not intercept them; the entity batches a pack's
+ * separateEntityDraws held back draw right after (FamilyBufferSource). The pack coverage window spans each
+ * layer's draws.
+ *
+ * Every layer opens on the main target (ChimeraMainPass.rebindMainTarget), which opens the shadow pass or a
+ * pending pack geometry window, since Reforged's renderSectionLayer draws into whatever is bound.
  */
 @Mixin(value = WorldRenderer.class, remap = false)
 public abstract class WorldRendererMixin {
@@ -42,7 +39,7 @@ public abstract class WorldRendererMixin {
     @WrapMethod(method = "renderSectionLayer")
     private void chimera$terrainLayer(RenderType renderType, double camX, double camY, double camZ,
                                       Matrix4f view, Matrix4f projection, Operation<Void> original) {
-        // The camera every area's ChunkOffset is relative to, and the atlas shrink, for Chimera's terrain shaders.
+        // the camera every area's ChunkOffset is relative to, and the atlas shrink, for Chimera's terrain shaders
         TerrainVertexUniforms.update(camX, camY, camZ);
         TerrainRenderType type = ChimeraRenderer.segmentsActive() ? TerrainRenderType.get(renderType) : null;
         if (type == null) {
@@ -53,20 +50,20 @@ public abstract class WorldRendererMixin {
         try {
             ChimeraMainPass pass = ChimeraRenderer.getMainPass();
             if (pass == null || !TerrainLayers.drawn(type)) {
-                // Reforged binds the pipeline of a layer it merged away too.
+                // Reforged still binds a pipeline for a layer it merged away
                 if (pass != null) pass.rebindMainTarget();
                 original.call(renderType, camX, camY, camZ, view, projection);
                 return;
             }
             if (type == TerrainRenderType.TRANSLUCENT) {
-                // The deferred passes, then the entity batches separateEntityDraws held for them.
+                // the deferred passes, then the entity batches separateEntityDraws held back for them
                 pass.captureOpaqueDepthBeforeTranslucent();
                 FamilyBufferSource.endHeldLevelBatches(pass);
             }
             pass.beginPackCoverageWindow(type);
             try {
                 pass.rebindMainTarget();
-                // The shadow pass sets its own layers' references (PackShadowPass).
+                // the shadow pass sets its own layers' alpha references (PackShadowPass)
                 if (!ChimeraRenderer.shadowPassActive()) {
                     PackUniformProvider.updateDrawAlphaReference(TerrainLayers.irisAlphaReference(type));
                 }
@@ -80,8 +77,8 @@ public abstract class WorldRendererMixin {
     }
 
     /**
-     * Skips the frame's section setup when the shadow pass already ran it before the sky
-     * (PreSkyPasses): a second run would reset the indirect draws the shadow pass recorded.
+     * Skips the frame's section setup when the shadow pass already ran it before the sky (PreSkyPasses);
+     * a second run would reset the indirect draws the shadow pass recorded.
      */
     @WrapMethod(method = "setupRenderer")
     private void chimera$setupOnce(Camera camera, Frustum frustum, boolean capturedFrustum, boolean spectator,
@@ -91,9 +88,10 @@ public abstract class WorldRendererMixin {
     }
 
     /**
-     * Keeps back faces culled, as upstream VulkanMod and vanilla do for every layer. Reforged
-     * draws translucent terrain unculled, so a water surface and its reversed copy both passed the
-     * depth test and the reversed one, lit from below, overwrote it; every far face of glass drew.
+     * Keeps back faces culled on every layer under Chimera, as vanilla and upstream VulkanMod do.
+     *
+     * Reforged draws translucent terrain unculled. A water surface's reversed copy then passes the depth test
+     * and overwrites it lit from below, and every far face of glass draws.
      */
     @WrapWithCondition(method = "renderSectionLayer", at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/systems/RenderSystem;disableCull()V"), require = 1)

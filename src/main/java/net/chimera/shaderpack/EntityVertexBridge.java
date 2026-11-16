@@ -32,13 +32,15 @@ public final class EntityVertexBridge {
     private static final Pattern SAMPLER_TYPE = Pattern.compile("[iu]?sampler\\w*");
 
     /**
-     * Every stage this bridge converts declares its position invariant. A glint layer draws with
-     * depth test EQUAL over the item, armour or held item under it, from another program. The two
-     * evaluate the same expression on the same inputs, but GLSL promises the same result in both
-     * only for an invariant output (GLSL 4.60, 4.8.1). Without it NVIDIA put Insanity's entity and
-     * glint ftransform() one ulp apart, so the glint speckled as the camera moved. Iris declares
-     * nothing; its GL driver happened to agree. Interface blocks are flattened before conversion
-     * (PackPlanBuilder.prepareStages), so no gl_PerVertex redeclaration follows this one.
+     * Every stage this bridge converts declares its position invariant.
+     *
+     * A glint layer draws with depth test EQUAL over the item, armour or held item under it, from another
+     * program. GLSL promises the two the same result for the same expression only on an invariant output
+     * (GLSL 4.60, 4.8.1). Without it NVIDIA can put them one ulp apart, and the glint speckles as the camera
+     * moves. Iris declares nothing and relies on its GL driver agreeing.
+     *
+     * Interface blocks are flattened before conversion (PackPlanBuilder.prepareStages), so no gl_PerVertex
+     * redeclaration follows this one.
      */
     static final String INVARIANT_POSITION = "invariant gl_Position;\n";
 
@@ -67,14 +69,14 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Converts the shadow program for the shadow pass's entity lane (Iris shadow_entities,
-     * ShaderKey.SHADOW_ENTITIES_CUTOUT): the shadow bridge reading EXTENDED_ENTITY. The legacy
-     * matrix built-ins name the draw's host blocks, as Iris's iris_ModelViewMat and iris_ProjMat
-     * do, and the pass loads the light view and projection into them. entityId and
-     * blockEntityId are per-vertex, as Iris's EntityPatcher makes them on the entity layout.
-     * {@code consumerSource} is the stage after the vertex stage: the fragment stage, or a geometry
-     * stage ({@code geometryNext}) as GeometryStageBridge.consumerView declares it. Reports the
-     * first concrete failure.
+     * Converts the shadow vertex stage for the shadow pass's entity lane (Iris shadow_entities,
+     * ShaderKey.SHADOW_ENTITIES_CUTOUT) onto EXTENDED_ENTITY, reporting the first concrete failure.
+     *
+     * The legacy matrix built-ins name the draw's host blocks, as Iris's iris_ModelViewMat and iris_ProjMat
+     * do, and the pass loads the light view and projection into them. entityId and blockEntityId are per
+     * vertex, as Iris's EntityPatcher makes them on the entity layout. {@code consumerSource} is the next
+     * stage: the fragment, or a geometry stage ({@code geometryNext}) as GeometryStageBridge.consumerView
+     * declares it.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertShadowEntityVertexChecked(
             String source,
@@ -90,9 +92,9 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * On the shadow pass's entity lane the legacy built-ins are the draw's own host matrices,
-     * as Iris's iris_ModelViewMat and iris_ProjMat are; a render type's layering transform
-     * stays in them. The camera's gbuffer matrices remain the pack uniforms.
+     * On the shadow pass's entity lane the legacy built-ins are the draw's own host matrices, as Iris's
+     * iris_ModelViewMat and iris_ProjMat are, so a render type's layering transform stays in them. The
+     * camera's gbuffer matrices stay pack uniforms.
      */
     static Map<String, String> entityShadowMatrixBuiltinReplacements() {
         return Map.of(
@@ -102,7 +104,7 @@ public final class EntityVertexBridge {
                 "gl_ModelViewProjectionMatrix", "(ProjMat * ModelViewMat)");
     }
 
-    /** Converts the strict legacy entity vertex bridge onto EXTENDED_ENTITY. */
+    /** Converts an entity vertex stage onto EXTENDED_ENTITY. */
     public static LegacyGlslConverter.TerrainVertexConversion convertEntityVertex(
             String source,
             Path sourceFile,
@@ -111,7 +113,7 @@ public final class EntityVertexBridge {
         return convertEntityVertex(source, sourceFile, fragmentSource, null);
     }
 
-    /** Converts an entity vertex with the locations selected by the shared stage matcher. */
+    /** Converts an entity vertex stage at the locations the shared stage matcher picked. */
     public static LegacyGlslConverter.TerrainVertexConversion convertEntityVertex(
             String source,
             Path sourceFile,
@@ -134,9 +136,8 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Entity vertex conversion that reports the first concrete failure.
-     * PackPlanBuilder records the reason alongside the generic bridge
-     * deviation instead of collapsing every failure into one code.
+     * Entity vertex conversion that reports the first concrete failure, which PackPlanBuilder records beside
+     * the generic bridge deviation.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertEntityVertexChecked(
             String source,
@@ -213,7 +214,7 @@ public final class EntityVertexBridge {
                 GlslVertexPreambles.ENTITY_VERTEX_PREAMBLE, allowStorageBuffers, fragmentUniforms, samplerPlan);
     }
 
-    /** Hand models use the real entity inputs; held items/maps get layout variants at build time. */
+    /** Converts a hand vertex stage onto the entity inputs; held items and maps get layout variants at build time. */
     public static LegacyGlslConverter.TerrainVertexConversion convertHandVertex(
             String source,
             Path sourceFile,
@@ -263,17 +264,16 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * The stage the vertex stage's outputs feed: the fragment stage, the tessellation control
-     * stage as TessellationStageBridge.consumerView declares it, or a geometry stage as
-     * GeometryStageBridge.consumerView declares it. After either, a later stage converts the clip
-     * depth ({@code laterStageConverts}).
+     * The stage the vertex outputs feed: the fragment stage, or a tessellation control or geometry stage as
+     * TessellationStageBridge.consumerView or GeometryStageBridge.consumerView declares it. After either of
+     * those, a later stage converts the clip depth ({@code laterStageConverts}).
      */
     record Consumer(String source, boolean laterStageConverts) {}
 
     /**
-     * Hand vertex conversion feeding {@code consumer}, adding what {@code fragmentSource} reads. A
-     * hand ahead of its tessellation or geometry stage keeps its position in GL's clip range: the
-     * next stage reads it as under Iris, and the last before the rasterizer converts its depth.
+     * Hand vertex conversion feeding {@code consumer}, adding what {@code fragmentSource} reads. A hand ahead
+     * of its tessellation or geometry stage keeps its position in GL's clip range: the next stage reads it as
+     * under Iris, and the last stage before the rasterizer converts its depth.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertHandVertexChecked(
             String source, Path sourceFile, Consumer consumer, String fragmentSource,
@@ -302,10 +302,8 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Entity vertex conversion that reports the first concrete failure
-     * instead of collapsing to null. PackPlanBuilder records the reason
-     * alongside the generic bridge deviation; capability predicates keep
-     * using the null-returning overloads.
+     * Entity vertex conversion that throws the first concrete failure for PackPlanBuilder to record.
+     * Capability predicates use the overloads that return null.
      */
     static LegacyGlslConverter.TerrainVertexConversion convertEntityVertexOrThrow(
             String source,
@@ -336,9 +334,8 @@ public final class EntityVertexBridge {
             throw new IllegalArgumentException("entity vertex requires main and gl_Position");
         }
         Map<String, String> entityIdTypes = EntityIdRewrites.entityIdTypes(stripped, fragmentSource);
-        // Catalog uniforms, legacy matrix built-ins, and stage-level
-        // flat/layout qualifiers in real entity sources are translated
-        // below; reject only what no adapter path can serve.
+        // catalogue uniforms, legacy matrix built-ins and flat/layout qualifiers are translated below;
+        // reject only what nothing can serve
         String beforeFeatures = EntityDeclarations.removeEntityIdDeclarations(stripped);
         rejectEntityVertexFeatures(
                 LegacyGlslConverter.stripUnusableUniformDeclarations(beforeFeatures, fragmentUniforms),
@@ -347,7 +344,7 @@ public final class EntityVertexBridge {
         EntityVaryingDeclarations vertexVaryings = parseEntityVaryingDeclarations(stripped, true);
         requireMatchingFragmentVaryings(vertexVaryings, consumer.source());
         List<ForwardedVarying> forwarded = ForwardedVarying.readBy(fragmentSource);
-        // The bridge's varyings follow the pack's: the entity identities, then what the fragment reads.
+        // the bridge's varyings follow the pack's: the entity identities, then what the fragment reads
         Map<String, String> addedVaryings = new LinkedHashMap<>();
         entityIdTypes.forEach((name, type) -> addedVaryings.put(EntityIdRewrites.entityIdVarying(name), type));
         forwarded.forEach(varying -> addedVaryings.put(varying.name(), varying.type()));
@@ -359,13 +356,13 @@ public final class EntityVertexBridge {
             converted = bindVertexSamplers(converted, samplerPlan);
         }
         WorldClipRange clip = projectsInGlRange(vertexPreamble) ? WorldClipRange.HOST : WorldClipRange.of(stripped);
-        // The plan renamed the pack's own identifiers of the preamble's names in both stages.
+        // the plan has already renamed, in both stages, pack identifiers that clash with the preamble's names
         converted = EntityIdRewrites.replaceInputs(converted,
                 clip.builtins(entityInputReplacements(vertexPreamble, stripped, layout)));
         converted = converted.replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*0\\s*\\]",
                 "TextureMat");
-        // Iris VanillaTransformer/VanillaCoreTransformer: raw UV2 for both
-        // light-coordinate aliases, normalized once by the legacy matrix.
+        // raw UV2 for both light-coordinate aliases, normalised once by the legacy matrix, as in Iris's
+        // VanillaTransformer and VanillaCoreTransformer
         converted = LegacyGlslConverter.replaceLightmapTextureMatrices(converted);
         converted = converted.replaceAll("\\bftransform\\s*\\(\\s*\\)",
                 clip.ftransform("chimeraEntityFtransform()"));
@@ -388,9 +385,9 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Every input the fragment reads must be a vertex output of the same type. Its interpolation
-     * is the fragment's: since GLSL 4.40 the stages need not agree, and an integer output needs no
-     * flat where the input has it (Alpha Piscium writes out uint frag_materialID and reads it flat).
+     * Every input the fragment reads must be a vertex output of the same type. Interpolation is the
+     * fragment's: from GLSL 4.40 the stages need not agree, so an integer output needs no flat where the
+     * input has it, as in Alpha Piscium.
      */
     private static void requireMatchingFragmentVaryings(EntityVaryingDeclarations vertexVaryings,
                                                         String fragmentSource) {
@@ -419,7 +416,7 @@ public final class EntityVertexBridge {
         if (sharedLocations != null) {
             locations.putAll(sharedLocations);
         }
-        // Each varying takes as many locations as its type occupies (a mat3 takes three).
+        // each varying takes as many locations as its type occupies, three for a mat3
         int location = 0;
         for (Map.Entry<String, Integer> shared : locations.entrySet()) {
             location = Math.max(location,
@@ -451,30 +448,27 @@ public final class EntityVertexBridge {
         converted = EntityDeclarations.removeEntityIdDeclarations(converted);
         converted = EntityDeclarations.removeEntityAttributes(converted);
         converted = replaceEntityVaryings(converted, layout, "out", true);
-        // Served and dead uniform declarations leave before identifier
-        // replacement: the replacement would otherwise rewrite names
-        // inside their own declarations into garbage.
+        // served and dead uniform declarations go before identifier replacement, which would mangle them
         converted = LegacyGlslConverter.stripUnusableUniformDeclarations(converted, fragmentUniforms);
-        // Unused sampler declarations would fail Vulkan compilation:
-        // opaque uniforms require layout(binding) even when unread.
-        // Referenced samplers already failed loudly in rejection.
+        // an unread sampler would fail Vulkan compilation, since opaque uniforms need layout(binding)
         return LegacyGlslConverter.stripUnreferencedSamplerDeclarations(converted);
     }
 
     /**
-     * The token replacements for the legacy inputs and matrices, as the hand and sky draws adjust
-     * them. gbufferModelView and its inverse stay the pack's uniforms in every lane, as in Iris: an
-     * item and its glint (depth test EQUAL) must place the same vertex bit for bit, and a GPU
-     * inverse of ModelViewMat rounds differently from the uniform the glint lane reads. Clouds'
-     * ModelViewMat also carries the cloud mesh's offset, which gbufferModelView never does.
+     * The token replacements for the legacy inputs and matrices, as the hand and sky draws adjust them.
+     *
+     * gbufferModelView and its inverse stay the pack's uniforms in every lane, as in Iris. An item and its
+     * glint (depth test EQUAL) must place the same vertex bit for bit, and a GPU inverse of ModelViewMat
+     * rounds differently from the uniform the glint lane reads. Clouds' ModelViewMat also carries the cloud
+     * mesh's offset, which gbufferModelView never does.
      */
     private static Map<String, String> entityInputReplacements(
             String vertexPreamble,
             String stripped,
             LegacyGlslConverter.TerrainVaryingLayout layout
     ) {
-        // Legacy MVP is a mat4; substituting vec4 ftransform() silently
-        // turns authored MVP * gl_Vertex into component-wise multiplication.
+        // the legacy MVP stays a mat4; a vec4 ftransform() in its place would make MVP * gl_Vertex a
+        // component-wise product
         Map<String, String> inputs = Map.ofEntries(
                 Map.entry("gl_Vertex", "chimeraEntityVertexValue()"),
                 Map.entry("gl_Color", GlslVertexPreambles.nativeLayoutPreamble(vertexPreamble)
@@ -489,15 +483,14 @@ public final class EntityVertexBridge {
                 Map.entry("gl_ProjectionMatrix", "ProjMat"),
                 Map.entry("mc_midTexCoord", EntityDeclarations.midTexCoordValue(stripped)),
                 Map.entry("at_tangent", "chimeraEntityTangentValue()"),
-                // Vulkan's index counts from the draw's first vertex, as GL's does.
+                // Vulkan's index counts from the draw's first vertex, as GL's does
                 Map.entry("gl_VertexID", "gl_VertexIndex"),
                 Map.entry("entityId", EntityIdRewrites.entityIdExpression(layout, "entityId")),
                 Map.entry("blockEntityId", EntityIdRewrites.entityIdExpression(layout, "blockEntityId")),
                 Map.entry("currentRenderedItemId",
                         EntityIdRewrites.entityIdExpression(layout, "currentRenderedItemId")));
-        // ProjMat and gl_ProjectionMatrix belong to the host raster path.
-        // Iris gbufferProjection uniforms stay in the shared pack UBO so
-        // they use the legacy clip-depth convention instead.
+        // gl_ProjectionMatrix is the host raster projection, which the hand and sky draws replace with their own;
+        // Iris's gbufferProjection stays in the shared pack UBO, in the legacy clip-depth convention
         if (vertexPreamble == GlslVertexPreambles.HAND_VERTEX_PREAMBLE) {
             inputs = new HashMap<>(inputs);
             inputs.put("gl_ProjectionMatrix", "chimeraHandProjection()");
@@ -579,7 +572,7 @@ public final class EntityVertexBridge {
         }
     }
 
-    /** HOST_PARTICLE shares legacy semantics, not the terrain converter's input restrictions. */
+    /** Particle vertex conversion that reports the first concrete failure. */
     public static LegacyGlslConverter.TerrainVertexConversion convertParticleVertexChecked(
             String source, Path sourceFile, String fragmentSource,
             Map<String, Integer> sharedLocations, boolean allowStorageBuffers,
@@ -591,9 +584,10 @@ public final class EntityVertexBridge {
 
     /**
      * Particle and weather vertex conversion whose referenced samplers take the shared bindings.
-     * DefaultVertexFormat.PARTICLE has no mid-coordinate or tangent, and Iris widens it to no
-     * format that does; the particle preamble serves GL's unbound defaults for both (Photon's
-     * gbuffers_textured, which its particles fall back to, reads both).
+     *
+     * DefaultVertexFormat.PARTICLE has no mid-coordinate or tangent, and Iris widens it to no format that
+     * does, so the particle preamble serves GL's unbound defaults for both. Photon's gbuffers_textured,
+     * which its particles fall back to, reads both.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertParticleVertexChecked(
             String source, Path sourceFile, String fragmentSource,
@@ -605,12 +599,12 @@ public final class EntityVertexBridge {
                 GlslVertexPreambles.PARTICLE_VERTEX_PREAMBLE, allowStorageBuffers, fragmentUniforms, samplerPlan);
     }
 
-    /** Static probe helper for the strict entity vertex bridge. */
+    /** Whether the entity vertex bridge can convert {@code source}. */
     public static boolean supportsEntityVertex(String source, String fragmentSource) {
         return convertEntityVertex(source, null, fragmentSource) != null;
     }
 
-    /** Static probe helper for the particle-layout hand bridge. */
+    /** Whether the hand vertex bridge can convert {@code source}. */
     public static boolean supportsHandVertex(String source, String fragmentSource) {
         return convertHandVertex(source, null, fragmentSource, null) != null;
     }
@@ -628,8 +622,8 @@ public final class EntityVertexBridge {
             if (vertexStage ? !declaration.output() : !declaration.input()) {
                 return null;
             }
-            // An unread declaration is dropped before the layout is consulted: GL links it as
-            // dead whether or not the other stage declares it.
+            // an unread declaration goes before the layout is consulted; GL links it as dead whether or
+            // not the other stage declares it
             if (!declaration.referenced()) {
                 return "";
             }
@@ -637,8 +631,7 @@ public final class EntityVertexBridge {
             if (!declaration.typeWithArray().equals(layout.types().get(name))) {
                 throw new IllegalArgumentException("entity varying is not in the shared layout: " + name);
             }
-            // Each stage keeps its own interpolation, and the fragment input's decides (GLSL 4.40):
-            // Alpha Piscium writes out uint frag_worldTN and reads it flat.
+            // each stage keeps its own interpolation and the fragment input's decides, from GLSL 4.40
             String qualifier = declaration.qualifier() == null ? "" : declaration.qualifier();
             return "layout(location = " + layout.location(name) + ") " + direction + " "
                     + (qualifier.isEmpty() ? "" : qualifier + " ")
@@ -647,9 +640,8 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Varying types (with any array suffix), their authored interpolation qualifiers (or empty),
-     * and the locations each occupies, from the shared typed interface scanner: integral, matrix,
-     * array and struct varyings keep their GLSL meaning and width.
+     * Varying types with any array suffix, authored interpolation qualifiers (empty when none) and the
+     * locations each occupies, as GlslInterfaceScanner reads them.
      */
     record EntityVaryingDeclarations(Map<String, String> types, Map<String, String> qualifiers,
                                              Map<String, Integer> slots) {}
@@ -676,10 +668,10 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * The program's samplers as the vertex stage sees them: the stage projection and the
-     * program's ordered sampler slots, which fix each sampler's shared descriptor binding; and the
-     * pack images the vertex stage declares that the plan binds, which keep their declarations
-     * for the program's image binding (PackDescriptorContracts.bindStorageImages).
+     * The program's samplers as the vertex stage sees them. {@code slots} is the program's sampler order,
+     * which fixes each sampler's shared descriptor binding. {@code storageImages} are the pack images the
+     * vertex stage declares and the plan binds; they keep their declarations for
+     * PackDescriptorContracts.bindStorageImages.
      */
     public record VertexSamplerPlan(UniformRegistry.ProgramInterface vertexInterface, int[] slots,
                                     Set<String> storageImages) {
@@ -689,9 +681,9 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Declares the vertex stage's samplers at the bindings the fragment stage uses for
-     * them. Iris binds the same textures to every stage of a program; Bliss reads its
-     * light colours from colortex4 in particle, weather and emissive vertex shaders.
+     * Declares the vertex stage's samplers at the bindings the fragment stage uses for them. Iris binds the
+     * same textures to every stage of a program; Bliss reads light colours from colortex4 in its particle,
+     * weather and emissive vertex stages.
      */
     static String bindVertexSamplers(String source, VertexSamplerPlan plan) {
         UniformRegistry.ProgramInterface vertexInterface = plan.vertexInterface();
@@ -699,8 +691,8 @@ public final class EntityVertexBridge {
         for (UniformRegistry.SamplerBinding sampler : vertexInterface.samplers()) {
             samplerTypes.put(sampler.name(), sampler.glslType());
         }
-        // Same order as the fragment stage: rename an OptiFine 'texture' sampler before
-        // the texture-call rewrite turns texture2D into texture.
+        // same order as the fragment stage: rename an OptiFine 'texture' sampler before the texture-call
+        // rewrite turns texture2D into texture
         String converted = GlslTokenRewriter.renameSamplerIdentifier(source, "texture", "chimeraTexture");
         converted = LegacyGlslConverter.convertTextureCalls(converted);
         converted = GlslTokenRewriter.rewriteShadowCalls(converted, samplerTypes);
@@ -739,15 +731,14 @@ public final class EntityVertexBridge {
         return renamed == null ? source : renamed;
     }
 
-    /** Same immutable hand program, adapted only to the host inputs of this draw. */
+    /** The hand program adapted to this draw's host inputs. */
     public static String handVertexForFormat(String converted, VertexFormat host) {
         return layoutVertexForFormat(converted, host);
     }
 
     /**
-     * Same immutable entity, block or hand program, adapted only to the inputs of
-     * the extended format its native host layout uploads as: held maps, item quads,
-     * world or sign text and moving blocks keep their own prefixes, as in Iris.
+     * An entity, block or hand program adapted to the extended format its host layout uploads as. Held maps,
+     * item quads, world or sign text and moving blocks keep their own input prefixes, as in Iris.
      */
     public static String layoutVertexForFormat(String converted, VertexFormat host) {
         if (host == DefaultVertexFormat.NEW_ENTITY) return converted;
@@ -763,8 +754,8 @@ public final class EntityVertexBridge {
         if (extended == null) {
             throw new IllegalArgumentException("unsupported entity-family host format");
         }
-        // Input locations follow the uploaded format. Iris VanillaTransformer
-        // supplies +Z for formats without a normal, zero for a missing lightmap.
+        // input locations follow the uploaded format
+        // a missing normal reads +Z and a missing lightmap zero, as Iris's VanillaTransformer supplies them
         String preamble = contract;
         var names = extended.getElementAttributeNames();
         String[] types = {"vec3", "vec4", "vec2", "ivec2", "ivec2", "vec3"};
@@ -789,10 +780,10 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * Iris writes mc_Entity as (-1, -1) for a block quad drawn outside a chunk mesh (a moving block,
-     * a beacon beam), no block having begun in its builder; the entity layout reads the unbound
-     * default instead. A gbuffers
-     * program declares it as a constant, a shadow program reads it through chimeraMcEntityValue.
+     * Gives mc_Entity Iris's (-1, -1) for a block quad drawn outside a chunk mesh, such as a moving block or a
+     * beacon beam, where no block has begun in the builder; the entity layout would read the unbound default.
+     * A gbuffers program declares mc_Entity as a constant; a shadow program reads it through
+     * chimeraMcEntityValue.
      */
     static String movingBlockEntity(String source) {
         source = source.replaceFirst("(vec2 chimeraMcEntityValue\\(\\) \\{\\s*return )vec2\\(0\\.0\\);",
@@ -806,10 +797,12 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * The crumbling overlay's entity ids read 0. Iris's TERRAIN layout carries no entity ids, so a
-     * crumbling draw reads them as uniforms (CommonUniforms): entityId the captured entity, 0 by the
-     * time the batch draws (MixinEntityRenderDispatcher), but blockEntityId and currentRenderedItemId
-     * the constant -1, which this constant does not give.
+     * The crumbling overlay's entity ids, which read 0.
+     *
+     * Iris's TERRAIN layout carries no entity ids, so a crumbling draw reads them as uniforms
+     * (CommonUniforms). entityId is the captured entity, 0 by the time the batch draws
+     * (MixinEntityRenderDispatcher). blockEntityId and currentRenderedItemId are the constant -1 there,
+     * which this does not match.
      */
     public static String withoutEntityIds(String source) {
         return source.replaceFirst("layout\\(location = \\d+\\) in uvec4 EntityIds;",
@@ -817,27 +810,26 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * The light input of a key Iris draws fullbright (ShaderKey, LightingModel.FULLBRIGHT): its
-     * ShaderAttributeInputs drop UV2, so VanillaTransformer reads gl_MultiTexCoord1 as (240, 240)
-     * whatever the vertex's. Noble's spider eyes store that block light, which lights them.
+     * The light input of a key Iris draws fullbright (ShaderKey, LightingModel.FULLBRIGHT). Its
+     * ShaderAttributeInputs drop UV2, so VanillaTransformer reads gl_MultiTexCoord1 as (240, 240) whatever
+     * the vertex holds. Noble's spider eyes store that block light, which lights them.
      */
     public static String fullbrightLight(String source) {
         return source.replaceFirst("layout\\(location = \\d+\\) in ivec2 UV2;", "const ivec2 UV2 = ivec2(240);");
     }
 
     /**
-     * The crumbling overlay's inputs as Iris's CRUMBLING key gives them (ShaderKey: the TERRAIN
-     * layout, LightingModel.FULLBRIGHT): {@link #fullbrightLight}, and the entity ids of
-     * {@link #withoutEntityIds}.
+     * The crumbling overlay's inputs as Iris's CRUMBLING key gives them, on the TERRAIN layout with
+     * LightingModel.FULLBRIGHT: {@link #fullbrightLight} and the entity ids of {@link #withoutEntityIds}.
      */
     public static String crumblingInputs(String source) {
         return fullbrightLight(withoutEntityIds(source));
     }
 
     /**
-     * The program's fragment, or a shadow program's geometry stage, for a pipeline on
-     * {@code format}: a layout without UV1 (text, a held map's background, particles in the hand,
-     * a moving block's shadow) has no overlay, so entityColor is zero there, as under Iris.
+     * The program's fragment, or a shadow program's geometry stage, for a pipeline on {@code format}. A
+     * layout without UV1, such as text or a moving block's shadow, has no overlay, so entityColor is zero
+     * there as under Iris.
      */
     public static String fragmentForFormat(String converted, VertexFormat format) {
         return format == null || format.getElementAttributeNames().contains("UV1")
@@ -845,12 +837,13 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * The converted glint program for first-person glint. Iris draws held glint with the
-     * same ShaderKey.GLINT program under the hand projection; here it takes the hand
-     * family's legacy projection and clip-depth remap, so its depth is computed exactly
-     * as the held item's and the EQUAL depth test meets it. A glint already in GL's range
-     * (WorldClipRange) keeps its remap and reads the draw's ProjMat, the hand's here; only
-     * its ftransform() becomes the hand preamble's legacy one.
+     * The converted glint vertex stage for first-person glint.
+     *
+     * Iris draws held glint with the same ShaderKey.GLINT program under the hand projection. Here it takes
+     * the hand's legacy projection and clip-depth conversion, so its depth is computed exactly as the held
+     * item's and the EQUAL depth test passes. A glint already in GL's range (WorldClipRange) keeps its
+     * conversion and reads the draw's ProjMat, the hand's here; only its ftransform() becomes the hand
+     * preamble's.
      */
     public static String handGlintVertex(String converted) {
         int start = converted == null ? -1 : converted.indexOf(GlslVertexPreambles.GLINT_VERTEX_PREAMBLE);
@@ -865,15 +858,7 @@ public final class EntityVertexBridge {
         return hand + ClipDepth.afterRenamedEntry(renamedMain(body, "chimeraHandMain"), "chimeraHandMain");
     }
 
-    // The feature check, the conversion's first step: it rejects what the bridge cannot serve before it
-    // converts a stage: referenced custom uniforms, images the plan does not bind, unmapped built-ins,
-    // unserved attributes and pack-authored layouts. Each failure names the first offender. Declarations
-    // and names are read from the parse tree.
-
-    /**
-     * Legacy built-ins with token mappings in the entity vertex inputs
-     * table. Every other gl_ builtin fails closed with its own name.
-     */
+    /** Legacy built-ins the entity inputs table maps; any other gl_ built-in is rejected by name. */
     static final Set<String> ENTITY_SERVED_BUILTINS = Set.of(
             "gl_Vertex", "gl_Color", "gl_MultiTexCoord0", "gl_MultiTexCoord1",
             "gl_MultiTexCoord2", "gl_Normal", "gl_NormalMatrix", "gl_ModelViewMatrix",
@@ -886,17 +871,14 @@ public final class EntityVertexBridge {
             "blockEntityId", Set.of("float", "int"),
             "mc_midTexCoord", Set.of("vec2", "vec4"),
             "at_tangent", Set.of("vec4"),
-            // Terrain inputs the entity format lacks read GL's unbound default.
+            // terrain inputs the entity format lacks read GL's unbound default
             "mc_Entity", Set.of("float", "vec2", "vec3", "vec4"),
             "at_midBlock", Set.of("float", "vec2", "vec3", "vec4"));
 
-    /** The value types the catalog could serve; a leftover one is a custom value with no adapter. */
+    /** The value types the catalogue could serve; a leftover one is a custom uniform nothing serves. */
     private static final Pattern VALUE_TYPE = Pattern.compile("bool|int|float|vec[234]|ivec[234]|mat[234]");
     private static final Pattern SAMPLER_OR_IMAGE_TYPE = Pattern.compile("[iu]?sampler\\w*|u?i?image\\w*");
-    /**
-     * Image types and image built-ins; not identifiers that only start with "image" (Reverie's
-     * image0Sampler is a sampler).
-     */
+    /** Image types and image built-ins only; Reverie's image0Sampler, for one, is a sampler. */
     private static final Pattern IMAGE = Pattern.compile(
             "[iu]?image(?:1D|2D|3D|Cube|2DRect|1DArray|2DArray|CubeArray|Buffer|2DMS|2DMSArray)"
                     + "|image(?:Load|Store|Size|Samples|Atomic\\w+)");
@@ -904,9 +886,12 @@ public final class EntityVertexBridge {
     private static final Set<String> ATTRIBUTE_DECLARATION_TYPES = Set.of("int", "float", "vec2", "vec3", "vec4");
 
     /**
-     * {@code source} has its comments stripped already. {@code storageImages} names the pack images
-     * the plan binds this stage (GraphicsImageScan); Iris binds images in every stage, and Pegasus
-     * stores particle light from gbuffers_particles' vertex (PARTICLES_LPV).
+     * Rejects what the bridge cannot serve before a stage converts: referenced custom uniforms, images the
+     * plan does not bind, unmapped built-ins, unserved attributes and pack-authored layouts.
+     *
+     * {@code source} has its comments stripped already. {@code storageImages} names the pack images the plan
+     * binds this stage (GraphicsImageScan); Iris binds images in every stage, and Pegasus stores particle
+     * light from gbuffers_particles' vertex stage.
      */
     static void rejectEntityVertexFeatures(
             String source, boolean allowStorageBuffers, boolean allowSamplers, Set<String> storageImages
@@ -925,23 +910,22 @@ public final class EntityVertexBridge {
             throw new IllegalArgumentException("storage buffer was not admitted by the program plan");
         }
         rejectUnservedAttributes(tree);
-        // An admitted storage block or image keeps its own layout; the plan rewrites its binding.
+        // an admitted storage block or image keeps its own layout; the plan rewrites its binding
         String interfaces = allowStorageBuffers ? GlslStorageBufferParser.withoutBlocks(source) : source;
         interfaces = withoutImageDeclarations(interfaces, storageImages);
         GlslTree withoutInterfaces = GlslTree.parse(withoutScannedInterfaces(interfaces));
         rejectUnservedAttributeDeclarations(withoutInterfaces);
-        // Interpolation survives on scanned varyings via the shared layout. Pack-authored
-        // explicit layouts would conflict with the generated locations, and interpolation
-        // qualifiers anywhere else have no adapter path.
+        // scanned varyings keep their interpolation through the shared layout
+        // a pack-authored layout would clash with the generated locations
+        // interpolation qualifiers anywhere else have nothing to serve them
         if (firstIdentifier(withoutInterfaces, Set.of("layout", "flat", "noperspective")::contains) != null) {
             throw new IllegalArgumentException("entity vertex layout is fixed by Chimera");
         }
     }
 
     /**
-     * Served and dead uniform declarations are stripped before this check, so a remaining
-     * value-type uniform names a referenced custom with no adapter. Matrix and texture built-ins
-     * have token mappings in the inputs table.
+     * Served and dead uniform declarations are stripped before this check, so a referenced value-type
+     * uniform still declared is a custom one nothing serves.
      */
     private static void rejectReferencedCustomUniforms(GlslTree tree) {
         for (GlslDeclarations.Variable variable : GlslDeclarations.variables(tree)) {
@@ -953,8 +937,8 @@ public final class EntityVertexBridge {
     }
 
     /**
-     * A referenced sampler when the plan binds no vertex samplers has no binding; nor has an image
-     * the plan does not bind, referenced or not, since the stage keeps every declaration it is given.
+     * Rejects a referenced sampler when the plan binds no vertex samplers, and an image the plan does not
+     * bind, referenced or not, since the stage keeps every declaration it is given.
      */
     private static void rejectUnboundSamplers(GlslTree tree, boolean allowSamplers, Set<String> storageImages) {
         for (GlslDeclarations.Variable variable : GlslDeclarations.variables(tree)) {
@@ -1002,8 +986,8 @@ public final class EntityVertexBridge {
 
     /** The source without its file-scope interface declarations, once every input is a served one. */
     private static String withoutScannedInterfaces(String source) {
-        // File-scope interfaces come from the shared scanner, so parameter qualifiers
-        // (`const in float depth`) and integral or matrix varyings are not misread.
+        // file-scope interfaces come from the shared scanner, which reads parameter qualifiers such as
+        // `const in float depth` and integral or matrix varyings correctly
         try {
             for (GlslInterfaceScanner.Declaration input : GlslInterfaceScanner.scan(source, true).inputs()) {
                 if (!SERVED_ATTRIBUTE_TYPES.containsKey(input.name())) {

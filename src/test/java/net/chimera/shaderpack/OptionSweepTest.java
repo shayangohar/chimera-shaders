@@ -32,12 +32,13 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Sweeps the options the settings screen offers, one change at a time over each pack's defaults:
- * every toggle flipped, every choice that can change which code runs set to each of its values
- * (a long numeric list: its two ends), and every profile. Each variant goes through the same
- * analysis and compile as the pack compile gate, on the sources edited as Iris edits them, and
- * the sweep records what differs from the defaults: programs newly rejected (with the report's
- * reasons) and newly failing compiles. Writes build/option-sweep/<pack>.json and summary.md.
+ * Sweeps the options the settings screen offers, one change at a time over each pack's defaults.
+ *
+ * Every toggle is flipped, every choice that can change which code runs is set to each of its values (only
+ * the two ends of a long numeric list), and every profile is applied. Each variant's sources are edited as
+ * Iris edits them, then analysed and compiled as PackCompileTest does. Programs newly rejected, with the
+ * report's reasons, and newly failing compiles go to {@code build/option-sweep/<pack>.json} and summary.md.
+ *
  * Run with {@code tools/check-packs.ps1 optionSweep}; {@code -Pchimera.sweep.packs=<name>;<name>}
  * narrows it to the packs whose file names contain those words.
  */
@@ -50,7 +51,7 @@ final class OptionSweepTest {
 
     record Variant(String label, Map<String, String> values) {}
 
-    /** What one variant runs: rejected programs with their reasons, and compile failures. */
+    /** One variant's result; {@code applied} is false when a value never reached the sources. */
     record Outcome(SortedMap<String, List<String>> rejected, SortedSet<String> failures, String error,
                    boolean applied) {}
 
@@ -81,8 +82,8 @@ final class OptionSweepTest {
 
     /**
      * Explains named variants in full: {@code -Pchimera.sweep.explain=<pack word>:<OPTION=value or profile
-     * name>;...} prints every report deviation of each program the variant rejects that the defaults run,
-     * the full compile errors, and a profile's entries that did not reach the pack.
+     * name>;...} writes to explain.md the report deviations of each program the variant rejects and the
+     * defaults run, the full compile errors, and any value that did not reach the pack.
      */
     @Test
     void explain() throws Exception {
@@ -145,7 +146,7 @@ final class OptionSweepTest {
 
     /** One pack: its defaults, every variant against them, and a determinism check at the end. */
     private static String sweepPack(Path source) throws Exception {
-        // A copy without the player's <pack>.txt beside it, so every variant starts from the pack's defaults.
+        // a copy without the player's <pack>.txt beside it, so every variant starts from the pack's defaults
         Path pack = TestPacks.copyWithoutOptions(source, OUTPUT.resolve("packs"));
         Outcome defaults = evaluate(pack, Map.of());
         List<Variant> variants;
@@ -184,9 +185,11 @@ final class OptionSweepTest {
     }
 
     /**
-     * Each toggle flipped, each structural choice at each other value (a long list: its ends), each
-     * profile. Only options the settings screen shows: a define the menu never offers (a program's
-     * own GBUFFERS_TERRAIN or INCLUDE_SKY guard) is no setting a player can change.
+     * Each toggle flipped, each structural choice at each other value (only the ends of a long list), and
+     * each profile.
+     *
+     * A define the settings screen never shows, such as a program's own GBUFFERS_TERRAIN or INCLUDE_SKY
+     * guard, is no setting a player can change, so it is skipped. A pack with no screen layout sweeps all.
      */
     static List<Variant> variants(ShaderPackOptions options, Set<String> structural) {
         Set<String> shown = shownOptions(options.menu());
@@ -245,30 +248,30 @@ final class OptionSweepTest {
         return names;
     }
 
-    /** The variant's sources as Iris edits them, analysed and compiled as the compile gate does. */
+    /** The variant's sources as Iris edits them, analysed and compiled as PackCompileTest does. */
     static Outcome evaluate(Path pack, Map<String, String> values) {
         try (PackSource.LoadResult loaded = PackSource.loadResult(pack, "minecraft:overworld",
                 new PendingOptions.Drained(values, false))) {
             PackProbe.Analysis analysis = PackProbe.analyze(pack, loaded);
             SortedMap<String, List<String>> rejected = new TreeMap<>();
             for (String program : PackCompileTest.rejectedProgramsIn(loaded.shadersDir(), analysis)) {
-                // A pass with no fragment source draws nothing in Iris either; its computes are planned apart.
+                // a pass with no fragment source draws nothing under Iris either; its computes are planned apart
                 var report = analysis.report().program(program);
                 if (report != null && report.deviations().contains("MISSING_FRAGMENT_SOURCE")) continue;
                 rejected.put(program, PackCompileTest.rejectionReasons(analysis, program));
             }
-            // The pass computes, shadowcomp.csh included, are planned apart from the program list.
+            // the pass computes, shadowcomp.csh included, are planned apart from the program list
             for (var compute : analysis.passComputes().computes()) {
                 if (!compute.supported()) rejected.put(compute.name(), compute.deviations());
             }
             SortedSet<String> failures = new TreeSet<>();
             for (String failure : PackCompileTest.run(pack, loaded.shadersDir(), analysis).failures()) {
-                // Drop the dump path: it names the build folder, not the defect.
+                // drop the dump path; it names the build folder and says nothing about the defect
                 failures.add(failure.replaceAll(" \\[[^\\]]*]$", ""));
             }
-            // A variant whose value never reached the sources would sweep nothing; say so. A
-            // profile's entries at their defaults are no change, and Iris ignores an entry that
-            // names no declared option (listed apart: undeclaredProfileEntries).
+            // a variant whose value never reached the sources tests nothing, so flag it
+            // a profile entry at its default is no change
+            // Iris ignores an entry that names no declared option; those go to undeclaredProfileEntries
             ShaderPackOptions staged = loaded.options().pack();
             Map<String, String> changed = staged.values().changes();
             boolean applied = values.entrySet().stream()

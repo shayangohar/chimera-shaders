@@ -227,9 +227,8 @@ final class PackStorageImage extends VulkanImage {
     int depth() { return depth; }
 
     /**
-     * A persistent pack image still has undefined contents after allocation.
-     * The first frame must seed it before a compute or graphics stage samples
-     * it. This is separate from the pack's per-frame clear policy.
+     * Whether the image was seeded since allocation, which must happen before any stage reads it. Separate
+     * from the pack's per-frame clear.
      */
     boolean initialized() { return initialized; }
 
@@ -247,12 +246,10 @@ final class PackStorageImage extends VulkanImage {
         VkImageSubresourceRange.Buffer range = VkImageSubresourceRange.calloc(1, stack);
         range.get(0).aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 .baseMipLevel(0).levelCount(1).baseArrayLayer(0).layerCount(1);
-        // Storage images remain in GENERAL for their complete lifetime. This
-        // is the layout used by both imageStore and sampled aliases in the
-        // Iris/Vitrail contract, and avoids VulkanMod's read-only transition
-        // helper being applied to a storage-backed image.
-        // The clear is a transfer write: it waits for the image's last access,
-        // and the shaders that read or store the image next wait for the clear.
+        // storage images stay in GENERAL, the layout both imageStore and sampled reads use, which keeps
+        // VulkanMod's read-only transition helper off them
+        // the clear is a transfer write: it waits for the image's last access, and the next shader access
+        // waits for the clear
         int oldLayout = getCurrentLayout();
         Access last = lastAccess(oldLayout);
         barrier(stack, commandBuffer, oldLayout, VK_IMAGE_LAYOUT_GENERAL, last,
@@ -271,9 +268,8 @@ final class PackStorageImage extends VulkanImage {
     }
 
     /**
-     * VulkanMod's helper does not accept GENERAL as a source layout. Advanced
-     * storage images use GENERAL between graphics and compute work, so their
-     * complete state machine stays in this owner.
+     * Moves the image to {@code newLayout} with its own barrier: VulkanMod's helper does not accept GENERAL
+     * as a source layout, and storage images sit in GENERAL between graphics and compute work.
      */
     private void transition(
             MemoryStack stack,

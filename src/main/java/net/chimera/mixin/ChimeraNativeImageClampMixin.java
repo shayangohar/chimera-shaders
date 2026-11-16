@@ -9,12 +9,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * NativeImage._upload clamps the bound texture to its edge when its caller asks: a texture's
- * "clamp" metadata (misc/shadow.png, the entity ground shadow). VulkanMod Reforged's overwrite
- * (MNativeImage) drops it, so a pack program that samples such a texture with no clamp of its own,
- * as Iris lets it, repeated it: the ground shadow drew a disc on every block under a mob. This
- * records the request (EdgeClampedImages) for pack draws; VulkanMod's own draws are left as they
- * are, and vanilla's entity-shadow shader clamps its coordinate itself.
+ * NativeImage._upload clamps the bound texture to its edge when the caller asks, as for a texture's "clamp"
+ * metadata such as misc/shadow.png, the entity ground shadow. Reforged's overwrite (MNativeImage) drops the
+ * request, so a pack program sampling such a texture without a clamp of its own, which Iris allows, would
+ * repeat it and draw the ground shadow as a disc on every block under a mob. This records the request
+ * (EdgeClampedImages) for pack draws. VulkanMod's own draws are left alone; vanilla's entity-shadow shader
+ * clamps its coordinate itself.
  */
 @Mixin(NativeImage.class)
 public abstract class ChimeraNativeImageClampMixin {

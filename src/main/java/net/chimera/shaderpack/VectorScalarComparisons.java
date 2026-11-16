@@ -8,14 +8,15 @@ import java.util.regex.Pattern;
 
 /**
  * A vector compared with a number: Body Camera's old lighting tests {@code mc_Entity==1.} on a vec3,
- * which a terrain program reads as {@code vec3(chimeraMcEntityValue(), 0.0)==1.}. NVIDIA's GL
- * compiler widens the number to the vector and compares whole values, one bool that is true only
- * when every component equals the number (probed: (1,2,0) is false, (1,1,1) true),
- * so Iris loads that option; glslang refuses it ("'==' : wrong operand types"). The number is
- * written as that vector, {@code mc_Entity==vec3(1.)}, only when one side is a vector variable's
- * name or a vector constructor and the other a number, each the comparison's whole operand, so
- * every source that already compiled stays as written. An integer vector takes only an integer:
- * NVIDIA compares {@code ivec2(0) == 0.5} as floats (false), where {@code ivec2(0.5)} would truncate.
+ * which a terrain program reads as {@code vec3(chimeraMcEntityValue(), 0.0)==1.}.
+ *
+ * NVIDIA's GL compiler widens the number to the vector and compares whole values, one bool that is
+ * true only when every component equals the number ((1,2,0) is false, (1,1,1) true), so Iris loads
+ * that option; glslang refuses it ("'==' : wrong operand types"). The number is written as that
+ * vector, {@code mc_Entity==vec3(1.)}, only when one side is a vector variable's name or a vector
+ * constructor and the other a number, each the comparison's whole operand, so every source that
+ * already compiles stays as written. An integer vector takes only an integer: NVIDIA compares
+ * {@code ivec2(0) == 0.5} as floats (false), where {@code ivec2(0.5)} would truncate.
  */
 final class VectorScalarComparisons {
     private VectorScalarComparisons() {}
@@ -41,7 +42,7 @@ final class VectorScalarComparisons {
         try {
             return widenAll(GlslTree.parse(source));
         } catch (RuntimeException unreadable) {
-            // Every stage passes here: one the parser cannot follow goes to the compiler as written.
+            // every stage passes here; one the parser cannot follow goes to the compiler as written
             return source;
         }
     }
@@ -65,7 +66,7 @@ final class VectorScalarComparisons {
         int left = GlslLexer.previousSignificant(tokens, operator);
         int right = GlslLexer.nextSignificant(tokens, operator);
         if (left < 0 || right < 0) return null;
-        // A vector then a number, or a number then a vector.
+        // a vector then a number, or a number then a vector
         Operand before = vectorEndingAt(tree, left);
         Operand after = before != null ? numberFrom(tokens, right) : vectorStartingAt(tree, right);
         if (before == null) before = numberTo(tokens, left);
@@ -97,7 +98,7 @@ final class VectorScalarComparisons {
                 && joins(tokens, GlslLexer.nextSignificant(tokens, after.last()), AFTER);
     }
 
-    /** Whether the token at {@code index} (none: the source's edge) cannot join an operand. */
+    /** Whether the token at {@code index}, or the source's edge when it is -1, cannot join an operand. */
     private static boolean joins(List<GlslLexer.Token> tokens, int index, Set<String> bounds) {
         return index < 0 || bounds.contains(tokens.get(index).text());
     }

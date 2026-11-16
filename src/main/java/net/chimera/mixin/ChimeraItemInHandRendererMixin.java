@@ -12,7 +12,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Iris partitions the arms by their item, not individual translucent render types. */
+/**
+ * Draws each arm only in the hand phase its held item belongs to; Iris splits the hands into solid and
+ * translucent by item, not by render type.
+ */
 @Mixin(ItemInHandRenderer.class)
 public abstract class ChimeraItemInHandRendererMixin {
     @Inject(method = "renderArmWithItem", at = @At("HEAD"), cancellable = true, require = 1)

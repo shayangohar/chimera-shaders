@@ -44,13 +44,13 @@ public final class TestPacks {
         return path("chimera.pack.bsl");
     }
 
-    /** The broadening packs, {@code chimera.pack.extra=<pack>;<pack>}; empty when none are named. */
+    /** Further packs, {@code chimera.pack.extra=<pack>;<pack>}; empty when none are named. */
     public static List<Path> extra() {
         return Arrays.stream(System.getProperty("chimera.pack.extra", "").split(";"))
                 .map(String::strip).filter(value -> !value.isEmpty()).map(TestPacks::existing).toList();
     }
 
-    /** The corpus a pack gate covers: the locked pair, then {@link #extra}. */
+    /** Every pack the pack tests cover: Complementary and BSL, then {@link #extra}. */
     public static List<Path> corpus() {
         List<Path> packs = new ArrayList<>(List.of(complementary(), bsl()));
         packs.addAll(extra());
@@ -109,7 +109,7 @@ public final class TestPacks {
         }
     }
 
-    /** A path the run must name, such as an evidence log; fails with the flag to set when it is missing. */
+    /** A path the run must name; fails with the flag to set when it is missing. */
     public static Path path(String property) {
         return existing(text(property));
     }

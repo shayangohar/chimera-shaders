@@ -6,10 +6,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * GLSL defines {@code any} and {@code all} over boolean vectors only, and glslang refuses a call
- * on a scalar. Escheridia's SSAO tests {@code any(isnan(occlusion))} on a float, which the GL
- * compiler the pack was written against accepts as the value itself. A source that makes such a
- * call gets the scalar overloads, which return their argument; any other source is unchanged.
+ * Scalar overloads of {@code any} and {@code all}, which GLSL defines over boolean vectors only, so glslang
+ * refuses a call on a scalar. Escheridia's SSAO tests {@code any(isnan(occlusion))} on a float, which the GL
+ * compiler the pack was written against reads as the value itself.
+ *
+ * A source that makes such a call gets overloads that return their argument; any other source is unchanged.
  */
 final class GlslScalarReductions {
     private static final Set<String> REDUCTIONS = Set.of("any", "all");
@@ -20,7 +21,7 @@ final class GlslScalarReductions {
 
     private GlslScalarReductions() {}
 
-    /** {@code bool any(bool)} and {@code bool all(bool)} for each reduction the source calls on a scalar. */
+    /** {@code bool any(bool)} or {@code bool all(bool)} for each the source calls on a scalar and does not define. */
     static List<String> overloads(GlslTree tree) {
         Set<String> defined = new TreeSet<>();
         for (GlslTree.External external : tree.externals()) {
@@ -41,10 +42,9 @@ final class GlslScalarReductions {
     }
 
     /**
-     * Whether the call at {@code name} passes a bool variable, or isnan/isinf of a scalar, or such
-     * tests joined by {@code ||} or {@code &&}: {@code any(isnan(f) || isinf(f))} on a float, which
-     * VectorLogicalOperators later turns into {@code (any(isnan(f)) || any(isinf(f)))}, so each part
-     * needs the scalar overload (audit GD9).
+     * Whether the call at {@code name} passes a bool variable, isnan or isinf of a scalar, or such tests joined
+     * by {@code ||} or {@code &&}. VectorLogicalOperators turns {@code any(isnan(f) || isinf(f))} into
+     * {@code (any(isnan(f)) || any(isinf(f)))}, so each part needs the scalar overload.
      */
     private static boolean scalarCall(GlslTree tree, int name) {
         List<List<Integer>> operands = operands(tree.tokens(), argument(tree.tokens(), name));
@@ -87,7 +87,7 @@ final class GlslScalarReductions {
         if (inner.size() == 1) {
             return SCALAR_FLOATS.stream().anyMatch(type -> declaredType(tree, inner.get(0), type));
         }
-        // A single component of any vector: occlusion.r
+        // one component of any vector, such as occlusion.r
         return inner.size() == 3 && tokens.get(inner.get(0)).kind() == GlslLexer.Kind.IDENTIFIER
                 && tokens.get(inner.get(1)).symbol(".")
                 && tokens.get(inner.get(2)).text().matches(SWIZZLE_COMPONENT);

@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's MC_GL_VENDOR_*, MC_GL_RENDERER_* and MC_GL_<extension> macros, named from the Vulkan device
- * as its vendor's GL driver reports it. RenderPearl 2.8 takes NVIDIA's half floats and subgroups with
- * MC_GL_VENDOR_NVIDIA, and Alpha Piscium its half floats with MC_GL_NV_gpu_shader5; without them both
- * ran their generic paths on an RTX card, unlike under Iris.
+ * Iris's MC_GL_VENDOR_*, MC_GL_RENDERER_* and {@code MC_GL_<extension>} macros, named from the Vulkan
+ * device as its vendor's GL driver reports it. RenderPearl 2.8 takes NVIDIA's half floats and subgroups
+ * with MC_GL_VENDOR_NVIDIA, and Alpha Piscium its half floats with MC_GL_NV_gpu_shader5; without the
+ * macros both run their generic paths on an NVIDIA GPU.
  */
 final class PackDeviceMacrosTest {
     @Test

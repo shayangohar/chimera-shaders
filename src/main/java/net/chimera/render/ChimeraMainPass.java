@@ -52,30 +52,21 @@ import static org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Chimera's main render pass uses the same world/output split as Beryl and
- * VulkShade:
+ * Chimera's main pass. The world draws into an internal HDR target and everything after it into a separate
+ * output target, so a screen change can retire the world target at a frame boundary while the GUI keeps its
+ * target, and the two never transition the same image.
  *
- *   - renderLevel HEAD opens the internal RGBA16F world target.
- *   - Just before the sky, the shadow map is recorded (PreSkyPasses) and the
- *     world target resumes.
- *   - renderLevel RETURN resolves the HDR world into a separate output target.
- *     Entity passes inside renderLevel follow the HDR alias; hand, GUI, and
- *     post-chain passes follow the output alias.
- *   - MainPass.end presents the output target to the swapchain.
+ * The world clear opens the HDR target, in colortex0's format under a pack and RGBA16F without one. The
+ * shadow map records just before the sky (PreSkyPasses), then the world target resumes. At renderLevel's
+ * return the world resolves into the output target. Until then Minecraft's main target is the HDR target;
+ * after it, the output target, where the host hand, the GUI and post passes draw. {@link #end} presents the
+ * output to the swapchain.
  *
- * The output target is the stable Minecraft main target. Screen resource churn
- * may retire internal world resources at their frame fence, but it never makes
- * GUI/post passes and world rendering transition the same Vulkan image.
- *
- * <p>This class schedules the frame and owns the pack session's state. Its
- * collaborators each own one part of the work: the render targets and the
- * resources behind them, the installed pipelines and how they load, the
- * shadow pass, the post chain, scene coverage, image bindings, the family
- * windows, the opaque depth snapshot, material maps, and the session
- * lifecycle that loads and retires packs.</p>
+ * This class schedules the frame and holds the pack session's state; each collaborator field owns one part
+ * of the work.
  */
 public final class ChimeraMainPass implements MainPass {
-    // Collaborators only keep this pass; they are created before any other field.
+    // built before every other field, so collaborator constructors may only store the pass
     final PackSessionLifecycle sessions = new PackSessionLifecycle(this);
     final PackPostChain postChain = new PackPostChain(this);
     final MainPassTargets targets = new MainPassTargets(this);
@@ -88,7 +79,6 @@ public final class ChimeraMainPass implements MainPass {
     final MaterialMapRuntime materials = new MaterialMapRuntime(this);
     final PackFamilyWindows windows = new PackFamilyWindows(this);
 
-    /** The host hand continues from loaded color with a fresh cleared depth. */
     private static final HandBoundaryPolicy HAND_BOUNDARY_POLICY =
             new HandBoundaryPolicy(true, true);
 
@@ -96,7 +86,7 @@ public final class ChimeraMainPass implements MainPass {
 
     static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
-    /** Complete host state snapshot for one pack-owned fullscreen seam. */
+    /** Host pipeline state and viewport, saved around a fullscreen draw. */
     record PackRenderState(
             HostPipelineState pipeline,
             int viewportWidth,
@@ -122,12 +112,11 @@ public final class ChimeraMainPass implements MainPass {
         state.pipeline().restore();
         if (state.viewportWidth() > 0 && state.viewportHeight() > 0) {
             Renderer.setViewport(0, 0, state.viewportWidth(), state.viewportHeight());
-            // The pack passes set Vulkan's scissor themselves; the host's box is GL state, reapplied.
+            // pack passes set the Vulkan scissor directly; the host's scissor box is GL state, so reapply it
             Renderer.applyScissor();
         }
     }
 
-    /** Diagnostic: -Dchimera.traceTransitions logs every chimera image transition. */
     static final boolean TRACE_TRANSITIONS = ChimeraRenderer.debugFlag("chimera.traceTransitions");
     Framebuffer currentFramebuffer;
 
@@ -135,73 +124,65 @@ public final class ChimeraMainPass implements MainPass {
     final OutputResolvePipelines outputResolve = new OutputResolvePipelines();
     final PackPostTargets packPostTargets = new PackPostTargets();
     final PackDepthTargets packDepthTargets = new PackDepthTargets();
-    /** Immutable target and depth schedule for the active pack variant. */
     PackTargetGraphPlan packTargetGraph;
-    /** Immutable world/post order for the active pack variant. */
     PackFrameSchedulePlan packFrameSchedule = PackFrameSchedulePlan.empty();
-    /** This pack session's flags, once-only logs and plans; cleanUpPackVariant replaces it whole. */
+    /** Per-session flags, once-only logs and plans; cleanUpPackVariant replaces it whole. */
     PackSessionState session = new PackSessionState();
     /**
-     * Mask-critical families this pack session could not install, or null.
-     * While set, the session loads as if no pack were selected, so resizes and
-     * screen resets cannot rebuild a half-installed frame. A pack change,
-     * reload or dimension variant clears it and re-evaluates.
+     * Why this session draws the host frame instead, or null: mask-critical families that did not install,
+     * or required features Chimera lacks.
+     *
+     * While set the session loads as if no pack were selected, so a resize or screen reset cannot rebuild a
+     * half-installed frame. A pack change, reload or dimension variant clears it.
      */
     String packFrameUnsupported;
-    /** True after the current frame has opened the target executor state. */
+    // frame progress, reset when the world segment opens
     boolean packPostFrameStarted;
     boolean packEarlyPostCompleted;
-    /** True after the world image has been resolved to the stable GUI target. */
     boolean packWorldResolved;
-    /** True after the final pack pass has run for the current frame. */
     boolean packFinalApplied;
     final VulkanImage[] packFinalInputs = new VulkanImage[PostTargetPlan.MAX_TARGET + 1];
-    /** Parsed pack constants and programs for the active selection. */
     PackConfig.PackConfigData packConfig;
     PackPlan packPlan;
     List<PackProgram> packPrograms;
-    /** Owns temporary source extraction for a ZIP pack until session teardown. */
+    /** Holds a zip pack's extracted sources until the session tears down. */
     PackSource.LoadResult packSource;
-    /** All pack-owned sampled images, retained for the pack session. */
+    /** Pack-owned sampled images. */
     PackResourceOwner packResourceOwner;
-    /** All pack-owned writable images, retained for the pack session. */
+    /** Pack-owned writable images. */
     PackAdvancedImageOwner packAdvancedImageOwner;
     /** Iris's smoothed centre depth, when a fullscreen pass reads it. */
     PackCenterDepth packCenterDepth;
-    /** Owns exact-size pack storage buffers for the active session. */
     PackStorageBufferOwner packStorageBufferOwner;
-    /** The pack's computes that run before their deferred, composite or prepare pass. */
+    /** The pack's computes, each dispatched before its deferred, composite or prepare pass draws. */
     PackPassComputes packPassComputes;
-    /** Static pack inventory plus the actual compile/install disposition. */
+    /** What the pack declares, and what of it compiled and installed. */
     ConformanceReport conformanceReport;
-    /**
-     * HDR buffer format: a loaded pack's colortex0 format (PostTargetPlan.DEFAULT_FORMAT, RGBA8 as
-     * under Iris, when it declares none); 97 (RGBA16F) for Chimera's own frame without a pack.
-     */
+    /** HDR image format: the pack's colortex0 format, RGBA8 if undeclared as under Iris; RGBA16F without a pack. */
     int packHdrFormat = 97;
-    /** True when a loaded post source may sample the HDR depth attachment. */
+    /** A loaded post program may sample the HDR depth attachment. */
     boolean packNeedsHdrDepth;
-    /** Previous selector values for pack-owned geometry textures during one terrain draw. */
+    /** Selector bindings to restore once a terrain draw with pack geometry textures ends. */
     ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> packGeometryBindings;
     record ProgramImages(String name, ProgramImageBindingManifest manifest,
                                 Set<String> shadowSamplerSymbols) {}
-    /** The current translucent layer draw uses the fixed pipeline: pack inputs were not live. */
+    /** The current translucent layer draws with the fixed pipeline, since gbuffers_water's inputs are not ready. */
     boolean packTranslucentSuspended;
-    /** Which of Minecraft's screen overlays this pack session keeps (Iris vignette and underwaterOverlay). */
+    /** Which screen overlays the pack keeps (Iris vignette and underwaterOverlay); null without a pack. */
     ScreenOverlayDirectives screenOverlays;
-    /** Which parts of Minecraft's sky this pack session keeps (Iris sun, moon, stars and sky). */
+    /** Which parts of the sky the pack keeps (Iris sun, moon, stars and sky); null without a pack. */
     SkyDirectives skyDirectives;
-    /** Whether this pack session's rain and snow write depth (Iris rain.depth). */
+    /** Whether the pack's rain and snow write depth (Iris rain.depth); null without a pack. */
     WeatherDirectives weatherDirectives;
-    /** Whether this pack session's camera culls to its view frustum (Iris frustum.culling). */
+    /** Whether the pack's camera culls to its view frustum (Iris frustum.culling); null without a pack. */
     CullingDirectives cullingDirectives;
-    /** True after renderLevel opens the internal HDR world target. */
+    /** Set from the world target opening until the frame ends. */
     boolean levelPhase;
-    /** Set when vanilla requests a depth clear while no pass is recording. */
+    /** Vanilla asked for a depth clear while no render pass was open; the next rebind applies it. */
     boolean pendingDepthClear;
     private final ChimeraHorizonRenderer horizonRenderer = new ChimeraHorizonRenderer();
 
-    /** Opens the stable output target before a screen frame starts. */
+    /** While set, {@code begin} opens and clears the output target; rebuilding the world attachments resets it. */
     boolean earlyOutputPass = true;
 
     public ChimeraMainPass() {
@@ -213,9 +194,8 @@ public final class ChimeraMainPass implements MainPass {
         this.levelPhase = true;
         PackFailureNotices.setReporter(new PackFailureReporter(this));
         targets.createResources();
-        // VulkanMod already resizes the current main pass; this covers the
-        // frames where the host owns it, so Chimera's targets follow the
-        // swapchain without being rebuilt twice.
+        // VulkanMod resizes the current main pass itself; this covers frames where the host pass is current,
+        // without resizing ours twice
         Renderer.getInstance().addOnResizeCallback(() -> {
             if (Renderer.getInstance().getMainPass() != this) onResize();
         });
@@ -237,8 +217,7 @@ public final class ChimeraMainPass implements MainPass {
         return shadowPass.consumeShadowPending();
     }
     /**
-     * Mirrors Beryl's setScreen contract: keep the stable output target alive
-     * for GUI/post work and retire only internal world resources at the next
+     * On a screen change, keeps the output target and recreates only the world attachments, at the next
      * frame boundary (MainPassTargets.refreshWorldResourcesIfDue).
      */
     public void scheduleScreenResourceReset() {
@@ -274,17 +253,13 @@ public final class ChimeraMainPass implements MainPass {
         return sessions.packStatus();
     }
 
-    // ------------------------------------------------------------------
-    // Segment control
-    // ------------------------------------------------------------------
-
     public void openLevelSegment(double cameraX, double cameraY, double cameraZ, float[] fogColor) {
         targets.ensureWorldResources();
         Renderer.getInstance().endRenderPass();
         if (this.packStorageBufferOwner != null) {
             this.packStorageBufferOwner.beginExecutionFrame();
-            // Iris sizes relative buffers, as relative images, from the main render target. One that
-            // cannot grow would be read past its end, so the pack goes off instead.
+            // Iris sizes relative buffers, like relative images, from the main render target; a buffer that
+            // cannot grow would be read past its end, so the pack is turned off
             String unfit = this.packStorageBufferOwner.fitRelativeBuffers(Renderer.getCommandBuffer(),
                     this.targets.hdrFramebuffer.getWidth(), this.targets.hdrFramebuffer.getHeight());
             if (unfit != null && !this.session.packPostChainRejected) {
@@ -299,7 +274,7 @@ public final class ChimeraMainPass implements MainPass {
             this.packStorageBufferOwner.prepareForUse(Renderer.getCommandBuffer());
         }
         if (this.packAdvancedImageOwner != null) {
-            // Iris sizes relative images from the main render target.
+            // Iris sizes relative images from the main render target
             this.packAdvancedImageOwner.prepareFrame(Renderer.getCommandBuffer(),
                     this.targets.hdrFramebuffer.getWidth(), this.targets.hdrFramebuffer.getHeight());
         }
@@ -339,11 +314,12 @@ public final class ChimeraMainPass implements MainPass {
     }
 
     /**
-     * Clears the opening world target. While a pack owns colortex0 (the HDR image) this is Iris's
-     * ClearPass: colortex0ClearColor, else the fog colour with alpha 1. Under colortex0Clear=false
-     * it clears depth only: PackPostTargets.beginFrame has loaded the HDR image with the colortex0
-     * side the world draws first, cleared by its own full clear on a new pack; a new HDR image from a screen
-     * change keeps it too, where Iris's one image never changes.
+     * Clears the world target as it opens. With a pack's colortex0 in the HDR image this is Iris's ClearPass:
+     * colortex0ClearColor, else the fog colour with alpha 1.
+     *
+     * Under colortex0Clear=false only depth clears. PackPostTargets.beginFrame has already copied in the
+     * colortex0 side the world draws first, so a new pack starts from its full clear and a new HDR image
+     * after a screen change keeps the content.
      */
     private void clearWorldTarget(float[] fogColor) {
         if (!this.session.packPostChainActive || !this.packPostTargets.isConfigured()) {
@@ -360,17 +336,14 @@ public final class ChimeraMainPass implements MainPass {
         Renderer.clearAttachments(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
     }
 
-    /**
-     * True while the HDR image is a pack's colortex0. Vanilla's world clear then clears depth
-     * only: under Iris it lands on the vanilla target, never colortex0 (ChimeraLevelRendererMixin).
-     */
+    /** True while the HDR image is a pack's colortex0. */
     public boolean packOwnsColortex0() {
         return this.levelPhase && this.session.packPostChainActive && this.packPostTargets.isConfigured();
     }
 
     /**
-     * Called after the world clear, ahead of the sky, under the level's model-view and projection.
-     * Without a gbuffers_skybasic it draws as Iris's SKY_BASIC fallback does (PackHostDraws).
+     * Draws the horizon after the world clear and before the sky. Without a gbuffers_skybasic it draws as
+     * Iris's SKY_BASIC fallback does (PackHostDraws).
      */
     public void drawPackHorizon(Matrix4f modelView, Matrix4f projection) {
         if (this.levelPhase && this.skyDirectives != null && this.skyDirectives.sky()) {
@@ -378,7 +351,7 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    /** Resolves the world into the stable output before hand and GUI work. */
+    /** Resolves the world into the output target, through the pack's post passes when they run. */
     public void finishLevelSegment() {
         if (!this.levelPhase || this.targets.hdrFramebuffer == null) {
             return;
@@ -410,22 +383,15 @@ public final class ChimeraMainPass implements MainPass {
                 this.packWorldResolved = true;
                 this.currentFramebuffer = this.targets.compositeFramebuffer;
                 coverage.endCoverageFrame();
-                // The pack final stage is the last pack operation in the
-                // world segment.  It must complete before vanilla hand
-                // submission, so host hand and GUI draws remain visible.
+                // pack final must finish before vanilla submits the hand, or hand and GUI draws are lost
                 postChain.finishPackFinalBeforeHand();
                 return;
             }
 
             postChain.commitPostFrame();
-            // Mask-critical bypass: this branch runs when
-            // the post chain is blocked or unconfigured. Installed pack
-            // objects stay untouched for deterministic cleanup and reload,
-            // but the pack composite must not execute here: it requires
-            // pack auxiliary targets while only HDR target 0 exists, so
-            // binding it throws RESOURCE_BINDING_UNAVAILABLE for its first
-            // auxiliary sampler. The host identity resolve presents the HDR
-            // image through a Sampler0-only manifest instead.
+            // post chain blocked or unconfigured: only HDR target 0 exists, so the pack composite can't bind
+            // its auxiliary samplers; present the HDR image through the identity resolve instead and leave
+            // installed pack objects alone for cleanup and reload
             resolveWorldToOutput(commandBuffer, hdrColor);
             this.currentFramebuffer = this.targets.compositeFramebuffer;
             coverage.endCoverageFrame();
@@ -437,8 +403,8 @@ public final class ChimeraMainPass implements MainPass {
     }
 
     /**
-     * The pack outputs a lane's draws need a window for, or null when they draw into the pass as it
-     * is: the lane writes only target 0, or the shadow pass owns the attachments.
+     * The pack outputs a lane's draws need a window for, or null when they draw into the open pass: the lane
+     * writes only target 0, or the shadow pass owns the attachments.
      */
     public GeometryOutputPlan laneWindowOutputs(ChimeraEntityBridge.Family lane) {
         GeometryOutputPlan outputs = pipelines.laneOutputs(lane);
@@ -479,10 +445,6 @@ public final class ChimeraMainPass implements MainPass {
         windows.bindTerrainImagesAfterSelector(renderType);
     }
 
-    // ------------------------------------------------------------------
-    // MainPass contract
-    // ------------------------------------------------------------------
-
     @Override
     public void begin(VkCommandBuffer commandBuffer, MemoryStack stack) {
         targets.ensureOutputResources();
@@ -504,9 +466,8 @@ public final class ChimeraMainPass implements MainPass {
             finishLevelSegment();
         }
         if (this.packWorldResolved && !this.packFinalApplied) {
-            // The level-render return seam is the authoritative final seam.
-            // If it was not reached, preserve the already-resolved host image
-            // and let the normal host hand and GUI path continue.
+            // pack final runs at renderLevel's return; if it did not run, keep the resolved image and let the
+            // host hand and GUI draw over it
             if (this.session.packFinalExecution != null) {
                 postChain.markPostStageIdentityBoundary(this.session.packFinalExecution,
                         "level boundary not reached");
@@ -544,32 +505,21 @@ public final class ChimeraMainPass implements MainPass {
         swapChain.getColorAttachment().transitionImageLayout(stack, commandBuffer,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         Renderer.getInstance().beginRendering(this.targets.presentRenderPass, swapChain);
-        // The present draw otherwise inherits the GUI's last viewport and
-        // scissor, leaving the swapchain on its clear color; pin the full
-        // swapchain like DefaultMainPass.begin does.
+        // the present draw would otherwise inherit the GUI's last viewport and scissor and leave the swapchain
+        // on its clear colour; cover the whole swapchain as DefaultMainPass.begin does
         Renderer.setViewport(0, 0, swapChain.getWidth(), swapChain.getHeight(), stack);
         VK10.vkCmdSetScissor(commandBuffer, 0, swapChain.scissor(stack));
-        // VulkanMod binds a pipeline variant keyed on the CURRENT
-        // VRenderSystem state (getCurrentPipelineState at bind). The
-        // swapchain depth attachment is DONT_CARE (a depth-tested
-        // present quad is culled by stale/self-written depth), and the
-        // GUI draws just before this bind leave blend/colorMask at GUI
-        // values: with the leftover SRC_ALPHA blend applied to the
-        // output's zero alpha, or a cleared color mask, the present
-        // quad writes nothing and the swapchain stays on the pass
-        // clear. Force the same plain opaque blit state the composite
-        // resolve uses, and restore the globals right after.
+        // VulkanMod picks the pipeline variant from the VRenderSystem state at bind time, and the GUI leaves
+        // its blend and colour mask behind; SRC_ALPHA blending over the output's zero alpha, a cleared colour
+        // mask or a depth test against the DONT_CARE swapchain depth would make the quad write nothing, so draw
+        // with the opaque fullscreen state and restore the globals after
         PackRenderState previousState = capturePackRenderState();
         preparePackFullscreenState();
         try {
-            // Pack final is executed before GUI by the hand seam.
-            // The swapchain always uses the host present pipeline.
+            // pack final already ran before the hand; the swapchain always gets the host present pipeline
             drawFullscreen(commandBuffer, this.presentPipeline);
-            // Identity's end-of-frame state after the present is
-            // slot 0 = outputColor. The captured slot 0 can be
-            // chimera's own bindAsTexture residue (hdrColor), which
-            // the next world-leave churn destroys; leaving it would
-            // hand the host a dead image at the transition.
+            // end the frame with slot 0 on outputColor, as the identity path does; slot 0 may still hold
+            // hdrColor from bindAsTexture, and the next world target rebuild would hand the host a dead image
             if (this.pipelines.finalPipeline != null || this.pipelines.finalPost != null) {
                 VTextureSelector.bindTexture(outputColor);
             }
@@ -594,18 +544,12 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    /** Resolves the current pack world target to the stable output target. */
     private void resolvePackWorldToOutput(VkCommandBuffer commandBuffer, VulkanImage hdrColor) {
         VulkanImage resolved = this.packPostTargets.activeTarget(0);
         resolveWorldToOutput(commandBuffer, resolved == null ? hdrColor : resolved);
     }
 
-    /**
-     * Host resolve used when the pack target graph is not active. Always
-     * presents through the host identity pipeline: callers on this path
-     * hold only the HDR image, never the pack auxiliary targets a pack
-     * composite program would require.
-     */
+    /** Draws {@code source} into the output target through the host resolve pipeline, never a pack program. */
     void resolveWorldToOutput(
             VkCommandBuffer commandBuffer,
             VulkanImage source
@@ -619,7 +563,6 @@ public final class ChimeraMainPass implements MainPass {
             previous = images.bindProgramImages(resolvePipeline, null, source,
                     DrawMaterialContext.captureLive());
             Renderer.getInstance().beginRendering(this.targets.compositeRenderPass, this.targets.compositeFramebuffer);
-            // The identity and legacy pack seams share the same transaction.
             drawFullscreen(commandBuffer, resolvePipeline);
         } finally {
             if (previous != null) previous.close();
@@ -627,7 +570,7 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    /** Captures the pre-hand depth seam before the host hand draw begins. */
+    /** Copies the pre-hand depth into depthtex2 before the pack's solid hand draws. */
     public void beginHandSegment() {
         if (this.levelPhase && this.packDepthTargets.isConfigured()
                 && this.packDepthTargets.plan().depthtex2()) {
@@ -653,8 +596,7 @@ public final class ChimeraMainPass implements MainPass {
             LOGGER.warn("[chimera] pack depth graph: fallback=IDENTITY (pre-hand depth conversion failed)");
         }
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            // The world resolve is already in the output image. Load its
-            // color, then clear the fresh hand depth after depthtex2 capture.
+            // the world is already resolved into the output: load its colour and give the hand cleared depth
             RenderPass handPass = HAND_BOUNDARY_POLICY.clearDepth()
                     ? this.targets.compositeAuxClearDepthRenderPass : this.targets.compositeAuxRenderPass;
             Renderer.getInstance().beginRendering(handPass,
@@ -665,7 +607,7 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    /** Divert the whole hand only when both halves can participate in the live pack frame. */
+    /** Whether the pack draws the hand: only in a live pack frame with both hand programs installed. */
     public boolean hasPackHandSchedule() {
         return this.levelPhase && this.session.packPostChainActive && this.session.packTargetResourcesReady
                 && this.pipelines.hand != null && this.pipelines.handWater != null;
@@ -692,7 +634,7 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    /** Marks a group of world draws done, such as a particle call; depthtex0 is captured again. */
+    /** Marks a group of world draws done, such as a particle call; the next depthtex0 reader captures it again. */
     public void markWorldDrawn() {
         depth.markWorldDrawn();
     }
@@ -706,13 +648,9 @@ public final class ChimeraMainPass implements MainPass {
         depth.sampleCenterDepthBeforeHand();
     }
 
-    // ------------------------------------------------------------------
-    // Main-target interop
-    // ------------------------------------------------------------------
-
     /**
-     * Minecraft binds the main target before each frame's game render (Reforged hands that bind
-     * here). A frame that renders no level, such as one ticked while the world saves, draws there.
+     * Minecraft's main target bind before each frame's game render, which Reforged forwards here. A frame
+     * that renders no level, such as one ticked while the world saves, draws into what this binds.
      */
     @Override
     public void mainTargetBindWrite() {
@@ -803,12 +741,11 @@ public final class ChimeraMainPass implements MainPass {
         return this.targets.resumePass(renderPass);
     }
 
-    /** Records a depth clear to apply when the current target reopens. */
     public void requestPendingDepthClear() {
         this.pendingDepthClear = true;
     }
 
-    /** Re-enters the current target applying any pending depth clear. */
+    /** Reopens the current target with a depth clear; does nothing outside the level phase. */
     public void reopenWithPendingClear() {
         if (!this.levelPhase) {
             return;
@@ -828,25 +765,19 @@ public final class ChimeraMainPass implements MainPass {
         return ((ChimeraRendererAccessor) Renderer.getInstance()).chimera$boundFramebuffer();
     }
 
-    // ------------------------------------------------------------------
-    // Resources
-    // ------------------------------------------------------------------
-
     @Override
     public void cleanUp() {
         stopRenderWorkForCleanup();
         sessions.waitForImmediateDestruction("final pack cleanup", this::releaseAfterIdle);
     }
 
-    /** The final teardown, after the device went idle: every retired handle goes at once. */
+    /** Final teardown, after the device goes idle, so every retired handle can go at once. */
     private void releaseAfterIdle() {
         this.horizonRenderer.close();
         ChimeraCloudRenderer.shared().close();
         sessions.cleanUpPackVariant();
-        // The material owner has renderer lifetime: shader-pack replacement
-        // must not close it, and final teardown closes it exactly once while
-        // the device is still alive. A failed install therefore keeps the
-        // previous valid companions instead of destroying them.
+        // material maps live as long as the renderer: a pack change never closes them, so a failed install
+        // keeps the previous ones; they close only here, while the device is still alive
         if (this.materials.materialMapOwner != null) this.materials.materialMapOwner.close();
         this.materials.materialMapOwner = null;
         targets.cleanUpFramebuffersAndPasses();
@@ -870,7 +801,7 @@ public final class ChimeraMainPass implements MainPass {
         materials.pumpMaterialMapBuilds();
     }
 
-    /** Ends only active Chimera work before final Vulkan object destruction. */
+    /** Ends whatever Chimera work is still recording before the final Vulkan objects are destroyed. */
     private void stopRenderWorkForCleanup() {
         if (this.packPostTargets.isRendering()) {
             try {
@@ -921,29 +852,20 @@ public final class ChimeraMainPass implements MainPass {
     }
 
     void createPipelines() {
-        // NOTE: pipeline depth state is decided at BIND time by VulkanMod
-        // (GraphicsPipeline.getHandle(PipelineState) <- getCurrentPipelineState
-        // snapshots VRenderSystem globals), so the present draw disables depth
-        // test/write at the draw site, not here.
         this.presentPipeline = ChimeraPostPipelines.create("chimera_present");
         this.outputResolve.create();
     }
 
     public boolean packRuntimeRejected() { return this.session.packPostChainRejected; }
 
-    /** True while a shader pack session is loaded (identity mode has none). */
     public boolean packLoaded() { return this.packPlan != null; }
 
-    /** The loaded pack's screen overlay switches, or null while no pack session is loaded. */
     public ScreenOverlayDirectives screenOverlays() { return this.screenOverlays; }
 
-    /** The loaded pack's sky switches, or null while no pack session is loaded. */
     public SkyDirectives skyDirectives() { return this.skyDirectives; }
 
-    /** The loaded pack's culling switch, or null while no pack session is loaded. */
     public CullingDirectives cullingDirectives() { return this.cullingDirectives; }
 
-    /** The loaded pack's weather switch, or null while no pack session is loaded. */
     public WeatherDirectives weatherDirectives() { return this.weatherDirectives; }
 
     public void recordShadowDraw() {
@@ -968,7 +890,7 @@ public final class ChimeraMainPass implements MainPass {
         return shadowPass.packShadowPassActive();
     }
 
-    /** The world resolve into the output, converting to the Color Space setting where Iris does. */
+    /** The world-to-output resolve pipeline, converting to the Color Space setting where Iris does. */
     GraphicsPipeline outputResolvePipeline() {
         boolean packRuns = packLoaded() && !packRuntimeRejected();
         return this.outputResolve.forSpace(OutputResolvePipelines.outputSpace(packRuns,
@@ -984,9 +906,8 @@ public final class ChimeraMainPass implements MainPass {
     }
 
     /**
-     * Diagnostic: logs every chimera image transition when
-     * -Dchimera.traceTransitions=true. The last traced line before a native
-     * crash names the faulting site and image.
+     * Logs an image transition under {@code -Dchimera.traceTransitions}. The last line before a native crash
+     * names the faulting site and image.
      */
     static void trace(String site, String image, VulkanImage img, int toLayout) {
         if (!TRACE_TRANSITIONS) {

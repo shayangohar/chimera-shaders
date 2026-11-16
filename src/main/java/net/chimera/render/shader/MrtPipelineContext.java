@@ -8,11 +8,9 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Render-thread-only context used by the narrow Chimera GraphicsPipeline mixin.
- * VulkanMod creates a graphics pipeline lazily while a post pass is bound, so
- * the target formats, any pack blend directives per attachment, and the output
- * locations the pipeline's fragment stage writes must be available at that
- * exact call site.
+ * Per-thread state GraphicsPipelineMrtMixin reads while VulkanMod creates a pipeline variant. VulkanMod
+ * creates variants lazily inside a bound pass, so the pass's attachment formats and per-attachment pack
+ * blends, and the output locations the fragment stage writes, must be in scope at that call.
  */
 public final class MrtPipelineContext {
     public static final int LOGICAL_LIMIT = 8;
@@ -21,10 +19,10 @@ public final class MrtPipelineContext {
     record Contract(int[] formats, PackBlendPlan.Mode[] blends) {}
 
     /**
-     * This thread's contracts: the pass's ({@link #begin}), and, while VulkanMod creates one of a
-     * pipeline's variants ({@link #beginPipeline}), that pipeline's side: its registered contract,
-     * which stands in for the pass's during the creation, the output locations its fragment stage
-     * writes and its blends for VulkanMod's own render passes.
+     * This thread's contracts: the pass's ({@link #begin}), and, while VulkanMod creates one of a pipeline's
+     * variants ({@link #beginPipeline}), that pipeline's side. The side holds its registered contract, which
+     * stands in for the pass's during the creation, the output locations its fragment stage writes and its
+     * blends for VulkanMod's own render passes.
      */
     private record Scope(Contract pass, PipelineSide pipeline) {
         static final Scope EMPTY = new Scope(null, null);
@@ -46,7 +44,7 @@ public final class MrtPipelineContext {
         begin(formats, deviceMaxColorAttachments, null);
     }
 
-    /** Begins an MRT contract whose attachments may carry pack blend directives. */
+    /** Begins a pass's contract; {@code blends} may be null when every attachment keeps the host blend. */
     public static void begin(int[] formats, int deviceMaxColorAttachments, PackBlendPlan.Mode[] blends) {
         int limit = Math.min(LOGICAL_LIMIT, Math.max(0, deviceMaxColorAttachments));
         if (formats == null || formats.length < 1 || formats.length > limit) {
@@ -55,29 +53,26 @@ public final class MrtPipelineContext {
         SCOPE.set(new Scope(contract(formats, blends), SCOPE.get().pipeline()));
     }
 
-    /** Enables the two-output geometry contract: pack color plus coverage depth. */
+    /** A two-attachment contract: the pack target and the coverage target. */
     public static void beginGeometry(int targetFormat, int coverageFormat, int deviceMaxColorAttachments) {
         begin(new int[] {targetFormat, coverageFormat}, deviceMaxColorAttachments);
     }
 
     /**
      * Ends the contract and any pipeline-creation scope with it, so nothing outlives the pass.
-     * GraphicsPipelineMrtMixin closes each creation's scope in a finally, so a creation that throws
-     * restores the pass's contract before its next variant.
+     * GraphicsPipelineMrtMixin closes each creation's scope in a finally, so a creation that throws restores
+     * the pass's contract before its next variant.
      */
     public static void end() {
         SCOPE.remove();
     }
 
-    /**
-     * Retains a dynamic-rendering format contract for a pipeline whose Vulkan
-     * handle will be created lazily by VulkanMod.
-     */
+    /** Keeps a pipeline's own attachment formats for the variants VulkanMod creates later. */
     public static void register(GraphicsPipeline pipeline, int[] formats) {
         register(pipeline, formats, null);
     }
 
-    /** Retains formats plus the pack's per-attachment blend modes for lazy variants. */
+    /** Keeps a pipeline's own attachment formats and per-attachment pack blends for its later variants. */
     public static void register(GraphicsPipeline pipeline, int[] formats, PackBlendPlan.Mode[] blends) {
         if (pipeline == null) throw new IllegalArgumentException("pipeline is required");
         validate(formats, LOGICAL_LIMIT);
@@ -90,8 +85,8 @@ public final class MrtPipelineContext {
     }
 
     /**
-     * Retains the pack blend modes for {@code pipeline}'s variants in VulkanMod's own render passes,
-     * one per attachment there; a null mode keeps the host blend, and all-null modes register nothing.
+     * Keeps the pack blend modes for {@code pipeline}'s variants in VulkanMod's own render passes, one per
+     * attachment there; a null mode keeps the host blend, and all-null modes register nothing.
      */
     public static void registerHostPassBlends(GraphicsPipeline pipeline, PackBlendPlan.Mode[] blends) {
         if (pipeline == null || blends == null || Arrays.stream(blends).allMatch(Objects::isNull)) return;
@@ -100,19 +95,18 @@ public final class MrtPipelineContext {
 
     /**
      * Opens the creation scope of one of {@code pipeline}'s variants at
-     * GraphicsPipeline.createGraphicsPipeline. The caller ends it with {@link #endPipeline} however
-     * the creation ends.
+     * GraphicsPipeline.createGraphicsPipeline. The caller ends it with {@link #endPipeline} however the
+     * creation ends.
      */
     public static void beginPipeline(GraphicsPipeline pipeline) {
         beginPipeline(pipeline == null ? null : PipelineSide.of(pipeline));
     }
 
-    /** Opens a creation scope with the creating pipeline's side; null for none. */
     static void beginPipeline(PipelineSide side) {
         SCOPE.set(new Scope(SCOPE.get().pass(), side));
     }
 
-    /** Closes the creation scope: the pass's contract applies again. */
+    /** Closes the creation scope, so the pass's contract applies again. */
     public static void endPipeline() {
         Contract pass = SCOPE.get().pass();
         if (pass == null) SCOPE.remove();
@@ -137,8 +131,8 @@ public final class MrtPipelineContext {
     }
 
     /**
-     * A bit per output location the pipeline being created writes, or SpirvOutputWrites.ALL when
-     * that is not recorded (Chimera's own pipelines, VulkanMod's).
+     * A bit per output location the pipeline being created writes, or SpirvOutputWrites.ALL when that is not
+     * recorded (Chimera's own pipelines and VulkanMod's).
      */
     public static int writtenOutputs() {
         PipelineSide side = SCOPE.get().pipeline();

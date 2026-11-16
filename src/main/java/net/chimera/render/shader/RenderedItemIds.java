@@ -32,8 +32,8 @@ public final class RenderedItemIds {
     }
 
     /**
-     * The id Iris gives an item stack: a block item (not a solid bucket) takes its default
-     * state's block.properties id, 0 when unmapped; any other item its item.properties id.
+     * The id Iris gives an item stack: a block item other than a solid bucket takes its default state's
+     * block.properties id, 0 when unmapped; any other item takes its item.properties id.
      */
     public static int idOf(ItemStack stack) {
         Item item = stack == null ? null : stack.getItem();
@@ -77,8 +77,8 @@ public final class RenderedItemIds {
 
     /**
      * Restores what the outermost {@link #beginItem} replaced, as if every open item had popped.
-     * ItemRenderer.render has no finally: a renderer that throws skips the pop at its return, and
-     * its item and block-item blockEntityId stayed on every later entity draw.
+     * ItemRenderer.render has no finally, so a renderer that throws skips the pop at its return, and its item
+     * and block-item blockEntityId would stay on every later entity draw.
      */
     static void unwind() {
         if (depth <= 0) return;

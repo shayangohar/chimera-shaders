@@ -7,7 +7,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The bounded token translation boundary. */
 final class TokenTranslationTest {
     /**
      * The shadow bridge serves the legacy matrix built-ins from the shadow matrices, so a shadow

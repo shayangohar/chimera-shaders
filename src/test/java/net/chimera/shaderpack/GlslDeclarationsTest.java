@@ -44,7 +44,7 @@ final class GlslDeclarationsTest {
                 new GlslDeclarations.TextEdit(0, 5, ""), new GlslDeclarations.TextEdit(3, 8, ""))));
     }
 
-    /** The entity check reads uniforms and inputs from the tree: a precision qualifier no longer hides one. */
+    /** The entity check reads uniforms and inputs from the tree, so a precision qualifier does not hide one. */
     @Test
     void entityFeatureCheckSeesEveryDeclarationShape() {
         String main = "\nvoid main() { gl_Position = vec4(strength); }\n";
@@ -61,7 +61,7 @@ final class GlslDeclarationsTest {
                 + "void main() { gl_Position = vec4(mc_midTexCoord, 0.0, 1.0); }\n", false, false, Set.of());
     }
 
-    /** Core-profile names are read from the tree: a precision qualifier or trailing comment no longer hides one. */
+    /** Core-profile names are read from the tree, so a precision qualifier or trailing comment does not hide one. */
     @Test
     void coreProfileDeclarationsAreReadFromTheTree() {
         String prepared = IrisCoreProfile.prepareIrisCoreProfile("""
@@ -153,8 +153,8 @@ final class GlslDeclarationsTest {
     }
 
     /**
-     * Metadata constants go with the blank lines their old pattern took, each span starting where
-     * the previous one ended; a format directive inside a comment stays as written.
+     * Metadata constants go with the blank lines around them, each span starting where the previous
+     * one ended; a format directive inside a comment stays as written.
      */
     @Test
     void metadataConstantsChainTheirSpansAndLeaveComments() {
@@ -245,7 +245,7 @@ final class GlslDeclarationsTest {
                 EntityDeclarations.removeEntityAttributes(
                         "in vec4 at_tangent; \n\n  attribute vec2 mc_Entity;\nin vec3 vaNormal;\n"));
         assertEquals("vec4(MidTexCoord, 0.0, 1.0)", EntityDeclarations.midTexCoordValue("in vec4 mc_midTexCoord;\n"));
-        // Iris's entity vertex format has no mc_Entity: GL reads the unbound default (0, 0, 0, 1).
+        // Iris's entity vertex format has no mc_Entity: GL reads the unbound default (0, 0, 0, 1)
         String entity = EntityDeclarations.removeEntityAttributes(
                 "attribute vec4 mc_Entity;\nattribute vec2 mc_midTexCoord;\nvoid main() {}\n");
         assertTrue(entity.contains("const vec4 mc_Entity = vec4(0.0, 0.0, 0.0, 1.0);")

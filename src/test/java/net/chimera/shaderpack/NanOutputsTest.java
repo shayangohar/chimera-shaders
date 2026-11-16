@@ -13,10 +13,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * RenderPearl 2.8's float16 path computes a NaN name-tag background; NVIDIA's GL driver then draws
- * the opaque glyphs over it, as their blend weighs the NaN by zero, while Vulkan keeps the NaN and
- * the whole tag went black. A geometry fragment writes what the NaN shows, opaque black, as main ends;
- * at alpha 0 it shows nothing, or the clear texels of RenderPearl's rain quads covered the world black.
+ * RenderPearl 2.8's float16 path computes a NaN name-tag background. NVIDIA's GL driver draws the
+ * opaque glyphs over it, as their blend weighs the NaN by zero; Vulkan keeps the NaN and the whole
+ * tag turns black. So a geometry fragment ends main by writing what the NaN shows, opaque black, and
+ * at alpha 0 writes nothing visible, or the clear texels of RenderPearl's rain quads cover the world.
  */
 final class NanOutputsTest {
     @Test
@@ -40,8 +40,9 @@ final class NanOutputsTest {
                 }
                 """;
         String converted = FragmentConverter.withoutNanOutputs(fragment);
-        // A NaN colour shows opaque black, as a NaN blended at any alpha but 0 does; at alpha 0 it adds
-        // nothing, as RenderPearl's clear rain texels add nothing under Iris. Other outputs take 0.
+        // a NaN colour shows opaque black, as a NaN blended at any alpha but 0 does; at alpha 0 it adds
+        // nothing, as RenderPearl's clear rain texels add nothing under Iris
+        // other outputs take 0
         assertTrue(converted.contains("vec4 chimeraNoNan(vec4 value) { return any(isnan(value)) "
                         + "? (value.a == vec4(0).a ? vec4(0) : vec4(0, 0, 0, 1)) : value; }")
                         && converted.contains("f16vec3 chimeraNoNan(f16vec3 value) { return mix(value, f16vec3(0), "
@@ -54,14 +55,15 @@ final class NanOutputsTest {
                         && converted.contains("colortex4 = chimeraNoNan(colortex4);")
                         && !converted.contains("chimeraNoNan(colortex2)"),
                 converted);
-        // RenderPearl redeclares gl_FragDepth depth_unchanged and never writes it; a write of its undefined
-        // value broke every depth test. An output the program never writes stays unwritten too.
+        // RenderPearl redeclares gl_FragDepth depth_unchanged and never writes it; writing its undefined
+        // value would break every depth test
+        // an output the program never writes stays unwritten too
         assertTrue(!converted.contains("chimeraNoNan(gl_FragDepth)") && !converted.contains("chimeraNoNan(colortex5)"),
                 converted);
         assertTrue(converted.indexOf("colortex4 = 1.0 / tint.r;") < converted.indexOf("colortex1 = chimeraNoNan")
                         && !converted.contains("chimeraAuthoredMain"),
                 "the guard ends main's own body, after its last write: " + converted);
-        // RTX card: the half output compiles as vec3; AMD's GPU keeps it.
+        // on an RTX card the half output compiles as vec3; AMD's GPU keeps it
         for (String profile : List.of("nvidia", "amd")) {
             PackDevice before = PackDevice.current();
             PackDevice.set(PackDevice.offline(profile));

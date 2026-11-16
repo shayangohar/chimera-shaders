@@ -1,6 +1,5 @@
 #version 460
-// Present-stage vertex: use the same fullscreen coordinate contract as the
-// composite stage. The host viewport owns the framebuffer orientation.
+// same fullscreen quad as chimera_composite.vsh; the host viewport sets orientation
 
 layout(location = 0) out vec2 outUv;
 

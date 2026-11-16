@@ -13,23 +13,20 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Evaluates the arithmetic that feeds a pack's {@code sin}, {@code cos} or
- * {@code tan} exactly as written, by decorating it {@code NoContraction}.
+ * Evaluates the arithmetic that feeds a pack's {@code sin}, {@code cos} or {@code tan} exactly as written, by
+ * decorating it {@code NoContraction}.
  *
- * <p>Packs hash with {@code fract(sin(dot(p, k)) * 43758.5453)} at arguments in
- * the thousands, where a one-ulp change in {@code dot} gives an unrelated hash.
- * Value noise built on it (BSL's foliage sway) stays continuous only when a
- * lattice corner hashes bit-identically from both cells that share it. NVIDIA's
- * Vulkan compiler fused {@code (flr.x + 1.0) * 12.9898} differently at the two
- * call sites, so the sway leapt at every cell crossing; Iris, on the GL
- * compiler, stayed smooth. Only the backward slice of trigonometric arguments
- * is decorated, so every other operation keeps the driver's fused
- * multiply-adds.</p>
+ * Packs hash with {@code fract(sin(dot(p, k)) * 43758.5453)} at arguments in the thousands, where a one-ulp
+ * change in {@code dot} gives an unrelated hash. Value noise built on it, such as BSL's foliage sway, stays
+ * continuous only when a lattice corner hashes bit-identically from both cells that share it. NVIDIA's
+ * Vulkan compiler can fuse {@code (flr.x + 1.0) * 12.9898} differently at the two call sites, and the sway
+ * then jumps at every cell crossing, where under Iris on the GL compiler it stays smooth. Only the backward
+ * slice of trigonometric arguments is decorated, so every other operation keeps the driver's fused
+ * multiply-adds.
  *
- * <p>Unoptimized glslang output carries values through function variables and
- * pointer parameters, so the slice follows a load to every store into the same
- * variable, a parameter to the argument of every call, and a call to the
- * values its function returns.</p>
+ * Unoptimized glslang output carries values through function variables and pointer parameters, so the slice
+ * follows a load to every store into the same variable, a parameter to the argument of every call, and a
+ * call to the values its function returns.
  */
 public final class SpirvTrigPrecision {
     private static final int MAGIC = 0x07230203;
@@ -75,7 +72,7 @@ public final class SpirvTrigPrecision {
         if (!flow.scan() || flow.seeds.isEmpty() || flow.firstType < 0) return words;
         Set<Integer> decorate = flow.trigSlice();
         if (decorate.isEmpty()) return words;
-        // Annotations precede every type declaration.
+        // annotations precede every type declaration
         int[] out = new int[words.length + decorate.size() * 3];
         System.arraycopy(words, 0, out, 0, flow.firstType);
         int w = flow.firstType;
@@ -155,7 +152,7 @@ public final class SpirvTrigPrecision {
 
         /** The float arithmetic results in the backward slice of every trigonometric argument. */
         private Set<Integer> trigSlice() {
-            // A store through an access chain is a store into its root variable.
+            // a store through an access chain is a store into its root variable
             Map<Integer, List<Integer>> rootStores = new HashMap<>();
             stores.forEach((pointer, values) ->
                     rootStores.computeIfAbsent(root(baseOf, pointer), p -> new ArrayList<>()).addAll(values));
@@ -173,7 +170,7 @@ public final class SpirvTrigPrecision {
                 int count = words[at] >>> 16;
                 switch (opcode) {
                     case OP_LOAD -> {
-                        // The root may be a parameter, whose value comes from each caller.
+                        // the root may be a parameter, whose value comes from each caller
                         int pointer = root(baseOf, words[at + 3]);
                         work.addAll(rootStores.getOrDefault(pointer, List.of()));
                         work.add(pointer);
@@ -186,8 +183,7 @@ public final class SpirvTrigPrecision {
                     case OP_FUNCTION_PARAMETER, OP_VARIABLE -> work.addAll(rootStores.getOrDefault(id, List.of()));
                     default -> {
                         if (FLOAT_ARITHMETIC.contains(opcode)) decorate.add(id);
-                        // Operands after the result id; literals that happen to match an id
-                        // only widen the slice.
+                        // operands after the result id; a literal that matches an id only widens the slice
                         for (int i = at + 3; i < at + count; i++) work.add(words[i]);
                     }
                 }

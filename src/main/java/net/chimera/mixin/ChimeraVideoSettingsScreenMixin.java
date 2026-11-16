@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
- * Iris's entry point on the vanilla Video Settings screen (which VulkanMod still opens with
- * Shift+P): a "Shader Packs..." option that opens the selector.
+ * Iris's entry point on the vanilla Video Settings screen, which VulkanMod still opens with Shift+P: a
+ * "Shader Packs..." option that opens the selector.
  */
 @Mixin(VideoSettingsScreen.class)
 public abstract class ChimeraVideoSettingsScreenMixin extends Screen {

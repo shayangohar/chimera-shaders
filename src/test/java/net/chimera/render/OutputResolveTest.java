@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** When the world resolve converts to the Color Space setting: where Iris's converter does. */
+/** The world resolve converts to the Color Space setting only where Iris's converter does. */
 final class OutputResolveTest {
     @Test
     void theOutputConvertsOnlyWhereIrisDoes() {

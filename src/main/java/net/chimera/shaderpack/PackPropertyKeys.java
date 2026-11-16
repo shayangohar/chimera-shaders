@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * What Chimera does with each shaders.properties key, against what Iris 1.21.1's ShaderProperties
- * reads. A key Chimera applies is named by the reader that takes it; one Iris reads and Chimera
- * does not is unsupported; one Iris does not read either is unknown, and both ignore it.
+ * Sorts shaders.properties keys against what Iris 1.21.1's ShaderProperties reads.
+ *
+ * A key Chimera applies is listed here and read elsewhere. A key only Iris reads is unsupported. A key neither
+ * reads is unknown, and both ignore it.
  */
 final class PackPropertyKeys {
     /** Prefixes Chimera reads: settings, resources, programs, directives and the option menu. */
@@ -16,13 +17,13 @@ final class PackPropertyKeys {
             "particles.");
 
     /**
-     * Keys Chimera reads: clouds (PackPlan), shadow.culling (ShadowCullingPlan), shadow.enabled
-     * (ShadowPassUse), the hand-light,
-     * terrain-shading (voxelizeLightBlocks included), shadow-caster, sky, screen-overlay and weather
-     * (rain.depth) directives, separateEntityDraws (ParticleDirectives), supportsColorCorrection
-     * (the COLOR_SPACE_* defines, PackSettingsPlan.preprocessorDefines), and the option menu's
-     * screen and sliders. A source const's name (colortexNFormat, shadowMapResolution) is no key
-     * here: neither reader takes it from this file.
+     * Keys Chimera reads: clouds (PackPlan), shadow.culling (ShadowCullingPlan), shadow.enabled (ShadowPassUse),
+     * the hand-light, terrain-shading, shadow-caster, sky, screen-overlay, weather and culling directives,
+     * separateEntityDraws (ParticleDirectives), supportsColorCorrection (PackSettingsPlan.preprocessorDefines)
+     * and the option menu's screen and sliders.
+     *
+     * A source const such as colortexNFormat or shadowMapResolution is not a key here; neither renderer reads it
+     * from this file.
      */
     private static final Set<String> APPLIED_NAMES = Set.of(
             "clouds", "shadow.culling", "shadow.enabled", "oldHandLight", "oldLighting", "separateAo", "shadowTerrain",
@@ -41,7 +42,7 @@ final class PackPropertyKeys {
 
     private PackPropertyKeys() {}
 
-    /** Why a key Chimera does not apply is recorded: SETTING_UNSUPPORTED or SETTING_UNKNOWN; null if it applies. */
+    /** The deviation for a key Chimera does not apply, SETTING_UNSUPPORTED or SETTING_UNKNOWN; null if it applies. */
     static String unread(String key) {
         if (APPLIED_PREFIXES.stream().anyMatch(key::startsWith) || APPLIED_NAMES.contains(key)) {
             return null;

@@ -31,8 +31,8 @@ final class ClipDepthTest {
 
     /**
      * A post pass's authored vertex works in GL's range: DrDestens' {@code gl_Vertex * 2 - 1} puts
-     * its quad at z = -1, GL's near plane, which Vulkan clips, so every pass drew nothing and the
-     * frame stayed black. Its main mirrors y, then converts the depth once.
+     * its quad at z = -1, GL's near plane, which Vulkan clips unless converted. Its main mirrors y,
+     * then converts the depth once.
      */
     @Test
     void anAuthoredPostVertexConvertsAfterTheMirror() {
@@ -66,7 +66,7 @@ final class ClipDepthTest {
             UniformRegistry.Stage stage = FamilyAdapterRegistry.stageFor(plan.name());
             if (!plan.executable() || plan.convertedVertex() == null) continue;
             if (stage == UniformRegistry.Stage.POST) {
-                // Chimera's own fullscreen vertex already writes z = 0, inside both ranges.
+                // Chimera's own fullscreen vertex writes z = 0, inside both ranges
                 if (!plan.deviations().contains("POST_VERTEX_AUTHORED_TRANSLATED")) continue;
                 paths++;
                 int total = ClipDepth.count(plan.convertedVertex());
@@ -91,7 +91,7 @@ final class ClipDepthTest {
         int total = conversions(chain);
         if (total > 1) return total + " conversions";
         if (total == 1 && ClipDepth.count(chain.get(chain.size() - 1)) != 1) return "converted before the last stage";
-        // Recognised by the projection the stages carry, never by the wrapper that converts.
+        // recognised by the projection the stages carry, never by the wrapper that converts
         boolean glRange = stage.shadowPass() || chain.stream().anyMatch(source -> source.contains("chimeraGlClip(")
                 || source.contains("chimeraHandProjection(") || source.contains("chimeraSkyProjection("));
         if (glRange && total != 1) return "works in GL's range and converts " + total + " times";

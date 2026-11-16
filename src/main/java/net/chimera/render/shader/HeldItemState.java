@@ -13,14 +13,13 @@ import net.vulkanmod.vulkan.util.MappedBuffer;
 import java.util.Set;
 
 /**
- * Iris's held-item uniforms (IdMapUniforms.HeldItemSupplier), captured once per frame: each
- * hand's item.properties id, the light its item emits and that light's colour.
+ * Iris's held-item uniforms (IdMapUniforms.HeldItemSupplier), captured once per frame: each hand's
+ * item.properties id, the light its item emits and that light's colour.
  *
- * <p>The id comes from the item's registry name, and is -1 when the pack does not list it. The
- * light is a block item's default block state emission and 0 for any other item; the colour is
- * white, as Iris's default
- * IrisItemLightProvider gives every vanilla item. With oldHandLight on, the main hand reports the
- * off hand's light when that is brighter. Without a player every value is Iris's invalid one.</p>
+ * The id comes from the item's registry name and is -1 when the pack does not list it. The light is a block
+ * item's default block state emission and 0 for any other item. The colour is white, as Iris's default
+ * IrisItemLightProvider gives every vanilla item. With oldHandLight on, the main hand reports the off hand's
+ * light when that is brighter. Without a player every value is Iris's invalid one.
  */
 final class HeldItemState implements FrameValueSource {
     static final Set<String> NAMES = Set.of(
@@ -63,7 +62,6 @@ final class HeldItemState implements FrameValueSource {
         return NAMES;
     }
 
-    /** The scalar, or one component of the colour, Iris serves under a name. */
     @Override
     public double value(String name, int component) {
         return switch (name) {
@@ -76,7 +74,7 @@ final class HeldItemState implements FrameValueSource {
         };
     }
 
-    /** Writes a name in its declared type: integer types as ints, the colour as floats. */
+    /** Writes a name in its declared type: ints for integer and bool types, floats otherwise. */
     @Override
     public void write(String name, String type, MappedBuffer target) {
         boolean colour = name.startsWith("heldBlockLightColor");

@@ -11,17 +11,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Gives the block atlas the mip levels Iris setups build (AtlasMipBlend) while a shader pack's
- * terrain directives are installed, and VulkanMod's own levels when none are. Each
- * sprite keeps its levels in SpriteContents.byMipLevel, which its animation uploads from, so the
- * levels are rewritten there and the atlas uploaded again. VulkanMod's levels are kept to put back.
- * A resource reload stitches new sprites with VulkanMod's levels. Pack lifecycle points only record
- * the wanted state, and the frame boundary reconciles it, so an option change uploads the atlas at
- * most once. Render thread only.
+ * Gives the block atlas the mip levels an Iris setup builds (AtlasMipBlend) while a shader pack's terrain
+ * directives are installed, and VulkanMod's own levels when none are. Each sprite keeps its levels in
+ * SpriteContents.byMipLevel, which its animation uploads from, so the levels are rewritten there and the
+ * atlas uploaded again; VulkanMod's levels are kept to put back. A resource reload stitches new sprites with
+ * VulkanMod's levels.
+ *
+ * Pack lifecycle points only record the wanted state and the frame boundary reconciles it, so an option change
+ * uploads the atlas at most once. Render thread only.
  */
 public final class PackAtlasMipmaps {
     private static final Logger LOGGER = LoggerFactory.getLogger(PackAtlasMipmaps.class);
-    /** The block atlas's levels: VulkanMod's, the pack's, or a mix a failed swap left (audit W7). */
+    /** The block atlas's levels: VulkanMod's, the pack's, or a mix a failed swap left. */
     private static final AtlasLevelSwap<SpriteContents> LEVELS = new AtlasLevelSwap<>();
     private static TextureAtlas atlas;
     private static boolean wanted;
@@ -42,8 +43,8 @@ public final class PackAtlasMipmaps {
     }
 
     /**
-     * At the frame boundary, gives the block atlas the levels the pack state wants. Never throws: a
-     * failed swap is logged once and runs again at the next pack load or unload.
+     * At the frame boundary, gives the block atlas the levels the pack state wants. Never throws: a failed
+     * swap is logged once and runs again at the next pack load or unload.
      */
     public static void reconcile() {
         if (atlas == null || !LEVELS.due(wanted)) return;
@@ -95,8 +96,8 @@ public final class PackAtlasMipmaps {
 
     /**
      * Uploads every sprite's first frame at each level in one recording (TextureUploadBatch), as
-     * TextureAtlas.upload does. VulkanMod uploads sprites only on a frame's last client tick
-     * (MSpriteContents, SpriteUtil.shouldUpload), so the gate opens for this upload alone.
+     * TextureAtlas.upload does. VulkanMod uploads sprites only on a frame's last client tick (MSpriteContents,
+     * SpriteUtil.shouldUpload), so its upload flag is forced on for this upload alone.
      */
     private static void upload() {
         VulkanImage image = ChimeraTextures.image(atlas);

@@ -6,11 +6,13 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Swaps the block atlas's sprite levels between VulkanMod's and the alpha-weighted ones Iris setups
- * build (PackAtlasMipmaps). A sprite's VulkanMod levels are kept before any of its levels changes,
- * and a restore lets go of each sprite as it puts its levels back, so a swap that stops partway can
- * always be undone. A failed swap leaves the levels mixed and is not tried again until the wanted
- * levels change or {@link #retry} allows it: each try would fail and upload the atlas again.
+ * Swaps the block atlas's sprite levels between VulkanMod's and the alpha-weighted ones Iris setups build
+ * (PackAtlasMipmaps).
+ *
+ * A sprite's VulkanMod levels are kept before any of its levels changes, and a restore lets go of each sprite
+ * as it puts its levels back, so a swap that stops partway can always be undone. A failed swap leaves the
+ * levels mixed and is not tried again until the wanted levels change or {@link #retry} allows it, since each
+ * try would fail and upload the atlas again.
  */
 final class AtlasLevelSwap<K> {
     /** One sprite's mip levels as ABGR texels; level 0 is the sprite's own and never changes. */
@@ -34,7 +36,7 @@ final class AtlasLevelSwap<K> {
     /** The wanted levels (pack or not) whose swap failed, not tried again; null when none failed. */
     private Boolean failedFor;
 
-    /** The atlas was uploaded again: every sprite has VulkanMod's levels. */
+    /** Called once the atlas is uploaded again, which gives every sprite VulkanMod's levels. */
     void reset() {
         host.clear();
         state = State.HOST;

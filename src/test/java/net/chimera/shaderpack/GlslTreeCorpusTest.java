@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Gate for the lossless tree, run per pack by CorpusChecks: every prepared stage of the
- * corpus packs parses, and prints back byte for byte. So does each converted shader,
- * which adds the Vulkan forms (uniform blocks, binding layouts) the prepared sources rarely use.
+ * Lossless tree check, run per pack by CorpusChecks: every prepared stage of the corpus packs parses
+ * and prints back byte for byte. So does each converted shader, which adds the Vulkan forms (uniform
+ * blocks, binding layouts) the prepared sources rarely use.
  */
 final class GlslTreeCorpusTest {
     private GlslTreeCorpusTest() {}
@@ -36,7 +36,7 @@ final class GlslTreeCorpusTest {
         try {
             GlslTree tree = GlslTree.parse(source);
             if (!tree.print().equals(source)) failures.add(where + ": prints differently");
-            // Statements may fall back to a token run; every stage still has a main the parser found.
+            // a statement may fall back to a token run, but every stage has a main the parser found
             boolean main = tree.externals().stream().anyMatch(external -> external instanceof GlslTree.Function
                     function && function.body() != null && tree.text(function.name()).equals("main"));
             if (!main) failures.add(where + ": no main function parsed");

@@ -8,30 +8,31 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Iris PackShadowDirectives' sampling settings. Each shadowcolor target has a format (RGBA by
- * default), a per-frame clear (on), a clear colour (1, 1, 1, 1), mipmaps (off) and nearest
- * filtering (off; always on for an integer format). Each shadow depth, shadowtex0 and shadowtex1,
- * has hardware filtering, mipmaps and nearest filtering, all off. The const directives apply in
- * the order the sources declare them; a base directive (shadowHardwareFiltering,
- * generateShadowMipmap, generateShadowColorMipmap) sets every target it covers, and a numbered one
- * sets one. Iris logs and ignores an unknown format or a malformed clear colour.
+ * The sampling settings of Iris's PackShadowDirectives.
+ *
+ * Each shadowcolor target has a format, RGBA by default, a per-frame clear (on), a clear colour of
+ * (1, 1, 1, 1), mipmaps (off) and nearest filtering (off, always on for an integer format). The shadow
+ * depths, shadowtex0 and shadowtex1, each have hardware filtering, mipmaps and nearest filtering, all off.
+ *
+ * The const directives apply in the order the sources declare them. A base directive such as
+ * shadowHardwareFiltering or generateShadowMipmap sets every target it covers, and a numbered one sets one.
+ * Iris logs and ignores an unknown format or a malformed clear colour.
  */
 public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSampling> depths, List<String> deviations) {
-    /** Iris MAX_SHADOW_COLOR_BUFFERS_IRIS: the shadowcolor targets with HIGHER_SHADOWCOLOR. */
+    /** Shadowcolor targets with HIGHER_SHADOWCOLOR (Iris's MAX_SHADOW_COLOR_BUFFERS_IRIS). */
     public static final int MAX_COLOR_TARGETS = 8;
-    /** Iris MAX_SHADOW_COLOR_BUFFERS_OF: the shadowcolor targets without it. */
+    /** Shadowcolor targets without it (Iris's MAX_SHADOW_COLOR_BUFFERS_OF). */
     public static final int LEGACY_COLOR_TARGETS = 2;
 
-    /** One shadowcolor target's settings. */
     public record ColorTarget(IrisColorFormats.Format format, boolean clear, float[] clearColor, boolean mipmap,
                               boolean nearest) {
-        /** Iris SamplingSettings.getNearest: an integer format never filters linearly. */
+        /** An integer format never filters linearly, as in Iris's SamplingSettings.getNearest. */
         public boolean nearestFiltering() {
             return nearest || format.kind() != IrisColorFormats.Kind.FLOAT;
         }
     }
 
-    /** One shadow depth's settings: shadowtex0 then shadowtex1. */
+    /** One shadow depth's settings; {@code depths} holds shadowtex0 then shadowtex1. */
     public record DepthSampling(boolean hardwareFiltering, boolean mipmap, boolean nearest) {}
 
     private static final Pattern NUMBERED = Pattern.compile(
@@ -43,7 +44,7 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
         deviations = deviations.stream().distinct().sorted().toList();
     }
 
-    /** Iris's defaults: no directive declared. */
+    /** Iris's defaults, as with no directive declared. */
     public static ShadowTargetDirectives defaults() {
         return new Builder().build();
     }
@@ -75,10 +76,10 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
     }
 
     /**
-     * Whether Iris binds the shadow resource {@code name} for the pack (IrisSamplers.addShadowSamplers):
-     * a shadowcolor target among the pass's targets (shadowcolor2-7 only with HIGHER_SHADOWCOLOR), and
-     * shadowtexNHW with SEPARATE_HARDWARE_SAMPLERS and that depth's shadowHardwareFiltering. Any other
-     * name is not one of these and counts as bound here.
+     * Whether Iris binds the shadow resource {@code name} for the pack, as IrisSamplers.addShadowSamplers
+     * does: a shadowcolor target among the pass's targets (shadowcolor2..7 only with HIGHER_SHADOWCOLOR),
+     * and shadowtexNHW with SEPARATE_HARDWARE_SAMPLERS and that depth's shadowHardwareFiltering. Any other
+     * name counts as bound.
      */
     static boolean bound(String name, PackConfig.PackConfigData config) {
         int color = PackResourcePlan.shadowColorIndex(name);
@@ -92,10 +93,10 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
     }
 
     /**
-     * Whether Iris has shadow colour target {@code index} for a compute: eight with
-     * HIGHER_SHADOWCOLOR, two without (ShadowRenderTargets). It creates one a compute names on first
-     * use (IrisSamplers.addShadowSamplers createIfEmpty, IrisImages.addShadowColorImages getOrCreate),
-     * so a compute's shadowcolor need not be among the targets the shadow pass renders (bound).
+     * Whether Iris has shadowcolor {@code index} for a compute: eight with HIGHER_SHADOWCOLOR, two without
+     * (ShadowRenderTargets). Iris creates a target a compute names on first use (createIfEmpty in
+     * IrisSamplers.addShadowSamplers, getOrCreate in IrisImages.addShadowColorImages), so it need not be one
+     * the shadow pass renders ({@link #bound}).
      */
     static boolean computeHas(int index, PackConfig.PackConfigData config) {
         boolean higher = config != null && config.settings().hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR);
@@ -111,7 +112,6 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
         return depths.get(index);
     }
 
-    /** Mutable settings while the directives apply. */
     private static final class Builder {
         private final String[] formats = new String[MAX_COLOR_TARGETS];
         private final boolean[] clears = new boolean[MAX_COLOR_TARGETS];
@@ -130,8 +130,8 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
         }
 
         /**
-         * One directive. Iris reads a boolean from a {@code const bool} of exactly true or false, a
-         * format from a {@code const int}, and a clear colour from a {@code const vec4}.
+         * Iris reads a boolean from a {@code const bool} of exactly true or false, a format from a
+         * {@code const int}, and a clear colour from a {@code const vec4}.
          */
         void accept(String type, String name, String value) {
             boolean bool = type.equals("bool");

@@ -1,10 +1,10 @@
 package net.chimera.render;
 
 /**
- * 8-bit sRGB channels to linear light and back, as Sodium blends atlas texels under Iris. Decoding
- * applies the sRGB transfer curve through a float table. Encoding rounds the curve to the nearest
- * 8-bit value. It finds the result among the linear values where that rounding steps up, which
- * gives the same answer without a power per channel: an atlas rewrite encodes millions of them.
+ * 8-bit sRGB channels to linear light and back, as Sodium blends atlas texels under Iris. Decoding reads the
+ * sRGB transfer curve from a float table. Encoding rounds to the nearest 8-bit value by a binary search over
+ * the linear values where that rounding steps up, which saves a power per channel; an atlas rewrite encodes
+ * millions of channels.
  */
 final class SrgbChannels {
     private static final float[] LINEAR = new float[256];
@@ -23,7 +23,6 @@ final class SrgbChannels {
 
     private SrgbChannels() {}
 
-    /** The linear light of an 8-bit sRGB channel value. */
     static float linear(int value) {
         return LINEAR[value];
     }

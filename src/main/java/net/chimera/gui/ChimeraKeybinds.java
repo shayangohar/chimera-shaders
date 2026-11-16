@@ -17,9 +17,10 @@ import org.lwjgl.glfw.GLFW;
 import java.nio.file.Path;
 
 /**
- * Chimera's key bindings, Iris's set: R reloads the shader pack, K turns shaders off and back on,
- * and O opens the shader pack selector. One binding acts per tick, in that order, and each reports
- * in chat as Iris does. A reload or toggle is queued for the next safe frame boundary.
+ * Iris's key bindings: R reloads the pack, K turns shaders off and back on, O opens the pack selector.
+ *
+ * One binding acts per tick, in that order. Reload and toggle report in chat as Iris does, and take effect
+ * at the next frame boundary.
  */
 public final class ChimeraKeybinds {
     private static final String CATEGORY = "key.category.chimera.keybinds";
@@ -32,7 +33,6 @@ public final class ChimeraKeybinds {
 
     private ChimeraKeybinds() {}
 
-    /** Registers the bindings and handles them at the end of each client tick. */
     public static void register(IEventBus modBus) {
         modBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(reload);
@@ -52,7 +52,7 @@ public final class ChimeraKeybinds {
         }
     }
 
-    /** Reloads the running pack from disk, option file included; with no pack there is nothing to do. */
+    /** Reloads the running pack from disk, option file included. */
     private static void reloadPack(Minecraft minecraft) {
         if (ChimeraRenderer.reloadPack() == ChimeraRenderer.PackRequestResult.NOT_READY) {
             tell(minecraft, failure("chimera.shaders.reloaded.failure"));
@@ -61,10 +61,7 @@ public final class ChimeraKeybinds {
         }
     }
 
-    /**
-     * Turns a running pack off, or turns the saved pack back on, and remembers the choice as the
-     * selector's toggle does.
-     */
+    /** Turns a running pack off, or the saved pack back on, and saves the choice as the selector's toggle does. */
     private static void toggleShaders(Minecraft minecraft) {
         ChimeraConfig config = ChimeraConfig.get();
         if (ChimeraRenderer.selectedPackPath() != null) {

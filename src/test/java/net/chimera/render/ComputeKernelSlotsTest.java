@@ -6,8 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A compute kernel lives for the pack session, and the player can raise VulkanMod's frame queue
- * size within it. Slots sized to the frames in flight at build were then shared by two frames still
- * in flight (frames 0 and 2 on a 2-slot ring at 3 frames), rewriting a set and block the other used.
+ * size within it. Slots sized to the frames in flight at build would be shared by two frames still
+ * in flight (frames 0 and 2 on a 2-slot ring at 3 frames), and one would rewrite a set and block the
+ * other uses.
  */
 final class ComputeKernelSlotsTest {
     @Test

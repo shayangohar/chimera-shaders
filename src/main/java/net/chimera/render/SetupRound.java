@@ -7,10 +7,10 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * One round of Iris's setup computes, which run once the pipeline is made and after each resize
- * (IrisRenderingPipeline): each runs once, in order. One that skips a frame, as before a depth
- * snapshot exists, holds the rest of the round to a later frame; after {@link #TRIES} frames the
- * round goes on without it, and the next round tries it again.
+ * One round of Iris's setup computes, which run once the pipeline is built and after each resize
+ * (IrisRenderingPipeline), each once and in order. A compute that skips a frame, such as one that runs before
+ * a depth snapshot exists, holds the rest of the round to a later frame. After {@link #TRIES} frames the round
+ * goes on without it, and the next round tries it again.
  */
 final class SetupRound {
     static final int TRIES = 8;
@@ -27,14 +27,13 @@ final class SetupRound {
         due = any;
     }
 
-    /** Whether a compute of this round has yet to run. */
     boolean due() {
         return due;
     }
 
     /**
-     * Runs the round's next computes, in order, through {@code dispatch} (false: it skipped this
-     * frame) until one skips or every one has run; the names this call gave up on.
+     * Runs the round's remaining computes in order through {@code dispatch}, which returns false when a compute
+     * skips this frame, and stops at a skip unless that compute is out of tries. Returns the names given up on.
      */
     List<String> advance(List<String> names, Predicate<String> dispatch) {
         List<String> abandoned = new ArrayList<>();

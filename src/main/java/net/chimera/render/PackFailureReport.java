@@ -23,20 +23,20 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * A failure's report file, {@code <gameDir>/chimera/reports/<time>-<pack>.txt}: what
- * failed and where, the versions and the device it ran on, the pack and its options, and the
- * conformance report. It is written to be shared, so it names no user: the home folder reads as
- * {@code ~}, and the system and player names as {@code <user>}.
+ * A failure's report file, {@code <gameDir>/chimera/reports/<time>-<pack>.txt}: what failed and where, the
+ * versions and the device it ran on, the pack and its options, and the conformance report. It is written to
+ * be shared, so it names no user: the home folder reads as {@code ~}, and the system and player names as
+ * {@code <user>}.
  */
 final class PackFailureReport {
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss");
     private static final DateTimeFormatter TEXT_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    /** The reports the folder keeps, the newest. */
+    /** How many of the newest reports the folder keeps. */
     static final int KEPT_REPORTS = 50;
-    /** A pack file's hash by path, size and time: a large pack is read once, not on each failure. */
+    /** Pack file hashes by path, size and modified time, so a large pack is read once rather than per failure. */
     private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
 
-    /** Where Chimera, its host and the device stand. */
+    /** The versions of Chimera and its host, and the system it runs on. */
     record Environment(String chimera, String commit, String vulkanMod, String neoForge, String minecraft,
                        String gpu, String driver, String vulkan, String os, String java) {}
 
@@ -100,25 +100,25 @@ final class PackFailureReport {
     }
 
     /**
-     * A user's own folder in any path left: {@code X:\Users\<name>} or {@code Documents and
-     * Settings}, with any slashes (JSON escapes them twice), or {@code /home/<name>} and
-     * {@code /Users/<name>}. It catches a short 8.3 name (JOHNSM~1, in the temporary folder) and a
-     * profile folder named unlike the user. A name runs to the next slash, spaces and all.
+     * A user folder left in any path: {@code X:\Users\<name>} or {@code Documents and Settings} with any run
+     * of either slash, since JSON doubles backslashes, or {@code /home/<name>} and {@code /Users/<name>}. It
+     * catches a short 8.3 name, as in the temporary folder's path, and a profile folder named unlike the user.
+     * The name runs to the next slash, spaces included.
      */
     private static final Pattern USER_FOLDER = Pattern.compile(
             "(?i)((?:[A-Z]:[\\\\/]+(?:Users|Documents and Settings)|(?<![A-Za-z0-9])/(?:home|Users))[\\\\/]+)"
                     + "[^\\\\/\"'\\r\\n]+");
     /**
-     * The same folder in a deviation, whose argument keeps only word characters: C_Users_name_...
+     * The same folder in a deviation, whose argument keeps only word characters: {@code C_Users_name_...}
      * (PackPlanBuilder.failureReason). The name runs to the next underscore.
      */
     private static final Pattern SANITIZED_USER_FOLDER = Pattern.compile(
             "(?i)(?<![A-Za-z0-9])([A-Z]_+(?:Users|Documents_and_Settings)_+)[A-Za-z0-9.~-]+");
 
     /**
-     * {@code text} with no user in it: each of {@code homes} (in either slash, or as a deviation
-     * spells it) reads as {@code ~}, any other user folder as {@code <user>} (USER_FOLDER,
-     * SANITIZED_USER_FOLDER), and each of {@code names}, as a whole word in any case, as {@code <user>}.
+     * {@code text} with no user in it. Each of {@code homes}, with either slash or as a deviation spells it,
+     * reads as {@code ~}; any other user folder as {@code <user>}; and each of {@code names}, as a whole word
+     * in any case, as {@code <user>}.
      */
     static String redact(String text, List<String> homes, List<String> names) {
         String redacted = text;
@@ -138,7 +138,7 @@ final class PackFailureReport {
         redacted = USER_FOLDER.matcher(redacted).replaceAll("$1<user>");
         redacted = SANITIZED_USER_FOLDER.matcher(redacted).replaceAll("$1<user>");
         for (String name : names) {
-            // A name of one or two letters would blot out words; it names no one in a shader log.
+            // a name of one or two letters would blot out words, and names no one in a shader log
             if (name == null || name.strip().length() < 3) continue;
             redacted = Pattern.compile("(?<![A-Za-z0-9_])" + Pattern.quote(name) + "(?![A-Za-z0-9_])",
                     Pattern.CASE_INSENSITIVE).matcher(redacted).replaceAll(Matcher.quoteReplacement("<user>"));
@@ -147,9 +147,9 @@ final class PackFailureReport {
     }
 
     /**
-     * Writes {@code text} as a new report under {@code gameDir} and returns its path. The folder
-     * keeps the newest {@link #KEPT_REPORTS}: each report carries a conformance report of hundreds
-     * of kilobytes, and a skip is told again each game.
+     * Writes {@code text} as a new report under {@code gameDir} and returns its path. The folder keeps the
+     * newest {@link #KEPT_REPORTS}, since each carries a conformance report of hundreds of kilobytes and a
+     * skip is told again each game.
      */
     static Path write(Path gameDir, String pack, String text, LocalDateTime when) throws IOException {
         Path folder = gameDir.resolve("chimera").resolve("reports");
@@ -161,7 +161,7 @@ final class PackFailureReport {
         try {
             prune(folder);
         } catch (IOException | RuntimeException kept) {
-            // A report open elsewhere stays; the one just written is no less written.
+            // a report open elsewhere stays; the new one is written either way
         }
         return file;
     }
@@ -194,8 +194,8 @@ final class PackFailureReport {
     }
 
     /**
-     * The SHA-256 of a pack file, read once a game per file and size; a folder pack's files are
-     * hashed one by one in its conformance report.
+     * The SHA-256 of a pack file, read once a game per path, size and modified time. A folder pack's files
+     * are hashed one by one in its conformance report.
      */
     static String hash(Path pack) {
         if (pack == null) return "none";

@@ -26,7 +26,8 @@ final class UnboundAttributes {
 
     /**
      * Names Chimera's lanes serve themselves: the per-vertex identities, which Iris's EntityPatcher
-     * rewrites whatever their storage. Iris binds no {@code Tangent}; a pack's reads GL's default.
+     * rewrites whatever their storage. Iris binds no {@code Tangent}, so a pack's {@code Tangent} reads
+     * GL's default.
      */
     private static final Set<String> CHIMERA_SERVED = Set.of(
             "entityId", "blockEntityId", "currentRenderedItemId");

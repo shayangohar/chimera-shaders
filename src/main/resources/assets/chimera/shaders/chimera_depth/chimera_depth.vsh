@@ -1,7 +1,7 @@
 #version 460
 layout(location = 0) out vec2 outUv;
 
-// The fullscreen quad shared with chimera_composite.vsh.
+// fullscreen quad shared with chimera_composite.vsh
 const vec2 CHIMERA_QUAD[6] = vec2[](vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0),
                                     vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0));
 

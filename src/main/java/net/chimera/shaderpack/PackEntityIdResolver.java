@@ -40,10 +40,10 @@ public final class PackEntityIdResolver {
     }
 
     /**
-     * Reads entity.properties as Iris's IdMap.parseEntityIdMap does ({@link IdMapProperties}),
-     * preprocessed with the id-map {@code macros}: {@code #if} blocks, {@code \} continuations, a
-     * key's last value, and a later key's mapping over an earlier one for the same entity.
-     * Chimera's vertex attribute holds an id from 0 to 65535; an id outside that is reported.
+     * Reads entity.properties as Iris's IdMap.parseEntityIdMap does ({@link IdMapProperties}), preprocessed
+     * with the id-map {@code macros}. A later key's mapping wins over an earlier one for the same entity.
+     *
+     * The vertex attribute holds 0 to 65535; an id outside that range is reported and dropped.
      */
     public static ParseResult parse(Path shadersDir, Map<String, String> macros) {
         IdMapProperties.Loaded file = IdMapProperties.read(shadersDir, "entity.properties", macros);
@@ -76,7 +76,7 @@ public final class PackEntityIdResolver {
         return new PackEntityIdResolver(Map.of(), List.of(), false);
     }
 
-    /** Resolves a registry name. Unknown names in a present map use Iris's unsigned sentinel. */
+    /** Vertex attribute id for a registry name: 0 without a map, Iris's unsigned sentinel for an unknown name. */
     public int resolveName(String name) {
         String normalized = normalizeName(name);
         if (!present) {
@@ -85,16 +85,12 @@ public final class PackEntityIdResolver {
         return normalized == null ? 0xFFFF : ids.getOrDefault(normalized, 0xFFFF);
     }
 
-    /**
-     * The id Iris's entityId uniform reads for a registry name: an unknown name in a present map
-     * reads the map's -1 there, not the vertex attribute's unsigned sentinel.
-     */
+    /** The id Iris's entityId uniform reads, where an unknown name in a present map reads -1. */
     public int uniformId(String name) {
         int id = resolveName(name);
         return id == 0xFFFF ? -1 : id;
     }
 
-    /** Resolves a live entity type without changing the render state. */
     public int resolve(EntityType<?> type) {
         if (type == null) {
             return resolveName(null);

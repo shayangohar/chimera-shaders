@@ -10,7 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The converted-output gate names each changed shader, and lets source drift through when only SPIR-V must hold. */
+/** The converted-output snapshot names each changed shader, and passes a source change when only SPIR-V must match. */
 final class ConvertedOutputSnapshotTest {
     @Test
     void namesEveryChangeAndHonoursSpirvOnly(@TempDir Path fixtures) {

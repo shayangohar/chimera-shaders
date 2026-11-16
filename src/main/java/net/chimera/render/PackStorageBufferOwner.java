@@ -24,7 +24,7 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 import static org.lwjgl.vulkan.VK10.VK_WHOLE_SIZE;
 import static org.lwjgl.vulkan.VK10.vkCmdFillBuffer;
 
-/** Owns the bounded read/write storage buffers for one pack session. */
+/** Owns one pack session's storage buffers (Iris bufferObject) and tracks which programs can bind them. */
 public final class PackStorageBufferOwner implements AutoCloseable {
     private final PackAdvancedResourcePlan plan;
     private final Map<Integer, PackStorageBuffer> buffers = new TreeMap<>();
@@ -47,7 +47,10 @@ public final class PackStorageBufferOwner implements AutoCloseable {
         synchronizedWrites.clear();
     }
 
-    /** Called only after a native draw command was recorded, never on descriptor upload. */
+    /**
+     * Notes a draw {@code program} recorded in {@code stage}, for the writer and reader debug log. Call after
+     * the draw command is recorded, never on descriptor upload.
+     */
     public void recordDraw(String program, int stage) {
         for (var binding : plan.storageBuffers(program)) {
             if (!binding.supported() || !buffers.containsKey(binding.logicalIndex())
@@ -82,8 +85,8 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Buffer sizes added up to at most Long.MAX_VALUE: a relative size past a long is Long.MAX_VALUE
-     * itself (BufferSpec.bytes), and a plain sum with any other wrapped negative in the logs.
+     * Buffer sizes summed, saturating at Long.MAX_VALUE. BufferSpec.bytes gives that for a relative size
+     * past a long, and a plain sum would log it wrapped negative.
      */
     static long totalBytes(LongStream sizes) {
         return sizes.reduce(0L, (total, bytes) -> total > Long.MAX_VALUE - bytes ? Long.MAX_VALUE : total + bytes);
@@ -109,7 +112,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
             PackAdvancedResourcePlan.BufferSpec spec = owner.plan.buffers().get(index);
             if (spec == null || !spec.supported()) continue;
             long bytes = spec.bytes(screenWidth, screenHeight);
-            // The host sizes buffers with an int.
+            // maxRange also caps the size at an int, which the host sizes buffers with
             if (bytes > maxRange) {
                 owner.failures.put(index, "STORAGE_BUFFER_DEVICE_RANGE_UNSUPPORTED:" + index);
                 continue;
@@ -157,7 +160,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
                 unfit.add("storage buffer " + entry.getKey() + " (" + bytes + " bytes at " + size + ")");
                 continue;
             }
-            // Before the session's first fill (initialize), that fill covers the new buffer.
+            // before the session's first fill (initialize), that fill covers the new buffer
             if (initialized) {
                 vkCmdFillBuffer(commandBuffer, entry.getValue().getId(), 0L, VK_WHOLE_SIZE, 0);
                 filled = true;
@@ -168,11 +171,11 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Recreates one relative buffer at {@code bytes} through {@code recreate}, and says whether it
-     * did. A size past the device's range, or one the device cannot allocate, keeps the old buffer
-     * and is logged: the pack never reads a freed buffer. A program would index at the new size,
-     * past the old buffer's end, which is undefined with no robustBufferAccess; so the caller turns
-     * the pack off (fitRelativeBuffers).
+     * Recreates one relative buffer at {@code bytes} through {@code recreate}, and says whether it did.
+     *
+     * A size past the device's range, or one the device cannot allocate, keeps the old buffer and is logged,
+     * so the pack never reads a freed buffer. Programs would then index past the old buffer's end, which is
+     * undefined without robustBufferAccess, so the caller turns the pack off (fitRelativeBuffers).
      */
     static boolean refit(int index, long bytes, long maxRange, String size, IntConsumer recreate) {
         if (bytes > maxRange) {
@@ -190,16 +193,11 @@ public final class PackStorageBufferOwner implements AutoCloseable {
         }
     }
 
-    /** Returns the session-owned buffer for an admitted logical index. */
     public PackStorageBuffer buffer(int logicalIndex) {
         return buffers.get(logicalIndex);
     }
 
-    /**
-     * Resolves a program block by its authored block or instance name. The
-     * immutable plan remains the authority for the logical index; this method
-     * only exposes the already-created session buffer.
-     */
+    /** The buffer a program's block binds, found by block or instance name; null when there is none. */
     public PackStorageBuffer buffer(String program, String blockName, String instanceName) {
         if (program == null) return null;
         for (PackAdvancedResourcePlan.StorageBufferBinding binding
@@ -252,10 +250,9 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Why the device's descriptor limits refuse {@code program}'s storage buffers, or null. Vulkan
-     * reports each limit as an unsigned 32-bit count: AMD's driver gives the per-stage one as
-     * 0xFFFFFFFF, no limit, which Java reads as -1, and every program binding a buffer, RenderPearl's
-     * terrain, water and hand among them, was refused on the Radeon.
+     * Why the device's descriptor limits refuse {@code program}'s storage buffers, or null. Each limit is an
+     * unsigned 32-bit count: AMD's driver reports the per-stage one as 0xFFFFFFFF, no limit, which a signed
+     * compare would read as -1 and so refuse every program that binds a buffer.
      */
     static String limitFailure(String program, List<PackAdvancedResourcePlan.StorageBufferBinding> bindings,
                                int setDynamicLimit, int perStageLimit) {
@@ -318,7 +315,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
         return "STORAGE_BUFFER_DESCRIPTOR_LIMIT:" + program;
     }
 
-    /** Adds one zero-fill command for each buffer, once per pack session. */
+    /** Zero-fills every buffer, once per session. */
     public boolean initialize(VkCommandBuffer commandBuffer) {
         if (commandBuffer == null || closed || initialized || buffers.isEmpty()) return false;
         for (Map.Entry<Integer, PackStorageBuffer> entry : buffers.entrySet()) {
@@ -330,7 +327,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
         return true;
     }
 
-    /** Records shader/layout agreement before native pipeline creation. */
+    /** Checks the shaders against the planned descriptor layout before the pipeline is made; the mismatch, or null. */
     public String verifyLayout(String program, String vertex, String fragment,
             List<PackAdvancedResourcePlan.DescriptorBinding> descriptors) {
         return verifyLayout(program, vertex, BetweenStages.NONE, fragment, descriptors);
@@ -356,7 +353,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     public boolean layoutVerified(String program) {
         return verifiedLayouts.contains(program);
     }
-    /** Makes writes from an earlier guarded pack stage visible to this stage. */
+    /** Makes earlier storage buffer writes visible to the work recorded next. */
     public void prepareForUse(VkCommandBuffer commandBuffer) {
         if (commandBuffer == null || closed || !initialized || buffers.isEmpty()) return;
         PackVulkanBarriers.beforeStorageBufferUse(commandBuffer, buffers.values());
@@ -400,7 +397,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
         return plan.storageBuffers(program).isEmpty() || installedPrograms.contains(program);
     }
 
-    /** Summarizes the exact writer-reader chain for one logical storage path. */
+    /** The status of the storage path from {@code writer} to {@code reader}, for the debug log. */
     public String storagePathStatus(String writer, String reader) {
         Set<Integer> writerBuffers = logicalBuffers(writer);
         Set<Integer> readerBuffers = logicalBuffers(reader);

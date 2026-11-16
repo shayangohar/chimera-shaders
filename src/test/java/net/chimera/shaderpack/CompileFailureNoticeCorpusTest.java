@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * RedHat v34.3.1 with DIRTY_LENS on declares lenscolor twice in final, and Iris refuses the pack
- * for it. Chimera skips final, and its notice's Copy Info names the error, the translated
- * line, and the line the pack wrote. Needs the corpus (check-packs.ps1 -Corpus).
+ * for it. Chimera skips final, and its notice's Copy Info names the error, the translated line and
+ * the line the pack wrote. Needs the pack in chimera.pack.extra (check-packs.ps1 -Corpus).
  */
 @Tag("packs")
 final class CompileFailureNoticeCorpusTest {
@@ -44,7 +44,7 @@ final class CompileFailureNoticeCorpusTest {
             System.out.println("[chimera] RedHat DIRTY_LENS Copy Info:\n" + info);
             assertTrue(info.contains("'lenscolor' : redefinition"), info);
             assertTrue(info.contains("Translated line pack_final.fsh:"), info);
-            // mainlens.glsl declares it at 18 and again at 79, inside the DIRTY_LENS branch.
+            // mainlens.glsl declares it at 18 and again at 79, inside the DIRTY_LENS branch
             assertTrue(info.contains("Authored: lib/effect/visual/lens/mainlens.glsl:18 or "
                     + "lib/effect/visual/lens/mainlens.glsl:79"), info);
             assertEquals("compile error: 'lenscolor' : redefinition", PackPipelines.compileError(failure.getMessage()),

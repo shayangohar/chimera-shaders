@@ -10,11 +10,9 @@ void main() {
     vec4 scene = texture(SceneColor, inUv);
     float packCoverage = texture(Coverage, inUv).r;
 
-    // The HDR source stores useful sky RGB with a low alpha value.  Source
-    // alpha is therefore not a reliable copy factor for uncovered pixels.
-    // Copy those pixels fully.  Where pack geometry already exists, ignore
-    // low-alpha background RGB and keep the pack target; opaque host pixels
-    // still overlay it through the fixed source-alpha blend state.
+    // the HDR sky keeps useful RGB under a low alpha, so alpha can't be the copy factor
+    // uncovered pixels copy fully; over pack geometry, low-alpha background is ignored and the
+    // pack target kept, while opaque host pixels still overlay through the source-alpha blend
     if (packCoverage == -1.0) {
         scene.a = 1.0;
     } else if (scene.a < 0.5) {

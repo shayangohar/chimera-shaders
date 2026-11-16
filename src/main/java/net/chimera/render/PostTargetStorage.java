@@ -23,23 +23,24 @@ import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SH
 import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
 /**
- * The colour targets a post pass or a hand program stores to as colorimgN (TargetImages), held in
- * the general layout for its draws: for a pass, the images the chain reads now
- * (PackPostTargets.storageSource), as a pass compute binds them; for the hand, the images world
- * programs read (PackPostTargets.worldStorageImage). Iris binds the target's texture to an image
- * unit, which GL needs no layout for; VulkanMod moves only sampled images, and rejects one it finds
- * general, so each goes back to the sampled layout after the draws. PackPostTargets holds a pass's
- * once its output copies are recorded, just before the draw opens, and releases them as it closes:
- * holding them earlier made Rethinking Voxels' prepare2 copy its colortex3 out of GENERAL
- * ("Unexpected value:1"), and the runtime fallback turned the whole post chain off. The hand's are
- * held before its lane run opens and released when the run ends (PackFamilyWindows.drawRun).
+ * Holds the colour targets a post pass or hand program stores to as colorimgN (TargetImages) in the general
+ * layout for its draws. For a pass these are the images the chain reads at that point
+ * (PackPostTargets.storageSource), as a pass compute binds them; for the hand, the images world programs read
+ * (PackPostTargets.worldStorageImage).
+ *
+ * Iris binds the target's texture to an image unit, which needs no layout in GL. VulkanMod's tracked
+ * transitions handle only sampled images and throw on one in GENERAL ("Unexpected value:1"), so each image
+ * goes back to the sampled layout after the draws. For the same reason PackPostTargets holds a pass's targets
+ * only once its output copies are recorded, just before the draw opens, and releases them as it closes;
+ * Rethinking Voxels' prepare2 copies a colortex3 it also stores to. The hand's targets are held before its
+ * lane run opens and released when the run ends (PackFamilyWindows.drawRun).
  */
 final class PostTargetStorage {
     private final List<VulkanImage> held = new ArrayList<>();
 
     /**
-     * The stages that may store to a held target: a hand's tessellation and geometry stages too,
-     * where the device runs them (a stage the device lacks may not appear in a barrier).
+     * Stages that may store to a held target, including a hand's tessellation and geometry stages where the
+     * device has them; a barrier may not name a stage the device lacks.
      */
     private static int shaderStages() {
         return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
@@ -48,19 +49,17 @@ final class PostTargetStorage {
                 | (ChimeraDevice.geometryShader() ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0);
     }
 
-    /** Whether any target is held in the general layout. */
     boolean holding() {
         return !this.held.isEmpty();
     }
 
-    /** Whether {@code image} is held in the general layout. */
     boolean holds(VulkanImage image) {
         return this.held.contains(image);
     }
 
     /**
-     * Moves each stored target's image, as {@code images} names it, into the general layout, after
-     * every earlier use. A target already held stays as it is. Recorded outside a render pass.
+     * Moves each stored target's image, as {@code images} resolves it, into the general layout after every
+     * earlier use. A target already held stays as it is. Recorded outside a render pass.
      */
     void begin(VkCommandBuffer commandBuffer, IntFunction<VulkanImage> images, List<Integer> stored) {
         if (stored.isEmpty()) return;
@@ -78,7 +77,7 @@ final class PostTargetStorage {
         }
     }
 
-    /** Returns the images to the sampled layout once the draws have written them. Recorded outside a render pass. */
+    /** Returns the held images to the sampled layout after the draws. Recorded outside a render pass. */
     void end(VkCommandBuffer commandBuffer) {
         if (this.held.isEmpty()) return;
         try (MemoryStack stack = MemoryStack.stackPush()) {

@@ -7,24 +7,21 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Pure CPU pixel and layout math for resource-pack material companions.
+ * Pixel and layout code for resource-pack material companions, on plain ABGR {@code int[]} buffers so tests
+ * need no Minecraft natives or GPU.
  *
- * <p>Every method here works on plain ABGR {@code int[]} buffers, so the
- * whole policy is unit-testable without Minecraft natives or a GPU. The
- * live owner converts to and from {@code NativeImage} at its boundary.
- * ABGR packing matches {@code NativeImage}: red in bits 0-7, green 8-15,
- * blue 16-23, alpha 24-31.</p>
+ * ABGR packing matches {@code NativeImage}: red in bits 0-7, green 8-15, blue 16-23, alpha 24-31.
  */
 public final class MaterialMapPixels {
     private MaterialMapPixels() {}
 
-    /** labPBR specular channel classes: green below 230 is smoothness-like, at or above is metal-like. */
+    /** labPBR specular green: below 230 is a dielectric's reflectance, 230 and above a metal index. */
     public static final int LAB_GREEN_SPLIT = 230;
-    /** labPBR specular channel classes: blue below 65 is one class, at or above is another. */
+    /** labPBR specular blue: below 65 is porosity, 65 and above subsurface scattering. */
     public static final int LAB_BLUE_SPLIT = 65;
-    /** labPBR specular alpha classes: anything below 255 is translucent, 255 is opaque. */
+    /** labPBR specular alpha: 255 means no emission, anything below is an emission strength. */
     public static final int LAB_ALPHA_OPAQUE = 255;
-    /** Largest image the companion builder accepts: 16M texels (64MB RGBA). */
+    /** Largest image the companion builder accepts: 16M texels, 64 MiB as RGBA. */
     public static final int MAX_IMAGE_PIXELS = 1 << 24;
 
     public static int red(int abgr) { return abgr & 0xFF; }
@@ -36,7 +33,7 @@ public final class MaterialMapPixels {
         return (alpha << 24) | (blue << 16) | (green << 8) | red;
     }
 
-    /** Rejects non-positive or absurd dimensions before any allocation. */
+    /** Rejects empty or oversized dimensions before anything is allocated. */
     public static void checkSize(int width, int height, String what) {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("MATERIAL_MAP_SIZE:" + what + "=" + width + "x" + height);
@@ -47,11 +44,9 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * Scales a decoded material frame to its atlas slot size. Identical
-     * sizes copy; whole-number enlargement point-samples; every other
-     * ratio, including all reductions, takes a channel-wise box average.
-     * Reductions never point-sample: selecting one source texel per output
-     * texel would keep only the top-left of each footprint.
+     * Scales a decoded material frame to its atlas slot size. Equal sizes copy and whole-number enlargement
+     * point-samples. Any other ratio, including every reduction, takes a per-channel box average, since point
+     * sampling would keep only the top-left texel of each footprint.
      */
     public static int[] scale(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
         checkSize(srcWidth, srcHeight, "scale-src");
@@ -87,14 +82,10 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * labPBR class-aware reduction. Red stays an arithmetic mean. Green
-     * separates dielectric texels (below 230, averaged together) from metal
-     * texels, where each distinct encoded metal index is its own discrete
-     * class: merging two metal IDs would invent a third material. Blue and
-     * alpha keep their threshold class policies. Each channel picks the
-     * majority class in the footprint and averages only texels in that
-     * class; a tied footprint keeps the class of its earliest texel in
-     * row-major order.
+     * labPBR-aware reduction. Red is a plain mean. Green treats every dielectric (below 230) as one class and
+     * each metal index as its own, since averaging two metal indices would make up a third material. Blue and
+     * alpha split at their thresholds. Green, blue and alpha each average only the texels of the footprint's
+     * majority class; a tie goes to the class seen first in row-major order.
      */
     public static int[] reduceLabPbr(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
         checkSize(srcWidth, srcHeight, "labpbr-src");
@@ -115,7 +106,7 @@ public final class MaterialMapPixels {
                 int texel = src[row + x];
                 redSum += red(texel);
                 count++;
-                // Tally {count, sum} per green class: -1 for every dielectric, else the metal index.
+                // {count, sum} per green class, keyed -1 for any dielectric, else by the metal index
                 int[] tally = greenClasses.computeIfAbsent(green(texel) < LAB_GREEN_SPLIT ? -1 : green(texel),
                         ignored -> new int[2]);
                 tally[0]++;
@@ -205,7 +196,7 @@ public final class MaterialMapPixels {
         return pack((int) (a / count), (int) (b / count), (int) (g / count), (int) (r / count));
     }
 
-    /** Copies a sprite rectangle into a level canvas, clipping defensively. */
+    /** Copies a sprite rectangle into a level canvas, clipped to the canvas. */
     public static void placeRect(int[] canvas, int canvasWidth, int canvasHeight,
             int x, int y, int[] rect, int rectWidth, int rectHeight) {
         for (int ry = 0; ry < rectHeight; ry++) {
@@ -225,9 +216,8 @@ public final class MaterialMapPixels {
     public record Rect(int x, int y, int width, int height, int[] pixels) {}
 
     /**
-     * The part of a rectangle placed at {@code (x, y)} that falls inside a
-     * {@code canvasWidth x canvasHeight} canvas, clipped exactly as
-     * {@link #placeRect} clips; null when nothing is inside.
+     * The part of a rectangle placed at {@code (x, y)} that falls inside a {@code canvasWidth x canvasHeight}
+     * canvas, clipped as {@link #placeRect} clips; null when nothing is inside.
      */
     public static Rect clipRect(int[] rect, int rectWidth, int rectHeight, int x, int y,
             int canvasWidth, int canvasHeight) {
@@ -246,11 +236,9 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * Pads one logical mip with its own replicated edge on all four sides.
-     * Returns a {@code (width + 2*pad) x (height + 2*pad)} image whose
-     * center is the logical content. A zero pad copies. This mirrors the
-     * stitched slot: content at the padded origin, never a ring negotiated
-     * against neighboring sprites.
+     * Pads one logical mip level with its own edge texels on all four sides, as the stitcher pads a sprite.
+     * Returns a {@code (width + 2*pad) x (height + 2*pad)} image with the content in the centre; a zero pad
+     * copies.
      */
     public static int[] padReplicate(int[] logical, int width, int height, int pad) {
         checkSize(width, height, "pad-src");
@@ -275,25 +263,21 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * Recovers one axis of stitched padding from observable sprite state:
-     * the UV edge scaled to atlas texels minus the placed origin. Callers
-     * require X and Y to agree and isolate sprites that do not.
+     * One axis of a stitched sprite's padding: its UV edge in atlas texels minus its placed origin. X and Y
+     * must agree; the builder skips a sprite where they differ.
      */
     public static int recoverPad(float uvEdge, int atlasDim, int origin) {
         return Math.max(0, Math.round(uvEdge * atlasDim) - origin);
     }
 
-    /** Atlas level dimensions: halve per level, never below one texel. */
+    /** Halves per level, never below one texel. */
     public static int levelSize(int base, int level) {
         return Math.max(1, base >> level);
     }
 
     /**
-     * Sibling material resource for a sprite identifier. Ordinary sprites
-     * resolve under {@code textures/}; paths already under
-     * {@code optifine/cit/} keep their directory (the OptiFine CIT
-     * exception). Returns the {@code namespace:path} string; the caller
-     * converts it to an {@code Identifier}.
+     * The {@code namespace:path} of a sprite's material file. Sprites resolve under {@code textures/}, except
+     * OptiFine CIT paths under {@code optifine/cit/}, which keep their directory.
      */
     public static String siblingResource(String namespace, String spritePath, String suffix) {
         String base = spritePath.startsWith("optifine/cit/") ? spritePath : "textures/" + spritePath;
@@ -301,9 +285,8 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * Reads the labPBR opt-out/opt-in flag from an
-     * {@code optifine/texture.properties} stream. Accepts
-     * {@code format=lab-pbr} with an optional {@code /version} suffix.
+     * Whether an {@code optifine/texture.properties} stream declares {@code format=lab-pbr}, with or without a
+     * {@code /version} suffix.
      */
     public static boolean detectLabPbr(InputStream properties) throws IOException {
         Properties parsed = new Properties();

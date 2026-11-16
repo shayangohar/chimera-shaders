@@ -9,17 +9,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Iris's const directives ({@code ConstDirectiveParser}): a line that starts, after indentation,
- * with {@code const <type> <name> = <value>;}. The value is everything up to the line's first
- * semicolon, trimmed; whoever reads the directive parses it. Iris reads them from the fragment
- * sources of the programs {@code ProgramSet.locateDirectives} visits, in its order: the
- * shadowcomp, begin and prepare passes, every ProgramId (shadow, gbuffers, dh and final), then
- * the deferred and composite passes. A later program's directive replaces an earlier one's.
+ * Iris's const directives, as ConstDirectiveParser reads them: a line that starts, after indentation, with
+ * {@code const <type> <name> = <value>;}. The value is the text up to the line's first semicolon, trimmed;
+ * whoever reads the directive parses it.
+ *
+ * Iris reads them from the fragment sources of the programs ProgramSet.locateDirectives visits, in its order:
+ * the shadowcomp, begin and prepare passes, every ProgramId (shadow, gbuffers, dh and final), then the deferred
+ * and composite passes. A later program's directive replaces an earlier one's.
  */
 final class IrisConstDirectives {
-    /** One directive as written: its declared type, name and unparsed value. */
+    /** A directive as written, with its value unparsed. */
     record Directive(String type, String name, String value) {
-        /** Whether Iris reads the value as the number its type names (Integer.parseInt, Float.parseFloat). */
+        /** Whether Iris parses the value as its int or float type. */
         boolean numeric() {
             try {
                 if (type.equals("int")) Integer.parseInt(value);
@@ -63,9 +64,9 @@ final class IrisConstDirectives {
     }
 
     /**
-     * The programs whose fragment sources Iris reads directives from, in its order. A program Iris
-     * never loads is left out, and so is one the pack switches off: Iris reads no source for it
-     * (ShaderPack: program.<path>.enabled and a profile's !program).
+     * The programs whose fragment sources Iris reads directives from, in its order. Programs Iris never loads
+     * are left out, and so are those the pack switches off with {@code program.<path>.enabled} or a profile's
+     * {@code !program}, since Iris reads no source for them.
      */
     static List<PackProgram> programs(List<PackProgram> programs, PackSettingsPlan settings) {
         return programs.stream()

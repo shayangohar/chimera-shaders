@@ -36,7 +36,7 @@ final class PackMipChainTest {
     void headlessBlitChain() {
         HeadlessVulkan.assumeEnabled();
         try (Gpu gpu = new Gpu()) {
-            // Odd extents exercise the floor-halving the chain shares with glGenerateMipmap.
+            // odd extents exercise the floor-halving the chain shares with glGenerateMipmap
             gpu.verifyConstantChain(37, 5);
             gpu.verifyAverage();
         }
@@ -57,7 +57,7 @@ final class PackMipChainTest {
         private final VkCommandBuffer command;
 
         Gpu() {
-            // vkCmdBlitImage requires a graphics queue.
+            // vkCmdBlitImage requires a graphics queue
             gpu = new HeadlessVulkan.Device("Chimera mip chain test", VK_QUEUE_GRAPHICS_BIT);
             device = gpu.device();
             command = gpu.command();

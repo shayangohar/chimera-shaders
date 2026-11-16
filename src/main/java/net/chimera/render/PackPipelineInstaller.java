@@ -30,26 +30,25 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Builds one pack session's pipelines, family by family, into the pass's pipeline set: admits
- * each program the plan and the session's resources allow, builds it, attaches its storage
- * buffers and image bindings, and records its runtime disposition in the conformance report.
+ * Builds one pack session's pipelines, family by family, into the pass's pipeline set: admits each program the
+ * plan and the session's resources allow, builds it, attaches its storage buffers and image bindings, and
+ * records its runtime disposition in the conformance report.
  */
 final class PackPipelineInstaller {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
-    /** Diagnostic: -Dchimera.traceTransitions logs every chimera image transition. */
+    /** Under {@code -Dchimera.traceTransitions}, also logs each installed program's converted source. */
     private static final boolean TRACE_TRANSITIONS = ChimeraRenderer.debugFlag("chimera.traceTransitions");
     private final ChimeraMainPass pass;
 
     private final PackPipelineSet pipelines;
     private final List<PackProgram> programs;
-    // The session's plan, report and resource owners; each is null when the session has none.
+    // the session's plan, report and resource owners; each is null when the session has none
     private final PackPlan plan;
     private final ConformanceReport report;
     private final PackStorageBufferOwner storage;
     private final PackAdvancedImageOwner advancedImages;
     private final PackResourceOwner resources;
 
-    /** An installer for the session the pass has loaded. */
     PackPipelineInstaller(ChimeraMainPass pass) {
         this.pass = pass;
         this.pipelines = pass.pipelines;
@@ -62,9 +61,9 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * Builds every program the plan admits, the producers of advanced images before their
-     * consumers. Pack post programs and the host resolve share one fullscreen coordinate contract;
-     * target flips are side-selection decisions, not per-pass UV transforms.
+     * Builds every program the plan admits, those that bind pack images first, then by name. Post programs
+     * share the host resolve's fixed fullscreen vertex shader; a target flip only selects which side is read
+     * and never changes UVs.
      */
     void installPrograms() {
         String fixedVertex = ChimeraShaderLoader.loadSource("chimera_composite/chimera_composite.vsh");
@@ -119,9 +118,9 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * The first colorimgN the program stores to whose target this device cannot make a storage
-     * image, in the target's format or the one the program binds it in; null when there is none.
-     * A pass compute's such binding is refused the same way (PackPassComputes.bindingRefusal).
+     * The first colorimgN the program stores to whose target this device cannot make a storage image, in the
+     * target's format or the one the program binds it in; null when there is none. A pass compute's binding
+     * is refused the same way (PackPassComputes.bindingRefusal).
      */
     private String unstorableTargetImage(String name, PackAdvancedResourcePlan advanced) {
         for (PackAdvancedResourcePlan.GraphicsImageBinding binding : advanced.graphicsImages(name)) {
@@ -151,9 +150,9 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * True unless the program reads or writes pack images the session cannot serve: the plan binds
-     * them all and the session created them. As in Iris, it runs whether or not the programs that
-     * write its images do; it reads what the frame's clear left.
+     * True unless the program reads or writes pack images the session cannot serve, which needs the plan to
+     * bind them all and the session to have created them. As in Iris, it runs whether or not the programs
+     * that write its images do, and reads what the frame's clear left.
      */
     private boolean advancedImagesAllowed(String name, PackAdvancedResourcePlan advanced) {
         return plan == null
@@ -223,8 +222,8 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * The shadow terrain program, shadow_cutout for its cutout layers or shadow_water for its
-     * translucent layer, on the pack-wide terrain format.
+     * The shadow terrain program, shadow_cutout for its cutout layers or shadow_water for its translucent
+     * layer, on the pack-wide terrain format.
      */
     void installShadow(String name, PackProgramPlan programPlan) {
         PackPipelines.PackShadow shadow = PackPipelines.buildShadow(programPlan,
@@ -265,8 +264,8 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * shadow_entities, the entity casters of the shadow pass and on the block layout its moving
-     * blocks; or shadow_block, its block entities' models (Iris SHADOW_BLOCK).
+     * shadow_entities, for the shadow pass's entity casters and, on the block layout, its moving blocks; or
+     * shadow_block, for its block entities' models (Iris SHADOW_BLOCK).
      */
     void installShadowEntities(String name, PackProgramPlan programPlan) {
         PackPipelines.PackEntity casters = PackPipelines.buildShadowEntities(programPlan,
@@ -289,10 +288,7 @@ final class PackPipelineInstaller {
         markFamilyPipelineInstalled(name, "SHADOW_ENTITY_PIPELINE_INSTALLED");
     }
 
-    /**
-     * A fullscreen program: a post stage, or a shadowcomp pass over the shadowcolor targets;
-     * composite and final are also kept for the resolve and present seams.
-     */
+    /** A fullscreen program: a post stage, or a shadowcomp pass over the shadowcolor targets. */
     void installPost(String name, PackProgramPlan programPlan, String fixedVertex) {
         PackPipelines.PackPost post = PackPipelines.buildPost(programPlan, fixedVertex,
                 plan == null ? PackResourcePlan.empty() : plan.resources(), advancedResources(), storage);
@@ -444,7 +440,6 @@ final class PackPipelineInstaller {
         LOGGER.debug("[chimera] pack {}: ok (sky installed, native layouts={})", name, sky.variants().size());
     }
 
-    /** The cloud program. */
     void installCloud(String name, PackProgramPlan programPlan) {
         PackPipelines.PackSky cloud = PackPipelines.buildCloud(programPlan,
                 advancedResources(), storage);
@@ -582,8 +577,8 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * gbuffers_block_translucent: a block entity's translucent models (Iris BE_TRANSLUCENT) and, on
-     * Iris's GLYPH text layout, its text (TEXT_BE). A layout that fails to build keeps its host draw.
+     * gbuffers_block_translucent: a block entity's translucent models (Iris BE_TRANSLUCENT) and, on Iris's
+     * GLYPH text layout, its text (TEXT_BE). A layout that fails to build keeps its host draw.
      */
     void installBlockTranslucent(String name, PackProgramPlan programPlan) {
         PackPipelines.PackEntity models = PackPipelines.buildEntityFamily(programPlan,
@@ -728,15 +723,15 @@ final class PackPipelineInstaller {
         return false;
     }
 
-    /** The pack's own resolved cloud program is active and provably draws nothing. */
+    /** Whether the pack's cloud program is active and draws nothing. */
     boolean authoredCloudDrawsNothing(String name) {
         return plan != null && plan.cloudRunsEmpty(name);
     }
 
     /**
-     * The program on another host layout ({@code host}: Iris's GLYPH text, or the block layout of
-     * moving blocks), sharing its descriptors and outputs. Without it those draws keep their host
-     * draw, or stay out of the shadow map.
+     * The program on another host layout ({@code host}: Iris's GLYPH text, or the block layout of moving
+     * blocks), sharing its descriptors and outputs. Without it those draws keep their host draw, or stay out
+     * of the shadow map.
      */
     PackPipelines.PackEntity buildLayoutVariant(String name, PackProgramPlan programPlan, VertexFormat host,
                                                 String layout) {
@@ -756,10 +751,10 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * Builds the host-layout lanes one program serves (HostLayoutLane), world lane first. A
-     * world lane that fails falls back to the host draw for this program. A hand variant
-     * (first-person glint) needs its world lane; without it that draw stays host-drawn. A
-     * shadow lane that fails leaves its draws out of the shadow map.
+     * Builds the host-layout lanes one program serves (HostLayoutLane), world lane first. A world lane that
+     * fails falls back to the host draw for this program. A hand variant, the first-person glint, needs its
+     * world lane; without it that draw stays host-drawn. A shadow lane that fails leaves its draws out of the
+     * shadow map.
      */
     void installHostLayoutLanes(String name, PackProgramPlan programPlan) {
         PackAdvancedResourcePlan advanced = advancedResources();
@@ -779,7 +774,7 @@ final class PackPipelineInstaller {
                 return;
             }
             if (!attachPackStoragePipeline(name, built.pipeline(), built.imageBindings())) {
-                // The storage owner has reported this fallback.
+                // attachPackStoragePipeline has reported this fallback
                 built.pipeline().cleanUp();
                 if (lane.pass() == HostLayoutLane.Pass.HAND) continue;
                 return;
@@ -805,8 +800,8 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * Records a program that will not run. The log warns only of one that changes the frame: one
-     * the pack switched off, or Iris would not run either, logs at debug (SkippedPrograms).
+     * Records a program that will not run. The log warns only of one that changes the frame; one the pack
+     * switched off, or that Iris would not run either, logs at debug (SkippedPrograms).
      */
     void markFamilyPipelineFallback(String name, String reason) {
         if (report != null) {
@@ -822,8 +817,8 @@ final class PackPipelineInstaller {
     }
 
     /**
-     * A program whose build failure already warned, with its error (PackPipelines.handleBuildFailure),
-     * logs its fallback at debug: one failure, one line in latest.log. Any other fallback warns.
+     * A program whose build failure already warned with its error (PackPipelines.handleBuildFailure) logs
+     * its fallback at debug, so one failure is one line in latest.log. Any other fallback warns.
      */
     private static void logBuildFallback(String name, String reason) {
         if (PackFailureNotices.current().stream().anyMatch(failure -> failure.subject().equals(name))) {

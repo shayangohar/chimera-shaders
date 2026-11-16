@@ -5,7 +5,7 @@ import com.google.gson.JsonArray;
 import java.util.List;
 import java.util.TreeSet;
 
-/** Order-independent pieces of the plan snapshots, so equal plans serialize and hash equally. */
+/** Order-independent pieces of the plan snapshots, so equal plans serialise and hash equally. */
 final class PlanJson {
     private PlanJson() {}
 

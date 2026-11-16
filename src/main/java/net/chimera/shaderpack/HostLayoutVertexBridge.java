@@ -18,15 +18,15 @@ final class HostLayoutVertexBridge {
     private HostLayoutVertexBridge() {}
 
     /**
-     * Converts the shadow program for a shadow-pass key Iris draws on the host's own layout
-     * (SHADOW_LINES, SHADOW_LEASH, SHADOW_LIGHTNING, SHADOW_TEXT, SHADOW_TEXT_BG, SHADOW_BASIC,
-     * SHADOW_TEX and SHADOW_TEX_COLOR). It is the shadow_entities bridge on that layout's inputs: the
-     * legacy matrix built-ins name the draw's
-     * host blocks, which the pass loads with the light view and projection, and an input the
-     * layout lacks reads Iris's value for it. The host-layout preparation has already expanded
-     * the includes. {@code consumerSource} is the stage after the vertex stage: the fragment
-     * stage, or a geometry stage ({@code geometryNext}) as GeometryStageBridge.consumerView
-     * declares it. Reports the first concrete failure.
+     * Converts the shadow program for a shadow-pass key Iris draws on the host's own layout (SHADOW_LINES,
+     * SHADOW_LEASH, SHADOW_LIGHTNING, SHADOW_TEXT, SHADOW_TEXT_BG, SHADOW_BASIC, SHADOW_TEX and
+     * SHADOW_TEX_COLOR), throwing its first concrete failure.
+     *
+     * It is the shadow_entities bridge on that layout's inputs: the legacy matrix built-ins name the draw's
+     * host blocks, which the pass loads with the light view and projection, and an input the layout lacks reads
+     * Iris's value for it. The host-layout preparation has already expanded the includes. {@code consumerSource}
+     * is the stage after the vertex stage: the fragment stage, or with {@code geometryNext} a geometry stage as
+     * GeometryStageBridge.consumerView declares it.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertShadowLaneVertexChecked(
             FamilyAdapterPlan.VertexContract contract,
@@ -41,7 +41,7 @@ final class HostLayoutVertexBridge {
                 geometryNext);
     }
 
-    /** Selects the one host sky format that can provide the authored legacy inputs. */
+    /** The one host sky format that provides the legacy inputs the source reads. */
     public static FamilyAdapterPlan.VertexContract skyVertexContract(
             String source, boolean textured
     ) {
@@ -55,7 +55,7 @@ final class HostLayoutVertexBridge {
                 : FamilyAdapterPlan.VertexContract.SKY_POSITION;
     }
 
-    /** Converts the narrow host sky vertex contract. */
+    /** Converts a sky vertex onto the sky format its inputs need; null when it cannot convert. */
     public static LegacyGlslConverter.TerrainVertexConversion convertSkyVertex(
             String source, Path sourceFile, String fragmentSource, boolean textured
     ) {
@@ -63,7 +63,7 @@ final class HostLayoutVertexBridge {
                 skyVertexContract(source, textured));
     }
 
-    /** Converts a sky vertex against one validated host vertex format. */
+    /** Converts a sky vertex onto {@code contract}'s format; null when it cannot convert. */
     public static LegacyGlslConverter.TerrainVertexConversion convertSkyVertex(
             String source, Path sourceFile, String fragmentSource,
             FamilyAdapterPlan.VertexContract contract
@@ -85,10 +85,10 @@ final class HostLayoutVertexBridge {
     }
 
     /**
-     * Converts a sky vertex onto one host sky format, throwing its first concrete failure. The sky
-     * formats carry no mid-coordinates or tangents, so those attributes read GL's unbound default,
-     * as under Iris. {@code samplers} binds the vertex stage's samplers where the fragment stage has
-     * them, as Iris gives both stages one sampler set; null without a plan.
+     * Converts a sky vertex onto one host sky format, throwing its first concrete failure. The sky formats
+     * carry no mid-coordinates or tangents, so those attributes read GL's unbound default, as under Iris.
+     * {@code samplers} binds the vertex stage's samplers where the fragment stage has them, as Iris gives both
+     * stages one sampler set; null without a plan.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertSkyVertexChecked(
             String source, Path sourceFile, String fragmentSource,
@@ -101,7 +101,7 @@ final class HostLayoutVertexBridge {
                 uniforms, samplers);
     }
 
-    /** One authored sky program runs against each real native sky mesh layout. */
+    /** {@code converted} with its sky preamble swapped for {@code contract}'s, so one program runs on each sky mesh. */
     public static String skyVertexForContract(String converted, FamilyAdapterPlan.VertexContract contract) {
         for (var source : SKY_CONTRACTS) {
             String preamble = GlslVertexPreambles.skyPreamble(source);
@@ -112,7 +112,6 @@ final class HostLayoutVertexBridge {
         throw new IllegalArgumentException("sky program lacks its native input contract");
     }
 
-    /** Converts a cloud vertex onto the decoded cloud faces; null when it cannot run there. */
     public static LegacyGlslConverter.TerrainVertexConversion convertCloudVertex(
             String source, Path sourceFile, String fragmentSource
     ) {
@@ -120,9 +119,9 @@ final class HostLayoutVertexBridge {
     }
 
     /**
-     * Converts a cloud vertex onto vanilla's cloud mesh, with Iris's cloud inputs
-     * (GlslVertexPreambles.CLOUD_VERTEX_PREAMBLE). The mesh carries no mid-coordinates or tangents,
-     * so those attributes read GL's unbound default, as under Iris.
+     * Converts a cloud vertex onto vanilla's cloud mesh with Iris's cloud inputs
+     * (GlslVertexPreambles.CLOUD_VERTEX_PREAMBLE); null when it cannot convert. The mesh carries no
+     * mid-coordinates or tangents, so those attributes read GL's unbound default, as under Iris.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertCloudVertex(
             String source, Path sourceFile, String fragmentSource, Map<String, Integer> locations,
@@ -137,8 +136,8 @@ final class HostLayoutVertexBridge {
     }
 
     /**
-     * {@link #convertCloudVertex}, throwing its first concrete failure; {@code samplers} binds the
-     * vertex stage's samplers as {@link #convertSkyVertexChecked} does.
+     * {@link #convertCloudVertex}, throwing its first concrete failure; {@code samplers} binds the vertex
+     * stage's samplers as {@link #convertSkyVertexChecked} does.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertCloudVertexChecked(
             String source, Path sourceFile, String fragmentSource, Map<String, Integer> locations,
@@ -151,8 +150,8 @@ final class HostLayoutVertexBridge {
     }
 
     /**
-     * Converts a host-layout vertex (after {@link #prepareLineVertex}, {@link #prepareGlintVertex}
-     * or {@link #prepareHostLayoutSource}, and {@link #prepareHostLayoutIdentity}) onto its layout.
+     * Converts a host-layout vertex onto its layout, after IrisCoreProfile's prepareLineVertex,
+     * prepareGlintVertex or prepareHostLayoutSource, and prepareHostLayoutIdentity.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertHostLayoutVertexChecked(
             FamilyAdapterPlan.VertexContract contract, String source, String fragmentSource,
@@ -174,7 +173,7 @@ final class HostLayoutVertexBridge {
             return EntityVertexBridge.convertEntityVertexOrThrow(unboundMaterialAttributes(source), null,
                     fragmentSource, sharedLocations, preamble, allowStorageBuffers, uniforms, samplerPlan);
         }
-        // The beam's widened layout carries the material attributes, and its mc_Entity is a moving block's.
+        // the beam's widened layout carries the material attributes, and its mc_Entity is a moving block's
         var beam = EntityVertexBridge.convertEntityVertexOrThrow(source, null, fragmentSource,
                 sharedLocations, preamble, allowStorageBuffers, uniforms, samplerPlan);
         return new LegacyGlslConverter.TerrainVertexConversion(EntityVertexBridge.movingBlockEntity(beam.source()),
@@ -184,10 +183,10 @@ final class HostLayoutVertexBridge {
     private static final Set<String> MATERIAL_ATTRIBUTES = Set.of("mc_midTexCoord", "at_tangent");
 
     /**
-     * A host layout without mid-coordinates or tangents leaves those attributes unbound in
-     * Iris, so GL reads its default (0, 0, 0, 1) cut to the declared type. The entity bridge maps
-     * both names onto its own inputs, so each reference becomes the value, not a constant. A
-     * parameter or local of the same name keeps its own (Bloop's computeTBNMatrix(..., vec4 at_tangent)).
+     * {@code source} with mc_midTexCoord and at_tangent read as Iris reads them on a host layout without them:
+     * unbound, so GL gives its default (0, 0, 0, 1) cut to the declared type. The entity bridge would map both
+     * names onto its own inputs, so the declaration goes and each reference becomes the value. A parameter or
+     * local of the same name keeps its own, as in Bloop's {@code computeTBNMatrix(..., vec4 at_tangent)}.
      */
     static String unboundMaterialAttributes(String source) {
         GlslTree tree = GlslTree.parse(source);

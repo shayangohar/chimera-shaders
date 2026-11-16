@@ -11,14 +11,12 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Post bypass regression fixture: when pack post cannot
- * run, presentation goes through the host identity pipeline, which never
- * requests pack auxiliary samplers. A missing mask-critical family now makes
- * the whole frame host-rendered, so the report carries every
- * program as fallback, not just post.
+ * When pack post cannot run, the world presents through the host identity pipeline, which requests no
+ * pack auxiliary sampler. A missing mask-critical family makes the whole frame host-rendered, so the
+ * report carries every program as fallback, geometry as well as post.
  */
 final class PostBypassTest {
-    /** Installed pack composite shape: HDR input plus one auxiliary target. */
+    /** An installed pack composite: the HDR input and one auxiliary target. */
     private static ProgramImageBindingManifest packComposite() {
         return new ProgramImageBindingManifest(List.of(
                 new ProgramImageBindingManifest.Entry("Sampler0", 0, 1, 63,
@@ -27,7 +25,7 @@ final class PostBypassTest {
                         ProgramImageBindingManifest.Kind.COLOR_TARGET, "colortex1", 0, 1, "colortex1")));
     }
 
-    /** Host identity shape: HDR input only, mirroring the renderer seam. */
+    /** The host identity resolve: the HDR input only. */
     private static ProgramImageBindingManifest identityImages() {
         return new ProgramImageBindingManifest(List.of(
                 new ProgramImageBindingManifest.Entry("Sampler0", 0, 1, 63,
@@ -64,8 +62,7 @@ final class PostBypassTest {
     @SuppressWarnings("try")
     @Test
     void postBypass() {
-        // Blocked post holds only HDR target 0: binding the installed pack
-        // composite must fail exactly the way the shader-load crash did.
+        // blocked post holds only HDR target 0, so binding the installed pack composite fails
         SlotStore hdrOnly = new SlotStore(Map.of(0, "hdr"));
         try (ProgramImageBindingTransaction<String> ignored = ProgramImageBindingTransaction.bind(
                 "composite", packComposite(), hdrOnly, entry -> hdrOnly.capture(entry.slot()))) {
@@ -76,8 +73,7 @@ final class PostBypassTest {
                     "wrong binding failure: " + expected.getMessage());
         }
 
-        // The bypass presents through identity: Sampler0-only, no pack
-        // auxiliary request, binds cleanly on the same HDR-only inputs.
+        // the bypass presents through identity, which asks for Sampler0 only and binds on the same inputs
         ProgramImageBindingManifest identity = identityImages();
         assertTrue(identity.entries().stream().allMatch(entry -> entry.slot() == 0),
                 "identity manifest requests a non-zero slot: " + identity.entries());
@@ -86,9 +82,8 @@ final class PostBypassTest {
             assertTrue(transaction.containsSlot(0), "identity resolve missed HDR slot 0");
         }
 
-        // A missing mask-critical family makes the whole frame host-rendered:
-        // installed geometry must not keep writing targets that
-        // nothing presents, so every program is carried as fallback.
+        // a missing mask-critical family makes the whole frame host-rendered
+        // installed geometry must not keep writing targets nothing presents, so every program is a fallback
         ConformanceReport report = new ConformanceReport("bypass-fixture", false, List.of(),
                 Map.of(), List.of(), List.of());
         report.addProgram(new ConformanceReport.ProgramReport("composite", "post", "glsl",

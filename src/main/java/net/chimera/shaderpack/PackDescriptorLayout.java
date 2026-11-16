@@ -19,13 +19,13 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
- * One pipeline's whole descriptor set: its uniform blocks, storage buffers, image descriptors and
- * push constants. Chimera owns it, so pack plans and Chimera's own pipeline configs never name a
- * host renderer type; the mod builds the host's descriptors from it ({@code HostPipelineLayout}),
- * one host descriptor per entry, and checks the shaders against {@link #descriptorBindings()}.
+ * One pipeline's whole descriptor set: its uniform blocks, storage buffers, image descriptors and push
+ * constants. Chimera owns it, so pack plans and Chimera's own pipeline configs never name a host renderer type.
+ * HostPipelineLayout builds one host descriptor per entry, and the shaders are checked against
+ * {@link #descriptorBindings()}.
  *
- * @param pushConstants the push-constant block, or null when the pipeline declares none. A config
- *                      that lists an empty "PushConstants" array still has a (zero-field) block.
+ * @param pushConstants the push-constant block, or null when the pipeline declares none; a config that lists
+ *                      an empty "PushConstants" array still has a block with no fields
  */
 public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<StorageBuffer> storageBuffers,
                                    List<ImageSlot> images, UniformBlock pushConstants) {
@@ -58,7 +58,7 @@ public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<Storag
     /** One block field, typed in the host's vocabulary: float, vec2-4, int, ivec2-4 or mat4. */
     public record Field(String type, String name) {}
 
-    /** A pack storage buffer (Iris SSBO): its binding, stages, byte range and the pack's buffer index. */
+    /** A pack storage buffer, Iris's SSBO: its binding, stages, byte range and the pack's buffer index. */
     public record StorageBuffer(int binding, int stages, int size, int logicalIndex) {}
 
     /** How a shader reaches an image. */
@@ -67,13 +67,13 @@ public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<Storag
         SAMPLED,
         /** A combined image sampler over an image kept in the general layout, as pack storage images are. */
         SAMPLED_GENERAL,
-        /** A storage image (imageLoad and imageStore), in the general layout. */
+        /** A storage image for imageLoad and imageStore, in the general layout. */
         STORAGE
     }
 
     /**
-     * An image descriptor: its binding, GLSL type (sampler2D, image3D...), name, texture slot and
-     * access, and the Vulkan format a storage image is read through when not its own (else 0).
+     * An image descriptor: binding, GLSL type such as sampler2D or image3D, name, texture slot and access.
+     * {@code viewFormat} is the Vulkan format a storage image is read through when not its own, else 0.
      */
     public record ImageSlot(int binding, String type, String name, int textureSlot, ImageAccess access,
                             int viewFormat) {
@@ -102,9 +102,9 @@ public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<Storag
     }
 
     /**
-     * Every descriptor as the shader and binding checks see it: its Vulkan type, stages and the
-     * identity of the resource it carries (a uniform block's binding, a storage buffer's index, or
-     * the texture slot an image named Sampler&lt;slot&gt; reads).
+     * Every descriptor as the shader and binding checks see it: its Vulkan type, stages and the identity of the
+     * resource it carries, which is a uniform block's binding, a storage buffer's index, or the texture slot an
+     * image named Sampler&lt;slot&gt; reads.
      */
     public List<PackAdvancedResourcePlan.DescriptorBinding> descriptorBindings() {
         List<PackAdvancedResourcePlan.DescriptorBinding> bindings = new ArrayList<>();

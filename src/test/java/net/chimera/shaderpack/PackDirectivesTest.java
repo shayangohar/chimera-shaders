@@ -92,8 +92,8 @@ final class PackDirectivesTest {
 
     /**
      * RenderPearl's NVIDIA path writes {@code out f16vec3 shadowcolor0}. The shadow colour keeps its
-     * type, as a vec3 one does, and compiles on a device without 16-bit stage outputs, where it
-     * widens; left undeclared as an output, it overlapped the colour declared in its place.
+     * type, as a vec3 one does, and replaces the pack's own output declaration. It compiles on a device
+     * without 16-bit stage outputs, where it widens.
      */
     @Test
     void aHalfShadowColourKeepsItsType(@TempDir Path root) throws IOException {
@@ -206,8 +206,8 @@ final class PackDirectivesTest {
     }
 
     /**
-     * Properties.load skips a line's leading whitespace. Photon indents its composite17 switch
-     * inside {@code #ifdef MC_GL_RENDERER_INTEL}; read with the indent, the switch never applied.
+     * Properties.load skips a line's leading whitespace; Photon indents its composite17 switch
+     * inside {@code #ifdef MC_GL_RENDERER_INTEL}.
      */
     @Test
     void indentedProperties(@TempDir Path root) throws IOException {
@@ -226,10 +226,10 @@ final class PackDirectivesTest {
     }
 
     /**
-     * Iris serves heldItemId, heldBlockLightValue and heldBlockLightColor (and their 2 variants)
-     * from the pack's item.properties and the held stacks (IdMapUniforms). Chimera served 0, so
-     * a held torch never lit anything: Solas's hand light only runs for heldItemId 1..83, and
-     * BSL and Complementary read heldBlockLightValue.
+     * Iris serves heldItemId, heldBlockLightValue and heldBlockLightColor, and their 2 variants,
+     * from the pack's item.properties and the held stacks (IdMapUniforms). Without them a held torch
+     * lights nothing: Solas's hand light only runs for heldItemId 1..83, and BSL and Complementary
+     * read heldBlockLightValue.
      */
     @Test
     void heldItems(@TempDir Path root) throws IOException {
@@ -275,8 +275,7 @@ final class PackDirectivesTest {
 
     /**
      * Iris skips Minecraft's HUD vignette and underwater overlay while a pack is active unless
-     * shaders.properties keeps them (vignette, underwaterOverlay; both default off). Chimera drew
-     * the vignette over Solas's finished image, so a dark room's walls ended about a fifth darker.
+     * shaders.properties keeps them (vignette, underwaterOverlay; both default off).
      */
     @Test
     void screenOverlayDirectives() {
@@ -331,7 +330,7 @@ final class PackDirectivesTest {
             PackPlan plan = PackProbe.analyze(shaders.getParent()).plan();
             assertEquals(define.startsWith("//"), plan.cullingDirectives().frustumCulling(), define);
         }
-        // BSL's case: World Curvature is off in the source, and the player turns it on.
+        // BSL's case: World Curvature is off in the source, and the player turns it on
         Path off = root.resolve("off");
         try (PackSource.LoadResult loaded = PackSource.loadResult(off, "minecraft:overworld",
                 new PendingOptions.Drained(Map.of("WORLD_CURVATURE", "true"), false))) {

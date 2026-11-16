@@ -109,10 +109,10 @@ final class GeometryStageBridgeTest {
 
     /**
      * GLSL leaves outputs undefined after EmitVertex; NVIDIA's GL driver keeps them, its Vulkan
-     * driver does not. Spring's terrain stage writes textureResolution once, before its emit loop,
-     * and RenderDoc read garbage on the loop's later vertices. Each emit now keeps every
-     * output and the unconverted position, and writes them back after EmitVertex. An output may be
-     * declared below a function, as Rethinking Voxels' are, so the emit is defined last.
+     * driver does not. Spring's terrain stage writes textureResolution once, before its emit loop, so
+     * each emit keeps every output and the unconverted position, and writes them back after
+     * EmitVertex. An output may be declared below a function, as Rethinking Voxels' are, so the emit
+     * is defined last.
      */
     @Test
     void anOutputWrittenBeforeTheEmitLoopKeepsItsValue() {
@@ -252,8 +252,8 @@ final class GeometryStageBridgeTest {
     /**
      * Shrimple's Nether and End shadow pass only voxelizes: shadow.vsh writes no gl_Position there,
      * and shadow.gsh emits nothing. GL runs a vertex stage that leaves the position to the stage after
-     * it, as Iris does; Chimera refused the program ("modern terrain vertex main or position is
-     * missing"). The vertex stage now writes a zero position for the geometry stage's gl_in.
+     * it, as under Iris, so the converted vertex stage writes a zero position for the geometry stage's
+     * gl_in.
      */
     @Test
     void aShadowVertexStageMayLeaveThePositionToItsGeometryStage(@TempDir Path root) throws IOException {
@@ -280,11 +280,9 @@ final class GeometryStageBridgeTest {
 
     /**
      * Spring's gbuffers_terrain passes each triangle through a geometry stage that writes flat
-     * per-triangle values from atlasSize. Chimera refused the program ("modern terrain varying
-     * mismatch: blockID": the vertex stage was paired with the fragment), and the pack's lighting
-     * read no normals or lightmap for any block: the terrain drew black. The vertex stage now feeds
-     * the geometry stage GL's clip position, which converts what it emits; a geometry stage that
-     * reads the host's matrices declares the view block, and the layout serves it there.
+     * per-triangle values from atlasSize. The vertex stage feeds the geometry stage GL's clip
+     * position, and the geometry stage converts what it emits. A geometry stage that reads the host's
+     * matrices declares the view block, and the layout serves it there.
      */
     @Test
     void aTerrainGeometryStageRuns(@TempDir Path root) throws IOException {
@@ -356,10 +354,9 @@ final class GeometryStageBridgeTest {
 
     /**
      * Spring's gbuffers_hand runs the same kind of pass-through geometry stage, after the entity
-     * vertex bridge; Chimera refused it and drew the held item with the fixed shader. The values
-     * that bridge adds for the fragment stage (here the held item's id) pass on from each
-     * primitive's first vertex, as Iris passes iris_entityInfo[0]. A stage that reads the draw's
-     * matrices declares the host's blocks, and the layout serves them there.
+     * vertex bridge. The values that bridge adds for the fragment stage (here the held item's id)
+     * pass on from each primitive's first vertex, as Iris passes iris_entityInfo[0]. A stage that
+     * reads the draw's matrices declares the host's blocks, and the layout serves them there.
      */
     @Test
     void aHandGeometryStageRuns(@TempDir Path root) throws IOException {
@@ -427,9 +424,8 @@ final class GeometryStageBridgeTest {
 
     /**
      * Iris compiles a #version 150-or-later stage with no profile in core mode and serves the core
-     * uniforms in every stage (VanillaCoreTransformer). Chimera served them in the vertex and
-     * fragment stages only: a core geometry stage's projectionMatrix stayed a uniform nothing set,
-     * and the stage projected every vertex through a zero matrix.
+     * uniforms in every stage (VanillaCoreTransformer), so a core geometry stage's projectionMatrix
+     * is the draw's projection; left a uniform nothing sets, it would zero every vertex.
      */
     @Test
     void aCoreGeometryStageReadsTheDrawsProjection(@TempDir Path root) throws IOException {

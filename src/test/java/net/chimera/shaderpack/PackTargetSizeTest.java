@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 final class PackTargetSizeTest {
     /**
      * Iris truncates window * factor in float. Bloop's colortex6 and Mellow's gaux2 are 0.25 of
-     * the window: 213 wide at 854, where rounding made 214.
+     * the window: 213 wide at 854, where rounding would make 214.
      */
     @Test
     void aRelativeSizeTruncatesAsIrisDoes() {

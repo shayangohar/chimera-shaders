@@ -6,9 +6,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The terrain bridge's interface declarations, read from the GLSL tree. Each reader returns the
- * characters the declaration pattern it replaces took, so the rewrites keep their output while a
- * comment no longer decides whether a declaration is seen.
+ * The terrain bridge's interface declarations, read from the GLSL tree so a comment cannot decide whether a
+ * declaration is seen. Each reader gives the character span the bridge's rewrites cut.
  */
 final class TerrainDeclarations {
     private TerrainDeclarations() {}
@@ -25,9 +24,9 @@ final class TerrainDeclarations {
     record Declaration(int start, int end, String interpolation, String storage, String type, String name) {}
 
     /**
-     * The modern interface declarations {@code [interpolation] storage type name;}, storage one of
-     * {@code storages}, that start a line: each span begins where {@code (?m)^\s*} did and ends at
-     * its semicolon. A declaration with array sizes, an initializer or another name is not one.
+     * The modern interface declarations {@code [interpolation] storage type name;} that start a line, storage
+     * one of {@code storages}. Each span takes in the blank lines and indentation before the declaration and
+     * ends at its semicolon. A declaration with array sizes, an initializer or another name is not one.
      */
     static List<Declaration> modern(String source, Set<String> storages) {
         GlslTree tree = GlslTree.parse(source);
@@ -49,8 +48,8 @@ final class TerrainDeclarations {
     }
 
     /**
-     * Legacy {@code keyword type name;} declarations, the keyword their last qualifier, each span
-     * starting at the keyword (as the unanchored legacy patterns did) and ending at its semicolon.
+     * Legacy {@code keyword type name;} declarations whose last qualifier is {@code keyword}; each span runs
+     * from the keyword to the semicolon.
      */
     static List<Declaration> keyword(String source, String keyword) {
         GlslTree tree = GlslTree.parse(source);

@@ -18,23 +18,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Parses the shader-source declaration block of an OptiFine-format pack:
- * colortex buffer formats (const int colortexNFormat = TOKEN;), shadow
- * settings, and the geometry draw-buffer count (DRAWBUFFERS). A
- * shaders.properties file next to the pass list overrides same-key entries.
+ * Reads a pack's const directives and shaders.properties target keys: colour target formats, clears and clear
+ * colours, shadow settings, target sizes and flips, and gbuffers_terrain's draw-buffer count. Const directives
+ * come from the programs Iris reads them from, in its order ({@link IrisConstDirectives}).
  *
- * <p>Honored: colortex formats drive the HDR buffer format (any VK-code
- * mapping in FMT_TO_VK; other tokens skip to the default). The shadow
- * resolution and distance settings are validated here before the
- * shadow framebuffer is created. Draw-buffer counts beyond 1 remain visible
- * to the caller but are not applied.
+ * A format token Vulkan cannot store exactly is approximated and named; an unknown one keeps the default. The
+ * shadow resolution and distance are validated here, before the shadow framebuffer is created.
  */
 public final class PackConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
     /**
-     * A colour target in a declaration name: colortexN or one of the legacy
-     * aliases Iris accepts the same way (gaux2Format is colortex5Format).
+     * A colour target in a declaration name: colortexN or one of the legacy aliases Iris accepts the same way,
+     * so gaux2Format is colortex5Format.
      */
     private static final String TARGET_NAME = "(colortex\\d+|gcolor|gdepth|gnormal|composite|gaux[1-4])";
     /** A colour target directive: {@code <target>Format} (int), {@code Clear} (bool), {@code ClearColor} (vec4). */
@@ -58,11 +54,7 @@ public final class PackConfig {
     private static final Pattern TARGET_FLIP_PROPERTY_KEY =
             Pattern.compile("^flip\\.([A-Za-z0-9_]+)\\." + TARGET_NAME + "$");
 
-    /**
-     * Iris format token -> the VkFormat that stores it exactly (IrisColorFormats). Normalized,
-     * floating-point and integer storage stay distinct; target allocation checks device support
-     * when required.
-     */
+    /** Each Iris format token Vulkan stores exactly, with its VkFormat; target allocation checks device support. */
     public static final Map<String, Integer> FMT_TO_VK = exactFormats();
 
     private PackConfig() {}
@@ -77,31 +69,30 @@ public final class PackConfig {
     }
 
     /**
-     * Bytes per texel of a colour-target format in {@link #FMT_TO_VK}, or 0
-     * when the format is not one of them. VulkanMod's image builder only
-     * sizes its own formats, so pack targets take their size from here.
+     * Bytes per texel of a colour-target format in {@link #FMT_TO_VK}, or 0 for any other format. VulkanMod's
+     * image builder sizes only its own formats, so pack targets take their size from here.
      */
     public static int formatBytes(int vkFormat) {
         return IrisColorFormats.bytes(vkFormat);
     }
 
-    /** The host shadow map's resolution and distance, without a pack. */
+    // the host shadow map's resolution and distance, without a pack
     public static final int DEFAULT_SHADOW_MAP_RESOLUTION = 2048;
     public static final float DEFAULT_SHADOW_DISTANCE = 128.0F;
-    /** Iris PackShadowDirectives' defaults for a pack that declares no resolution or distance. */
+    // Iris PackShadowDirectives' defaults for a pack that declares no resolution or distance
     public static final int IRIS_SHADOW_MAP_RESOLUTION = 1024;
     public static final float IRIS_SHADOW_DISTANCE = 160.0F;
-    /** Iris ShadowMatrices.NEAR and FAR: the shadow depth range when the pack sets no plane. */
+    // Iris ShadowMatrices.NEAR and FAR: the shadow depth range when the pack sets no plane
     public static final float SHADOW_NEAR_PLANE = -100.05F;
     public static final float SHADOW_FAR_PLANE = 156.0F;
-    /** Iris PackShadowDirectives default. */
+    /** Iris PackShadowDirectives' default shadowIntervalSize. */
     public static final float DEFAULT_SHADOW_INTERVAL_SIZE = 2.0F;
     /** The shadow settings Iris reads as any finite number; Iris clamps none of them. */
     private static final List<String> FINITE_SHADOW_SETTINGS = List.of("shadowDistanceRenderMul", "sunPathRotation",
             "sunPathOffset", "shadowIntervalSize", "entityShadowDistanceMul", "voxelDistance", "shadowNearPlane",
             "shadowFarPlane", "shadowMapFov");
 
-    /** Validated shadow settings. The raw values remain available for logs. */
+    /** The validated shadow resolution and distance, with the declared values the other settings read. */
     public record ShadowSettings(
             int resolution,
             float distance,
@@ -159,11 +150,11 @@ public final class PackConfig {
         }
 
         /**
-         * The shadow distance a pack forces on the player's Max Shadow Distance, in chunks (Iris
-         * IrisRenderingPipeline.forcedShadowRenderDistanceChunks): empty when the pack sets no
-         * shadowDistanceRenderMul, so the player's setting holds; the pack's distance times its
-         * multiplier, rounded up to chunks, for a multiplier of 0 or more; -1 for a negative one.
-         * Either value locks the setting, and only a forced 0 stops the shadow pass.
+         * The shadow distance in chunks a pack forces on the player's Max Shadow Distance, as Iris's
+         * IrisRenderingPipeline.forcedShadowRenderDistanceChunks: empty when the pack sets no
+         * shadowDistanceRenderMul, so the player's setting holds; the pack's distance times its multiplier,
+         * rounded up to chunks, for a multiplier of 0 or more; -1 for a negative one. Either value locks the
+         * setting, and only a forced 0 stops the shadow pass.
          */
         public OptionalInt forcedShadowRenderDistanceChunks() {
             if (!rawValues.containsKey("shadowDistanceRenderMul")) return OptionalInt.empty();
@@ -176,23 +167,17 @@ public final class PackConfig {
             return finiteValue("voxelDistance", 0.0F);
         }
 
-        /**
-         * The shadow projection's near plane (Iris shadowNearPlane, ShadowRenderer and
-         * MatrixUniforms): -1 reaches the render distance toward the sun.
-         */
+        /** The shadow projection's near plane, Iris's shadowNearPlane; -1 reaches the render distance sunward. */
         public float nearPlane(int renderDistanceChunks) {
             return depthPlane("shadowNearPlane", SHADOW_NEAR_PLANE, -renderDistanceChunks * 16.0F);
         }
 
-        /** The shadow projection's far plane (Iris shadowFarPlane): -1 reaches the render distance. */
+        /** The shadow projection's far plane, Iris's shadowFarPlane; -1 reaches the render distance. */
         public float farPlane(int renderDistanceChunks) {
             return depthPlane("shadowFarPlane", SHADOW_FAR_PLANE, renderDistanceChunks * 16.0F);
         }
 
-        /**
-         * Iris shadowMapFov: the field of view, in degrees, of a perspective shadow projection
-         * (ShadowRenderer, ShadowMatrices.createPerspectiveMatrix); null for Iris's orthographic one.
-         */
+        /** Iris's shadowMapFov: a perspective shadow projection's field of view in degrees; null for orthographic. */
         public Float fieldOfView() {
             float fov = finiteValue("shadowMapFov", Float.NaN);
             return Float.isNaN(fov) ? null : fov;
@@ -215,8 +200,8 @@ public final class PackConfig {
     }
 
     /**
-     * Load-time target directives; the target graph allocates the images at runtime. A null
-     * {@code clearColor} means the pack declared none, so the target clears to Iris's default.
+     * A colour target's size expression, clear switch and clear colour. A null {@code clearColor} means the pack
+     * declared none, so the target clears to Iris's default.
      */
     public record TargetSettings(
             String sizeExpression,
@@ -263,11 +248,12 @@ public final class PackConfig {
             List<String> deviations,
             PackSettingsPlan settings,
             Map<Integer, TargetSettings> targetSettings,
-            // flip.<program>.<buffer>=true entries, and the =false ones, which cancel a draw buffer's flip.
+            // flip.<program>.<buffer>=true entries, the =false ones that cancel a draw buffer's flip, and the
+            // <group>_pre keys' flips
             Map<String, List<Integer>> flips,
             Map<String, List<Integer>> cancelledFlips,
             Map<String, List<Integer>> preFlips,
-            // Targets declared in a format without alpha and stored with it (IrisColorFormats).
+            // targets declared in a format without alpha and stored with one
             Set<Integer> paddedAlphaTargets,
             PackDirectives directives
     ) {
@@ -334,9 +320,9 @@ public final class PackConfig {
             }
         }
 
-        // shaders.properties' target sizes and flips, as Iris reads them: inside the #if branches that
-        // hold, the last value of a key, and option names in a value expanded (Complementary sizes
-        // colortex1 by REFLECTION_RES).
+        // shaders.properties' target sizes and flips as Iris reads them: from the #if branches that hold, the
+        // last value of a key wins, and option names in a value expand
+        // Complementary sizes colortex1 by REFLECTION_RES
         settings.propertyValues().forEach((key, raw) -> {
             int comment = raw.indexOf('#');
             String value = (comment < 0 ? raw : raw.substring(0, comment)).trim();
@@ -345,7 +331,7 @@ public final class PackConfig {
             }
         });
 
-        // Draw-buffer count: the geometry program's (targets it writes).
+        // the draw-buffer count is gbuffers_terrain's
         int drawBufferCount = 1;
         for (PackProgram program : programs) {
             if (program.name().equals("gbuffers_terrain")) {
@@ -354,8 +340,8 @@ public final class PackConfig {
             }
         }
 
-        // GL leaves Iris's float clear of an integer buffer undefined; Chimera clears it with the clear
-        // colour's integer parts (PackTargetImages).
+        // GL leaves Iris's float clear of an integer buffer undefined; PackTargetImages clears it with the
+        // clear colour's integer parts
         collected.colortexFormats.forEach((slot, format) -> {
             if (IrisColorFormats.integer(format)
                     && collected.targetSettings.getOrDefault(slot, TargetSettings.defaults()).clear()) {
@@ -389,9 +375,9 @@ public final class PackConfig {
     private static final Pattern SHADOW_COLOR_NAME = Pattern.compile("\\bshadowcolor([0-7])\\b");
 
     /**
-     * The shadowcolor targets the shadow pass renders. Iris has two (MAX_SHADOW_COLOR_BUFFERS_OF);
-     * with HIGHER_SHADOWCOLOR it has eight and creates each on first use, so the pass renders every
-     * one up to the highest a program reads or a shadow program writes.
+     * How many shadowcolor targets the shadow pass renders. Iris has two, or eight with HIGHER_SHADOWCOLOR,
+     * creating each on first use, so the pass renders every one up to the highest a program reads or a shadow
+     * program writes.
      */
     private static int shadowColorTargetCount(List<PackProgram> programs, PackSettingsPlan settings) {
         if (!settings.hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR)) {
@@ -487,10 +473,10 @@ public final class PackConfig {
     }
 
     /**
-     * One shaders.properties entry, as Iris's ShaderProperties reads target keys: a
-     * {@code size.buffer.<target>} size or a {@code flip.<pass>.<target>} switch. Formats, clears and
-     * shadow settings are source const directives only (PackRenderTargetDirectives,
-     * PackShadowDirectives, PackDirectives); a properties key with one of their names applies nothing.
+     * One shaders.properties entry, as Iris's ShaderProperties reads target keys: a {@code size.buffer.<target>}
+     * size or a {@code flip.<pass>.<target>} switch. Formats, clears and shadow settings come only from const
+     * directives in the source, as in Iris's PackRenderTargetDirectives and PackShadowDirectives, so a
+     * properties key with one of their names applies nothing.
      */
     private static void applyProperty(String key, String value, Collected collected) {
         Matcher sizeKey = TARGET_SIZE_PROPERTY_KEY.matcher(key);
@@ -504,7 +490,6 @@ public final class PackConfig {
         }
     }
 
-    /** A {@code size.buffer.colortexN} size expression. */
     private static void applyTargetSize(String index, String value, Collected collected) {
         int slot = parseTargetIndex(index, collected.deviations);
         if (slot >= 0 && slot <= PostTargetPlan.MAX_TARGET) {
@@ -513,9 +498,9 @@ public final class PackConfig {
     }
 
     /**
-     * A {@code flip.<program>.<buffer>} switch, the last value for a key winning. A {@code false}
-     * keeps the pass's draw buffer from flipping after it (Iris CompositeRenderer), so it is kept
-     * apart; a {@code <group>_pre} key's flips are kept apart too, and a false one there does nothing.
+     * A {@code flip.<program>.<buffer>} switch, the last value for a key winning. A {@code false} keeps the
+     * pass's draw buffer from flipping after it, as in Iris's CompositeRenderer, so it is kept apart. A
+     * {@code <group>_pre} key's flips are kept apart too, and a false one there does nothing.
      */
     private static void applyTargetFlip(String key, Matcher flipKey, String value, Collected collected) {
         int slot = parseTargetIndex(flipKey.group(2), collected.deviations);
@@ -644,8 +629,8 @@ public final class PackConfig {
             }
         }
         deviations.addAll(targets.deviations());
-        // Iris builds these chains after its shadow pass (ShadowRenderer.generateMipmaps); Chimera
-        // samples the base level.
+        // Iris builds these mip chains after its shadow pass in ShadowRenderer.generateMipmaps; Chimera samples
+        // the base level
         for (int depth = 0; shadowPass && depth < 2; depth++) {
             if (targets.depth(depth).mipmap()) deviations.add("SHADOW_DEPTH_MIPMAP_UNSUPPORTED:shadowtex" + depth);
         }
@@ -673,13 +658,13 @@ public final class PackConfig {
                 return (int) parsed;
             }
         } catch (NumberFormatException ignored) {
-            // A value that is no number defaults below.
+            // not a number: defaults below
         }
         deviations.add("SHADOW_SETTING_DEFAULTED:shadowMapResolution");
         return IRIS_SHADOW_MAP_RESOLUTION;
     }
 
-    /** The declared shadow distance (Iris's half plane length), Iris's 160 without one or when not finite. */
+    /** The declared shadow distance, half the shadow plane's length; Iris's 160 without one or when not finite. */
     private static float validShadowDistance(String raw, List<String> deviations) {
         if (raw == null) {
             return IRIS_SHADOW_DISTANCE;
@@ -722,7 +707,7 @@ public final class PackConfig {
         return max >= 1 ? max : 1;
     }
 
-    /** Token name for a VK code (for logs); "code N" when unknown. */
+    /** The token stored in a Vulkan format, for logs; "code N" when none is. */
     public static String formatName(int vkCode) {
         IrisColorFormats.Format format = IrisColorFormats.stored(vkCode);
         return format != null ? format.token() : "code " + vkCode;

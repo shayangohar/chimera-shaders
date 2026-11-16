@@ -25,7 +25,7 @@ final class WorldBetweenStages {
     static String builtins(String converted, UniformRegistry.ProgramInterface plan, boolean hand) {
         String result = GlslTokenRewriter.replaceIdentifiers(converted, hand ? GlslVertexPreambles.handMatrixBuiltins()
                 : WorldClipRange.GL.builtins(GlslVertexPreambles.terrainMatrixBuiltins()));
-        // Iris gives the hand the draw's texture matrix (iris_TextureMat), as its vertex stage reads it.
+        // Iris gives the hand the draw's texture matrix (iris_TextureMat), as its vertex stage reads it
         result = LegacyGlslConverter.replaceLightmapTextureMatrices(result)
                 .replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*0\\s*\\]", hand ? "TextureMat" : "mat4(1.0)");
         result = TerrainVertexBridge.rewriteModernTerrainSamplers(result, plan, false);
@@ -89,7 +89,7 @@ final class WorldBetweenStages {
                 if (!vertexLayout.locations().containsKey(name)) continue;
                 String type = vertexLayout.types().get(name);
                 types.put(name, type);
-                // An integer is flat, as the fragment stage takes it.
+                // an integer is flat, as the fragment stage takes it
                 qualifiers.put(name, type.matches("u?int|[iu]vec[234]") ? "flat" : vertexLayout.qualifier(name));
             }
             return new PassedOn(types, qualifiers);

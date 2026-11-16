@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Device-free checks of pass computes: when one skips a frame rather than dispatching, and a round of
- * setup computes: order, held frames, the bound, and the next round.
+ * When a pass compute skips a frame or dispatches nothing, and how a round of setup computes runs: in
+ * order, held by a skipping compute for a bounded number of frames.
  */
 final class SetupRoundTest {
     private static final List<String> NAMES = List.of("setup", "setup1", "setup2");
@@ -75,9 +75,9 @@ final class SetupRoundTest {
     }
 
     /**
-     * Audit FD6: work groups GL refuses (INVALID_VALUE) dispatch nothing, and the compute counts as
-     * run. A negative workGroupsRender share gives a negative count, which Vulkan would read as about
-     * four billion.
+     * Work groups GL refuses (INVALID_VALUE) dispatch nothing, and the compute counts as run. A
+     * negative workGroupsRender share gives a negative count, which Vulkan would read as about four
+     * billion.
      */
     @Test
     void workGroupsGlRefusesDispatchNothing() {
@@ -89,14 +89,14 @@ final class SetupRoundTest {
         assertEquals("work groups 65536x1x1 lie outside the device's maxComputeWorkGroupCount 65535x65535x65535",
                 PackPassComputes.dispatchGap(compute(new int[] {65536, 1, 1}, null), size, 1920, 1080, limits));
         assertNull(PackPassComputes.dispatchGap(compute(new int[] {65535, 1, 1}, null), size, 1920, 1080, limits));
-        // An unsigned limit past Integer.MAX_VALUE holds every non-negative count.
+        // an unsigned limit past Integer.MAX_VALUE holds every non-negative count
         assertNull(PackPassComputes.dispatchGap(compute(null, null), size, 1920, 1080, new int[] {-1, -1, -1}));
     }
 
     /**
      * Work groups that cannot be dispatched count as run with nothing dispatched, so a setup round
      * goes on in the same frame, as Iris's next setup program runs after a refused glDispatchCompute.
-     * Only a frame gap holds the round. A refusal once held it for TRIES frames on every resize.
+     * Only a frame gap holds the round.
      */
     @Test
     void aRefusedDispatchLetsTheRoundGoOn() {

@@ -4,10 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * A compute module's work group size, as the compiler folded it. Iris reads a compute program's
- * size from GL once it links (ComputeProgram: GL_COMPUTE_WORK_GROUP_SIZE), so a pack may size it
- * with a constant expression: RenderPearl 2.8's composite3_b declares
- * {@code local_size_x = min(gl_MaxComputeWorkGroupSize.x, LL_CAPACITY)}.
+ * A compute module's work group size, as the compiler folded it. Iris's ComputeProgram reads the size from
+ * GL (GL_COMPUTE_WORK_GROUP_SIZE) once the program links, so a pack may size it with a constant expression:
+ * RenderPearl's composite3_b declares {@code local_size_x = min(gl_MaxComputeWorkGroupSize.x, LL_CAPACITY)}.
  */
 public final class SpirvLocalSize {
     private static final int MAGIC = 0x07230203;
@@ -32,7 +31,7 @@ public final class SpirvLocalSize {
             int count = words[at] >>> 16;
             if (count == 0 || at + count > words.length) break;
             int opcode = words[at] & 0xFFFF;
-            // Execution modes precede the first function.
+            // execution modes precede the first function
             if (opcode == OP_FUNCTION) break;
             if (opcode == OP_EXECUTION_MODE && count == 6 && words[at + 2] == MODE_LOCAL_SIZE) {
                 return new int[] {words[at + 3], words[at + 4], words[at + 5]};

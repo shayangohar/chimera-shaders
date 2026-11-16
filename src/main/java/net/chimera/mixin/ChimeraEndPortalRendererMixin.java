@@ -17,9 +17,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Iris MixinTheEndPortalRenderer: with a pack active, the end portal (and the end gateway, which
- * renders through it) is an entitySolid cube with a slowly scrolling portal texture, drawn by the
- * pack's block program, instead of vanilla's position-only end_portal shader.
+ * As Iris's MixinTheEndPortalRenderer: with a pack active, the end portal and the end gateway, which renders
+ * through it, draw as an entitySolid cube with a slowly scrolling portal texture. The pack's block program
+ * draws it in place of vanilla's position-only end_portal shader.
  */
 @Mixin(TheEndPortalRenderer.class)
 public abstract class ChimeraEndPortalRendererMixin {
@@ -39,7 +39,7 @@ public abstract class ChimeraEndPortalRendererMixin {
         callback.cancel();
         VertexConsumer consumer = buffers.getBuffer(RenderType.entitySolid(TheEndPortalRenderer.END_PORTAL_LOCATION));
         PoseStack.Pose pose = poses.last();
-        // A 100-second period; the texture wraps rather than clamps.
+        // 100-second period; the texture wraps
         float progress = (PackUniformProvider.currentFrameTimeCounter() * 0.01f) % 1f;
         float top = getOffsetUp();
         float bottom = getOffsetDown();

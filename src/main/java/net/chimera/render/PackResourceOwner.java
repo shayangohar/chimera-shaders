@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/** Owns immutable pack-sampled images for one pack session. */
+/** Loads and owns the textures one pack session samples; game textures it only names. */
 public final class PackResourceOwner implements AutoCloseable {
     /** One loaded pack image: a PNG or game texture, or a raw texture. */
     interface LoadedTexture extends AutoCloseable {
@@ -156,7 +156,7 @@ public final class PackResourceOwner implements AutoCloseable {
         return failures.get(resourceKey);
     }
 
-    /** Returns the first deterministic runtime-load deviation for a program. */
+    /** The program's first texture load deviation, in sorted order. */
     public String failureDeviationForProgram(String program) {
         return plan.bindings(program).stream()
                 .filter(binding -> LOADED_STATUSES.contains(binding.status()))

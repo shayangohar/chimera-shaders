@@ -24,10 +24,10 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
  * The descriptor contract of a pack pipeline: which bindings its ordinary samplers, storage buffers,
- * storage images and advanced samplers take, and the proof that the built pipeline matches it.
+ * storage images and advanced samplers take, and the check that the built pipeline matches it.
  */
 final class PackDescriptorContracts {
-    /** Stages whose layout comes from a pipeline JSON; every other stage has a guarded family contract. */
+    /** Stages whose layout comes from a pipeline JSON; every other stage takes a family layout. */
     private static final Set<UniformRegistry.Stage> PIPELINE_JSON_STAGES = Set.of(UniformRegistry.Stage.SHADOW,
             UniformRegistry.Stage.GEOMETRY, UniformRegistry.Stage.TRANSLUCENT, UniformRegistry.Stage.POST);
     private static final int TESSELLATION_STAGES = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT
@@ -47,12 +47,11 @@ final class PackDescriptorContracts {
         return next + samplerCount;
     }
 
-    /** Descriptor binding immediately after a program's ordinary samplers. */
     static int storageBufferBindingBase(PackProgramPlan plan) {
         return storageBufferBindingBase(plan, Set.of());
     }
 
-    /** Descriptor binding immediately after the filtered ordinary descriptors. */
+    /** The first binding after a program's ordinary descriptors, leaving out {@code advancedSamplerNames}. */
     static int storageBufferBindingBase(PackProgramPlan plan, Set<String> advancedSamplerNames) {
         return ordinaryDescriptorContract(plan, advancedSamplerNames).nextBinding();
     }
@@ -74,10 +73,9 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The stages between the vertex and fragment stages that every host block of a pipeline JSON
-     * layout reaches: a tessellated program's evaluation stage reads the host's view block
-     * (TessellationStageBridge), and so does a terrain geometry stage that declares it
-     * (GeometryStageBridge.convertWorld).
+     * The stages between vertex and fragment that every host block of a pipeline JSON layout reaches. A
+     * tessellated program's tessellation stages get them, since its evaluation stage reads the host's view
+     * block, and so does a geometry stage that declares that block.
      */
     private static int hostBlockStages(PackProgramPlan plan) {
         return (plan.betweenStages().tessellated() ? TESSELLATION_STAGES : 0)
@@ -85,15 +83,15 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * A shadow, terrain, water or post layout: its pipeline JSON's blocks, the pack's uniforms, then
-     * samplers. Every host block also reaches {@code betweenStages} (hostBlockStages).
+     * A shadow, terrain, water or post layout: the host pipeline JSON's blocks, none for post, then the pack's
+     * uniforms and samplers. Every host block also reaches {@code betweenStages}.
      */
     private static PackDescriptorLayout pipelineJsonLayout(UniformRegistry.Stage stage,
                                                            UniformRegistry.ProgramInterface iface, int[] slots,
                                                            int betweenStages) {
         PackDescriptorLayout layout;
         if (stage == UniformRegistry.Stage.POST) {
-            // A post program's only block is the pack's uniforms, at binding 0, and it pushes nothing.
+            // a post program's only block is the pack's uniforms, at binding 0, and it pushes nothing
             layout = new PackDescriptorLayout(packUniformBlock(iface, 0, VK_SHADER_STAGE_ALL_GRAPHICS),
                     List.of(), PackDescriptorLayout.EMPTY_PUSH_CONSTANTS);
         } else {
@@ -131,10 +129,10 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The centre-depth slot holds iris_centerDepthSmooth, a storage image its compute kernel keeps in
-     * the general layout (PackCenterDepth), so it is sampled there as the pack's own images are. A
-     * shader-read descriptor made VulkanMod transition it from GENERAL, which its helper rejects
-     * ("Unexpected value:1"), and the first depth-of-field frame dropped the whole pack to vanilla.
+     * The centre-depth slot holds iris_centerDepthSmooth, a storage image PackCenterDepth's compute kernel keeps
+     * in the general layout, so it is sampled there as the pack's own images are. A shader-read descriptor would
+     * make VulkanMod transition it from GENERAL, which its helper rejects with "Unexpected value:1", turning the
+     * pack off on the first depth-of-field frame.
      */
     static PackDescriptorLayout.ImageAccess samplerAccess(int slot) {
         return slot == SelectorNamespace.CENTER_DEPTH_SLOT
@@ -144,7 +142,7 @@ final class PackDescriptorContracts {
     /** A family layout: the host transform blocks, the pack's uniform block, then samplers. */
     private static PackDescriptorLayout familyLayout(PackProgramPlan plan, UniformRegistry.Stage stage,
                                                      UniformRegistry.ProgramInterface iface, int[] slots) {
-        // A hand's tessellation or geometry stages read the draw's matrices from the same host blocks.
+        // tessellation and geometry stages read the draw's matrices from the same host blocks
         List<PackDescriptorLayout.UniformBlock> blocks = new ArrayList<>(List.of(
                 new PackDescriptorLayout.UniformBlock(UniformRegistry.DYNAMIC_TRANSFORMS_BINDING,
                         VK_SHADER_STAGE_VERTEX_BIT | betweenStages(plan, "uniform DynamicTransforms"), 0, List.of(
@@ -157,11 +155,9 @@ final class PackDescriptorContracts {
                         List.of(new PackDescriptorLayout.Field("mat4", "ProjMat")))));
         boolean sky = stage == UniformRegistry.Stage.SKY || stage == UniformRegistry.Stage.CLOUD;
         if (!iface.executableUniforms().isEmpty()) {
-            // Entity-family vertex, tessellation and geometry stages may
-            // declare the same pack uniform block the fragment uses (live
-            // cameraPosition; a shadow stage reads its shadow matrices).
-            // The buffer is shared, so the binding must be visible to
-            // every stage whose converted source actually declares it.
+            // vertex, tessellation and geometry stages may declare the pack uniform block the fragment uses,
+            // as a shadow stage does for its shadow matrices
+            // the buffer is shared, so the binding reaches every stage whose converted source declares it
             blocks.addAll(packUniformBlock(iface, 2, VK_SHADER_STAGE_FRAGMENT_BIT
                     | declaringStage(plan.convertedVertex(), VK_SHADER_STAGE_VERTEX_BIT)
                     | declaringStage(plan.convertedTessControl(), VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)
@@ -224,9 +220,8 @@ final class PackDescriptorContracts {
                 .filter(value -> advancedSamplerNames == null
                         || !advancedSamplerNames.contains(value.name()))
                 .mapToInt(UniformRegistry.SamplerBinding::slot)
-                // Multiple Iris names can intentionally alias one host
-                // selector. Keep the source aliases, but give the Vulkan
-                // layout one descriptor for the shared resource identity.
+                // several Iris names may alias one host selector; the source keeps each name, and the layout
+                // gets one descriptor per selector
                 .distinct()
                 .toArray();
         if (stage == UniformRegistry.Stage.POST) return declared;
@@ -242,7 +237,7 @@ final class PackDescriptorContracts {
         if (name == null) return UniformRegistry.Stage.ENTITY;
         if (PostTargetPlan.isFullscreenProgramName(name)) return UniformRegistry.Stage.POST;
         if (FamilyAdapterRegistry.isShadowTerrain(name)) return UniformRegistry.Stage.SHADOW;
-        // shadow_entities and the host-layout shadow lanes share the entity-layout shadow descriptors.
+        // shadow_entities and the host-layout shadow lanes share the entity-layout shadow descriptors
         if (FamilyAdapterRegistry.stageFor(name) == UniformRegistry.Stage.SHADOW_ENTITY) {
             return UniformRegistry.Stage.SHADOW_ENTITY;
         }
@@ -401,9 +396,8 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The pack image a storage binding names; null for a colour target's colorimgN, whose binding
-     * carries the format it is declared in (GraphicsImageScan.addTargetWriter). A missing or
-     * unsupported image fails the rewrite.
+     * The pack image a storage binding names; null for a colour target's colorimgN, whose binding carries the
+     * format it is declared in. A missing or unsupported image fails the rewrite.
      */
     private static PackAdvancedResourcePlan.ImageSpec supportedImage(
             PackAdvancedResourcePlan advancedResources, PackAdvancedResourcePlan.GraphicsImageBinding binding) {
@@ -447,7 +441,7 @@ final class PackDescriptorContracts {
             PackAdvancedResourcePlan.DescriptorBinding descriptor = layout.ordinaryDescriptors().stream()
                     .filter(value -> value.identity().equals("resource:" + sampler.slot() + ":1"))
                     .findFirst().orElse(null);
-            // The converters' own matcher: every bindable sampler type, 1D and integer ones included.
+            // the converters' own matcher: every bindable sampler type, 1D and integer ones included
             if (descriptor == null || !FragmentConverter.hasSamplerDeclaration(rewritten, sourceName)) continue;
             rewritten = FragmentConverter.rewriteSamplerDeclaration(rewritten, sourceName, descriptor.binding());
         }

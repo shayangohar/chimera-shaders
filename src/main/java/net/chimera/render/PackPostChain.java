@@ -39,22 +39,22 @@ import java.util.TreeSet;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Runs the pack's post programs in each frame window: the composite and deferred steps of the
- * target graph, the computes of passes with no program, the final pass before the hand, and the
- * identity boundaries that keep the frame presentable when a step cannot run.
+ * Runs the pack's post programs in each frame window: the target graph's deferred and composite steps, the
+ * computes of passes with no program, and final before the hand. A step that cannot run becomes an identity
+ * boundary, so the frame still presents.
  */
 final class PackPostChain {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
 
-    /** The stage whose failure a window's abort is about to turn into the pack's fallback; null for none. */
+    /** The stage whose failure the window's abort turns into the pack's fallback; null for none. */
     private String escalatedStage;
 
     PackPostChain(ChimeraMainPass pass) {
         this.pass = pass;
     }
 
-    /** Immutable post-stage order and output contract retained for the pack session. */
+    /** One post stage in the session's run order, with the targets it writes. */
     record PackPostExecution(
             String name,
             List<Integer> outputTargets,
@@ -94,7 +94,6 @@ final class PackPostChain {
         return windowDue(PackFrameSchedulePlan.PostWindow.PREPARE);
     }
 
-    /** Whether {@code window}'s pass group opens this frame. */
     boolean windowDue(PackFrameSchedulePlan.PostWindow window) {
         PackTargetGraphPlan graph = pass.packPostTargets.graph();
         return windowDue(pass.packFrameSchedule.hasWindow(window), graph == null ? null : graph.flips(), window);
@@ -102,8 +101,8 @@ final class PackPostChain {
 
     /**
      * A pass group opens when it has passes, or when its {@code flip.<group>_pre} entries change the
-     * state: Iris builds every group, passes or none, so such a pre-flip still applies, and the world
-     * after the group reads and writes through it (audit FD4).
+     * state. Iris builds every group, passes or none, so such a pre-flip still applies, and the world
+     * after the group reads and writes through it.
      */
     static boolean windowDue(boolean hasPasses, PackFlipPlan flips, PackFrameSchedulePlan.PostWindow window) {
         return hasPasses || flips != null && flips.preFlips(window);
@@ -135,7 +134,7 @@ final class PackPostChain {
             hdrColor.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             if (setup && pass.packPassComputes != null && pass.packPassComputes.setupDue()
                     && pass.packPostFrameStarted) {
-                // Iris's setup computes, after a full clear of new targets and before the begin passes.
+                // Iris's setup computes, after a full clear of new targets and before the begin passes
                 pass.packPassComputes.dispatchSetup(commandBuffer, computeSources(commandBuffer));
                 if (pass.packAdvancedImageOwner != null) pass.packAdvancedImageOwner.afterImageWrites(commandBuffer);
             }
@@ -251,7 +250,7 @@ final class PackPostChain {
                     hdrColor.width, hdrColor.height);
             if (pass.packAdvancedImageOwner != null) pass.packAdvancedImageOwner.afterImageWrites(commandBuffer);
         } catch (RuntimeException failure) {
-            // Isolated as a drawing stage is (runPostStage): it opened no rendering to abort.
+            // isolated as runPostStage isolates a drawing stage, with no rendering to abort
             String reason = ChimeraMainPass.runtimeFailureReason("post-stage:" + stage.name(), failure);
             if (pass.conformanceReport != null) {
                 pass.conformanceReport.markRuntime(stage.name(), ConformanceReport.RuntimeDisposition.IDENTITY_FALLBACK,
@@ -281,19 +280,20 @@ final class PackPostChain {
     }
 
     /**
-     * Draws one post stage into its graph targets. A stage that throws aborts its own step, which
-     * then passes through as one that did not run, and runs as identity for the rest of the
-     * session while the chain goes on. A device-level failure, or the stage that makes
-     * too many (PostStageFailures), is rethrown and turns the pack off.
+     * Draws one post stage into its graph targets.
+     *
+     * A stage that throws aborts its own step, which passes through as one that did not run, and stays
+     * identity for the rest of the session while the chain goes on. A device-level failure, or the failure
+     * that makes too many (PostStageFailures), is rethrown and turns the pack off.
      */
     private void runPostStage(VkCommandBuffer commandBuffer, VulkanImage hdrColor, PackPostExecution stage) {
         PackPipelines.PackPost post = stage.post();
         ProgramImageBindingTransaction<ChimeraTextureBindingState.Snapshot> previous = null;
         boolean attempted = false;
         try {
-            // The sides the pass reads and writes, the plan's for it (earlier steps that did not run pass through).
+            // the sides the pass reads and writes, as planned; earlier steps that did not run pass through
             pass.packPostTargets.beginStep(commandBuffer, post.name());
-            // Iris runs a pass's computes first, over the images the pass then reads.
+            // Iris runs a pass's computes first, over the images the pass then reads
             if (pass.packPassComputes != null) {
                 pass.packPassComputes.dispatchBefore(post.name(), commandBuffer, computeSources(commandBuffer),
                         hdrColor.width, hdrColor.height);
@@ -355,7 +355,7 @@ final class PackPostChain {
         PackFailureNotices.publish();
     }
 
-    /** Runs the pack final stage after world post passes and before host hand. */
+    /** Runs final after the world's post passes and before the host hand. */
     public void finishPackFinalBeforeHand() {
         if (!pass.packWorldResolved || pass.packFinalApplied) {
             return;
@@ -384,7 +384,7 @@ final class PackPostChain {
                 pass.logPackRuntimeFailure("final-identity-resolve", fallbackFailure);
             }
             pass.packFinalApplied = true;
-            // As any other stage: identity from now on, or the pack off (PostStageFailures).
+            // as any other stage: identity from now on, or the pack off (PostStageFailures)
             try {
                 isolateOrRethrow(finalName, failure);
             } catch (RuntimeException escalated) {
@@ -425,12 +425,9 @@ final class PackPostChain {
     /** Draws the final program into its own image and returns that image, readable by the resolve. */
     private VulkanImage renderPackFinal(VkCommandBuffer commandBuffer) {
         pass.prepareProgramImages(pass.pipelines.finalPost.pipeline());
-        // Final reads pack targets in GL row order. It renders
-        // into a GL-ordered image; the flipped resolve below moves that
-        // image into the host-ordered output.
+        // final reads the pack targets in GL row order and renders a GL-ordered image; the caller's resolve
+        // turns it into the host-ordered output
         Renderer.getInstance().endRenderPass(commandBuffer);
-        // No pack target is written between the last post output check and final.
-        // Re-reading every target/history/depth here adds cost but no new evidence.
         pass.packPostTargets.generateMipmaps(commandBuffer, pass.pipelines.finalPost.name());
         Renderer.getInstance().beginRendering(pass.targets.packFinalRenderPass, pass.targets.packFinalFramebuffer);
         ChimeraMainPass.PackRenderState finalState = pass.capturePackRenderState();
@@ -486,7 +483,7 @@ final class PackPostChain {
                     ConformanceReport.RuntimeDisposition.IDENTITY_FALLBACK, code);
         }
         if (step != null) {
-            // An installed pass whose targets Chimera cannot lay out: Iris would have run it.
+            // an installed pass whose targets Chimera cannot lay out; Iris would have run it
             String pack = PackFailureNotices.currentPack();
             PackFailureNotices.record(new PackFailureNotices.Failure(pack, stage.name(), "target graph",
                     PackFailureNotices.Outcome.SKIPPED, graphRejectionCode(stage.name(), step),
@@ -513,7 +510,7 @@ final class PackPostChain {
         return "POST_STAGE_GRAPH_REJECTED:" + name;
     }
 
-    /** Restores the stable host resolve after a pack post pass fails. */
+    /** Draws {@code hdrColor} into the output through the host resolve, after final fails. */
     @SuppressWarnings("try") // the binding scope restores descriptor state on close
     void renderIdentityResolve(VkCommandBuffer commandBuffer, VulkanImage hdrColor) {
         ChimeraMainPass.PackRenderState previousState = pass.capturePackRenderState();
@@ -577,7 +574,7 @@ final class PackPostChain {
         }
     }
 
-    /** Disables all pack post seams while retaining objects for safe teardown. */
+    /** Turns the post chain and pack geometry overrides off, keeping their objects for teardown. */
     void disablePackPostChain(String reason) {
         pass.session.packTargetResourcesReady = false;
         pass.packPostFrameStarted = false;
@@ -632,9 +629,9 @@ final class PackPostChain {
     }
 
     /**
-     * Whether this frame holds every depth snapshot and shadow image a post pass reads from the
-     * frame ({@code frameInputs}: a depth name a stage texture serves is none). depthtex0 also
-     * counts while the world depth can still be captured: the pass's prepare captures it.
+     * Whether this frame holds every depth snapshot and shadow image in {@code frameInputs}, which leaves
+     * out a depth name a stage texture serves. depthtex0 also counts while the world depth can still be
+     * captured, since the pass's prepare captures it.
      */
     boolean packDepthInputsAvailable(List<String> frameInputs) {
         if (frameInputs == null) return true;
@@ -719,7 +716,7 @@ final class PackPostChain {
                     pass.packPostTargets.configure(pass.packTargetGraph, storageTargets());
             pass.session.packPostChainActive = pass.session.packTargetResourcesReady && runsChain(pass.packTargetGraph,
                     pass.packPassComputes != null && pass.packPassComputes.runInPostChain());
-            // New targets, at load or after a resize: Iris runs its setup computes again.
+            // new targets, at load or after a resize; Iris runs its setup computes again
             if (pass.packPassComputes != null) pass.packPassComputes.requestSetup();
             if (pass.session.packPostChainActive) logSchedule();
         } catch (RuntimeException e) {
@@ -739,7 +736,7 @@ final class PackPostChain {
                 pass.sessions.logConformance();
             }
             pass.logPackRuntimeFailure("post-resource-allocation", e);
-            // The world programs still draw; nothing runs after them, which the frame shows.
+            // the world programs still draw, with nothing after them
             String pack = PackFailureNotices.currentPack();
             PackFailureNotices.record(new PackFailureNotices.Failure(pack, "the post passes", "post targets",
                     PackFailureNotices.Outcome.SKIPPED, "render targets failed: "
@@ -806,8 +803,8 @@ final class PackPostChain {
 
             @Override
             public VulkanImage depth(String name) {
-                // A snapshot, this frame's or the last: the live world depth is depth-stencil, and
-                // only a program's draw binds a depth-only view of it (PackDepthTargets).
+                // a snapshot, this frame's or the last; the live world depth is depth-stencil, and only
+                // a program's draw binds a depth-only view of it (PackDepthTargets)
                 return pass.packDepthTargets.sampledImage(name);
             }
 
@@ -827,13 +824,13 @@ final class PackPostChain {
 
     /**
      * Whether a pass runs only its computes: it has some, and runs alone (PassComputePlan.runsAlone),
-     * as the report shows it. A program Chimera could not install is a fallback, not such a pass.
+     * as the report shows it. A program Chimera could not install counts as a fallback instead.
      */
     private boolean computeOnly(String name) {
         return computePasses().contains(name) && PassComputePlan.runsAlone(pass.packPlan, name);
     }
 
-    /** Builds the immutable post execution order once for the active pack. */
+    /** Builds the session's post stage order, compute-only passes included. */
     void buildPackPostExecutionPlan() {
         pass.session.packPostExecution.clear();
         pass.session.packFinalExecution = null;
@@ -842,7 +839,7 @@ final class PackPostChain {
         }
         List<PackProgram> postPrograms = pass.packPrograms.stream()
                 .filter(program -> PostTargetPlan.isPostProgramName(program.name()))
-                // A pass the pack switches off is not in the chain at all, as in Iris.
+                // a pass the pack switches off is not in the chain at all, as in Iris
                 .filter(program -> pass.packPlan == null || !pass.packPlan.isProgramDisabled(program.name()))
                 .sorted(Comparator.comparing(PackProgram::name, PostTargetPlan.programComparator()))
                 .toList();

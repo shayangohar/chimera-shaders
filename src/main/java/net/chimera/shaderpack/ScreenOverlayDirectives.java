@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The shaders.properties switches for Minecraft's screen overlays, read as Iris reads them:
- * {@code vignette} keeps the HUD vignette and {@code underwaterOverlay} keeps the underwater
- * texture overlay. Both default to off (PackDirectives: {@code getVignette().orElse(false)},
- * {@code getUnderwaterOverlay().orElse(false)}), so while a pack renders the world Iris skips
- * Gui.renderVignette and ScreenEffectRenderer.renderWater unless the pack asks for them.
+ * The shaders.properties switches for Minecraft's screen overlays, read as Iris reads them.
+ *
+ * {@code vignette} keeps the HUD vignette and {@code underwaterOverlay} the underwater texture overlay. Both
+ * default to off, as in Iris's PackDirectives, so while a pack renders the world Gui.renderVignette and
+ * ScreenEffectRenderer.renderWater are skipped unless the pack asks for them.
  */
 public record ScreenOverlayDirectives(boolean vignette, boolean underwaterOverlay, List<String> deviations) {
     public static final ScreenOverlayDirectives DEFAULTS = new ScreenOverlayDirectives(false, false, List.of());

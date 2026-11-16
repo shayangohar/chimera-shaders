@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-/** Immutable standard-family resolution for one selected pack dimension. */
+/** The program that serves each Iris program name and shader key, for one dimension's source folder. */
 record PackResolutionPlan(
         String selectedDimension,
         String selectedSourceFolder,
@@ -132,7 +132,7 @@ record PackResolutionPlan(
         return resolution == null || resolution.executable();
     }
 
-    /** Materialize selected prepared sources under the requested adapter's name. */
+    /** The shipped programs, plus each executable alias as a copy of its selected program under the requested name. */
     List<PackProgram> executablePrograms(List<PackProgram> programs) {
         Map<String, PackProgram> result = new TreeMap<>();
         if (programs != null) {
@@ -181,7 +181,7 @@ record PackResolutionPlan(
         return ConformanceReport.sha256(snapshotJson().getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Whether Iris reads {@code name} as a gbuffers, shadow, dh or final program (ProgramId). */
+    /** Whether {@code name} is an Iris ProgramId name or a shader key that resolves through them. */
     static boolean isIrisProgram(String name) {
         return FALLBACKS.containsKey(name);
     }
@@ -195,7 +195,7 @@ record PackResolutionPlan(
         addChain(result, "shadow_entities", "shadow");
         addChain(result, "shadow_lightning", "shadow_entities", "shadow");
         addChain(result, "shadow_block", "shadow");
-        // Iris shadow ShaderKeys drawn on host layouts: each runs the Iris program it names.
+        // Iris shadow ShaderKeys drawn on host layouts; each runs the first program its chain ships
         addKeyChain(result, "shadow_lines", "shadow");
         addKeyChain(result, "shadow_leash", "shadow");
         addKeyChain(result, "shadow_basic", "shadow");
@@ -203,9 +203,9 @@ record PackResolutionPlan(
         addKeyChain(result, "shadow_text_bg", "shadow_entities", "shadow");
         addKeyChain(result, "shadow_tex", "shadow");
         addKeyChain(result, "shadow_tex_color", "shadow");
-        // Iris TEXTURED_COLOR: ProgramId.Textured on the host position_tex_color draws.
+        // Iris TEXTURED_COLOR: ProgramId.Textured on the host position_tex_color draws
         addKeyChain(result, "textured_color", "gbuffers_textured", "gbuffers_basic");
-        // Iris TEXT_BG: ProgramId.EntitiesTrans on the host text-background quads.
+        // Iris TEXT_BG: ProgramId.EntitiesTrans on the host text-background quads
         addKeyChain(result, "text_bg", "gbuffers_entities_translucent", "gbuffers_entities",
                 "gbuffers_textured_lit", "gbuffers_textured", "gbuffers_basic");
         addChain(result, "gbuffers_basic");
@@ -264,19 +264,22 @@ record PackResolutionPlan(
     }
 
     /**
-     * A shader key that is not an Iris program name: it resolves only through the programs
-     * Iris uses for it, so a pack file of the same name is never selected.
+     * A shader key that is not an Iris program name. It resolves only through the programs Iris uses for it,
+     * so a pack file of the same name is never selected.
      */
     private static void addKeyChain(Map<String, List<String>> map, String key, String... programs) {
         map.put(key, List.of(programs));
     }
 
-    /** Iris's ProgramId names, in its declaration order. */
+    /**
+     * Iris's ProgramId names in declaration order, except gbuffers_entities_glowing, which Iris declares after
+     * gbuffers_particles_translucent.
+     */
     static List<String> programIds() {
         return FALLBACKS.keySet().stream().filter(name -> !isShaderKey(name)).toList();
     }
 
-    /** True for a requested name that is a shader key, never an authorable program. */
+    /** A shader key is never a program a pack can author. */
     static boolean isShaderKey(String name) {
         List<String> chain = FALLBACKS.get(name);
         return chain != null && !chain.get(0).equals(name);

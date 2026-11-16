@@ -24,7 +24,6 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The terrain and water material bridge. */
 final class TerrainMaterialBridgeTest {
     @Test
     void terrainMaterialBridge() throws Exception {
@@ -34,7 +33,7 @@ final class TerrainMaterialBridgeTest {
         PackPlan plan = analysis.plan();
         assertTrue(plan != null, "fixture plan is missing");
         assertTrue(plan.terrainMaterial().modern(), "modern terrain material plan was not selected");
-        // Iris carries separateAo in the colour's alpha, so it does not widen the layout.
+        // Iris carries separateAo in the colour's alpha, so it does not widen the layout
         assertTrue(plan.terrainShading().separateAo(), "the fixture's separateAo was not read");
         assertTrue(plan.terrainMaterial().stride() == 36, "modern stride is not 36 bytes under separateAo");
         assertTrue(ChimeraVertexFormats.terrainFormat(plan.terrainMaterial()).getVertexSize() == 36,

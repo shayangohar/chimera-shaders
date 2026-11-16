@@ -37,17 +37,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongConsumer;
 
 /**
- * Compiles every program a pack plan would install, through the runtime preparation seam
- * ({@link PackPipelines#prepare}) and the runtime's compiler ({@link GlslCompiler}), so a
- * converter defect shows up offline instead of as a failed pipeline in game. Failing sources are
- * written to build/pack-report/ for inspection. Used by the pack report and the compile gate.
+ * Compiles every program a pack plan would install, through the runtime's preparation
+ * ({@link PackPipelines#prepare}) and compiler ({@link GlslCompiler}), so a converter defect shows
+ * up offline instead of as a failed pipeline in game.
+ *
+ * Failing sources are written to build/pack-report/ for inspection. PackReportTool and CorpusChecks use it.
  */
 @Tag("packs")
 final class PackCompileTest {
-    /** The file extension each stage between the vertex and fragment stages records under. */
+    // file extension and shaderc kind of each stage between the vertex and fragment stages
     private static final Map<String, String> BETWEEN_EXTENSIONS = Map.of("tess_control", ".tcs",
             "tess_evaluation", ".tes", "geometry", ".gsh");
-    /** The shaderc kind each stage between the vertex and fragment stages compiles as. */
     private static final Map<String, Integer> BETWEEN_KINDS = Map.of(
             "tess_control", Shaderc.shaderc_glsl_tess_control_shader,
             "tess_evaluation", Shaderc.shaderc_glsl_tess_evaluation_shader,
@@ -71,7 +71,7 @@ final class PackCompileTest {
         }
     }
 
-    /** As {@link #run(Path, PackProbe.Analysis)}, with computes read from {@code shadersDir}: a load with options. */
+    /** As {@link #run(Path, PackProbe.Analysis)}, reading computes from {@code shadersDir}, staged with options. */
     static Result run(Path pack, Path shadersDir, PackProbe.Analysis analysis) {
         return run(pack, shadersDir, analysis, null);
     }
@@ -82,7 +82,7 @@ final class PackCompileTest {
         List<String> failures = new ArrayList<>();
         var compiler = new ProgramCompiler(pack, analysis.plan().advancedResources(), failures, snapshot);
         for (PackProgramPlan program : analysis.plan().activePrograms()) {
-            // Runtime also gates on the report. Compiling alone cannot prove admission.
+            // the runtime also admits by the report, so compiling alone cannot prove a program runs
             if (analysis.plan().shouldAttempt(program.name())
                     && !analysis.report().shouldAttempt(program.name())) {
                 failures.add(program.name() + " report/plan admission disagreement: "
@@ -94,15 +94,15 @@ final class PackCompileTest {
             }
             if (compiler.compiles(program)) compiled++;
         }
-        // The catch-all fallbacks keep one program's Chimera defect from failing the pack; the gate
-        // keeps that defect loud (PackPlanBuilder.planningFailed, ProgramReportRules.reportRow).
+        // PackPlanBuilder.planningFailed and ProgramReportRules.reportRow catch one program's Chimera defect so
+        // the pack still loads; count each one here as a failure so it stays visible
         for (ConformanceReport.ProgramReport row : analysis.report().programs()) {
             row.deviations().stream()
                     .filter(deviation -> deviation.startsWith(PackPlanBuilder.PLANNING_FAILED)
                             || deviation.startsWith(ProgramReportRules.REPORT_FAILED))
                     .forEach(deviation -> failures.add(row.name() + ": " + deviation));
         }
-        // Two textures under one resource key would load as one image (PackResourcePlan.keyConflicts).
+        // two textures under one resource key would load as one image (PackResourcePlan.keyConflicts)
         analysis.report().deviations().stream()
                 .filter(deviation -> deviation.startsWith(PackResourcePlan.KEY_CONFLICT))
                 .forEach(failures::add);
@@ -112,9 +112,8 @@ final class PackCompileTest {
     }
 
     /**
-     * Translates every pass compute the plan runs exactly as the runtime does, compiles it, and
-     * checks its value block; returns how many compiled. Photon's deferred4_a writes the sky
-     * light the deferred pass reads.
+     * Translates every pass compute the plan runs as the runtime does, compiles it and checks its
+     * value block; returns how many compiled.
      */
     static int compilePassComputes(Path pack, Path shadersDir, PackPlan plan, List<String> failures,
                                    List<String> compiledNames, ConvertedOutputSnapshot snapshot) {
@@ -170,24 +169,22 @@ final class PackCompileTest {
                     : check(key, source, Shaderc.shaderc_glsl_fragment_shader, "pack.fsh");
         }
 
-        /** Compiles one prepared stage of shaderc {@code kind} and records it under {@code key}. */
         private String check(String key, String source, int kind, String file) {
             Outcome outcome = outcome(source, kind, file);
             if (snapshot != null) snapshot.record(key, source, outcome.spirvHash());
             return outcome.error();
         }
 
-        /** Compiles the program's prepared stages and input variants; true when every one compiles. */
+        /** Compiles the program's prepared stages and input variants; false when a stage or vertex variant fails. */
         boolean compiles(PackProgramPlan program) {
             UniformRegistry.Stage stage = FamilyAdapterRegistry.stageFor(program.name());
             String vertex = pairedVertex(program, stage);
             PackPipelines.PreparedPipeline prepared;
             try {
                 prepared = PackPipelines.prepare(program, resources, stage, vertex);
-                // The runtime checks a post or shadow program's whole descriptor set before creating it
-                // (PackPipelines.buildPost, buildShadow, buildGeometry); a mismatch there stops the game.
-                // So it does for a program with stages between vertex and fragment: Shrimple's hand
-                // evaluation stage declared the terrain lanes' uniform block and stopped it at launch.
+                // the runtime checks the whole descriptor set of a post or shadow program, or of one with
+                // stages between vertex and fragment, before creating it (PackPipelines.buildPost,
+                // buildShadow, buildGeometry); a mismatch there stops the game
                 if (stage == UniformRegistry.Stage.POST || FamilyAdapterRegistry.isShadowFamily(program.name())
                         || !prepared.between().present().isEmpty()) {
                     PackPipelines.prepareLayout(prepared, program.name(), resources);
@@ -202,7 +199,7 @@ final class PackCompileTest {
             boolean betweenCompiles = prepared.between().present().stream()
                     .map(between -> checkBetween(program.name(), between)).toList().stream().allMatch(ok -> ok);
             compileInputVariants(program, stage);
-            // -Pchimera.packCompile.dumpProgram=<name> writes that program's prepared stages for review.
+            // -Pchimera.packCompile.dumpProgram=<name> writes that program's prepared stages for review
             if (program.name().equals(System.getProperty("chimera.packCompile.dumpProgram"))) {
                 dump(pack, program.name() + ".vsh", prepared.vertex());
                 prepared.between().present().forEach(between -> dump(pack,
@@ -239,7 +236,7 @@ final class PackCompileTest {
             return program.convertedFragment();
         }
 
-        /** The host-layout input variants the runtime builds for the program's family. */
+        /** Compiles the host-layout input variants the runtime builds for the program's family. */
         private void compileInputVariants(PackProgramPlan program, UniformRegistry.Stage stage) {
             String name = program.name();
             String vertex = program.convertedVertex();
@@ -249,16 +246,16 @@ final class PackCompileTest {
                 }
             }
             if (name.equals("gbuffers_entities_translucent") || name.equals("gbuffers_block_translucent")) {
-                // Iris GLYPH text variant (TEXT and TEXT_BE).
+                // Iris's GLYPH text variant, for TEXT and TEXT_BE
                 compileLayoutVariant(program, stage, "text input variant",
                         DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
             }
             if (name.equals("gbuffers_block") || name.equals("shadow_entities")) {
-                // Falling blocks and moving pistons on the block layout (Iris MOVING_BLOCK).
+                // falling blocks and moving pistons on the block layout, Iris's MOVING_BLOCK
                 compileLayoutVariant(program, stage, "moving-block input variant", DefaultVertexFormat.BLOCK);
             }
             if (FamilyAdapterRegistry.isGlintFamily(name)) {
-                // First-person glint: the same program under the hand projection.
+                // first-person glint: the same program under the hand projection
                 compileVariant(program, stage, "hand glint variant", EntityVertexBridge.handGlintVertex(vertex));
             }
             if (FamilyAdapterRegistry.isSkyFamily(name)) {
@@ -303,9 +300,10 @@ final class PackCompileTest {
 
     /**
      * Compiles a compute source and checks that its value block reads each value at the byte
-     * offset dispatch writes it. Returns the first error or disagreement, or null. Solas's
-     * frameCounter, declared after a vec3, read the vec3's padding word under implicit std140
-     * packing and stayed 0, so its floodfill wrote one image only and flickered.
+     * offset dispatch writes it; returns the first error or disagreement, or null.
+     *
+     * Under implicit std140 packing a value declared after a vec3, such as Solas's frameCounter,
+     * takes the vec3's padding word.
      */
     static String compileComputeValues(String source, String block, Map<String, Integer> written) {
         return compileComputeValues(source, block, written, null, null);
@@ -375,12 +373,12 @@ final class PackCompileTest {
         return text.toString();
     }
 
-    /** VulkanMod's shaderc settings; returns the first error line, or null on success. */
     /** The compile error of {@code source} as the stage between vertex and fragment named {@code stage}, or null. */
     static String compileBetween(String source, String stage) {
         return outcome(source, BETWEEN_KINDS.get(stage), "pack" + BETWEEN_EXTENSIONS.get(stage)).error();
     }
 
+    /** The first error line of {@code source} compiled as the runtime compiles a vertex or fragment, or null. */
     static String compile(String source, boolean vertex) {
         return vertex ? outcome(source, Shaderc.shaderc_glsl_vertex_shader, "pack.vsh").error()
                 : outcome(source, Shaderc.shaderc_glsl_fragment_shader, "pack.fsh").error();
@@ -393,9 +391,9 @@ final class PackCompileTest {
     private record Outcome(String error, String spirvHash) {}
 
     /**
-     * Each distinct source compiles once per run: the option sweep prepares the same program
-     * source under most of its variants. The device's sized types are part of the key, since a
-     * vendor extension compiles as its equivalent only with them (GlslVendorExtensions).
+     * Each distinct source compiles once per run, since OptionSweepTest prepares the same program
+     * source under most of its variants. The device is part of the key: a vendor extension compiles
+     * as its equivalent only with the device's sized types (GlslVendorExtensions).
      */
     private static final Map<String, Outcome> COMPILED = new ConcurrentHashMap<>();
 
@@ -416,10 +414,10 @@ final class PackCompileTest {
     }
 
     /**
-     * Compiled as the runtime compiles each kind (GlslCompiler). A graphics stage takes the
-     * optimizer HostPipelineLayout runs; shaderc validates the module before it optimizes, so a
-     * stage the Vulkan validator rejects fails here as it does in game (Noble's unwritten
-     * gl_FragDepth reads passed a plain compile). A compute takes none, as in ComputeKernel.
+     * Compiles each kind as the runtime does (GlslCompiler). A graphics stage takes the optimizer
+     * HostPipelineLayout runs, and shaderc validates the module before it optimizes, so a stage the
+     * validator rejects fails here as in game; Noble's unwritten gl_FragDepth reads pass a plain
+     * compile. A compute takes no optimizer, as in ComputeKernel.
      */
     private static Compiled spirv(String source, int kind, String fileName) {
         LongConsumer configure = kind == Shaderc.shaderc_glsl_compute_shader ? options -> {} : GlslCompiler::optimize;
@@ -428,7 +426,7 @@ final class PackCompileTest {
             bytes = GlslCompiler.compile(fileName, source, kind, configure);
         } catch (IllegalStateException failure) {
             String message = failure.getMessage().strip();
-            // Warnings precede errors in shaderc's report; name the first error.
+            // warnings precede errors in shaderc's report; name the first error
             return new Compiled(null, message.lines().filter(line -> line.contains("error")).findFirst()
                     .orElse(message.lines().findFirst().orElse("unknown")));
         }
@@ -461,7 +459,7 @@ final class PackCompileTest {
         }
     }
 
-    /** As {@link #rejectedPrograms}, with pass computes read from {@code shadersDir}: a load with options. */
+    /** As {@link #rejectedPrograms}, reading pass computes from {@code shadersDir}, staged with options. */
     static SortedSet<String> rejectedProgramsIn(Path shadersDir, PackProbe.Analysis analysis) {
         SortedSet<String> rejected = new TreeSet<>();
         if (analysis.plan() == null) return rejected;
@@ -475,8 +473,8 @@ final class PackCompileTest {
     }
 
     /**
-     * The rejections a load tells in chat (SkippedPrograms), each with its reason, for review; the
-     * runtime adds those it finds itself, such as a build failure.
+     * The rejections a load reports in chat (SkippedPrograms), each with its reason. The runtime adds
+     * those it finds itself, such as a build failure.
      */
     static List<String> toldSkips(PackProbe.Analysis analysis, Collection<String> rejected) {
         return rejected.stream()
@@ -486,7 +484,7 @@ final class PackCompileTest {
                 .toList();
     }
 
-    /** The report deviations that say why a program was rejected, for gate messages and the option sweep. */
+    /** The report deviations that say why a program was rejected, for failure messages and OptionSweepTest. */
     static List<String> rejectionReasons(PackProbe.Analysis analysis, String program) {
         var report = analysis.report().program(program);
         if (report == null) return List.of();
@@ -496,10 +494,10 @@ final class PackCompileTest {
     }
 
     /**
-     * The compile gate's check of one pack (CorpusChecks runs it): every program the pack installs
-     * must compile, and the set its plan rejects must match the recorded admission baseline.
-     * Compiling only admitted programs cannot see a program the plan newly rejects (MakeUp 9.5g
-     * terrain fell back in game while every admitted program compiled).
+     * Checks one pack for CorpusChecks. Every program the pack installs must compile, and the set its
+     * plan rejects must match the recorded admission baseline, since compiling only admitted programs
+     * cannot see a program the plan newly rejects.
+     *
      * {@code -Pchimera.packCompile.updateAdmission=true} records the rejected set in {@code recorded}
      * instead, for {@link #writeBaseline}. Every compiled shader must also match its converted-output
      * baseline ({@link ConvertedOutputSnapshot}); {@code -Pchimera.snapshot.update=true} rewrites
@@ -569,7 +567,7 @@ final class PackCompileTest {
 
     /** Merges one shard's packs into the baseline; the shards write one at a time, under a file lock. */
     static void writeBaseline(Path path, Map<String, TreeSet<String>> recorded) throws IOException {
-        // In build/, kept: a shard waiting on the lock holds the file open, so it is never deleted.
+        // the lock file stays in build/; a shard waiting on the lock holds it open, so it is never deleted
         Path lock = Files.createDirectories(Path.of("build")).resolve(path.getFileName() + ".lock");
         try (FileChannel channel = FileChannel.open(lock, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
             FileLock held = channel.lock();

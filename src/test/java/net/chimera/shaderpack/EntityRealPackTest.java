@@ -23,13 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Real-pack entity and block qualification: the locked Complementary and
- * BSL programs must plan executable entity/block pipelines with exact
- * active target routes, build complete descriptor manifests, and compile
- * converted sources through shaderc. It plans with the
- * complete CHIMERA instance option set: the manifest gate must see the same
- * branch conditions as runtime, or samplers such as MCBL lighttex and
- * noisetex silently drop.
+ * Entity and block programs of the pinned Complementary and BSL packs: each plans an executable
+ * pipeline with exact target routes, builds a complete descriptor manifest and compiles through shaderc.
+ *
+ * Plans use the full instance option set, so the manifest sees the branches the game takes; with fewer
+ * options, samplers such as MCBL's lighttex and noisetex drop out unnoticed.
  */
 @Tag("packs")
 final class EntityRealPackTest {
@@ -104,7 +102,7 @@ final class EntityRealPackTest {
             verifyManifest(analysis.plan().advancedResources(), expectation, plan);        }
     }
 
-    /** These families must qualify under the same full option set as the runtime. */
+    /** Weather and sky programs are admitted, route to their targets and compile, each sky contract too. */
     private static void verifyWeatherAndSky(PackProbe.Analysis analysis, String pack) {
         for (String name : List.of("gbuffers_weather", "gbuffers_skybasic", "gbuffers_skytextured")) {
             var plan = analysis.plan().program(name);
@@ -134,9 +132,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Complementary tints hit mobs with entityColor. It must come from the
-     * overlay texel at the entity's UV1, per vertex as Iris makes it, and
-     * never from a uniform that answers every mob with one colour.
+     * Complementary tints hit mobs with entityColor, which comes from the overlay texel at the entity's
+     * UV1, per vertex as Iris makes it; a uniform would give every mob one colour.
      */
     private static void verifyOverlayColour(Expectation expectation, PackProgramPlan plan) {
         if (!expectation.pack().equals("complementary")
@@ -154,7 +151,7 @@ final class EntityRealPackTest {
                 .matcher(fragment).results().count();
         assertTrue(declarations == 1 && !fragment.contains("uniform vec4 entityColor"),
                 what + " fragment still reads entityColor from a uniform (" + declarations + " declarations)");
-        // Text binds no overlay; Iris leaves entityColor its zero uniform on layouts without UV1.
+        // text binds no overlay; Iris leaves entityColor its zero uniform on layouts without UV1
         String glyph = EntityVertexBridge.fragmentForFormat(fragment,
                 DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
         assertTrue(!glyph.contains("texelFetch(" + PackResourcePlan.OVERLAY_SAMPLER)
@@ -165,11 +162,9 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Both locked packs draw their own clouds at the configured defaults
-     * (BSL CLOUDS=2, Complementary CLOUD_STYLE_DEFINE != 50); their
-     * gbuffers_clouds fragment discards every vanilla cloud fragment. The
-     * plan must record that fact so the runtime skips the host clouds
-     * instead of drawing them over the pack's own.
+     * Both pinned packs draw their own clouds at their defaults (BSL CLOUDS=2, Complementary
+     * CLOUD_STYLE_DEFINE != 50), and their gbuffers_clouds discards every vanilla cloud fragment. The
+     * plan records this, so the runtime skips the host clouds instead of drawing them over the pack's.
      */
     private static void verifyAuthoredEmptyClouds(PackProbe.Analysis analysis, String pack) {
         PackProgramPlan clouds = analysis.plan().program("gbuffers_clouds");
@@ -181,10 +176,9 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Iris texture stages cover numbered programs. Complementary's cloud
-     * noise (texture.deferred.colortex3) must reach deferred1, which draws
-     * its clouds; BSL's lens dirt (texture.composite.colortex7) must reach
-     * every compositeN that samples colortex7 or its gaux4 alias.
+     * Iris texture stages cover numbered programs. Complementary's cloud noise
+     * (texture.deferred.colortex3) reaches deferred1, which draws its clouds; BSL's lens dirt
+     * (texture.composite.colortex7) reaches every compositeN that samples colortex7 or its gaux4 alias.
      */
     private static void verifyStageTextures(PackProbe.Analysis analysis, String pack) {
         PackResourcePlan resources = analysis.plan().resources();
@@ -202,20 +196,17 @@ final class EntityRealPackTest {
                 checked++;
             }
         }
-        // BSL samples its dirt only when lens dirt is enabled (off in the locked
-        // options); Complementary deferred1 always draws the clouds.
+        // BSL samples its dirt only with lens dirt on, off in the pinned options; Complementary's
+        // deferred1 always draws the clouds
         assertTrue(!pack.equals("complementary") || checked > 0,
                 "complementary deferred1 no longer samples colortex3");
     }
 
     /**
-     * Descriptor-contract gate: builds source
-     * projection, ordinary descriptors, advanced descriptors, and the
-     * image manifest through the runtime preparation seam, then proves
-     * the bijection against the native layout inventory. Fails on
-     * IMAGE_RESOLVER_MISSING, IMAGE_MANIFEST_MISMATCH, selector/resource
-     * drift, or an unservable manifest kind. Compilation and routes alone
-     * cannot prove pipeline eligibility.
+     * Prepares the program as the runtime does (source projection, ordinary and advanced descriptors,
+     * image manifest) and matches the manifest one to one against the native layout. Fails on
+     * IMAGE_RESOLVER_MISSING, IMAGE_MANIFEST_MISMATCH, a selector or resource mismatch, or a manifest
+     * kind nothing serves.
      */
     private static void verifyManifest(PackAdvancedResourcePlan advanced, Expectation expectation,
             PackProgramPlan plan) {
@@ -231,9 +222,9 @@ final class EntityRealPackTest {
         ProgramImageBindingManifest manifest = prepared.imageBindings();
         assertTrue(manifest != null && !manifest.entries().isEmpty(),
                 what + " has no manifest entries");
-        // The whole descriptor set, as createNative builds it: the layout checked against the
-        // shaders and the manifest, then the host's buffer descriptors. Uniform suppliers
-        // never run headless; the dummy is never invoked.
+        // the whole descriptor set as createNative builds it: the layout checked against the shaders
+        // and the manifest, then the host's buffer descriptors
+        // uniform suppliers never run headless, so the dummy is never called
         try {
             assertTransformBlocks(what, PackPipelines.prepareLayout(prepared, plan.name(), advanced));
         } catch (PackPipelines.PreparationFailure failure) {
@@ -259,10 +250,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * On the real packs, the shadow vertex carries the one-time
-     * clip-range wrapper and still compiles, while the world-family vertices
-     * keep the authored clip space because the host world raster owns their
-     * depth convention.
+     * The shadow vertex carries the clip-range wrapper once and compiles. World-family vertices keep
+     * the authored clip space, since the host's world raster owns their depth convention.
      */
     private static void verifyShadowClipRange(PackProbe.Analysis analysis, String pack,
             List<Expectation> expectations) {
@@ -299,11 +288,9 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Sampler identity: the descriptor sampler follows the declared
-     * sampler type, because a {@code sampler2DShadow} lookup is a depth
-     * comparison and a plain {@code sampler2D} lookup reads the value. Report
-     * how each admitted program reads the shadow textures and reject any type
-     * the shadow owner cannot serve.
+     * The descriptor sampler follows the declared type: a {@code sampler2DShadow} lookup is a depth
+     * comparison and a {@code sampler2D} lookup reads the value. Prints how each admitted program reads
+     * the shadow textures and fails on a type the shadow resources cannot serve.
      */
     private static void verifyShadowSamplerTypes(PackProbe.Analysis analysis, String pack) {
         for (PackProgramPlan plan : analysis.plan().programs()) {
@@ -325,8 +312,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Descriptor identity on the real pack program: the transform blocks sit at their bindings with
-     * the fields the host fills by name, and the host builds every buffer descriptor of the layout.
+     * The transform blocks sit at their bindings with the fields the host fills by name, and the host
+     * builds every buffer descriptor of the layout.
      */
     private static void assertTransformBlocks(String what, PackDescriptorLayout layout) {
         var expected = Map.of(UniformRegistry.DYNAMIC_TRANSFORMS_BINDING,
@@ -344,20 +331,18 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Canonical selector assertions: a declared
-     * noisetex must ride fixed selector 7 as a pack texture, and declared
-     * MCBL light volumes must survive as advanced sampled images.
+     * A declared noisetex binds at fixed selector 7 as a pack texture, and declared MCBL light volumes
+     * stay advanced sampled images.
      */
     private static void assertCanonicalSamplers(String what, PackProgramPlan plan,
             Expectation expectation, ProgramImageBindingManifest manifest) {
         var samplers = plan.interfacePlan().effective(expectation.stage()).samplers();
         boolean declaresNoise = samplers.stream().anyMatch(sampler -> sampler.name().equals("noisetex"));
-        // BSL's gbuffers_block must always carry the
-        // canonical slot-7 pack-texture noise entry, not a bare declaration.
+        // BSL's gbuffers_block carries the slot-7 noise entry whether or not this stage declares noisetex
         boolean requireNoise = declaresNoise
                 || (expectation.pack().equals("bsl") && expectation.program().equals("gbuffers_block"));
         if (requireNoise) {
-            // "noisetex" is the generated noise; a declared one is "noisetex:<source>" (BSL's texture.noise).
+            // "noisetex" is the generated noise; a declared one is "noisetex:<source>" (BSL's texture.noise)
             boolean noiseOk = manifest.entries().stream().anyMatch(entry -> entry.slot() == 7
                     && entry.kind() == ProgramImageBindingManifest.Kind.PACK_TEXTURE
                     && entry.resourceKey().startsWith("noisetex"));
@@ -377,7 +362,7 @@ final class EntityRealPackTest {
         }
     }
 
-    /** Pins BSL's first-use temporal target contract against the real source pack. */
+    /** BSL's composite3 reads and writes colortex2 first, so the target keeps a persistent ping-pong history. */
     private static void verifyBslTemporalTargetPlan(PackProbe.Analysis analysis) {
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(
                 analysis.plan().programs(), analysis.config(), analysis.plan().resources(),

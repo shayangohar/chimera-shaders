@@ -23,14 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Reading and preparing a pack's sources: archives, dimension folders, includes, conditionals and
- * macros, the legacy post conversion's edges, token boundaries and the preprocessor's budget.
+ * Reading and preparing a pack's sources: archives, dimension folders, includes, conditionals and macros,
+ * GLSL 130 post conversion, token boundaries and the preprocessor's budgets.
  */
 final class PackSourceEdgesTest {
     /**
-     * Iris preprocesses dimension.properties with JCPP, which reads every comment as whitespace.
-     * Only a line comment was stripped, so a block comment stayed in a #define body and the #if
-     * that tested it failed.
+     * Iris preprocesses dimension.properties with JCPP, which reads every comment as whitespace, so a block
+     * comment after a #define's value stays out of the macro an #if tests.
      */
     @Test
     void aCommentInDimensionPropertiesIsWhitespace(@TempDir Path root) throws IOException {
@@ -50,11 +49,11 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris reads dimension.properties as it reads the id maps (PropertiesPreprocessor, then
-     * Properties.load), with the standard environment defines. A continuation goes on to the next
-     * line (superDuperVanilla lists undergarden:undergarden under world-1 that way), a block comment
-     * runs across lines, and a colon separates a key as an equals sign does. Each folder
-     * here is what JCPP and Properties.load give for this file.
+     * Iris reads dimension.properties as it reads the id maps (PropertiesPreprocessor, then Properties.load),
+     * with the standard environment defines. A continuation goes on to the next line (superDuperVanilla lists
+     * undergarden:undergarden under world-1 that way), a block comment runs across lines, and a colon
+     * separates a key as an equals sign does. Each folder here is what JCPP and Properties.load give for this
+     * file.
      */
     @Test
     void dimensionPropertiesReadsAsIrisLoadsIt(@TempDir Path root) throws IOException {
@@ -84,7 +83,7 @@ final class PackSourceEdgesTest {
                 "a file with no property maps the standard folders, as no file does");
         assertTrue(DimensionProperties.folderNames(root).isEmpty(), "and the option scan takes the world folders");
 
-        // Iris preprocesses it with its environment defines (StandardMacros), IS_IRIS among them.
+        // Iris preprocesses it with its environment defines (StandardMacros), IS_IRIS among them
         Files.writeString(root.resolve("dimension.properties"), """
                 #ifdef IS_IRIS
                 dimension.world0 = *
@@ -99,11 +98,10 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris pastes an include in as text before JCPP reads the program (IncludeProcessor), so what an
-     * include leaves open goes on into the includer: its open block comment hides the
-     * includer's #define up to the close, and a directive whose comment is still open at the
-     * include's end goes on after the includer's close (X is 1 + 1). JCPP gives these results for
-     * the pasted text. Before, each file started outside any comment.
+     * Iris pastes an include in as text before JCPP reads the program (IncludeProcessor), so what an include
+     * leaves open goes on into the includer: its open block comment hides the includer's #define up to the
+     * close, and a directive whose comment is still open at the include's end goes on after the includer's
+     * close (X is 1 + 1). JCPP gives these results for the pasted text.
      */
     @Test
     void whatAnIncludeLeavesOpenGoesOnIntoTheIncluder(@TempDir Path root) throws IOException {
@@ -131,10 +129,9 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris sets no limit on how many files a program includes. Complementary Unbound with Euphoria
-     * Patches includes more than 256 in gbuffers_entities_translucent, which then fell back to
-     * vanilla. Includes that fan out into thousands of empty files still stop, since the line and
-     * character budgets never see them.
+     * Iris sets no limit on how many files a program includes; Complementary Unbound with Euphoria Patches
+     * includes several hundred in gbuffers_entities_translucent. Includes that fan out into thousands of empty
+     * files still stop, since the line and character budgets never see them.
      */
     @Test
     void aProgramMayIncludeHundredsOfFilesButNotARunawayFanOut(@TempDir Path root) throws IOException {
@@ -181,9 +178,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * An include name that is no path on Windows ({@code *} is not allowed there) is unresolved: it
-     * threw InvalidPathException out of prepare. A quoted {@code /*} now stays in the name, as JCPP
-     * reads it.
+     * An include name that is no path on Windows, where {@code *} is not allowed, is SOURCE_INCLUDE_UNRESOLVED;
+     * prepare does not throw. A quoted {@code /*} stays in the name, as JCPP reads it.
      */
     @Test
     void anIncludeNameThatIsNoPathIsUnresolved(@TempDir Path root) {
@@ -196,10 +192,10 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * JCPP reads a comment as whitespace, so a {@code #} after block comments on its line starts a
-     * directive, the close of one opened on an earlier line among them; a license
-     * comment before #version is one. A comment that opened after code keeps the line it closes on
-     * from starting one. The comments stay in the source. JCPP gives these results.
+     * JCPP reads a comment as whitespace, so a {@code #} after block comments on its line starts a directive,
+     * also after the close of one opened on an earlier line; a license comment before #version is such a
+     * comment. A comment that opened after code keeps the line it closes on from starting one. The comments
+     * stay in the source. JCPP gives these results.
      */
     @Test
     void aDirectiveMayFollowCommentsOnItsLine() {
@@ -290,13 +286,13 @@ final class PackSourceEdgesTest {
     /**
      * Iris reads MC_MIPMAP_LEVEL once per pack load. A load analyses every dimension at the level it
      * began with, even if the level is set again while it lives, and leaves that level for the id
-     * maps read after it (audit FD10, proposal 4).
+     * maps read after it.
      */
     @Test
     void aLoadAnalysesEveryDimensionAtTheMipmapLevelItBeganWith(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
         Files.writeString(shaders.resolve("final.fsh"), "#version 120\nvoid main() { gl_FragColor = vec4(1.0); }\n");
-        // Not the default level (4), so a pin that ignored the game's level would fail.
+        // not the default level (4), so a pin that ignored the game's level would fail
         PackEngineDefines.setMipmapLevel(2);
         try (PackSource.LoadResult loaded = PackSource.loadResult(root)) {
             PackProbe.analyze(root, loaded);
@@ -327,7 +323,7 @@ final class PackSourceEdgesTest {
             assertSame(overworld.plan(), again.plan());
             assertNotSame(overworld.report(), again.report());
             assertFalse(again.report().deviations().contains("RUNTIME_MARK"), again.report().deviations().toString());
-            // A reuse's own marks stay its own too: the next reuse gets another copy.
+            // a reuse's own marks stay its own too; the next reuse gets another copy
             again.report().addDeviation("SECOND_MARK");
             PackProbe.Analysis third = PackProbe.analyze(root, loaded);
             assertFalse(third.report().deviations().contains("SECOND_MARK"), third.report().deviations().toString());

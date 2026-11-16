@@ -46,10 +46,9 @@ final class MaterialMapFixtures {
     }
 
     /**
-     * Padded topology: brick owns slot (8,8,20,20) with a 2-texel border,
-     * edge starts exactly where brick ends, plain is missing but keeps its
-     * padded slot at fallback, lab rides a 1-texel border. Nothing may
-     * write outside its own padded rectangle.
+     * Padded slots: brick owns (8,8,20,20) with a 2-texel border and edge starts where it ends; plain has
+     * no maps but keeps its padded slot at the fallback, and lab has a 1-texel border. Nothing may write
+     * outside its own padded rectangle.
      */
     static MaterialMapOwner.AtlasUpload layoutPadded() {
         return new MaterialMapOwner.AtlasUpload("minecraft:padded", 64, 64, 4, List.of(
@@ -125,12 +124,10 @@ final class MaterialMapFixtures {
     }
 
     /**
-     * Animated sprites, each map carrying its own table: anim_n cycles
-     * 0 (2 ticks) -> 2 (3 ticks) -> 1 (1 tick) without interpolation;
-     * blend_s interpolates two frames of 4 ticks; single_n names one frame
-     * and so stays static; badmeta_n names a frame outside its strip and
-     * baddims_n cannot be cut into frames, so both stay flat alone. Brick
-     * is a static neighbour whose slot animation must never touch.
+     * Animated sprites, each map with its own table. anim_n cycles 0 (2 ticks), 2 (3 ticks), 1 (1 tick)
+     * without interpolation, and blend_s interpolates two frames of 4 ticks. single_n names one frame, so
+     * it stays static; badmeta_n names a frame outside its strip and baddims_n cannot be cut into frames,
+     * so both stay flat. Brick is a static neighbour whose slot animation must never touch.
      */
     static MaterialMapOwner.AtlasUpload layoutAnimated(String location) {
         return new MaterialMapOwner.AtlasUpload(location, 32, 32, 3, List.of(
@@ -152,7 +149,7 @@ final class MaterialMapFixtures {
             this.image = image;
         }
 
-        /** Region writes, applied to the recorded levels like a GPU copy. */
+        /** Region writes as {level, x, y, width, height}, each applied to the levels like a GPU copy. */
         final List<int[]> writes = new ArrayList<>();
 
         @Override

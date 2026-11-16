@@ -18,12 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A shadowcomp fragment pass plans as a fullscreen program over the shadowcolor targets, as Iris's
  * ShadowCompositeRenderer runs it. Kappa's shadowcomp turns the shadow pass's albedo into the light
- * transmittance its lighting decodes; without it Kappa lit the End and water with the raw albedo.
+ * transmittance its lighting decodes; without it Kappa would light the End and water with the raw albedo.
  */
 final class ShadowcompProgramTest {
     /**
      * A route says which targets its indices name, so a reader applying colortex formats or
-     * deviations asks the route (audit FD3, proposal 4): shadowcomp passes and shadow-pass programs
+     * deviations asks the route: shadowcomp passes and shadow-pass programs
      * index shadowcolor targets, every other program colortex ones.
      */
     @Test
@@ -47,7 +47,7 @@ final class ShadowcompProgramTest {
         assertNotNull(shadowcomp.convertedFragment(), "shadowcomp has no converted fragment");
         assertTrue(shadowcomp.deviations().stream().noneMatch(d -> d.startsWith("PASS_PROGRAM_UNSUPPORTED")),
                 shadowcomp.deviations().toString());
-        // No directive: ShadowCompositeRenderer draws {0, 1}; the source writes only location 0.
+        // no directive: ShadowCompositeRenderer draws {0, 1}; the source writes only location 0
         assertEquals(List.of(0, 1), shadowcomp.targetPlan().targetSlots());
         assertEquals(List.of(0), shadowcomp.targetPlan().outputLocations());
         assertEquals(analysis.config().shadowSettings().colorAttachmentFormats(),
@@ -60,7 +60,7 @@ final class ShadowcompProgramTest {
         assertSame(IrisSamplerOrder.SHADOWCOMP, IrisSamplerOrder.of("shadowcomp1", false),
                 "a shadowcomp program registers its samplers as ShadowCompositeRenderer.createProgram does");
 
-        // Audit FD12: its report row names what runs, a fullscreen program, not a world program's labels.
+        // its report row names what runs, a fullscreen program, with none of a world program's labels
         ConformanceReport.ProgramReport row = analysis.report().program("shadowcomp");
         assertEquals("shadowcomp", row.family());
         assertTrue(row.deviations().contains("POST_TARGET_ROUTE_APPLIED")
@@ -77,7 +77,7 @@ final class ShadowcompProgramTest {
     @Test
     void aRefusedShadowcompReadsItsDialectAsAComposite(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
-        // A malformed draw-buffer directive refuses both programs (POST_TARGET_DIRECTIVE_MALFORMED).
+        // a malformed draw-buffer directive refuses both programs (POST_TARGET_DIRECTIVE_MALFORMED)
         String refused = """
                 #version 430 compatibility
                 in vec2 uv;
@@ -106,10 +106,10 @@ final class ShadowcompProgramTest {
     }
 
     /**
-     * Audit FD3: a colortex format Chimera cannot make refuses the colour programs that write that
-     * target, never a shadowcomp pass or a shadow-pass program, whose targets are shadowcolor
-     * indices. A shadowcomp pass and the shadow host-layout lanes (shadow_lines, shadow_basic, ...)
-     * write {0, 1} by default, so colortex1's error once refused them too.
+     * A colortex format Chimera cannot make refuses the colour programs that write that target, never a
+     * shadowcomp pass or a shadow-pass program, whose targets are shadowcolor indices. A shadowcomp pass
+     * and the shadow host-layout lanes (shadow_lines, shadow_basic, ...) write {0, 1} by default, the
+     * same indices colortex0 and colortex1 have.
      */
     @Test
     void aColortexFormatErrorLeavesTheShadowTargetsAlone(@TempDir Path root) throws Exception {

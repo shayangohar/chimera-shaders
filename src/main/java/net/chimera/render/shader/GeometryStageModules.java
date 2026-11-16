@@ -18,11 +18,11 @@ import static org.lwjgl.vulkan.VK10.vkCreateShaderModule;
 import static org.lwjgl.vulkan.VK10.vkDestroyShaderModule;
 
 /**
- * Pack geometry stages (.gsh), which VulkanMod's GraphicsShaderStages has no slot for. A pipeline
- * built with one gets its module while it is constructed; every variant it creates, now or lazily
- * at a later draw, runs the module between its last vertex-processing stage and its fragment stage
- * (GraphicsPipelineGeometryStageMixin); the pipeline's side holds the module (PipelineSide), and it
- * goes with the pipeline's cleanUp.
+ * Pack geometry stages (.gsh), which VulkanMod's GraphicsShaderStages has no slot for. A pipeline built with
+ * one gets its module while it is constructed. Every variant it creates, at once or lazily at a later draw,
+ * runs the module between its last vertex-processing stage and its fragment stage
+ * (GraphicsPipelineGeometryStageMixin). The pipeline's side holds the module (PipelineSide), which goes with
+ * the pipeline's cleanUp.
  */
 public final class GeometryStageModules {
     /** The geometry SPIR-V of the pipeline this thread is constructing, and what was made from it. */
@@ -84,7 +84,7 @@ public final class GeometryStageModules {
         for (int index = 0; index < count; index++) {
             VkPipelineShaderStageCreateInfo stage = stages.get(stages.position() + index);
             if (stage.stage() == VK_SHADER_STAGE_FRAGMENT_BIT) {
-                // A copy keeps the entry point's terminated name; the geometry stage takes no specialization.
+                // a copy keeps the entry point's terminated name; the geometry stage takes no specialisation
                 out.get(at++).set(stage).stage(VK_SHADER_STAGE_GEOMETRY_BIT).module(module).pSpecializationInfo(null);
             }
             out.get(at++).set(stage);

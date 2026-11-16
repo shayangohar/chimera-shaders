@@ -49,8 +49,8 @@ final class SampledResourcePlanTest {
 
     /**
      * Spring declares texture.deferred.noisetex and texture.composite.noisetex but no texture.noise,
-     * so its gbuffers programs read Iris's generated noise. Every noisetex shared one resource key,
-     * and the owner loaded whichever binding came first for all of them.
+     * so its gbuffers programs read Iris's generated noise. A declared noise has its own resource key,
+     * apart from the generated noise's.
      */
     @Test
     void aDeclaredNoiseIsItsOwnImage(@TempDir Path root) throws IOException {
@@ -75,7 +75,7 @@ final class SampledResourcePlanTest {
                 && declared.resourceKey().equals("noisetex:texture/Noise2D.png") && declared.slot() == 7,
                 String.valueOf(declared));
         // Iris samples a PNG without .mcmeta nearest and repeating, a declared noise too; only
-        // the generated noise is linear.
+        // the generated noise is linear
         assertEquals("nearest", declared.filter(), "a declared noise without .mcmeta");
         assertEquals("repeat", declared.wrap(), "a declared noise without .mcmeta");
         assertEquals("linear", generated.filter(), "the generated noise");
@@ -146,9 +146,9 @@ final class SampledResourcePlanTest {
         PackResourceBinding shadow = resources.binding("composite", "shadowtex0");
         PackResourceBinding scene = resources.binding("composite", "colortex0");
 
-        // Iris binds customTexture.marker straight to the program, while texture.composite.marker
-        // only replaces what a registration through the sampler interceptor binds, and no built-in
-        // sampler or image is named marker (CompositeRenderer.createProgram, IrisSamplerOrder).
+        // Iris binds customTexture.marker straight to the program (CompositeRenderer.createProgram)
+        // texture.composite.marker only replaces what a registration through the sampler interceptor
+        // binds, and no built-in sampler or image is named marker (IrisSamplerOrder)
         assertTrue(marker != null && marker.status() == PackResourceStatus.PACK_FILE,
                 "marker was not loaded");
         assertEquals("tex/custom.png", marker.source(),
@@ -186,7 +186,7 @@ final class SampledResourcePlanTest {
         PackResourcePlan resources = plan.resources();
         PackResourceBinding missing = resources.binding("composite", "missing");
         PackResourceBinding unsafe = resources.binding("composite", "unsafe");
-        // Iris skips a texture it cannot read: the name then reads unit 0, colortex0 in a pass.
+        // Iris skips a texture it cannot read; the name then reads unit 0, colortex0 in a pass
         assertTrue(missing == null || missing.status() != PackResourceStatus.UNAVAILABLE,
                 "a missing texture still refused its program: " + missing);
         assertTrue(analysis.report().deviations().contains("PACK_TEXTURE_DROPPED:customTexture.missing"),
@@ -244,7 +244,7 @@ final class SampledResourcePlanTest {
     }
 
     /**
-     * Iris applies a texture.<stage> entry only by replacing a registration: a name nothing
+     * Iris applies a {@code texture.<stage>} entry only by replacing a registration: a name nothing
      * registers keeps unit 0, which is colortex0 in a fullscreen pass. World programs register
      * colortex4 and up and the DH depth textures (IrisSamplers.addRenderTargetSamplers).
      */
@@ -277,7 +277,7 @@ final class SampledResourcePlanTest {
                 "gaux4 alias");
         assertEquals(4, PackResourcePlan.targetIndex("gaux1"),
                 "gaux target index");
-        // Iris texture stages: texture.<stage>.<sampler> covers numbered programs.
+        // Iris texture stages: texture.<stage>.<sampler> covers numbered programs
         assertEquals("deferred", PackResourcePlan.textureStage("deferred1"), "deferred stage");
         assertEquals("composite", PackResourcePlan.textureStage("composite5"), "composite stage");
         assertEquals("composite", PackResourcePlan.textureStage("final"), "final stage");
@@ -344,8 +344,7 @@ final class SampledResourcePlanTest {
 
     /**
      * PackResourceOwner makes one image per resource key, so every loaded binding under a key must ask
-     * for the same texture: Spring's declared noise once read as the generated one (audit FD1). A
-     * binding that is not loaded does not count.
+     * for the same texture. A binding that is not loaded does not count.
      */
     @Test
     void aResourceKeyNamesOneTexture() {
@@ -358,7 +357,7 @@ final class SampledResourcePlanTest {
                 List.of(composite, noise("deferred", "tex/a.png", "linear", PackResourceStatus.PACK_FILE))));
         assertEquals(Set.of(), PackResourcePlan.keyConflicts(
                 List.of(composite, noise("deferred", "tex/b.png", "nearest", PackResourceStatus.UNAVAILABLE))));
-        // The generated noise and a game texture are made or looked up by key too.
+        // the generated noise and a game texture are made or looked up by key too
         PackResourceBinding generated = noise("final", "generated-noise:256", "linear", PackResourceStatus.GENERATED);
         assertEquals(Set.of("noisetex"), PackResourcePlan.keyConflicts(List.of(composite, generated)));
         PackResourceBinding game = noise("final", "minecraft:textures/a.png", "nearest",

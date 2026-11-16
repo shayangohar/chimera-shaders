@@ -25,24 +25,24 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
- * Immutable resolver for block.properties mappings, read as Iris's IdMap reads the file
- * ({@link IdMapProperties}). A token is a block name, optionally followed by state predicates as
- * Iris writes them ({@code minecraft:tall_grass:half=lower}, {@code leaves:waterlogged=false}), or a
- * block tag ({@code %walls:north=low}).
+ * The block.properties mappings, read as Iris's IdMap reads the file ({@link IdMapProperties}).
  *
- * <p>A state takes the first entry, in key order, that matches it, as Iris's
- * BlockMaterialMapping puts each id's states with putIfAbsent: a plain name
- * matches every state, so it wins over a later predicate entry for that block.
- * Tag entries come after every block entry, as Iris adds them last.</p>
+ * A token is a block name, optionally followed by state predicates as Iris writes them
+ * ({@code minecraft:tall_grass:half=lower}, {@code leaves:waterlogged=false}), or a block tag
+ * ({@code %walls:north=low}).
+ *
+ * A state takes the first entry, in key order, that matches it, as Iris's BlockMaterialMapping puts each id's
+ * states with putIfAbsent. A plain name matches every state, so it wins over a later predicate entry for that
+ * block. Tag entries come after every block entry, as Iris adds them last.
  */
 public final class PackMaterialResolver {
     private static final Pattern NAMESPACE = Pattern.compile("[a-z0-9_.-]+");
     private static final Pattern PATH = Pattern.compile("[a-z0-9_./-]+");
 
     /**
-     * One block entry: its id applies to a state whose value for each predicate equals the
-     * predicate's, as Iris's checkState compares them. A predicate on a property the block does
-     * not have is ignored, as Iris ignores it; a plain name has none and matches every state.
+     * One block entry. Its id applies to a state whose value for each predicate equals the predicate's, as Iris's
+     * checkState compares them. A predicate on a property the block lacks is ignored, as in Iris; a plain name has
+     * none and matches every state.
      */
     record Entry(int id, Map<String, String> predicates) {
         boolean matches(Function<String, String> stateValue) {
@@ -60,9 +60,9 @@ public final class PackMaterialResolver {
     record TagEntry(TagKey<Block> key, Entry entry) {}
 
     /**
-     * The chunk render layer a {@code layer.<name>} line puts its blocks in, as OptiFine names them: the
-     * pack draws them through that layer's program. Complementary and Bliss put glass, panes and beacons
-     * in {@code layer.translucent}, so the water program draws them.
+     * The chunk render layer a {@code layer.<name>} line puts its blocks in, as OptiFine names them; the pack draws
+     * them through that layer's program. Complementary and Bliss put glass, panes and beacons in
+     * {@code layer.translucent}, so the water program draws them.
      */
     public enum Layer {
         SOLID, CUTOUT, CUTOUT_MIPPED, TRANSLUCENT;
@@ -98,8 +98,8 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * What one block.properties read collects: each name's plain id, every block's entries and
-     * the tag entries in key order, each layer key's value in key order, deviations.
+     * What one block.properties read collects: each name's plain id, every block's entries and the tag entries in
+     * key order, each layer key's value in key order, and deviations.
      */
     private record Collected(Map<String, Integer> ids, Map<String, List<Entry>> entries, List<TagEntry> tags,
                              Map<Layer, String> layerLines, Set<String> deviations) {
@@ -125,12 +125,12 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * Reads block.properties through {@link IdMapProperties}, preprocessed with the id-map
-     * {@code macros}, as Iris's IdMap reads it. Its {@code block.<id>} keys then map in key order,
-     * as IdMap.parseBlockMap keeps them: two keys for one id keep the later value where the first
-     * appeared. BSL puts every id's block list on continuation lines and gates whole tables on
-     * {@code MC_VERSION}; Photon, Bloop and superDuperVanilla name their tags through the file's own
-     * macros ({@code #define tags_leaves %leaves}).
+     * Reads block.properties through {@link IdMapProperties}, preprocessed with the id-map {@code macros}, as
+     * Iris's IdMap reads it. BSL guards whole tables on {@code MC_VERSION}, and some packs name tags through the
+     * file's own macros ({@code #define tags_leaves %leaves}).
+     *
+     * The {@code block.<id>} keys map in key order, as IdMap.parseBlockMap keeps them: two keys for one id keep
+     * the later value where the first appeared.
      */
     public static ParseResult parse(Path shadersDir, Map<String, String> macros) {
         IdMapProperties.Loaded file = IdMapProperties.read(shadersDir, "block.properties", macros);
@@ -164,9 +164,9 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * The one resolver with no mapping. ChimeraTerrainPipelines tells material maps apart by
-     * identity, and a new empty one on each reset counted as a change that rebuilt the live level.
-     * Its caches are concurrent and only ever hold unmapped answers.
+     * The one resolver with no mapping. ChimeraTerrainPipelines tells resolvers apart by identity, so a new empty
+     * one on each reset would count as a change and rebuild the live level. Its caches are concurrent and only
+     * ever hold unmapped answers.
      */
     public static PackMaterialResolver empty() {
         return Empty.RESOLVER;
@@ -182,10 +182,9 @@ public final class PackMaterialResolver {
     private static final List<String> LEGACY_WOODS = List.of("oak", "birch", "jungle", "spruce", "acacia", "dark_oak");
 
     /**
-     * The ids Iris gives a pack whose block.properties is missing or unreadable (IdMap falls back to
-     * LegacyIdMap.addLegacyValues): the numeric ids of the blocks old packs were written for, under
-     * today's names. Some names no longer exist in 1.21.1 ({@code grass} is short_grass now) and map
-     * nothing, as in Iris.
+     * The ids Iris gives a pack whose block.properties is missing or unreadable (LegacyIdMap.addLegacyValues): the
+     * numeric ids of the blocks old packs were written for, under current names. Some names, such as
+     * {@code grass} (short_grass in 1.21.1), do not exist and map nothing, as in Iris.
      */
     static PackMaterialResolver legacy() {
         Map<Integer, String> ids = new LinkedHashMap<>();
@@ -225,9 +224,9 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * The blocks each {@code layer.<name>} key names, by normalized block name. A block two layer
-     * keys name takes the later key's layer, as IdMap.parseRenderTypeMap puts them in key order. A
-     * tag or a state selector names no block here, as in Iris.
+     * The layer of each block a {@code layer.<name>} key names, by normalised block name. A block two layer keys
+     * name takes the later key's layer, as IdMap.parseRenderTypeMap puts them in key order. A tag or a state
+     * selector names no block here, as in Iris.
      */
     private static Map<String, Layer> layers(Map<Layer, String> layerLines, Set<String> deviations) {
         Map<String, Layer> layers = new TreeMap<>();
@@ -259,7 +258,7 @@ public final class PackMaterialResolver {
         }).orElse(null);
     }
 
-    /** The {@code layer.*} overrides, by normalized block name. */
+    /** The {@code layer.*} overrides, by normalised block name. */
     public Map<String, Layer> layers() {
         return layers;
     }
@@ -283,9 +282,9 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * The id of the first tag entry, in file order, whose tag holds the state and whose predicates
-     * match it, or -1. Iris adds tag entries after every block entry (createBlockStateIdMap), so a
-     * state a block entry maps never reaches its tags; a tag the registries lack holds nothing.
+     * The id of the first tag entry, in file order, whose tag holds the state and whose predicates match it, or -1.
+     * Iris adds tag entries after every block entry (createBlockStateIdMap), so a state a block entry maps never
+     * reaches its tags. A tag the registries lack holds nothing.
      */
     int resolveTags(Predicate<TagKey<Block>> holds, Function<String, String> stateValue) {
         for (TagEntry tag : tags) {
@@ -359,9 +358,9 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * A {@code block.<id>} key's id as IdMap.parseBlockMap reads it with Integer.parseInt, or null
-     * when it is not an integer or falls outside the short range. A key with no names maps nothing,
-     * as in Iris: superDuperVanilla keeps empty ids such as {@code block.10100 =} for user additions.
+     * A {@code block.<id>} key's id as IdMap.parseBlockMap reads it with Integer.parseInt, or null when it is not
+     * an integer or falls outside the short range. A key with no names maps nothing, as in Iris; superDuperVanilla
+     * keeps empty ids such as {@code block.10100 =} for user additions.
      */
     private static Integer mappingId(String text) {
         int id;
@@ -374,10 +373,10 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * One {@code [namespace:]block[:prop=value...]} token, split as Iris's BlockEntry.parse splits it
-     * on colons: a second segment without '=' is the path under the first as namespace, and each
-     * later segment is a predicate. A predicate not of the form key=value is skipped, and a key's
-     * last value wins. The first plain mapping of a name is its resolveName id.
+     * One {@code [namespace:]block[:prop=value...]} token, split on colons as Iris's BlockEntry.parse splits it. A
+     * second segment without '=' is the path under the first as namespace, and each later segment is a predicate.
+     * A predicate not of the form key=value is skipped, and a key's last value wins. The first plain mapping of a
+     * name is its resolveName id.
      */
     private static void addEntry(String token, int id, Collected collected) {
         Token parsed = parseToken(token, false, collected.deviations());
@@ -392,9 +391,9 @@ public final class PackMaterialResolver {
     }
 
     /**
-     * One {@code %[namespace:]tag[:prop=value...]} token, read as BlockEntry.parse reads it once its
-     * '%' signs are gone. The tag's name is lower-cased, as BlockMaterialMapping.addTag compares tag
-     * names ignoring case; its predicates compare exactly, as checkState does.
+     * One {@code %[namespace:]tag[:prop=value...]} token, read as BlockEntry.parse reads it without its '%' signs.
+     * The tag's name is lower-cased, as BlockMaterialMapping.addTag compares tag names ignoring case; its
+     * predicates compare exactly, as checkState does.
      */
     private static void addTag(String token, int id, Collected collected) {
         Token parsed = parseToken(token.replace("%", ""), true, collected.deviations());
@@ -403,7 +402,7 @@ public final class PackMaterialResolver {
         collected.tags().add(new TagEntry(key, new Entry(id, parsed.predicates())));
     }
 
-    /** A token's normalized name and predicates, and whether it named any predicate segment. */
+    /** A token's normalised name and predicates, and whether it named any predicate segment. */
     private record Token(String name, Map<String, String> predicates, boolean hasPredicates) {}
 
     /**

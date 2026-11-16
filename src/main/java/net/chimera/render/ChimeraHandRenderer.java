@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 
-/** Iris's solid-before-deferred and translucent-before-composite hand schedule. */
+/** The hand on Iris's schedule: solid before the deferred passes, translucent before the composites. */
 public final class ChimeraHandRenderer implements AutoCloseable {
     public static final float DEPTH = 0.125F;
     private static final RandomSource MODEL_RANDOM = RandomSource.create();
@@ -32,9 +32,8 @@ public final class ChimeraHandRenderer implements AutoCloseable {
     private static Boolean translucentPhase;
     private final ByteBufferBuilder vertices = new ByteBufferBuilder(256 * 1024);
     /**
-     * Vanilla RenderBuffers' fixed buffers, in its order. A foil item writes its glint
-     * and its own layer at once (VertexMultiConsumer); in one shared buffer, opening
-     * the second ends the first ("Not building!").
+     * Vanilla RenderBuffers' fixed buffers, in its order. A foil item writes its glint and its own layer at once
+     * (VertexMultiConsumer), and in one shared buffer opening the second would end the first ("Not building!").
      */
     private final SequencedMap<RenderType, ByteBufferBuilder> fixed = fixedBuffers();
     private final FamilyBufferSource buffers =
@@ -50,9 +49,8 @@ public final class ChimeraHandRenderer implements AutoCloseable {
     }
 
     /**
-     * A held block whose model renders in the translucent chunk layer, as Iris decides. NeoForge
-     * models name their layers (a model's "render_type"), so the model is asked rather than the
-     * vanilla block-to-layer table.
+     * A held block whose model renders in the translucent chunk layer, as Iris decides. NeoForge models name
+     * their own layers (a model's "render_type"), so this asks the model, not vanilla's block-to-layer table.
      */
     public static boolean translucent(ItemStack item) {
         if (!(item.getItem() instanceof BlockItem block)) return false;
@@ -63,8 +61,8 @@ public final class ChimeraHandRenderer implements AutoCloseable {
     }
 
     /**
-     * Iris's depth squeeze on Minecraft's GL projection (HandRenderer). The host maps the result
-     * onto Vulkan's [0,1] depth, which puts the hand at Iris's 0.5 +/- DEPTH / 2.
+     * Iris's depth squeeze on Minecraft's GL projection (HandRenderer). The host maps the result onto Vulkan's
+     * [0,1] depth, which puts the hand at Iris's 0.5 +/- DEPTH / 2.
      */
     public static Matrix4f projection(Matrix4f raster) {
         return new Matrix4f().scale(1.0F, 1.0F, DEPTH).mul(raster);
@@ -109,9 +107,8 @@ public final class ChimeraHandRenderer implements AutoCloseable {
             game.itemInHandRenderer.renderHandsWithItems(tick, new PoseStack(), buffers, player,
                     minecraft.getEntityRenderDispatcher().getPackedLightCoords(player, tick));
             game.lightTexture().turnOffLightLayer();
-            // Hand models, items and maps draw in their pack lanes first. Glint then draws in
-            // its own lane (Iris ShaderKey.GLINT under the hand projection), over the depth
-            // they wrote.
+            // hand models, items and maps draw in their pack lanes first, then glint in its own lane
+            // (Iris ShaderKey.GLINT under the hand projection) over the depth they wrote
             buffers.endFamilyBatches();
             buffers.endBatch();
         } finally {

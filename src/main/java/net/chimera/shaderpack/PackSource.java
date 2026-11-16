@@ -27,9 +27,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Discovers programs from an OptiFine or Iris shader pack. Directories and
- * ZIP archives are normalized to one extracted shader tree. Standard
- * dimension variants are selected without adding pack-specific branches.
+ * Finds a shader pack's programs. A zip is extracted to a temporary tree; a folder pack is read in place unless
+ * option staging copies it. Each dimension reads the programs of its world folder, or of the pack root.
  */
 public final class PackSource {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -38,9 +37,9 @@ public final class PackSource {
     /** A dimension's analysis, and the macros and locked names it left the sources prepared with. */
     record AnalyzedDimension(PackProbe.Analysis analysis, Map<String, String> macros, Set<String> locked) {}
 
-    /** The selected programs, shader root, archive owner, and load metadata. */
+    /** A loaded pack's sources and selected dimension; closing it deletes a zip's extracted tree. */
     public static final class LoadResult implements AutoCloseable {
-        /** The vanilla three, and one more for a mod's; the least recently selected goes first. */
+        /** Analyses kept: the vanilla three and one more for a mod's; the least recently selected goes first. */
         private static final int ANALYZED_DIMENSIONS = 4;
         private final Path shadersDir;
         private final Path temporaryRoot;
@@ -59,15 +58,14 @@ public final class PackSource {
         private String selectedVariantFolder = "";
         private boolean closed;
         /**
-         * The game's mipmap level as this load began, which every analysis of the load prepares with
-         * (MC_MIPMAP_LEVEL): Iris reads it once per pack load (ShaderPack). The device's macros are the
-         * other input from outside the pack, and the device does not change while the game runs.
+         * The game's mipmap level when this load began. Every analysis of the load prepares with it as
+         * {@code MC_MIPMAP_LEVEL}, since Iris's ShaderPack reads it once per pack load. The device macros are the
+         * only other outside input, and the device does not change while the game runs.
          */
         private final int mipmapLevel = PackEngineDefines.mipmapLevel();
         /**
-         * The analyses of the dimensions this load selected (PackProbe.analyze). Its options, sources
-         * and pinned mipmap level never change, so a dimension's analysis holds for as long as the
-         * load does.
+         * Analyses of the dimensions this load selected. The load's options, sources and mipmap level never
+         * change, so an analysis holds for as long as the load does.
          */
         private final Map<String, AnalyzedDimension> analyzed = new LinkedHashMap<>(8, 0.75F, true) {
             @Override
@@ -106,7 +104,7 @@ public final class PackSource {
             return programs;
         }
 
-        /** Raw executable entry files from every discovered dimension variant. */
+        /** Unprepared programs of every world folder and the root. */
         public List<PackProgram> rawProgramsAllVariants() {
             return rawVariants.values().stream()
                     .flatMap(List::stream)
@@ -121,10 +119,8 @@ public final class PackSource {
         }
 
         /**
-         * Puts the mipmap level this load began with back in the macros, so every dimension it analyses
-         * and the id maps read right after it (PackSessionLifecycle) take one level. Only a fresh load
-         * reads the game's level (audit FD10), so the two agree today; each analysis puts the load's
-         * level back, so a level set since cannot reach the load's analyses (audit proposal 4).
+         * Puts the load's mipmap level back in the engine macros, so every dimension it analyses and the id maps
+         * read right after take the same level, even if the game's level changed since.
          */
         void pinLoadInputs() {
             PackEngineDefines.setMipmapLevel(mipmapLevel);
@@ -142,14 +138,15 @@ public final class PackSource {
             prepare(known.macros(), known.locked());
         }
 
-        /** Re-prepares every variant with the active load-time option defaults. */
+        /** Prepares the sources with these macros and no locked names. */
         public void prepare(Map<String, String> initialMacros) {
             prepare(initialMacros, Set.of());
         }
 
         /**
-         * Re-prepares the sources while preserving explicit option overrides. Preparing is the
-         * slowest step of a load, so it runs only for the folder a dimension selects, and not again
+         * Prepares the sources with these macros; locked names keep their values as {@code #define} lines.
+         *
+         * Preparing is the slowest step of a load, so it runs only for the folder a dimension selects, and not again
          * for the same macros.
          */
         public void prepare(Map<String, String> initialMacros, Set<String> lockedMacros) {
@@ -162,9 +159,10 @@ public final class PackSource {
         }
 
         /**
-         * The prepared programs of one source folder; null for a folder the pack does not have. Every
-         * folder starts from the same macros: Iris predefines no dimension macro (StandardMacros), so a
-         * pack's world0 files define OVERWORLD themselves, and code that tests it first reads it undefined.
+         * The prepared programs of one source folder; null for a folder the pack does not have.
+         *
+         * Every folder starts from the same macros. Iris's StandardMacros predefines no dimension macro, so a pack's
+         * world0 files define OVERWORLD themselves, and code that tests it first reads it undefined.
          */
         private List<PackProgram> variant(String folder) {
             List<PackProgram> raw = rawVariants.get(folder);
@@ -187,24 +185,23 @@ public final class PackSource {
             return deviations;
         }
 
-        /** The exact dimension requested for the selected source variant. */
+        /** The dimension last selected, as requested. */
         public String selectedDimension() {
             return selectedDimension;
         }
 
-        /** The selected standard source folder, or empty for root-level packs. */
+        /** The selected world folder, or empty for the pack root. */
         public String selectedVariantFolder() {
             return selectedVariantFolder;
         }
 
-        /** The directory from which selected stage files were discovered. */
         public Path selectedSourceDir() {
             return selectedVariantFolder.isBlank()
                     ? shadersDir
                     : shadersDir.resolve(selectedVariantFolder);
         }
 
-        /** Returns the first standard noisetex image in deterministic order. */
+        /** The first standard noisetex image path that exists, or null. */
         public Path findNoiseTexture() {
             for (String relative : List.of("tex/noise.png", "lib/textures/noise.png")) {
                 Path candidate = shadersDir.resolve(relative).normalize();
@@ -215,10 +212,7 @@ public final class PackSource {
             return null;
         }
 
-        /**
-         * Selects another dimension without extracting the archive again.
-         * This is called at a level boundary on the render thread.
-         */
+        /** Selects another dimension's programs without extracting the archive again; runs at a level boundary. */
         public void selectDimension(String dimension) {
             String requested = dimension == null || dimension.isBlank()
                     ? "minecraft:overworld" : dimension;
@@ -492,7 +486,7 @@ public final class PackSource {
         return false;
     }
 
-    /** Standard post programs may be omitted from shaders.json. */
+    /** Adds the post programs a shaders.json may leave out. */
     private static void loadStandardPostPrograms(
             Path shadersDir,
             Map<String, PackProgram> out,
@@ -517,7 +511,7 @@ public final class PackSource {
         }
     }
 
-    /** Standard Iris families may be omitted from shaders.json. */
+    /** Adds a standard program a shaders.json may leave out, or the vertex stage a listed one lacks. */
     private static void loadStandardPair(
             Path shadersDir,
             Map<String, PackProgram> out,
@@ -567,7 +561,7 @@ public final class PackSource {
             Map<String, String> initialMacros,
             Set<String> lockedMacros
     ) {
-        // Each program preprocesses from its own files and the shared macros, so the workers share them.
+        // each program preprocesses from its own files and the shared macros, so programs prepare in parallel
         return List.copyOf(PackWorkers.map(candidates, candidate ->
                 prepareProgram(candidate, shadersRoot, variantFolder, initialMacros, lockedMacros)));
     }
@@ -604,10 +598,10 @@ public final class PackSource {
     }
 
     /**
-     * Preprocesses each geometry and tessellation stage file beside the program's fragment stage,
-     * with the macros of its other stages. They need no legacy normalization: GL gives these
-     * stages no compatibility varyings. Whether one runs is the planner's to decide
-     * (PackProgram.runsBetweenStages), so its deviations stay with its own prepared source.
+     * Preprocesses each geometry and tessellation stage file beside the fragment stage, with the same macros.
+     *
+     * These stages skip legacy normalisation, since GL gives them no compatibility varyings. PackProgram's
+     * runsBetweenStages decides whether one runs, so its deviations stay with its own prepared source.
      */
     private static void prepareGeometryStages(PackProgram candidate, Path shadersRoot,
                                               Map<String, String> initialMacros, Set<String> lockedMacros,
@@ -848,8 +842,8 @@ public final class PackSource {
                 }
             }
         }
-        // A shaders folder at the root wins, as in Iris's walk of the zip: Pegasus keeps its
-        // includes in shaders/shaders/, which also reads as a nested pack root.
+        // a shaders folder at the root wins, as in Iris's walk of the zip; Pegasus keeps its includes in
+        // shaders/shaders/, which also reads as a nested pack root
         if (candidates.contains("")) return "";
         return candidates.size() == 1 ? candidates.first() : null;
     }

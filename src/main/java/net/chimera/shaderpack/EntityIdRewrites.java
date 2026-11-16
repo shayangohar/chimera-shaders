@@ -9,17 +9,12 @@ import java.util.Map;
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
 /**
- * Iris's per-vertex entity identities (EntityPatcher): entityId, blockEntityId and
- * currentRenderedItemId, each one component of the EntityIds input. A converted vertex stage copies
- * each identity it or a later stage reads into a flat varying, and the later stages read the
- * identity back through it. The vertex, geometry, between-stage and fragment converters, the core
- * profile rewrite, the entity declarations and the uniform planning share these names and rewrites.
+ * Iris's per-vertex entity identities (EntityPatcher): entityId, blockEntityId and currentRenderedItemId,
+ * each one component of the EntityIds input. A converted vertex stage copies each identity it or a later
+ * stage reads into a flat varying, and the later stages read the identity back through it.
  */
 final class EntityIdRewrites {
-    /**
-     * Iris EntityPatcher identities: each name reads one component of the
-     * per-vertex EntityIds input (Iris iris_Entity), passed flat to fragments.
-     */
+    /** In component order: EntityIds, Iris's iris_Entity, holds them as x, y and z. */
     static final List<String> ENTITY_ID_NAMES = List.of("entityId", "blockEntityId", "currentRenderedItemId");
 
     static final String ENTITY_ID_VARYING = "chimeraEntityId";
@@ -74,9 +69,9 @@ final class EntityIdRewrites {
     }
 
     /**
-     * {@code source} with a vertex stage's input {@code replacements}: a built-in everywhere, an entity
-     * identity only where it names the global (GlslScopedReferences). A pack may give a parameter or
-     * local an identity's name, as Shrimple's GetSceneEntityLightColor(const in int entityId) does.
+     * Applies a vertex stage's input {@code replacements}: a built-in everywhere, an entity identity only
+     * where it names the global (GlslScopedReferences). A pack may give a parameter or local an identity's
+     * name, as Shrimple's {@code GetSceneEntityLightColor(const in int entityId)} does.
      */
     static String replaceInputs(String source, Map<String, String> replacements) {
         Map<String, String> others = new HashMap<>(replacements);
@@ -137,7 +132,7 @@ final class EntityIdRewrites {
                 replacements.put(name, entityIdExpression(layout, name));
             }
         }
-        // Only the uniform: Shrimple's GetSceneEntityLightColor(const in int entityId) names its own.
+        // only the global identity; a parameter may share its name, as in replaceInputs
         return replacements.isEmpty() ? source : GlslScopedReferences.replace(source, replacements);
     }
 }

@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Iris's pack-wide scalar directives (PackDirectives.acceptDirectivesFrom) with its defaults, read
- * as const directives in IrisConstDirectives' order. Iris's drynessHalflife directive writes the
- * wetness half-life, so the dryness half-life always keeps its default 200, and a pack declaring
- * both gets whichever it declares last as its wetness half-life. ambientOcclusionLevel is clamped to
- * [0, 1] as Iris clamps it.
+ * Iris's pack-wide scalar directives with its defaults, read from const directives in IrisConstDirectives'
+ * order as Iris's PackDirectives.acceptDirectivesFrom reads them. Iris's drynessHalflife directive writes the
+ * wetness half-life, so the dryness half-life always keeps its default 200, and a pack declaring both gets
+ * whichever it declares last as its wetness half-life. ambientOcclusionLevel is clamped to [0, 1] as Iris
+ * clamps it.
  */
 public record PackDirectives(int noiseTextureResolution, float wetnessHalfLife, float drynessHalfLife,
                              float eyeBrightnessHalfLife, float centerDepthHalfLife, float ambientOcclusionLevel) {
@@ -19,7 +19,7 @@ public record PackDirectives(int noiseTextureResolution, float wetnessHalfLife, 
             "wetnessHalflife", "float", "drynessHalflife", "float", "eyeBrightnessHalflife", "float",
             "centerDepthHalflife", "float", "ambientOcclusionLevel", "float");
 
-    /** The values {@code directives}, in order, declare; a directive of another type or value is ignored. */
+    /** The values {@code directives} declare, in order; one of another type or with an unparsable value is ignored. */
     static PackDirectives read(List<IrisConstDirectives.Directive> directives) {
         int noise = DEFAULTS.noiseTextureResolution;
         float wetness = DEFAULTS.wetnessHalfLife;

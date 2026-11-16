@@ -12,9 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sodium 0.8.13's cloud mesh, which Iris 1.8.14 on 1.21.1 runs a pack's gbuffers_clouds over:
- * RenderPearl 2.8 never samples the cloud texture, so on vanilla's tile sheets its clouds were one
- * solid haze; on Sodium's cells they keep the texture's shapes.
+ * Sodium 0.8.13's cloud mesh, which Iris 1.8.14 on 1.21.1 runs a pack's gbuffers_clouds over.
+ * RenderPearl 2.8 never samples the cloud texture, so on vanilla's tile sheets its clouds would be one
+ * solid haze; Sodium's cells keep the texture's shapes.
  */
 final class CloudMeshTest {
     private static final int WHITE = 0xFFFFFFFF;
@@ -98,7 +98,7 @@ final class CloudMeshTest {
         int west = 1 << CloudMesh.WEST;
         int east = 1 << CloudMesh.EAST;
         int base = 1 << CloudMesh.BOTTOM | 1 << CloudMesh.TOP | 1 << CloudMesh.NORTH | 1 << CloudMesh.SOUTH;
-        // A one-row texture is its own neighbour north and south: those sides stay closed.
+        // a one-row texture is its own neighbour north and south, so those sides stay closed
         assertEquals(1 << CloudMesh.BOTTOM | 1 << CloudMesh.TOP | east, cells.openFaces()[0]);
         assertEquals(1 << CloudMesh.BOTTOM | 1 << CloudMesh.TOP | west, cells.openFaces()[3]);
         assertEquals(0, cells.openFaces()[1], "a clear texel opens nothing");

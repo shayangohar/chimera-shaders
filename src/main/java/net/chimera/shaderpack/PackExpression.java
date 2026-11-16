@@ -10,35 +10,29 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 /**
- * The pack-authored expression language behind {@code shaders.properties} custom values.
+ * The expression language of {@code shaders.properties} custom values.
  *
- * <p>Typed as Iris types it: every expression has a width, one for a scalar, two to four for a
- * vector, sixteen for a {@code mat4} input. Arithmetic and the math functions work component by
- * component and widen a scalar operand, as Iris's vectorized functions do; {@code vec2} through
- * {@code vec4} build vectors from scalars and smaller vectors; comparisons, logic and the
- * selection functions take scalars. Access follows Iris's accessor table: {@code 0}/{@code r}/
- * {@code x}/{@code s} through {@code 3}/{@code a}/{@code w}/{@code q} pick a vector component,
- * and on a matrix pick a column, so {@code gbufferModelViewInverse.2.1} is {@code m[2][1]}.
+ * Typed as Iris types it: every expression has a width, 1 for a scalar, 2 to 4 for a vector, 16 for a
+ * {@code mat4} input. Arithmetic and the math functions work component by component and widen a scalar operand,
+ * as Iris's vectorised functions do. {@code vec2} to {@code vec4} build vectors from scalars and smaller vectors.
+ * Comparisons, logic and the selection functions take scalars. Access follows Iris's accessor table:
+ * {@code 0}/{@code r}/{@code x}/{@code s} through {@code 3}/{@code a}/{@code w}/{@code q} pick a vector component,
+ * or a matrix column, so {@code gbufferModelViewInverse.2.1} is {@code m[2][1]}.
  *
- * <p>Evaluation runs one component (lane) at a time over the typed tree, so a vector value needs
- * no allocation per frame. The functions are OptiFine's documented custom-uniform set ({@code sin}
- * through {@code fmod}), {@code if} with any number of condition/value pairs, {@code between},
- * {@code equals}, {@code in} and {@code smooth}. An unknown function, a wrong arity, a type
- * mismatch, an unresolved symbol or a cycle is a declaration diagnostic, never a silent zero
- * handed to a running program.
+ * Evaluation runs one component (lane) at a time over the typed tree, so a vector value allocates nothing per
+ * frame. The functions are Iris's set ({@link PackFunction}). An unknown function, a wrong arity, a type
+ * mismatch, an unresolved name or a cycle is reported against the declaration instead of reading as zero.
  *
- * <p>{@code smooth} takes Iris's six forms, from {@code smooth(target)} to
- * {@code smooth(id, target, up, down)}. It keeps one accumulator per call site and component,
- * because the numeric id is metadata and not identity: Complementary writes two different
- * expressions under id 4. The first
- * value is set outright, later frames blend with the half life in deciseconds the pack asked for,
- * and the state belongs to the pack session rather than to the settings.
+ * {@code smooth} takes Iris's six forms, from {@code smooth(target)} to {@code smooth(id, target, up, down)}. It
+ * keeps one accumulator per call site and component and ignores the numeric id, since Complementary writes two
+ * different expressions under id 4. The first value is set outright; later frames blend toward the target with
+ * the pack's half life, in deciseconds. The pack session owns that state.
  */
 public final class PackExpression {
 
     /**
-     * How a compiled expression reads a named input: -1 asks for a scalar, otherwise the
-     * component, with a matrix's elements numbered column-major ({@code column * 4 + row}).
+     * How a compiled expression reads a named input: component -1 asks for a scalar, and a matrix's elements are
+     * numbered column-major ({@code column * 4 + row}).
      */
     @FunctionalInterface
     public interface Inputs {
@@ -58,13 +52,11 @@ public final class PackExpression {
         int width(String name);
     }
 
-    /** No constants at all, for callers that resolve none. */
     public static final Constants NO_CONSTANTS = name -> Double.NaN;
 
-    /** The width of a {@code mat4} input. */
     public static final int MATRIX_WIDTH = 16;
 
-    /** The half life unit the packs write: a decisecond, so two ticks. */
+    /** The half life unit packs write: a decisecond, so two ticks. */
     private static final double HALF_LIFE_UNIT_SECONDS = 0.1;
     private static final double LN_OF_2 = Math.log(2.0);
     private static final int MAX_DEPTH = 64;
@@ -106,12 +98,12 @@ public final class PackExpression {
             this.smoothSites = smoothSites;
         }
 
-        /** The expression this was compiled from, for a diagnostic that names it. */
+        /** The trimmed expression text, for a diagnostic that names it. */
         public String source() {
             return this.source;
         }
 
-        /** Every name this program reads, in sorted order. */
+        /** Every name this program reads. */
         public Set<String> dependencies() {
             return this.dependencies;
         }
@@ -121,25 +113,24 @@ public final class PackExpression {
             return this.root.width();
         }
 
-        /** How much session state this program needs. */
+        /** Accumulators this program needs in its session state. */
         public int smoothSites() {
             return this.smoothSites;
         }
 
-        /** Session state for this program's call sites. */
         public State newState() {
             return new State(this.smoothSites);
         }
 
-        /** Folds one frame's values through, writing the scalar result. */
+        /** One frame's scalar result, or a vector result's first component. */
         public double evaluate(Inputs inputs, State state, float frameDelta) {
             return this.root.evaluate(new Context(inputs, state, frameDelta, null), 0);
         }
 
         /**
-         * Folds one frame through every component of the result into {@code out}. A scalar part
-         * of a vector expression is evaluated once for all components, so a {@code smooth} in it
-         * advances once per frame and a {@code random} is one value, as Iris evaluates them.
+         * Evaluates one frame into {@code out}, every component of the result. A scalar part of a vector
+         * expression is evaluated once for all components, so a {@code smooth} in it advances once per frame and a
+         * {@code random} is one value, as Iris evaluates them.
          */
         public void evaluate(Inputs inputs, State state, float frameDelta, double[] out, int offset) {
             Context context = new Context(inputs, state, frameDelta,
@@ -191,8 +182,8 @@ public final class PackExpression {
     }
 
     /**
-     * One frame's evaluation. {@code scalars} memoizes scalar nodes while a vector is evaluated
-     * lane by lane, so each is computed once per frame; it is null for a scalar result.
+     * One frame's evaluation. {@code scalars} memoises scalar nodes while a vector is evaluated lane by lane, so
+     * each is computed once per frame; it is null for a scalar result.
      */
     private record Context(Inputs inputs, State state, float frameDelta,
                            IdentityHashMap<Node, Double> scalars) {
@@ -330,12 +321,11 @@ public final class PackExpression {
     }
 
     /**
-     * An operator, evaluated by the function Iris's parser binds it to (IrisOptions): {@code a / b}
-     * is {@code divide(a, b)}, so a zero divisor gives the same infinity or NaN either way, which
-     * the session reports once and serves as Iris does rather than a silent zero.
+     * An operator, evaluated by the function Iris's parser binds it to (IrisOptions). {@code a / b} is
+     * {@code divide(a, b)}, so a zero divisor gives the same infinity or NaN either way; the session reports it
+     * once and serves it as Iris does.
      */
     private record Binary(PackFunction function, Node left, Node right, int width) implements Node {
-        /** The function an operator is evaluated by. */
         static PackFunction function(String operator) {
             return switch (operator) {
                 case "+" -> PackFunction.ADD;
@@ -385,8 +375,8 @@ public final class PackExpression {
     }
 
     /**
-     * A call. {@code if} evaluates one branch, because a {@code smooth} in the other branch must
-     * not advance; the rest fold every argument, component by component.
+     * A call. {@code if} evaluates only the chosen branch, so a {@code smooth} in another branch does not advance;
+     * the math functions fold every argument, component by component.
      */
     private record Call(PackFunction function, List<Node> arguments, int smoothSlot, int width)
             implements Node {
@@ -402,7 +392,7 @@ public final class PackExpression {
                     Node up = this.arguments.get(1);
                     Node down = this.arguments.get(2);
                     float rise = (float) context.scalar(up);
-                    // One fade time for both directions is evaluated once.
+                    // one fade time for both directions is evaluated once
                     float fall = down == up ? rise : (float) context.scalar(down);
                     yield smooth(context, this.smoothSlot + lane, value, rise, fall);
                 }
@@ -464,8 +454,8 @@ public final class PackExpression {
         }
 
         /**
-         * Iris's randomInt, lane by lane (Random.nextInt): any int, one in [0, bound), or one in
-         * [min, max). Java refuses an empty range, so one gives 0.
+         * Iris's randomInt (Random.nextInt), lane by lane: any int, one in [0, bound), or one in [min, max). Java
+         * refuses an empty range, so an empty one gives 0.
          */
         private double randomInt(Context context, int lane) {
             ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -485,8 +475,8 @@ public final class PackExpression {
     }
 
     /**
-     * One call site's accumulator. The first value is set outright, a half life of zero gives no
-     * smoothing, and a frame with no duration holds the accumulator where it stands.
+     * One call site's accumulator. The first value is set outright, a half life of zero gives no smoothing, and a
+     * frame with no duration holds the accumulator where it stands.
      */
     private static double smooth(Context context, int slot, double value, float rise, float fall) {
         State state = context.state();
@@ -515,8 +505,8 @@ public final class PackExpression {
     }
 
     /**
-     * OptiFine's fmod is a floor modulo: the result takes the divisor's sign. A zero divisor gives
-     * NaN, as Iris's float fmod ({@code (a % b + b) % b}) does.
+     * OptiFine's fmod is a floor modulo, so the result takes the divisor's sign. A zero divisor gives NaN, as Iris's
+     * float fmod ({@code (a % b + b) % b}) does.
      */
     private static double floorModulo(double value, double divisor) {
         return value - divisor * Math.floor(value / divisor);
@@ -688,8 +678,8 @@ public final class PackExpression {
                     return new Literal(constant);
                 }
             }
-            // An unknown name stays a scalar here; settings reports it unresolved. Accessing
-            // one is allowed so that report names the missing input, not the accessor.
+            // an unknown name is typed as a scalar, or as a vec4 when accessed, and reported unresolved later
+            // allowing the access lets that report name the missing input instead of the accessor
             if (width <= 0) {
                 width = peekAccess() ? 4 : 1;
             }
@@ -814,11 +804,10 @@ public final class PackExpression {
         }
 
         /**
-         * Iris's six {@code smooth} overloads as {@code (target, up, down)}, resolved as its
-         * ExpressionResolver resolves them. A number-literal first argument is the OptiFine id
-         * wherever an id form takes that many arguments, because the id forms win on priority.
-         * One fade time serves both directions, and a missing one is a half life of 1. Four
-         * arguments need the literal id: Iris has no other four-argument form.
+         * Iris's six {@code smooth} overloads as {@code (target, up, down)}, resolved as its ExpressionResolver
+         * resolves them. A number-literal first argument is the OptiFine id wherever an id form takes that many
+         * arguments, since the id forms win on priority. One fade time serves both directions, and a missing one is
+         * a half life of 1. Four arguments need the literal id, as Iris has no other four-argument form.
          */
         private static List<Node> smoothArguments(String name, List<Node> arguments, boolean firstIsNumber) {
             List<Node> rest = firstIsNumber && arguments.size() > 1

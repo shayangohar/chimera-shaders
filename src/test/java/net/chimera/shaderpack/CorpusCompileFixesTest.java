@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The translation defects the widened pack corpus found, each in the pack that showed it. */
+/** Translation cases real packs depend on, each shown in a pack that has it. */
 final class CorpusCompileFixesTest {
     /**
      * Kappa names a parameter after its lightDir uniform; the parameter and a local hide the uniform.
@@ -120,7 +120,7 @@ final class CorpusCompileFixesTest {
         String tanh = "#version 130\nfloat tanh(float x) { return x; }\nvoid main() {}\n";
         assertFalse(LegacyShaderNormalizer.normalize(tanh, false).source().contains("chimera_tanh"),
                 "a built-in the authored version already has stays as written");
-        // RenderPearl, without a float16 extension: glslang declares unpackFloat2x16 at any version.
+        // RenderPearl, without a float16 extension: glslang declares unpackFloat2x16 at any version
         String renderPearl = LegacyShaderNormalizer.normalize("""
                 #version 460
                 vec2 unpackFloat2x16(uint v) { return unpackHalf2x16(v); }
@@ -143,7 +143,7 @@ final class CorpusCompileFixesTest {
                 "#version 400\nsample in vec4 color;\nvoid main() {}\n", false).source();
         assertTrue(qualifier.contains("sample in vec4 color;") && !qualifier.contains("chimera_"),
                 "a keyword the authored version has stays as written: " + qualifier);
-        // Glimmer writes storage blocks at #version 330: a keyword use stays as written.
+        // Glimmer writes storage blocks at #version 330: a keyword use stays as written
         String glimmer = LegacyShaderNormalizer.normalize("""
                 #version 330
                 layout(std430) buffer;
@@ -184,9 +184,9 @@ final class CorpusCompileFixesTest {
     }
 
     /**
-     * Audit GD9: any(isnan(f) || isinf(f)) on a float. NVIDIA's GL compiler takes it, so Iris loads
-     * it; VectorLogicalOperators turns it into an or of any() calls, each on a scalar, which compile
-     * only with the scalar overloads.
+     * NVIDIA's GL compiler takes any(isnan(f) || isinf(f)) on a float, so Iris loads it.
+     * VectorLogicalOperators turns it into an or of any() calls, each on a scalar, which compile only
+     * with the scalar overloads.
      */
     @Test
     void reductionsOverAnOrOfScalarTestsGetScalarOverloads() {
@@ -279,8 +279,8 @@ final class CorpusCompileFixesTest {
 
     /**
      * RenderPearl writes its deferred-ignore flag to colortex2.y as {@code layout(location = 1,
-     * component = 1) out uint}. The generated output keeps the component: without it the flag
-     * landed in .x, and deferred lit the beacon beam black.
+     * component = 1) out uint}. The generated output keeps the component; without it the flag lands
+     * in .x and deferred lights the beacon beam black.
      */
     @Test
     void aModernOutputKeepsItsComponent() {
@@ -305,12 +305,11 @@ final class CorpusCompileFixesTest {
     }
 
     /**
-     * Every format in Iris's InternalTextureFormat list has a target image, the integer ones too.
-     * superDuperVanilla's RGB16_SNORM colortex1 had none, and every program writing it fell back;
-     * so did every program writing Noble's RGBA32UI colortex1. Insanity's RGB16 and Bloop's R16 are
-     * 16-bit UNORM images, and RGB16 pads its alpha. Signed normalized formats are SNORM images, so
-     * a write clamps to [-1, 1]: as RGBA16F, Rethinking Voxels' RGBA8_SNORM colortex5 kept
-     * reflections brighter than Iris's.
+     * Every format in Iris's InternalTextureFormat list has a target image, the integer ones too, such
+     * as superDuperVanilla's RGB16_SNORM colortex1 and Noble's RGBA32UI one. Insanity's RGB16 and
+     * Bloop's R16 are 16-bit UNORM images, and RGB16 pads its alpha. Signed normalized formats are
+     * SNORM images, so a write clamps to [-1, 1]; stored as RGBA16F, Rethinking Voxels' RGBA8_SNORM
+     * colortex5 makes reflections brighter than Iris's.
      */
     @Test
     void everyIrisColourFormatHasATarget(@TempDir Path root) throws IOException {
@@ -341,7 +340,7 @@ final class CorpusCompileFixesTest {
             if (expected.containsKey(token)) assertEquals(expected.get(token), format, token);
             assertEquals(padded.contains(token), config.paddedAlphaTargets().contains(1), token + " pads its alpha");
             assertEquals(token.endsWith("I"), IrisColorFormats.integer(format), token + " reads as integers");
-            // Iris InternalTextureFormat.fromString reads a name in any case.
+            // Iris's InternalTextureFormat.fromString reads a name in any case
             assertEquals(IrisColorFormats.of(token), IrisColorFormats.of(token.toLowerCase(Locale.ROOT)), token);
         }
     }
@@ -393,7 +392,7 @@ final class CorpusCompileFixesTest {
                     program + " must plan over the integer target: "
                             + (planned == null ? "missing" : planned.deviations()));
         }
-        // GL leaves Iris's float clear of colortex1 undefined; Chimera's integer clear is its own choice.
+        // GL leaves Iris's float clear of an integer colortex1 undefined, so Chimera's integer clear is a choice
         assertTrue(analysis.config().deviations().contains("POST_TARGET_INTEGER_CLEAR_CHIMERA:colortex1"),
                 analysis.config().deviations().toString());
     }
@@ -427,8 +426,7 @@ final class CorpusCompileFixesTest {
 
     /**
      * Iris gives every gbuffers program depthtex0, depthtex1 and depthtex2. superDuperVanilla's
-     * gbuffers_block reads depthtex0 for its end portal's depth, and was refused with
-     * ENTITY_SAMPLER_UNSUPPORTED, which turned the whole pack to vanilla.
+     * gbuffers_block reads depthtex0 for its end portal's depth.
      */
     @Test
     void entityFamilyProgramsReadEveryDepthTexture(@TempDir Path root) throws IOException {
@@ -565,8 +563,8 @@ final class CorpusCompileFixesTest {
 
     /**
      * Kappa's translucent program declares its outputs out of location order, translucentColor
-     * first at location 2. Numbered in declaration order, the glass colour wrote colortex1 and the
-     * normals colortex2, so composite read normals as the glass: stained glass drew black.
+     * first at location 2. Numbered in declaration order, the glass colour would write colortex1 and
+     * the normals colortex2, and composite would draw stained glass black.
      */
     @Test
     void aFragmentOutputKeepsItsDeclaredLocation(@TempDir Path root) throws IOException {
@@ -634,12 +632,13 @@ final class CorpusCompileFixesTest {
 
     /**
      * Escheridia's vertex and fragment stages include one header declaring entityColor. Iris deletes
-     * the uniform from every stage; a vertex copy left in the shared block met the fragment's global.
+     * the uniform from every stage; a vertex copy left in the shared block would clash with the
+     * fragment's global.
      */
     @Test
     void anEntityVertexLosesTheEntityColorItDoesNotRead(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
-        // A shared helper names it too, but main never calls the helper.
+        // a shared helper names it too, but main never calls the helper
         Files.writeString(shaders.resolve("gbuffers_entities.vsh"), """
                 #version 120
                 uniform vec4 entityColor;
@@ -689,7 +688,7 @@ final class CorpusCompileFixesTest {
         assertTrue(entities.executable() && fragment.contains("lightColor(const in int entityId)")
                 && fragment.contains("float(entityId) / 255.0") && fragment.contains("lightColor(int(chimera"),
                 entities.deviations() + "\n" + fragment);
-        // text_bg draws the same source on a host layout, where entityId is the per-draw id.
+        // text_bg draws the same source on a host layout, where entityId is the per-draw id
         PackProgramPlan textBackground = plan.program("text_bg");
         String hostFragment = textBackground.convertedFragment();
         assertTrue(textBackground.executable() && hostFragment.contains("lightColor(const in int entityId)")
@@ -743,8 +742,8 @@ final class CorpusCompileFixesTest {
                 varying float fade;
                 void main() { gl_FragData[0] = texture2D(texture, uv) * fade; }
                 """);
-        // Block entities and block cracks draw outside Sodium, where Iris declares no mc_chunkFade, so
-        // they get their own programs rather than falling back to terrain's.
+        // block entities and block cracks draw outside Sodium, where Iris declares no mc_chunkFade, so
+        // they get their own programs rather than falling back to terrain's
         for (String program : List.of("gbuffers_block", "gbuffers_damagedblock")) {
             Files.writeString(shaders.resolve(program + ".vsh"), """
                     #version 120

@@ -10,13 +10,13 @@ import net.vulkanmod.vulkan.texture.VTextureSelector;
 
 /**
  * An immediate mesh drawn under a tessellated pack pipeline. Chimera builds those for patches of 3
- * (BetweenStages.PATCH_VERTICES), as Iris draws GL_PATCHES of 3, so the mesh draws its own
- * triangle indices, a quad as two triangles, each three vertices one patch. VulkanMod's immediate
- * draw of a tessellated pipeline builds four-vertex patches from QUADS for a GL patch size of 4 and
- * throws for any other draw (PatchGeometry.requireQuads, "Four-vertex patches require complete
- * original QUADS and matching triangle counts"): Shrimple's held item stopped the game as the world
- * loaded. The steps are VulkanMod's own immediate draw (BufferUploaderM.drawWithShader and
- * drawPrepared), with its triangle draw in place of its patch draw.
+ * (BetweenStages.PATCH_VERTICES), as Iris draws GL_PATCHES of 3, so the mesh draws its own triangle indices:
+ * a quad as two triangles, each three vertices one patch.
+ *
+ * VulkanMod's immediate draw of a tessellated pipeline builds four-vertex patches from QUADS for a GL patch
+ * size of 4 and throws for any other draw (PatchGeometry.requireQuads). The steps here are VulkanMod's own
+ * immediate draw (BufferUploaderM.drawWithShader and drawPrepared), with its triangle draw in place of its
+ * patch draw.
  */
 public final class PatchDraws {
     private PatchDraws() {}
@@ -32,7 +32,7 @@ public final class PatchDraws {
             MeshData.DrawState state = mesh.drawState();
             ShaderInstance shader = RenderSystem.getShader();
             if (state.vertexCount() <= 0 || shader == null) return;
-            // The host shader binds the draw's textures, which the pack pipeline's samplers read.
+            // the host shader binds the draw's textures, which the pack pipeline's samplers read
             shader.apply();
             Renderer renderer = Renderer.getInstance();
             VRenderSystem.setPrimitiveTopology(state.mode());

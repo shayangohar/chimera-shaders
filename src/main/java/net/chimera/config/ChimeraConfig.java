@@ -13,14 +13,14 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * The persisted shader settings, {@code config/chimera.properties}, written with Iris's keys:
- * {@code shaderPack} names a pack in the shaderpacks folder and {@code enableShaders} says
- * whether it runs; {@code maxShadowRenderDistance} and {@code colorSpace} are Iris's mod-wide
- * video settings (ChimeraSettingsPage). The selector screen, the settings page and the pack
- * commands write it; startup reads it.
+ * Shader settings in {@code config/chimera.properties}, under Iris's keys.
+ *
+ * {@code shaderPack} names a pack in the shaderpacks folder and {@code enableShaders} says whether it runs.
+ * {@code maxShadowRenderDistance} and {@code colorSpace} are Iris's mod-wide video settings, shown on
+ * ChimeraSettingsPage.
  */
 public final class ChimeraConfig {
-    /** Iris IrisVideoSettings.shadowDistance's default and its slider's top, in chunks. */
+    /** Iris's default shadow distance and the slider's top, in chunks (IrisVideoSettings.shadowDistance). */
     public static final int MAX_SHADOW_RENDER_DISTANCE = 32;
     private static final String SHADER_PACK = "shaderPack";
     private static final String ENABLE_SHADERS = "enableShaders";
@@ -63,7 +63,7 @@ public final class ChimeraConfig {
         return config;
     }
 
-    /** The saved shadow distance, kept to the slider's 0 to 32 chunks; Iris's 32 when unset or unreadable. */
+    /** Saved shadow distance clamped to the slider's 0 to 32 chunks; 32, as in Iris, when unset or unreadable. */
     private static int shadowDistance(String value, Path file) {
         if (value == null) return MAX_SHADOW_RENDER_DISTANCE;
         try {
@@ -75,7 +75,7 @@ public final class ChimeraConfig {
         }
     }
 
-    /** The saved colour space by Iris's name; sRGB when unset or unknown. */
+    /** Saved colour space by Iris's enum name; sRGB when unset or unknown. */
     private static ColorSpace colorSpace(String value, Path file) {
         if (value == null) return ColorSpace.SRGB;
         try {
@@ -95,37 +95,35 @@ public final class ChimeraConfig {
     }
 
     /**
-     * The player's Max Shadow Distance in chunks, 0 to 32: how far the shadow pass draws when the
-     * pack does not set its own distance, and no shadow pass at 0 (Iris IrisVideoSettings.shadowDistance).
+     * The player's Max Shadow Distance in chunks, 0 to 32: how far the shadow pass draws when the pack sets
+     * no distance of its own; 0 means no shadow pass (IrisVideoSettings.shadowDistance).
      */
     public int maxShadowRenderDistance() {
         return maxShadowRenderDistance;
     }
 
-    /** The colour space the finished world image is converted to (Iris IrisVideoSettings.colorSpace). */
+    /** The colour space the finished world image is converted to (IrisVideoSettings.colorSpace). */
     public ColorSpace colorSpace() {
         return colorSpace;
     }
 
-    /** Records the selection and writes it; a failed write is logged and never thrown. */
     public synchronized void setSelection(String pack, boolean enabled) {
         this.shaderPack = pack == null || pack.isBlank() ? null : pack;
         this.enableShaders = enabled;
         save();
     }
 
-    /** Records the Max Shadow Distance, kept to 0 to 32 chunks, and writes it; a failed write is logged. */
     public synchronized void setMaxShadowRenderDistance(int chunks) {
         this.maxShadowRenderDistance = Math.clamp(chunks, 0, MAX_SHADOW_RENDER_DISTANCE);
         save();
     }
 
-    /** Records the Color Space and writes it; a failed write is logged and never thrown. */
     public synchronized void setColorSpace(ColorSpace space) {
         this.colorSpace = space == null ? ColorSpace.SRGB : space;
         save();
     }
 
+    /** Writes the file through a temporary sibling; a failed write is logged, never thrown. */
     private void save() {
         Properties properties = new Properties();
         properties.setProperty(SHADER_PACK, shaderPack == null ? "" : shaderPack);

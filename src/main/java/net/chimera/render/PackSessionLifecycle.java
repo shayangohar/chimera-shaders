@@ -49,30 +49,29 @@ import java.util.Map;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Loads, switches and tears down pack sessions for the main pass: reads the pack and plans it,
- * queues a pack or dimension change for the next safe frame boundary, applies it there, and
- * releases every pack-owned resource when a session ends.
+ * Loads, switches and tears down the main pass's pack sessions. A pack or dimension change waits for the
+ * next safe frame boundary and applies there; a session's end releases every pack-owned resource.
  */
 final class PackSessionLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
 
-    /** Original pack path used to select another dimension variant in place. */
+    /** The running pack's path, whose dimension variants a level change selects; null without a pack. */
     Path packPath;
 
     /** Dimension requested by WorldRenderer.setLevel, applied at a safe frame boundary. */
     String pendingPackDimension;
 
-    /** Prevents repeated log spam while a pending change waits for an idle boundary. */
+    /** The pending dimension last logged as deferred, so a waiting change logs once. */
     String loggedPendingPackDimension;
     final PackChangeQueue packChangeQueue = new PackChangeQueue();
 
-    /** Prevents a blocked request from producing per-frame diagnostics. */
+    /** The pending pack last logged as deferred, so a blocked change logs once. */
     String loggedPendingPackChange;
-    /** A pack change is loading its pack: a source that does not load is told by its rollback. */
+    /** Set while a pack change loads its pack; its rollback reports a source that does not load. */
     private boolean changingPack;
 
-    /** Current live dimension, also used when a new pack is selected in-game. */
+    /** The live dimension, which a newly selected pack loads for. */
     String currentDimension = "minecraft:overworld";
 
     PackSessionLifecycle(ChimeraMainPass pass) {
@@ -80,8 +79,8 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * The pack to load at startup: {@code -Dchimera.pack} when given (an explicit override for
-     * testing), otherwise the selection saved in {@code config/chimera.properties}.
+     * The pack to load at startup: {@code -Dchimera.pack} when given, an override for testing, otherwise
+     * the selection saved in {@code config/chimera.properties}.
      */
     static Path startupPackPath() {
         String value = System.getProperty("chimera.pack");
@@ -112,7 +111,7 @@ final class PackSessionLifecycle {
         return pending != null ? pending.path() : this.packPath;
     }
 
-    /** Restores the stable output invariant before Renderer exposes this pass. */
+    /** Readies the output target before Renderer installs this pass; false while recording or a change waits. */
     boolean prepareForInstall() {
         if (Renderer.isRecording() || Renderer.getInstance().getBoundRenderPass() != null
                 || hasPendingPackChange()) {
@@ -122,7 +121,7 @@ final class PackSessionLifecycle {
         return pass.targets.outputResourcesReady && pass.targets.outputResourcesLive();
     }
 
-    /** Called before Renderer begins a fresh main command buffer. */
+    /** Applies a pending pack or dimension change before Renderer begins a frame's main command buffer. */
     boolean applyPendingPackVariantAtFrameBoundary() {
         if (this.packChangeQueue.pending() != null) {
             return applyPendingPackChange();
@@ -182,20 +181,19 @@ final class PackSessionLifecycle {
         return name == null ? path.toString() : name.toString();
     }
 
-    /** Releases only pack-owned state so a dimension variant can be rebuilt. */
+    /** Releases every pack-owned object and resets the session; framebuffers and the pack source stay. */
     void cleanUpPackVariant() {
         ChimeraEntityBridge.setEnabled(false);
         ChimeraSkyBridge.setEnabled(false);
-        // Release the dedicated entity source before its pipeline is destroyed.
-        // This keeps any remaining host-side batch cleanup away from a dead
-        // pack pipeline and leaves the host format/cache untouched.
+        // release the entity source before its pipeline is destroyed, so host batch cleanup never meets a
+        // dead pack pipeline
         ChimeraEntityBridge.disable();
         ChimeraSkyBridge.disable();
-        // Restore the host values before any pack-owned image is destroyed.
+        // restore the host values before any pack-owned image is destroyed
         pass.windows.restorePackResourceWindow();
         pass.images.programImages.clear();
-        // Clear every selector that may still refer to a retired pack image.
-        // The host rebinds its normal slots during the next draw window.
+        // clear every selector slot that may still hold a retired pack image; the host rebinds its own
+        // slots at its next draw
         SelectorNamespace.clearOwned(slot -> VTextureSelector.bindTexture(slot, null));
         ChimeraTextureBindingState.reset();
         pass.shadowPass.shadowMap.cleanUp();
@@ -224,7 +222,7 @@ final class PackSessionLifecycle {
         if (pass.packCenterDepth != null) pass.packCenterDepth.close();
         pass.packCenterDepth = null;
         pass.pipelines.clear();
-        // Every session flag, once-only log and plan no owner closes starts clear (PackSessionState).
+        // every session flag, once-only log and plan no owner closes starts clear
         pass.session = new PackSessionState();
         pass.shadowPass.composites.resetSession();
         pass.shadowPass.shadowFrameReady = false;
@@ -249,12 +247,12 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * Returns every host-side directive a pack installs to vanilla's: the terrain overrides,
-     * material map, material plan and shading, the pack atlas mips, and the held and rendered item
-     * ids. Pack cleanup, the no-pack load and the host fallback after a failed rollback all run
-     * this one list; the fallback ran none, so a pack whose load and rollback both failed kept its
-     * terrain directives under vanilla. A material map change inside a frame-boundary handoff
-     * rebuilds the level once, at its end (ChimeraTerrainPipelines.rebuildingOnce).
+     * Returns every host-side directive a pack installs to vanilla's: terrain overrides, material map,
+     * material plan and shading, the pack atlas mips, and held and rendered item ids. Pack cleanup, the
+     * no-pack load and the host fallback after a failed rollback all run this one list.
+     *
+     * A material map change inside a frame-boundary handoff rebuilds the level once, at its end
+     * (ChimeraTerrainPipelines.rebuildingOnce).
      */
     static void resetHostDirectives() {
         ChimeraTerrainPipelines.setGeometryOverride(null);
@@ -288,7 +286,10 @@ final class PackSessionLifecycle {
         }
     }
 
-    /** Queues a complete pack replacement for the next safe command boundary. */
+    /**
+     * Applies the queued pack change, or rolls back to the previous pack when it fails. False when the
+     * change must wait, or when the rollback failed too and the host renders.
+     */
     boolean applyPendingPackChange() {
         PackChangeQueue.PendingPackChange request = this.packChangeQueue.pending();
         if (request == null) {
@@ -333,7 +334,7 @@ final class PackSessionLifecycle {
                 preparePackSessionReplacement(false);
                 this.packPath = previousPath;
                 this.currentDimension = previousDimension;
-                // Still the pack change: its message says what runs, not a second one for the rollback.
+                // the rollback is still part of the pack change, whose one message says what runs
                 this.changingPack = true;
                 try {
                     pass.targets.createResources();
@@ -363,7 +364,7 @@ final class PackSessionLifecycle {
     static void reportPackChangeFailure(Path requested, RuntimeException failure, String recovery) {
         String reason = failure.getMessage();
         if (reason == null || reason.isBlank()) reason = failure.getClass().getSimpleName();
-        // The line keeps the message's first line; Copy Info and latest.log keep the rest.
+        // the chat line keeps the message's first line; Copy Info and latest.log keep the rest
         String pack = packLabel(requested);
         PackFailureNotices.record(new PackFailureNotices.Failure(pack, "pack", "load",
                 PackFailureNotices.Outcome.LOAD_FAILED, PackFailureNotices.shortLine(reason, 100) + ". " + recovery,
@@ -373,9 +374,9 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * Clears all pack-owned objects and closes the current source: after an idle wait for a pack
-     * change, or with no wait for its rollback, whose failed load may have submitted uploads the
-     * idle wait never saw (their handles then wait for their frames, HandleRetirement).
+     * Clears all pack-owned objects and closes the current source. A pack change waits for the device to
+     * idle first. Its rollback does not, since the failed load may have submitted uploads after that wait;
+     * their handles wait for their frames instead (HandleRetirement).
      */
     void preparePackSessionReplacement(boolean waitForIdle) {
         pass.packFrameUnsupported = null;
@@ -422,9 +423,8 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * Applies a recorded level variant only when no Chimera-owned render work
-     * is open. The GPU idle wait is deliberately at this single boundary so
-     * immediate Vulkan object destruction cannot race an older frame.
+     * Applies the pending dimension variant once no Chimera render work is open. The device idles first,
+     * so destroying Vulkan objects at once cannot race an older frame.
      */
     boolean applyPendingPackVariant() {
         String requested = this.pendingPackDimension;
@@ -532,9 +532,8 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * Discovers and parses the active pack once per session. Must run before
-     * createHdrFramebuffer so the pack's colortex0Format can drive the HDR
-     * buffer format.
+     * Loads and plans the selected pack once per session. Runs before createHdrFramebuffer, since
+     * colortex0's format sets the HDR image's.
      */
     void loadPackConfig() {
         if (pass.packConfig != null) {
@@ -549,10 +548,10 @@ final class PackSessionLifecycle {
         if (dir == null || pass.packFrameUnsupported != null) {
             if (dir == null) {
                 LOGGER.debug("[chimera] no shader pack selected");
-                // No pack, no report. The last pack's would be written as this load's conformance
-                // file and its skipped programs told again under no pack.
+                // no pack, no report; the last pack's would be written again as this load's, and its
+                // skipped programs told again
                 pass.conformanceReport = null;
-                // The status command and F3 stop listing the last pack's failures.
+                // the status command and F3 stop listing the last pack's failures
                 PackFailureNotices.beginLoad(null, null);
             }
             resetHostDirectives();
@@ -600,10 +599,9 @@ final class PackSessionLifecycle {
      */
     private PackSource.LoadResult loadPackPlan(Path dir) {
         boolean fresh = pass.packSource == null;
-        // Iris reads MC_MIPMAP_LEVEL once per pack load, and every dimension's programs and the id
-        // maps use that value until the next load (ShaderPack). Read again on a dimension switch,
-        // a dimension cached since the load kept the old level while a new one and the id maps
-        // took the new one.
+        // Iris reads MC_MIPMAP_LEVEL once per pack load (ShaderPack); every dimension's programs and the
+        // id maps use it until the next load
+        // reading it again on a dimension switch would mix two levels in one session
         if (fresh) {
             PackEngineDefines.setMipmapLevel(Minecraft.getInstance().options.mipmapLevels().get());
         }
@@ -611,7 +609,7 @@ final class PackSessionLifecycle {
                 ? PackSource.loadResult(dir, this.currentDimension, PendingOptions.drain(dir)) : pass.packSource;
         pass.packSource = result;
         PackFailureNotices.beginLoad(packLabel(dir), result.shadersDir());
-        // A saved pack that no longer loads says so as it starts; a pack change's rollback says so itself.
+        // a saved pack that fails to load says so at startup; a pack change's rollback reports its own
         if (fresh && !this.changingPack && packSourceLoadFailed()) {
             reportPackChangeFailure(dir, new IllegalStateException("shaderpack source could not be loaded ("
                     + sourceFailure() + ")"), "Rendering vanilla.");
@@ -700,7 +698,7 @@ final class PackSessionLifecycle {
 
     /** Parses the pack's block and item id maps and installs them with its hand-light setting. */
     private void installIdMaps(Path shadersDir) {
-        // Iris preprocesses the id maps with every option the pack's shader files declare.
+        // Iris preprocesses the id maps with every option the pack's shader files declare
         Map<String, String> macros = PackEngineDefines.forPack(PackOptionMacros.forIdMaps(shadersDir,
                 pass.packPlan.settingsPreprocessorDefines(), pass.packPlan.settingsOverriddenNames()));
         PackMaterialResolver.ParseResult material = PackMaterialResolver.parse(shadersDir, macros);
@@ -723,7 +721,7 @@ final class PackSessionLifecycle {
         pass.materials.ensureMaterialMapOwner();
         pass.packResourceOwner = PackResourceOwner.load(pass.packPlan.resources(), shadersDir,
                 () -> pass.materials.materialMapOwner);
-        // Relative images and buffers start at the window's size; the main pass refits them to the main target.
+        // relative images and buffers start at the window's size; the main pass refits them to the main target
         var window = Minecraft.getInstance().getWindow();
         int width = Math.max(window.getWidth(), 1);
         int height = Math.max(window.getHeight(), 1);
@@ -807,10 +805,10 @@ final class PackSessionLifecycle {
     }
 
     /**
-     * Writes the conformance report to {@code <gameDir>/chimera/conformance/<pack>.json}, replacing
-     * the last load's, and logs one line for it, as Iris logs each dimension's pipeline: the
-     * dimension, the program counts, the file and the report's hash (12 digits tell two runs
-     * apart). Only when the file cannot be written does the JSON go to debug.log.
+     * Writes the conformance report to {@code <gameDir>/chimera/conformance/<pack>.json}, replacing the last
+     * load's, and logs one line for it as Iris logs each dimension's pipeline: the dimension, the program
+     * counts, the file and the report's hash, whose 12 digits tell two runs apart. The JSON goes to debug.log
+     * only when the file cannot be written.
      */
     void logConformance() {
         if (pass.conformanceReport == null) return;

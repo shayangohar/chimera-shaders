@@ -1,6 +1,6 @@
 package net.chimera.render.vertex;
 
-/** Pure entity polygon math shared by the runtime writer and conformance tests. */
+/** Entity quad normals and packed tangents, shared by the vertex writer and its tests. */
 public final class ChimeraEntityVertexData {
     public static final int FLAT_TANGENT = pack(1.0f, 0.0f, 0.0f, 1.0f);
     private static final float TINY = 1.0e-12f;
@@ -115,9 +115,8 @@ public final class ChimeraEntityVertexData {
     }
 
     /**
-     * Produces a deterministic unit tangent perpendicular to the supplied normal.
-     * A fixed axis is not a valid fallback: it becomes parallel on one face of
-     * every axis-aligned model and makes pack TBN construction undefined.
+     * A unit tangent perpendicular to the normal, built from the axis least aligned with it. A fixed axis
+     * would be parallel to one face of every axis-aligned model and leave the pack's TBN undefined there.
      */
     public static int fallbackTangent(float nx, float ny, float nz) {
         float normalLength = nx * nx + ny * ny + nz * nz;

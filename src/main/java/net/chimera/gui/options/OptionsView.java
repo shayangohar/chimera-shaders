@@ -17,9 +17,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The settings half of the shader pack screen, for the pack that is loaded: its option list and
- * pages, the header's Back, Import, Export and Reset, and the comment and tooltip overlay. The
- * screen keeps the bottom buttons and Apply; every edit here only queues values for the next load.
+ * The settings half of the shader pack screen, for the loaded pack: its option list and pages, the header
+ * buttons, and the comment and tooltip overlay. The screen keeps the bottom buttons and Apply; every edit
+ * here only queues values for the next load.
  */
 public final class OptionsView implements OptionContext.Actions {
     private final ChimeraRenderer.LoadedPack loaded;
@@ -34,7 +34,7 @@ public final class OptionsView implements OptionContext.Actions {
      * @param apply    the screen's Apply, which reloads the pack when values are pending
      * @param notifier shows a line under the screen title
      * @param importer imports a chosen file into whichever view the screen shows when the dialog
-     *                 closes (a reload may have replaced this one), if the screen is still open
+     *                 closes, since a reload may have replaced this one
      */
     public OptionsView(ChimeraRenderer.LoadedPack loaded, Font font, Runnable apply, Consumer<Component> notifier,
                        Consumer<Path> importer) {
@@ -49,7 +49,6 @@ public final class OptionsView implements OptionContext.Actions {
         this.importer = importer;
     }
 
-    /** True when the pack has anything to configure: its main page is not empty. */
     public static boolean hasSettings(ChimeraRenderer.LoadedPack loaded) {
         return !loaded.options().pack().menu().main().elements().isEmpty();
     }
@@ -64,7 +63,6 @@ public final class OptionsView implements OptionContext.Actions {
         return other != null && other.options() == loaded.options();
     }
 
-    /** A fresh list for the open page, scrolled to the top. */
     public OptionList createList(Minecraft minecraft, int width, int height, int top) {
         context.overlay().clear();
         list = new OptionList(minecraft, width, height, top, context, loaded.path().getFileName().toString(), pages);

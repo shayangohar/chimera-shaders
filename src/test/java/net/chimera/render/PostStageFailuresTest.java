@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A post stage that throws is skipped and the chain goes on; the device's own trouble, or a third
- * failing stage, still turns the pack off.
+ * A post stage that throws is skipped and the chain goes on; a device-level failure, or a third failing
+ * stage, turns the pack off.
  */
 final class PostStageFailuresTest {
     @Test

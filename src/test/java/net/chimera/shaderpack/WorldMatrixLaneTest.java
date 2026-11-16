@@ -204,8 +204,9 @@ final class WorldMatrixLaneTest {
 
     /**
      * I Like Vanilla's isometric projection scales the view position by constants and reads no
-     * projection at all: its clip depth is GL's, as under Iris, and converts once. A stage whose
-     * only projection is one host clip built-in keeps the host's range.
+     * projection at all: its clip depth is GL's, as under Iris, and converts once, held glint too. A
+     * stage whose only projection is one host clip built-in keeps the host's range, a core-profile
+     * one too: IrisCoreProfile names its projectionMatrix gl_ProjectionMatrix before the range is read.
      */
     @Test
     void aStageThatProjectsItselfRunsInGlRange(@TempDir Path root) throws IOException {
@@ -219,10 +220,24 @@ final class WorldMatrixLaneTest {
                     gl_Position = vec4(view * vec3(1.0 / 32.0, 1.0 / 32.0, -1.0 / 256.5) - vec3(0.0, 0.0, 0.75), 1.0);
                 }
                 """;
-        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities"}) {
+        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities", "gbuffers_armor_glint"}) {
             Files.writeString(shaders.resolve(program + ".vsh"), isometric);
             Files.writeString(shaders.resolve(program + ".fsh"), FRAGMENT);
         }
+        Files.writeString(shaders.resolve("gbuffers_water.vsh"), """
+                #version 330 core
+                uniform mat4 modelViewMatrix;
+                uniform mat4 projectionMatrix;
+                uniform vec3 chunkOffset;
+                in vec3 vaPosition;
+                in vec4 vaColor;
+                out vec4 color;
+                void main() {
+                    color = vaColor;
+                    gl_Position = projectionMatrix * (modelViewMatrix * vec4(vaPosition + chunkOffset, 1.0));
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_water.fsh"), FRAGMENT);
         Files.writeString(shaders.resolve("gbuffers_textured.vsh"), """
                 #version 330 compatibility
                 out vec4 color;
@@ -243,13 +258,15 @@ final class WorldMatrixLaneTest {
         Files.writeString(shaders.resolve("gbuffers_basic.fsh"), FRAGMENT);
 
         PackProbe.Analysis analysis = PackProbe.analyze(root);
-        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities"}) {
+        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities", "gbuffers_armor_glint"}) {
             String vertex = convertedVertex(analysis, program);
             assertTrue(vertex.contains(WorldClipRange.AUTHORED_ENTRY + "();\n    " + CONVERSION)
                             && occurrences(vertex, "gl_Position.z = ") == 1,
                     program + " builds GL's clip depth and must convert it once: " + vertex);
         }
-        for (String program : new String[] {"gbuffers_textured", "gbuffers_basic"}) {
+        String hand = EntityVertexBridge.handGlintVertex(convertedVertex(analysis, "gbuffers_armor_glint"));
+        assertTrue(occurrences(hand, "gl_Position.z = ") == 1, "held glint must convert once: " + hand);
+        for (String program : new String[] {"gbuffers_textured", "gbuffers_basic", "gbuffers_water"}) {
             String vertex = convertedVertex(analysis, program);
             assertTrue(!vertex.contains("chimeraGlClip") && !vertex.contains(WorldClipRange.AUTHORED_ENTRY),
                     program + " projects with a host clip built-in and keeps the host's range: " + vertex);

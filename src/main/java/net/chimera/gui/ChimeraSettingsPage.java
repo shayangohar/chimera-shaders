@@ -21,21 +21,21 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * Chimera's entry in VulkanMod's options screen, laid out as Iris's on Sodium's: the name in the
- * brand colour beside the icon, a Shaders page, and on it the shader pack list and Iris's two
- * mod-wide settings, Max Shadow Distance and Color Space, saved in ChimeraConfig. Reforged lists
- * every ModSettingsRegistry entry beside its own, so this needs no mixin.
+ * Chimera's entry in VulkanMod's options screen: the name in the brand colour beside the icon, and
+ * a Shaders page holding Iris's two mod-wide settings, Max Shadow Distance and Color Space, saved
+ * in ChimeraConfig. The shader pack list opens from the screen's own button
+ * (ChimeraVOptionScreenMixin). Reforged lists every ModSettingsRegistry entry beside its own, so
+ * this needs no mixin.
  *
- * <p>Reforged shows a page's name and a block's title as literal text, so both arrive translated,
- * styled with legacy formatting codes in the brand gold (the icon's amber). Values stay unstyled:
- * VulkanMod greys a locked option's value itself.</p>
+ * <p>Reforged shows a page's name as literal text, so it arrives translated, styled with a legacy
+ * formatting code in the brand gold (the icon's amber). The blocks are untitled, as VulkanMod's own
+ * are. Values stay unstyled: VulkanMod greys a locked option's value itself.</p>
  */
 public final class ChimeraSettingsPage {
     private static final ResourceLocation ICON =
             ResourceLocation.fromNamespaceAndPath(ChimeraMod.MOD_ID, "textures/gui/settings_icon.png");
-    /** The brand colour as a legacy code, for the page name and block titles Reforged takes as text. */
+    /** The brand colour as a legacy code, for the page name Reforged takes as text. */
     private static final String BRAND = "§6";
-    private static final String BOLD = "§l";
 
     private ChimeraSettingsPage() {}
 
@@ -49,23 +49,10 @@ public final class ChimeraSettingsPage {
     /** Built each time the screen opens, so the texts follow the language and the lock follows the pack. */
     private static List<OptionPage> pages() {
         OptionBlock[] blocks = {
-                block("options.chimera.block.shaderPacks", shaderPackList()),
-                block("options.chimera.block.shadows", shadowDistance()),
-                block("options.chimera.block.display", colorSpace())};
-        String page = BRAND + "◆ " + Component.translatable("options.chimera.page.shaders").getString();
+                new OptionBlock("", new Option<?>[]{shadowDistance()}),
+                new OptionBlock("", new Option<?>[]{colorSpace()})};
+        String page = BRAND + Component.translatable("options.chimera.page.shaders").getString();
         return List.of(new OptionPage(page, blocks));
-    }
-
-    private static OptionBlock block(String titleKey, Option<?> option) {
-        return new OptionBlock(BRAND + BOLD + Component.translatable(titleKey).getString(), new Option<?>[]{option});
-    }
-
-    /** Iris's "Shader Pack List... Open >": the shader pack screen, returning here. */
-    private static Option<?> shaderPackList() {
-        OpenScreenOption option = new OpenScreenOption(Component.translatable("options.chimera.shaderPackList"),
-                ShaderPackScreen::new);
-        option.setTooltip(Component.translatable("options.chimera.shaderPackList.tooltip"));
-        return option;
     }
 
     /**

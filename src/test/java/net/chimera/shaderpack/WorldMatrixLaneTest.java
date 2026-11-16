@@ -103,8 +103,8 @@ final class WorldMatrixLaneTest {
     /**
      * A world stage that projects with the pack's gbufferProjection (Ebin's and Glimmer's
      * gbuffers_main) writes GL's clip range and converts it once, after its authored entry point,
-     * with the host built-ins it reads taken into GL's range too. A stage that reads no pack
-     * projection keeps the host's matrices and depth.
+     * with the host built-ins it reads taken into GL's range too. A stage that projects with
+     * ftransform() and reads no pack projection keeps the host's matrices and depth.
      */
     @Test
     void packProjectionStages(@TempDir Path root) throws IOException {
@@ -200,6 +200,62 @@ final class WorldMatrixLaneTest {
         assertTrue(water.contains("chimeraGlClip(") && water.contains(WorldClipRange.AUTHORED_ENTRY + "();\n    "
                 + CONVERSION) && occurrences(water, "gl_Position.z = ") == 1,
                 "a stage that unprojects with gbufferProjectionInverse must run in GL's range: " + water);
+    }
+
+    /**
+     * I Like Vanilla's isometric projection scales the view position by constants and reads no
+     * projection at all: its clip depth is GL's, as under Iris, and converts once. A stage whose
+     * only projection is one host clip built-in keeps the host's range.
+     */
+    @Test
+    void aStageThatProjectsItselfRunsInGlRange(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectory(root.resolve("shaders"));
+        String isometric = """
+                #version 330 compatibility
+                out vec4 color;
+                void main() {
+                    color = gl_Color;
+                    vec3 view = (gl_ModelViewMatrix * gl_Vertex).xyz;
+                    gl_Position = vec4(view * vec3(1.0 / 32.0, 1.0 / 32.0, -1.0 / 256.5) - vec3(0.0, 0.0, 0.75), 1.0);
+                }
+                """;
+        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities"}) {
+            Files.writeString(shaders.resolve(program + ".vsh"), isometric);
+            Files.writeString(shaders.resolve(program + ".fsh"), FRAGMENT);
+        }
+        Files.writeString(shaders.resolve("gbuffers_textured.vsh"), """
+                #version 330 compatibility
+                out vec4 color;
+                void main() {
+                    color = gl_Color;
+                    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_basic.vsh"), """
+                #version 330 compatibility
+                out vec4 color;
+                void main() {
+                    color = gl_Color;
+                    gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
+                }
+                """);
+        Files.writeString(shaders.resolve("gbuffers_textured.fsh"), FRAGMENT);
+        Files.writeString(shaders.resolve("gbuffers_basic.fsh"), FRAGMENT);
+
+        PackProbe.Analysis analysis = PackProbe.analyze(root);
+        for (String program : new String[] {"gbuffers_terrain", "gbuffers_entities"}) {
+            String vertex = convertedVertex(analysis, program);
+            assertTrue(vertex.contains(WorldClipRange.AUTHORED_ENTRY + "();\n    " + CONVERSION)
+                            && occurrences(vertex, "gl_Position.z = ") == 1,
+                    program + " builds GL's clip depth and must convert it once: " + vertex);
+        }
+        for (String program : new String[] {"gbuffers_textured", "gbuffers_basic"}) {
+            String vertex = convertedVertex(analysis, program);
+            assertTrue(!vertex.contains("chimeraGlClip") && !vertex.contains(WorldClipRange.AUTHORED_ENTRY),
+                    program + " projects with a host clip built-in and keeps the host's range: " + vertex);
+        }
+        var compiled = PackCompileTest.run(root, analysis);
+        assertTrue(compiled.failures().isEmpty(), "compilation: " + compiled.failures());
     }
 
     private static String convertedVertex(PackProbe.Analysis analysis, String name) {

@@ -501,9 +501,10 @@ final class HostFamilyTest {
                 "line keeps the host layout");
         String converted = plan.convertedVertex();
         assertTrue(converted.contains("#define chimeraLineWidth LineWidth")
-                        && converted.contains("void chimeraLineMain()")
+                        && converted.contains("void " + IrisCoreProfile.PACK_LINE_MAIN + "()")
                         && converted.contains("chimeraLineOffset = chimeraLineDirection;")
-                        && converted.contains("chimeraLineViewScale")
+                        && converted.contains("chimeraLineShrink * ModelViewMat")
+                        && converted.contains("gl_Position = chimeraWidenLine(gl_Position, farClip);")
                         && converted.contains("vec3(0.0, 0.0, 1.0)")
                         && converted.contains("tint = (Color * ColorModulator);"),
                 "fallback line lost Iris widening: " + converted);
@@ -534,7 +535,7 @@ final class HostFamilyTest {
         var analysis = PackProbe.analyze(packLine);
         var plan = executablePlan(analysis, "gbuffers_line", "authored line");
         String converted = plan.convertedVertex();
-        assertTrue(!converted.contains("chimeraLineMain")
+        assertTrue(!converted.contains(IrisCoreProfile.PACK_LINE_MAIN)
                         && converted.contains("chimeraLineVertexIndex % 2")
                         && converted.contains("ProjMat * ModelViewMat")
                         && converted.contains("Normal.xyz"),

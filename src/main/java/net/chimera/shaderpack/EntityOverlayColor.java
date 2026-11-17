@@ -21,6 +21,14 @@ final class EntityOverlayColor {
     private static final Pattern UV_READ = Pattern.compile("\\b" + UV_VARYING + "\\b");
     /** An opaque empty texel: entityColor comes out (0, 0, 0, 0). */
     private static final String NO_OVERLAY_TEXEL = "vec4 chimeraOverlayTexel = vec4(0.0, 0.0, 0.0, 1.0);";
+    /**
+     * entityColor from the fetched texel. The overlay texture stores how much of the mob shows through, so the
+     * tint's strength is one minus its alpha; a texel with none leaves the whole colour zero, so a pack that
+     * reads only the rgb sees black.
+     */
+    private static final String OVERLAY_COLOR =
+            "\n    entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);"
+                    + "\n    if (entityColor.a == 0.0) entityColor = vec4(0.0);";
 
     private static final Pattern DECLARATION =
             Pattern.compile("(?m)^[ \\t]*uniform\\s+vec4\\s+entityColor\\s*;");
@@ -67,11 +75,7 @@ final class EntityOverlayColor {
         String declared = rewritten.append(source.substring(kept)).toString();
         Matcher main = MAIN.matcher(GlslLexer.maskComments(declared));
         if (!main.find()) return source;
-        // Iris's three lines; the texture stores how much of the mob shows through, so alpha is inverted
-        // rgb is zeroed where there is no overlay, so a pack reading only rgb sees black
-        String prologue = "\n    " + fetch
-                + "\n    entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);"
-                + "\n    entityColor.rgb *= float(entityColor.a != 0.0);";
+        String prologue = "\n    " + fetch + OVERLAY_COLOR;
         return declared.substring(0, main.start()) + input + declared.substring(main.start(), main.end()) + prologue
                 + declared.substring(main.end());
     }

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Builds one pack session's pipelines, family by family, into the pass's pipeline set: admits each program the
@@ -755,7 +756,7 @@ final class PackPipelineInstaller {
             if (built == null) {
                 if (lane.pass() == HostLayoutLane.Pass.HAND) {
                     LOGGER.warn("[chimera] pack {}: {} variant unavailable; that draw stays host-drawn", name,
-                            lane.name().toLowerCase());
+                            lane.name().toLowerCase(Locale.ROOT));
                     continue;
                 }
                 markFamilyPipelineFallback(name, lane + "_PIPELINE_BUILD_FAILED");
@@ -769,7 +770,7 @@ final class PackPipelineInstaller {
             }
             pipelines.hostLayout.put(lane.family(), built);
             if (lane.pass() == HostLayoutLane.Pass.HAND) {
-                LOGGER.debug("[chimera] pack {}: {} variant installed", name, lane.name().toLowerCase());
+                LOGGER.debug("[chimera] pack {}: {} variant installed", name, lane.name().toLowerCase(Locale.ROOT));
             } else {
                 markFamilyPipelineInstalled(name, lane + "_PIPELINE_INSTALLED");
             }

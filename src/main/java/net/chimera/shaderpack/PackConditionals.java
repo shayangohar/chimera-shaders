@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -186,7 +187,7 @@ final class PackConditionals {
             boolean closing = directive.equalsIgnoreCase("elif") || directive.equalsIgnoreCase("else")
                     || directive.equalsIgnoreCase("endif");
             if (closing && branches.isEmpty()) return false;
-            switch (directive.toLowerCase()) {
+            switch (directive.toLowerCase(Locale.ROOT)) {
                 case "if", "ifdef", "ifndef" -> {
                     boolean parent = active();
                     boolean result = parent && PreprocessorExpression.evaluate(condition(directive, argument), macros);

@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -217,7 +218,7 @@ public final class ShaderSourcePreprocessor {
                 line = line.substring(start);
             }
 
-            String directive = matcher.group(1).toLowerCase();
+            String directive = matcher.group(1).toLowerCase(Locale.ROOT);
             String argument = PackConditionals.withoutComments(
                     matcher.group(2) == null ? "" : matcher.group(2)).trim();
             switch (directive) {

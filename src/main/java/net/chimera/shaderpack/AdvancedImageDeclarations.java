@@ -126,7 +126,7 @@ final class AdvancedImageDeclarations {
         }
         boolean unsized = size[0] < 1 || values.length > 7 && size[1] < 1 || values.length > 8 && size[2] < 1;
         long bytes = unsized ? 0 : Math.multiplyExact(Math.multiplyExact((long) size[0], Math.max(1, size[1])),
-                Math.max(1, size[2])) * bytesPerVoxel(values[2].toLowerCase());
+                Math.max(1, size[2])) * bytesPerVoxel(values[2].toLowerCase(Locale.ROOT));
         if (unsized) {
             deviations.add("ADVANCED_IMAGE_UNSUPPORTED:" + name);
             return image(name, values, size, bytes, PackAdvancedResourcePlan.Status.UNSUPPORTED, deviations);
@@ -143,7 +143,7 @@ final class AdvancedImageDeclarations {
             String name, String[] values, Map<String, String> defines, List<String> deviations) {
         float width = relativeShare(name, values[6], defines, deviations);
         float height = relativeShare(name, values[7], defines, deviations);
-        bytesPerVoxel(values[2].toLowerCase());
+        bytesPerVoxel(values[2].toLowerCase(Locale.ROOT));
         String[] shares = values.clone();
         shares[6] = Float.toString(width);
         shares[7] = Float.toString(height);
@@ -188,7 +188,8 @@ final class AdvancedImageDeclarations {
                     + IrisColorFormats.stored(format.vkFormat()).token());
         }
         String sampler = token(values, 0).equals(NO_SAMPLER) ? "" : token(values, 0);
-        return new PackAdvancedResourcePlan.ImageSpec(name, sampler, token(values, 1), token(values, 2).toLowerCase(),
+        return new PackAdvancedResourcePlan.ImageSpec(name, sampler, token(values, 1),
+                token(values, 2).toLowerCase(Locale.ROOT),
                 token(values, 3), Boolean.parseBoolean(token(values, 4)), Boolean.parseBoolean(token(values, 5)),
                 size[0], size[1], size[2], sizeToken(values, 6), sizeToken(values, 7), sizeToken(values, 8),
                 bytes, status, deviations);

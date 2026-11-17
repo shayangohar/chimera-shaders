@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -290,7 +291,7 @@ final class SampledResourcePlanTest {
     private static void verifySnapshot(String snapshot) {
         assertTrue(!snapshot.contains("C:\\") && !snapshot.contains("/\\"),
                 "resource snapshot contains an absolute path");
-        assertTrue(!snapshot.toLowerCase().contains("timestamp"),
+        assertTrue(!snapshot.toLowerCase(Locale.ROOT).contains("timestamp"),
                 "resource snapshot contains unstable metadata");
     }
 

@@ -704,12 +704,14 @@ public final class ChimeraMainPass implements MainPass {
         this.pendingDepthClear = true;
     }
 
-    /** Reopens the current target with a depth clear; does nothing outside the level phase. */
+    /**
+     * Reopens the current target, applying the depth clear {@link #requestPendingDepthClear} asked for; does
+     * nothing outside the level phase.
+     */
     public void reopenWithPendingClear() {
         if (!this.levelPhase) {
             return;
         }
-        this.requestPendingDepthClear();
         this.rebindMainTarget();
     }
 

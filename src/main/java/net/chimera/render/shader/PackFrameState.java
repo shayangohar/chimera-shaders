@@ -368,17 +368,6 @@ final class PackFrameState {
         captureMatrices(capturedModelView, capturedProjection);
         captureHostState();
 
-        if (camera == null || minecraft == null) {
-            clearCameraState();
-            irisPlayer.clear();
-            irisWorld.clear();
-            selectedBlock.clear();
-            heldItems.clear();
-            clearWorldState();
-            evaluateCustomValues();
-            return;
-        }
-
         var position = camera.getPosition();
         advanceCamera(position.x, position.y, position.z, viewportChanged);
         irisPlayer.capture(minecraft, frameTime);

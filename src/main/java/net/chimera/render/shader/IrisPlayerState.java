@@ -137,14 +137,6 @@ final class IrisPlayerState implements FrameValueSource {
         this.yearTime[1] = now.toLocalDate().lengthOfYear() * 86400 - elapsed;
     }
 
-    /** Iris's values with no level or player. */
-    void clear() {
-        this.spectator = false;
-        this.health = this.maxHealth = this.hunger = this.armor = this.air = this.maxAir = -1.0f;
-        this.mood = this.constantMood = 0.0f;
-        set(this.bodyVector, null);
-    }
-
     @Override
     public Set<String> names() {
         return NAMES;

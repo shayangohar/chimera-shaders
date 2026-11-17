@@ -98,12 +98,10 @@ public final class PackUniformProvider {
         return UniformRegistry.resolve(name, glslType, INSTANCE.runtimeSettings.customDescriptors());
     }
 
-    /** Captures the frame before any pack pipeline writes. */
-    public static void beginFrame(Camera camera, float partialTick) {
-        beginFrame(camera, partialTick, null, null);
-    }
-
-    /** Captures the matrices supplied to LevelRenderer.renderLevel as well as game state. */
+    /**
+     * Captures the frame before any pack pipeline writes: game state and the matrices supplied to
+     * LevelRenderer.renderLevel.
+     */
     public static void beginFrame(Camera camera, float partialTick,
                                   Matrix4f modelView, Matrix4f projection) {
         setRenderingPhase(PackRenderingPhase.NONE);

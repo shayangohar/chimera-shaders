@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class TerrainGbufferContractTest {
     @Test
     void fixture() throws Exception {
-        Path fixture = TestPacks.fixture("m8_5/terrain_gbuffers");
-        Path baseline = TestPacks.baseline("m8_5");
+        Path fixture = TestPacks.fixture("sky_and_terrain/terrain_gbuffers");
+        Path baseline = TestPacks.baseline("sky_and_terrain");
 
         PackProbe.Analysis first = PackProbe.analyze(fixture);
         PackProbe.Analysis second = PackProbe.analyze(fixture);

@@ -24,14 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class SettingsResolutionTest {
     @Test
     void fixture() throws Exception {
-        Path fixture = TestPacks.fixture("m7_1/resolution");
+        Path fixture = TestPacks.fixture("resolution/resolution");
         Snapshot overworld = inspect(fixture, "minecraft:overworld");
         Snapshot nether = inspect(fixture, "minecraft:the_nether");
         Snapshot end = inspect(fixture, "minecraft:the_end");
         Snapshot custom = inspect(fixture, "custom:moon");
 
         verifyFixtureContract(overworld, nether, end, custom);
-        Path baseline = TestPacks.baseline("m7_1");
+        Path baseline = TestPacks.baseline("resolution");
         if (TestPacks.printBaselines()) {
             System.out.println(snapshotJson(overworld, nether, end, custom));
         } else {
@@ -236,7 +236,7 @@ final class SettingsResolutionTest {
         assertTrue(Files.isRegularFile(baseline), "baseline is missing: " + baseline);
         JsonObject root = JsonParser.parseString(Files.readString(baseline, StandardCharsets.UTF_8))
                 .getAsJsonObject();
-        assertEquals("m7_1/resolution", root.get("fixture").getAsString(),
+        assertEquals("resolution/resolution", root.get("fixture").getAsString(),
                 "baseline fixture");
         verifySnapshot(root.getAsJsonObject("overworld"), overworld, "overworld");
         verifySnapshot(root.getAsJsonObject("nether"), nether, "nether");
@@ -272,7 +272,7 @@ final class SettingsResolutionTest {
             Snapshot custom
     ) {
         StringBuilder result = new StringBuilder();
-        result.append("{\n  \"formatVersion\": 1,\n  \"fixture\": \"m7_1/resolution\",\n");
+        result.append("{\n  \"formatVersion\": 1,\n  \"fixture\": \"resolution/resolution\",\n");
         appendSnapshot(result, "overworld", overworld, true);
         appendSnapshot(result, "nether", nether, true);
         appendSnapshot(result, "end", end, true);

@@ -24,8 +24,8 @@ final class SampledResourcePlanTest {
     @Test
     void sampledResources() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supportedPath = root.resolve("m7_5/resources");
-        Path unsupportedPath = root.resolve("m7_5/unsupported_resources");
+        Path supportedPath = root.resolve("sampled_resources/resources");
+        Path unsupportedPath = root.resolve("sampled_resources/unsupported_resources");
 
         PackProbe.Analysis supported = PackProbe.analyze(supportedPath);
         PackProbe.Analysis supportedAgain = PackProbe.analyze(supportedPath);
@@ -45,7 +45,7 @@ final class SampledResourcePlanTest {
         assertTrue(imageDeviations.contains("ADVANCED_IMAGE_UNSUPPORTED:albedo"),
                 "the malformed image declaration was not named: " + imageDeviations);
 
-        verifyBaseline(root.resolve("baselines/m7_5.json"), supported, unsupported);
+        verifyBaseline(root.resolve("baselines/sampled_resources.json"), supported, unsupported);
     }
 
     /**

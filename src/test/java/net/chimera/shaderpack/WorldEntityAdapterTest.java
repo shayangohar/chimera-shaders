@@ -31,9 +31,9 @@ final class WorldEntityAdapterTest {
     @Test
     void worldEntityAdapter() throws Exception {
         Path fixtureRoot = TestPacks.fixtures();
-        Path fixture = fixtureRoot.resolve("m6_3/entities");
-        Path unsupported = fixtureRoot.resolve("m6_3/unsupported_entities");
-        Path baseline = TestPacks.baseline("m6_3");
+        Path fixture = fixtureRoot.resolve("entities/entities");
+        Path unsupported = fixtureRoot.resolve("entities/unsupported_entities");
+        Path baseline = TestPacks.baseline("entities");
 
         verifyEntityIdResolver(fixture.resolve("shaders"));
         verifySupportedFixture(fixture, baseline, "entities");

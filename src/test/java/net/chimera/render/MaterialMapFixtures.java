@@ -27,7 +27,7 @@ import static org.lwjgl.opengl.GL11.GL_REPEAT;
 final class MaterialMapFixtures {
     private MaterialMapFixtures() {}
 
-    static final Path FIXTURE = Path.of("src/test/resources/m87_material_pack");
+    static final Path FIXTURE = Path.of("src/test/resources/material_map_pack");
 
     static final int FALLBACK_NORMALS = 0xFFFF7F7F;
 
@@ -39,10 +39,10 @@ final class MaterialMapFixtures {
 
     static MaterialMapOwner.AtlasUpload layout() {
         return new MaterialMapOwner.AtlasUpload("minecraft:blocks", 64, 64, 4, List.of(
-                sprite("minecraft:block/m87_brick", 0, 0, 16, 16, 0, 0),
-                sprite("minecraft:block/m87_edge", 16, 0, 16, 16, 0, 0),
-                sprite("minecraft:block/m87_plain", 32, 0, 16, 16, 0, 0),
-                sprite("minecraft:block/m87_lab", 48, 0, 4, 4, 0, 0)));
+                sprite("minecraft:block/brick", 0, 0, 16, 16, 0, 0),
+                sprite("minecraft:block/edge", 16, 0, 16, 16, 0, 0),
+                sprite("minecraft:block/plain", 32, 0, 16, 16, 0, 0),
+                sprite("minecraft:block/lab", 48, 0, 4, 4, 0, 0)));
     }
 
     /**
@@ -52,10 +52,10 @@ final class MaterialMapFixtures {
      */
     static MaterialMapOwner.AtlasUpload layoutPadded() {
         return new MaterialMapOwner.AtlasUpload("minecraft:padded", 64, 64, 4, List.of(
-                sprite("minecraft:block/m87_brick", 8, 8, 16, 16, 2, 2),
-                sprite("minecraft:block/m87_edge", 28, 8, 16, 16, 2, 2),
-                sprite("minecraft:block/m87_plain", 48, 8, 8, 8, 2, 2),
-                sprite("minecraft:block/m87_lab", 8, 32, 4, 4, 1, 1)));
+                sprite("minecraft:block/brick", 8, 8, 16, 16, 2, 2),
+                sprite("minecraft:block/edge", 28, 8, 16, 16, 2, 2),
+                sprite("minecraft:block/plain", 48, 8, 8, 8, 2, 2),
+                sprite("minecraft:block/lab", 8, 32, 4, 4, 1, 1)));
     }
 
     static MaterialMapOwner.AtlasSprite sprite(String id, int x, int y, int w, int h) {
@@ -131,12 +131,12 @@ final class MaterialMapFixtures {
      */
     static MaterialMapOwner.AtlasUpload layoutAnimated(String location) {
         return new MaterialMapOwner.AtlasUpload(location, 32, 32, 3, List.of(
-                sprite("minecraft:block/m87_anim", 0, 0, 4, 4, 1, 1),
-                sprite("minecraft:block/m87_blend", 8, 0, 4, 4, 1, 1),
-                sprite("minecraft:block/m87_single", 16, 0, 4, 4, 0, 0),
-                sprite("minecraft:block/m87_badmeta", 0, 8, 4, 4, 0, 0),
-                sprite("minecraft:block/m87_baddims", 8, 8, 4, 4, 0, 0),
-                sprite("minecraft:block/m87_brick", 16, 16, 16, 16, 0, 0)));
+                sprite("minecraft:block/anim", 0, 0, 4, 4, 1, 1),
+                sprite("minecraft:block/blend", 8, 0, 4, 4, 1, 1),
+                sprite("minecraft:block/single", 16, 0, 4, 4, 0, 0),
+                sprite("minecraft:block/badmeta", 0, 8, 4, 4, 0, 0),
+                sprite("minecraft:block/baddims", 8, 8, 4, 4, 0, 0),
+                sprite("minecraft:block/brick", 16, 16, 16, 16, 0, 0)));
     }
 
     static final class FakeSet implements MaterialMapOwner.CompanionSet {

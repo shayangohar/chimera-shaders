@@ -1,0 +1,21 @@
+{
+  "fixture": "uniform_semantics/uniform_semantics",
+  "reportSha256": "2394cd9d0c82951847e6ca0eb32d3d3a66d58adb6db6a218fbbaf78d957163a8",
+  "sourceHashes": {
+    "composite.fsh": "ce696c93e38df544da3bbf7a3470afcdc4bf8c23ed118fa62711a68cf25b11e8",
+    "final.fsh": "5cb9494a788a703d7b8dfd8db593b8387def022fe3b0acd726270d748689b097"
+  },
+  "expectedExecutablePrograms": ["composite", "final"],
+  "expectedFallbackPrograms": [],
+  "expectedCustomUniforms": ["m73Component", "m73Derived", "m73Marker", "m73NonFinite"],
+  "expectedSettingsDeviations": [
+    "CUSTOM_EXPRESSION_ARITY:m73BadArity:smooth",
+    "CUSTOM_EXPRESSION_COMPONENT:m73BadComponent:frameTime.x",
+    "CUSTOM_EXPRESSION_UNKNOWN:m73BadConstant:BIOME_NOT_A_BIOME",
+    "CUSTOM_EXPRESSION_UNKNOWN:m73Unknown:missingM73Value",
+    "CUSTOM_EXPRESSION_UNKNOWN_FUNCTION:m73BadFunction:sinh",
+    "CUSTOM_VALUE_CYCLE:m73CycleA",
+    "CUSTOM_VALUE_DEPENDENCY_INVALID:m73CycleA",
+    "CUSTOM_VALUE_DEPENDENCY_INVALID:m73CycleB"
+  ]
+}

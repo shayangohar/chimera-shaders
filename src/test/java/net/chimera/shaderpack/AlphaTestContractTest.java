@@ -290,7 +290,7 @@ final class AlphaTestContractTest {
 
     @Test
     void convertedTerrain() {
-        Path fixture = Path.of("testpacks/m5_2/material");
+        Path fixture = Path.of("testpacks/materials/material");
         PackProbe.Analysis analysis = PackProbe.analyze(fixture);
         PackProgramPlan terrain = analysis.plan().program("gbuffers_terrain");
         assertTrue(terrain != null && terrain.executable(), "material terrain is not executable");
@@ -309,7 +309,7 @@ final class AlphaTestContractTest {
 
     @Test
     void fixedTerrain() {
-        Path fixture = Path.of("testpacks/m5_2/material");
+        Path fixture = Path.of("testpacks/materials/material");
         try (PackSource.LoadResult loaded = PackSource.loadResult(fixture)) {
             PackSettingsPlan settings = settings(Map.of(
                     "alphaTest.gbuffers_terrain", "GREATER 0.5"));
@@ -333,7 +333,7 @@ final class AlphaTestContractTest {
 
     @Test
     void waterRemainsUninstalled() {
-        Path fixture = Path.of("testpacks/m5_5/unsupported_water");
+        Path fixture = Path.of("testpacks/water/unsupported_water");
         try (PackSource.LoadResult loaded = PackSource.loadResult(fixture)) {
             PackSettingsPlan settings = settings(Map.of(
                     "alphaTest.gbuffers_water", "GREATER 0.5"));

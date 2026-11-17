@@ -242,7 +242,7 @@ final class MaterialPlanTest {
      */
     @Test
     void entityFixturePlan() throws Exception {
-        PackProbe.Analysis analysis = PackProbe.analyze(TestPacks.fixtures().resolve("m87_entity"));
+        PackProbe.Analysis analysis = PackProbe.analyze(TestPacks.fixtures().resolve("entity_material"));
         PackProgramPlan plan = analysis.plan().program("gbuffers_entities");
         assertTrue(plan != null, "entity fixture program is missing");
         assertTrue(plan.executable(), "entity fixture not executable: " + plan.deviations());
@@ -305,7 +305,7 @@ final class MaterialPlanTest {
     @Test
     void entityShadowContract() throws Exception {
         Path root = TestPacks.fixtures();
-        PackProbe.Analysis shadow = PackProbe.analyze(root.resolve("m87_entity_shadow"));
+        PackProbe.Analysis shadow = PackProbe.analyze(root.resolve("entity_material_shadow"));
         PackProgramPlan plan = shadow.plan().program("gbuffers_entities");
         assertTrue(plan != null, "shadow fixture program is missing");
         Map<String, Integer> slots = new TreeMap<>();

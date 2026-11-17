@@ -37,67 +37,68 @@ final class FixturePackTest {
 
     @Test
     void optifineLayout() {
-        verifySupported(TestPacks.fixture("m5_1/optifine"), "optifine");
+        verifySupported(TestPacks.fixture("pack_loading/optifine"), "optifine");
     }
 
     @Test
     void irisLayout() {
-        verifySupported(TestPacks.fixture("m5_1/iris"), "iris");
+        verifySupported(TestPacks.fixture("pack_loading/iris"), "iris");
     }
 
     @Test
     void unsupportedPrograms() {
-        verifyUnsupported(TestPacks.fixture("m5_1/unsupported"));
+        verifyUnsupported(TestPacks.fixture("pack_loading/unsupported"));
     }
 
     @Test
     void material() throws IOException {
-        verifyMaterial(TestPacks.fixture("m5_2/material"), TestPacks.baseline("m5_2"));
+        verifyMaterial(TestPacks.fixture("materials/material"), TestPacks.baseline("materials"));
     }
 
     @Test
     void unsupportedVertex() throws IOException {
-        verifyUnsupportedVertex(TestPacks.fixture("m5_2/unsupported_vertex"), TestPacks.baseline("m5_2"));
+        verifyUnsupportedVertex(TestPacks.fixture("materials/unsupported_vertex"), TestPacks.baseline("materials"));
     }
 
     @Test
     void liveUniforms() throws IOException {
-        verifyLiveUniforms(TestPacks.fixture("m5_3/live_uniforms"), TestPacks.baseline("m5_3"));
+        verifyLiveUniforms(TestPacks.fixture("live_uniforms/live_uniforms"), TestPacks.baseline("live_uniforms"));
     }
 
     @Test
     void unsupportedUniform() throws IOException {
-        verifyUnsupportedUniform(TestPacks.fixture("m5_3/unsupported_uniform"), TestPacks.baseline("m5_3"));
+        verifyUnsupportedUniform(TestPacks.fixture("live_uniforms/unsupported_uniform"),
+                TestPacks.baseline("live_uniforms"));
     }
 
     @Test
     void shadow() throws IOException {
-        verifyShadow(TestPacks.fixture("m5_4/shadow"), TestPacks.baseline("m5_4"));
+        verifyShadow(TestPacks.fixture("shadows/shadow"), TestPacks.baseline("shadows"));
     }
 
     @Test
     void unsupportedShadow() throws IOException {
-        verifyUnsupportedShadow(TestPacks.fixture("m5_4/unsupported_shadow"), TestPacks.baseline("m5_4"));
+        verifyUnsupportedShadow(TestPacks.fixture("shadows/unsupported_shadow"), TestPacks.baseline("shadows"));
     }
 
     @Test
     void water() throws IOException {
-        verifyWater(TestPacks.fixture("m5_5/water"), TestPacks.baseline("m5_5"));
+        verifyWater(TestPacks.fixture("water/water"), TestPacks.baseline("water"));
     }
 
     @Test
     void unsupportedWater() throws IOException {
-        verifyUnsupportedWater(TestPacks.fixture("m5_5/unsupported_water"), TestPacks.baseline("m5_5"));
+        verifyUnsupportedWater(TestPacks.fixture("water/unsupported_water"), TestPacks.baseline("water"));
     }
 
     @Test
     void postChain() throws IOException {
-        verifyPostChain(TestPacks.fixture("m5_6/post_chain"), TestPacks.baseline("m5_6"));
+        verifyPostChain(TestPacks.fixture("post_chain/post_chain"), TestPacks.baseline("post_chain"));
     }
 
     @Test
     void unsupportedTargets() throws IOException {
-        verifyUnsupportedTargets(TestPacks.fixture("m5_6/unsupported_targets"), TestPacks.baseline("m5_6"));
+        verifyUnsupportedTargets(TestPacks.fixture("post_chain/unsupported_targets"), TestPacks.baseline("post_chain"));
     }
 
     @Test

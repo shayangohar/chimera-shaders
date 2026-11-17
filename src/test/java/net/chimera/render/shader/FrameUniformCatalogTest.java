@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class FrameUniformCatalogTest {
     @Test
     void fixturePack() throws Exception {
-        verifyFixture(TestPacks.fixture("m6_2/uniform_catalog"), TestPacks.baseline("m6_2"));
+        verifyFixture(TestPacks.fixture("uniform_catalog/uniform_catalog"), TestPacks.baseline("uniform_catalog"));
     }
 
     /** Iris 1.21.1's CommonUniforms serves is_sneaking and its siblings but no is_alive, which GL leaves zero. */

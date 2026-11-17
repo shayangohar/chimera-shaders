@@ -28,7 +28,7 @@ final class TerrainMaterialBridgeTest {
     @Test
     void terrainMaterialBridge() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supportedRoot = root.resolve("m8_1/terrain_water");
+        Path supportedRoot = root.resolve("terrain_water/terrain_water");
         PackProbe.Analysis analysis = PackProbe.analyze(supportedRoot);
         PackPlan plan = analysis.plan();
         assertTrue(plan != null, "fixture plan is missing");
@@ -44,7 +44,7 @@ final class TerrainMaterialBridgeTest {
         assertTrue(plan.shouldAttempt("gbuffers_terrain"), "modern terrain was rejected by shouldAttempt");
         assertTrue(plan.shouldAttempt("gbuffers_water"), "modern water was rejected by shouldAttempt");
 
-        Path unsupportedRoot = root.resolve("m8_1/unsupported_terrain");
+        Path unsupportedRoot = root.resolve("terrain_water/unsupported_terrain");
         PackProbe.Analysis unsupported = PackProbe.analyze(unsupportedRoot);
         PackProgramPlan unsupportedPlan = require(unsupported.plan(), "gbuffers_terrain");
         assertTrue(!unsupportedPlan.executable(), "unsupported modern terrain was installed");
@@ -59,8 +59,8 @@ final class TerrainMaterialBridgeTest {
             printBaseline("unsupported_terrain", unsupported);
             return;
         }
-        verifyBaseline(analysis, root.resolve("baselines/m8_1.json"), "terrain_water");
-        verifyBaseline(unsupported, root.resolve("baselines/m8_1.json"), "unsupported_terrain");
+        verifyBaseline(analysis, root.resolve("baselines/terrain_water.json"), "terrain_water");
+        verifyBaseline(unsupported, root.resolve("baselines/terrain_water.json"), "unsupported_terrain");
     }
 
     private static void verifyBaseline(

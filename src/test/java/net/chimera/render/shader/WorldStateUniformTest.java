@@ -38,7 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class WorldStateUniformTest {
     @Test
     void fixturePack() throws Exception {
-        verifyFixture(TestPacks.fixture("m7_3/uniform_semantics"), TestPacks.baseline("m7_3"));
+        verifyFixture(TestPacks.fixture("uniform_semantics/uniform_semantics"),
+                TestPacks.baseline("uniform_semantics"));
     }
 
     @Test

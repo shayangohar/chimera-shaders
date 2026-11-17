@@ -18,7 +18,7 @@ final class SkyCloudAdapterTest {
     @Test
     void skyCloudAdapters() throws Exception {
         Path root = TestPacks.fixtures();
-        Path fixture = root.resolve("m8_5/sky_clouds");
+        Path fixture = root.resolve("sky_and_terrain/sky_clouds");
         if (!Files.isDirectory(fixture)) {
             throw new AssertionError("fixture is missing: " + fixture);
         }

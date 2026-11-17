@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class MaterialMapsTest {
     @Test
     void labPbrReduction() throws Exception {
-        int[] lab = readFixtureAbgr("assets/minecraft/textures/block/m87_lab_s.png");
+        int[] lab = readFixtureAbgr("assets/minecraft/textures/block/lab_s.png");
         assertEquals(4 * 4, lab.length, "lab fixture size");
 
         int[] level1 = MaterialMapPixels.reduceLabPbr(lab, 4, 4, 2, 2);
@@ -78,12 +78,12 @@ final class MaterialMapsTest {
 
     @Test
     void scaling() throws Exception {
-        int[] brickN = readFixtureAbgr("assets/minecraft/textures/block/m87_brick_n.png");
+        int[] brickN = readFixtureAbgr("assets/minecraft/textures/block/brick_n.png");
         int[] down = MaterialMapPixels.scale(brickN, 32, 32, 16, 16);
         assertEquals(pack(255, 200, 100, 0), down[0], "point downscale origin");
         assertEquals(pack(255, 193, 105, 87), down[7 * 16 + 5], "point downscale interior");
 
-        int[] brickS = readFixtureAbgr("assets/minecraft/textures/block/m87_brick_s.png");
+        int[] brickS = readFixtureAbgr("assets/minecraft/textures/block/brick_s.png");
         int[] up = MaterialMapPixels.scale(brickS, 8, 8, 16, 16);
         assertEquals(pack(255, 128, 0, 0), up[0], "point upscale origin");
         assertEquals(pack(255, 128, 32, 32), up[2 * 16 + 2], "point upscale interior");
@@ -245,7 +245,7 @@ final class MaterialMapsTest {
     @Test
     void failureIsolation() throws Exception {
         Map<String, byte[]> files = fixtureFiles();
-        files.put("minecraft:textures/block/m87_edge_n.png", "not a png".getBytes(StandardCharsets.UTF_8));
+        files.put("minecraft:textures/block/edge_n.png", "not a png".getBytes(StandardCharsets.UTF_8));
         FakeFactory factory = new FakeFactory();
         MaterialMapOwner owner = MaterialMapOwner.withImages(markerImage(),
                 markerImage(), factory);
@@ -275,7 +275,7 @@ final class MaterialMapsTest {
             owner.noteAtlasUpload(new MaterialMapOwner.AtlasUpload("minecraft:empty", 64, 64, 1,
                     List.of()), baseA);
             owner.noteAtlasUpload(new MaterialMapOwner.AtlasUpload("minecraft:zero", 64, 64, 1,
-                    List.of(sprite("minecraft:block/m87_brick", 0, 0, 0, 0))), baseA);
+                    List.of(sprite("minecraft:block/brick", 0, 0, 0, 0))), baseA);
             // the latest upload per location wins
             owner.noteAtlasUpload(layout(), baseA);
             owner.noteAtlasUpload(layout(), baseA);
@@ -364,12 +364,12 @@ final class MaterialMapsTest {
         VulkanImage stranger = markerImage();
         MaterialMapOwner.SimpleTextureSource source = () -> List.of(
                 new MaterialMapOwner.SimpleEntry(mob, "minecraft",
-                        SimpleTextureIndex.relativeSpritePath("textures/entity/m87_mob.png")));
+                        SimpleTextureIndex.relativeSpritePath("textures/entity/mob.png")));
         assertEquals("entity/creeper",
                 SimpleTextureIndex.relativeSpritePath("textures/entity/creeper.png"),
                 "simple texture extension was not removed");
-        assertEquals("entity/m87_mob",
-                SimpleTextureIndex.relativeSpritePath("textures/entity/m87_mob"),
+        assertEquals("entity/mob",
+                SimpleTextureIndex.relativeSpritePath("textures/entity/mob"),
                 "simple path is not atlas-relative");
         assertEquals("optifine/cit/ruby_sword",
                 SimpleTextureIndex.relativeSpritePath("optifine/cit/ruby_sword"),
@@ -383,7 +383,7 @@ final class MaterialMapsTest {
             owner.pumpPendingBuilds(lookup, MaterialMapFixtures::decodeImageIO, source);
             // one properties probe plus exactly the two sibling maps
             assertEquals(3, lookup.opens, "simple decode did not read exactly three files");
-            FakeSet normals = factory.set("minecraft:entity/m87_mob",
+            FakeSet normals = factory.set("minecraft:entity/mob",
                     MaterialMapOwner.MaterialMapKind.NORMALS);
             assertEquals(1, normals.levels.size(), "simple companion is not single-level");
             assertEquals(8, normals.levels.get(0).width(), "simple companion width");
@@ -424,7 +424,7 @@ final class MaterialMapsTest {
         VulkanImage mob = markerImage();
         MaterialMapOwner.SimpleTextureSource source = () -> List.of(
                 new MaterialMapOwner.SimpleEntry(mob, "minecraft",
-                        SimpleTextureIndex.relativeSpritePath("textures/entity/m87_mob.png")));
+                        SimpleTextureIndex.relativeSpritePath("textures/entity/mob.png")));
         try {
             owner.noteAtlasUpload(layout(), baseA);
             owner.resolveDrawMaterial(contextFor(mob, 0L), "normals");
@@ -433,7 +433,7 @@ final class MaterialMapsTest {
             assertTrue(owner.companionFor(mob, "normals") != null, "simple map did not resolve");
             FakeSet setA = factory.set("minecraft:blocks",
                     MaterialMapOwner.MaterialMapKind.NORMALS);
-            FakeSet setMob = factory.set("minecraft:entity/m87_mob",
+            FakeSet setMob = factory.set("minecraft:entity/mob",
                     MaterialMapOwner.MaterialMapKind.NORMALS);
 
             var listener = new ChimeraMaterialReloadListener(() -> owner);
@@ -553,7 +553,7 @@ final class MaterialMapsTest {
         try {
             int siblingBefore = lookup.siblingOpens;
             owner.noteAtlasUpload(new MaterialMapOwner.AtlasUpload("minecraft:skewed", 64, 64, 1,
-                    List.of(sprite("minecraft:block/m87_brick", 0, 0, 16, 16, 2, 3))),
+                    List.of(sprite("minecraft:block/brick", 0, 0, 16, 16, 2, 3))),
                             markerImage());
             owner.pumpPendingBuilds(lookup, MaterialMapFixtures::decodeImageIO);
             assertEquals(siblingBefore, lookup.siblingOpens, "asymmetric sprite read files");

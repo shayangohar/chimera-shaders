@@ -23,9 +23,9 @@ final class CoreFamilyAdapterTest {
     @Test
     void coreFamilyAdapters() throws Exception {
         Path fixtureRoot = TestPacks.fixtures();
-        Path supported = fixtureRoot.resolve("m7_6/families");
-        Path unsupported = fixtureRoot.resolve("m7_6/unsupported_families");
-        Path baseline = TestPacks.baseline("m7_6");
+        Path supported = fixtureRoot.resolve("core_families/families");
+        Path unsupported = fixtureRoot.resolve("core_families/unsupported_families");
+        Path baseline = TestPacks.baseline("core_families");
 
         verifySupported(supported, baseline);
         verifyUnsupported(unsupported, baseline);
@@ -35,7 +35,7 @@ final class CoreFamilyAdapterTest {
     @Test
     void blockTranslucentOwnTargets(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
-        Path families = TestPacks.fixture("m7_6/families/shaders");
+        Path families = TestPacks.fixture("core_families/families/shaders");
         Files.copy(families.resolve("gbuffers_block.vsh"), shaders.resolve("gbuffers_block.vsh"));
         Files.copy(families.resolve("gbuffers_block.fsh"), shaders.resolve("gbuffers_block.fsh"));
         Files.copy(families.resolve("gbuffers_block.vsh"), shaders.resolve("gbuffers_block_translucent.vsh"));

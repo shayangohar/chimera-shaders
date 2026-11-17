@@ -1,0 +1,183 @@
+{
+  "formatVersion": 1,
+  "fixtures": {
+    "material": {
+      "reportSha256": "636d2be99a77e14ca61a5ea6b1ebe241188b987a5c95f1b96abe9714e0d26c88",
+      "expectedPassInventory": [
+        "composite",
+        "final",
+        "gbuffers_terrain"
+      ],
+      "expectedStages": {
+        "composite": [
+          "fragment"
+        ],
+        "final": [
+          "fragment"
+        ],
+        "gbuffers_block": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_block_translucent": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_damagedblock": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_terrain": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_water": [
+          "fragment",
+          "vertex"
+        ]
+      },
+      "expectedDeviations": {
+        "global": [
+          "SHADOW_SETTING_LOGGED_ONLY:shadowMapResolution"
+        ],
+        "composite": [],
+        "final": [],
+        "gbuffers_block": [
+          "BLOCK_ENTITY_ID_DEFAULTED",
+          "BLOCK_VERTEX_BRIDGE",
+          "ENTITY_STATE_FIXED_TO_HOST",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "FAMILY_ADAPTER_INSTALLED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_block->gbuffers_terrain"
+        ],
+        "gbuffers_block_translucent": [
+          "BLOCK_TRANSLUCENT_INSTALLED",
+          "BLOCK_VERTEX_BRIDGE",
+          "ENTITY_STATE_FIXED_TO_HOST",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "FAMILY_ADAPTER_INSTALLED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_block_translucent->gbuffers_terrain"
+        ],
+        "gbuffers_damagedblock": [
+          "BLOCK_VERTEX_BRIDGE",
+          "DAMAGED_BLOCK_INSTALLED",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_damagedblock->gbuffers_terrain"
+        ],
+        "gbuffers_terrain": [
+          "ALPHA_TEST_DYNAMIC:gbuffers_terrain",
+          "LEGACY_TERRAIN_VERTEX_BRIDGE",
+          "LIVE_UNIFORM_BRIDGE"
+        ],
+        "gbuffers_water": [
+          "ALPHA_TEST_DYNAMIC:gbuffers_water",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_water->gbuffers_terrain",
+          "TRANSLUCENT_STATE_FIXED_TO_HOST",
+          "TRANSLUCENT_VERTEX_BRIDGE"
+        ]
+      },
+      "sourceHashes": {
+        "block.properties": "b72819db1b2295d095c224fa9327aa6c9e3aedf2310c1a5ea576f7a2d50c70cd",
+        "composite.fsh": "394bcce27fe05324e1d2b24c4b59e9f325f3e6bf2d851ac17668d65fcfd994c9",
+        "final.fsh": "5cb9494a788a703d7b8dfd8db593b8387def022fe3b0acd726270d748689b097",
+        "gbuffers_terrain.fsh": "f74bf3c9f623377edeb9c382caaa69cd3f19cc4c6c68832e0bb00611546cb5f6",
+        "gbuffers_terrain.vsh": "0bab9914e674f494babbc3efccef0d21ba86f817882952778de980115709c89e",
+        "shaders.json": "7642ffb0f3f447ab61006a34da56bb0020668e76e2ae20a5b9cf32c91f3ad066",
+        "shaders.properties": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "unsupported_vertex": {
+      "reportSha256": "b777e2bad398c56cb19c89bd0a760356aedfb6ce5060bf8c6463e654bd1335da",
+      "expectedPassInventory": [
+        "composite",
+        "final",
+        "gbuffers_terrain"
+      ],
+      "expectedStages": {
+        "composite": [
+          "fragment"
+        ],
+        "final": [
+          "fragment"
+        ],
+        "gbuffers_block": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_block_translucent": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_damagedblock": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_terrain": [
+          "fragment",
+          "vertex"
+        ],
+        "gbuffers_water": [
+          "fragment",
+          "vertex"
+        ]
+      },
+      "expectedDeviations": {
+        "global": [
+          "SHADOW_SETTING_LOGGED_ONLY:shadowMapResolution"
+        ],
+        "composite": [],
+        "final": [],
+        "gbuffers_block": [
+          "BLOCK_ENTITY_ID_DEFAULTED",
+          "BLOCK_VERTEX_BRIDGE",
+          "ENTITY_STATE_FIXED_TO_HOST",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "FAMILY_ADAPTER_INSTALLED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_block->gbuffers_terrain"
+        ],
+        "gbuffers_block_translucent": [
+          "BLOCK_TRANSLUCENT_INSTALLED",
+          "BLOCK_VERTEX_BRIDGE",
+          "ENTITY_STATE_FIXED_TO_HOST",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "FAMILY_ADAPTER_INSTALLED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_block_translucent->gbuffers_terrain"
+        ],
+        "gbuffers_damagedblock": [
+          "BLOCK_VERTEX_BRIDGE",
+          "DAMAGED_BLOCK_INSTALLED",
+          "ENTITY_VERTEX_FORMAT_EXTENDED",
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_damagedblock->gbuffers_terrain"
+        ],
+        "gbuffers_terrain": [
+          "LIVE_UNIFORM_BRIDGE",
+          "TERRAIN_VERTEX_BRIDGE_UNSUPPORTED",
+          "TERRAIN_VERTEX_CONVERSION_FAILED:unsupported_terrain_vertex_feature_gl_Normal"
+        ],
+        "gbuffers_water": [
+          "LIVE_UNIFORM_BRIDGE",
+          "PROGRAM_ALIAS_RECORDED:gbuffers_water->gbuffers_terrain",
+          "TRANSLUCENT_STATE_FIXED_TO_HOST",
+          "TRANSLUCENT_VERTEX_BRIDGE_UNSUPPORTED",
+          "TRANSLUCENT_VERTEX_CONVERSION_FAILED:unsupported_terrain_vertex_feature_gl_Normal"
+        ]
+      },
+      "sourceHashes": {
+        "block.properties": "0066924d4a5af58bd8bdd65e19e45ed7c23a7d0bc22e3a05190d6d3697261777",
+        "composite.fsh": "394bcce27fe05324e1d2b24c4b59e9f325f3e6bf2d851ac17668d65fcfd994c9",
+        "final.fsh": "5cb9494a788a703d7b8dfd8db593b8387def022fe3b0acd726270d748689b097",
+        "gbuffers_terrain.fsh": "b446ea954b6912b36842c3cd5f5f79f35964db29f373d0f89fff02cee5256580",
+        "gbuffers_terrain.vsh": "c8d7b75e5b163bc0c0d4151359855de83a6c2a2a770b3fd62bee354064769308",
+        "shaders.json": "7642ffb0f3f447ab61006a34da56bb0020668e76e2ae20a5b9cf32c91f3ad066",
+        "shaders.properties": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  }
+}

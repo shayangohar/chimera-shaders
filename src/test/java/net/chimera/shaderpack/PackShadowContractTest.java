@@ -12,7 +12,7 @@ final class PackShadowContractTest {
     @Test
     void shadowContract() {
         Path root = TestPacks.fixtures();
-        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("m8_3/shadow"));
+        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("shadow_contract/shadow"));
         PackProgramPlan shadow = analysis.plan().program("shadow");
         assertTrue(shadow != null, "shadow program was not discovered");
         assertTrue(shadow.executable(), "modern shadow was rejected: " + shadow.deviations()

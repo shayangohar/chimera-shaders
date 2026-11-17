@@ -21,12 +21,7 @@ captures/
 scratch/
 logs/
 
-# Development scripts for one machine; the build needs only tools/metrics and tools/bytecode-diff
-tools/*.ps1
-tools/*.cmd
-tools/reforged/
-
-# Corpus packs are third-party, many all-rights-reserved: commit only their pins
+# Corpus packs are third-party and large
 testpacks/corpus/packs/
 
 # OS

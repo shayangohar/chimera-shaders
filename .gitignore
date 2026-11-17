@@ -3,6 +3,7 @@
 build/
 out/
 classes/
+run/
 
 # IDE
 .idea/
@@ -15,18 +16,18 @@ bin/
 .project
 .settings/
 
-# Local runtime evidence and generated analysis outputs
-captures/*
-!captures/.gitkeep
-logs/
-mappings/
+# Local development
+captures/
 scratch/
-tools/_chimera-pack-agent*.jar
-# Corpus packs are third-party, many all-rights-reserved: commit only their pins.
-testpacks/corpus/packs/
+logs/
 
-# Fabric
-run/
+# Development scripts for one machine; the build needs only tools/metrics and tools/bytecode-diff
+tools/*.ps1
+tools/*.cmd
+tools/reforged/
+
+# Corpus packs are third-party, many all-rights-reserved: commit only their pins
+testpacks/corpus/packs/
 
 # OS
 .DS_Store

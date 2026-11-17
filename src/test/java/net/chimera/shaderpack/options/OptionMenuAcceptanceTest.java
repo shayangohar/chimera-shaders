@@ -271,7 +271,8 @@ final class OptionMenuAcceptanceTest {
 
     @Test
     void oneProfileIsItsOwnNeighbourAndNoProfilesHaveNone() {
-        PackProfiles.ProfileMatch one = profiles("profile.ONLY=QUALITY=2\n").match(OptionValues.of(PROFILE_OPTIONS, Map.of()));
+        PackProfiles.ProfileMatch one = profiles("profile.ONLY=QUALITY=2\n")
+                .match(OptionValues.of(PROFILE_OPTIONS, Map.of()));
         assertEquals("ONLY", one.current().orElseThrow().name());
         assertEquals("ONLY", one.next().name());
         assertEquals("ONLY", one.previous().name());

@@ -60,6 +60,11 @@ public final class CompileErrorLocation {
      * joined by "or". Null when none or more than {@link #MOST_MATCHES} match, or the line is too short to tell.
      */
     static String authoredLine(String translated, Path shadersDir) {
+        return authoredLine(translated, shadersDir, MOST_FILES);
+    }
+
+    /** As {@link #authoredLine(String, Path)}, reading the first {@code mostFiles} sources in path order. */
+    static String authoredLine(String translated, Path shadersDir, int mostFiles) {
         String wanted = translated.strip();
         if (wanted.length() < SHORTEST_MATCHED_LINE || shadersDir == null || !Files.isDirectory(shadersDir)) {
             return null;
@@ -67,7 +72,7 @@ public final class CompileErrorLocation {
         List<String> found = new ArrayList<>();
         try (Stream<Path> files = Files.walk(shadersDir)) {
             for (Path file : files.filter(Files::isRegularFile).filter(CompileErrorLocation::isSource)
-                    .limit(MOST_FILES).sorted().toList()) {
+                    .sorted().limit(mostFiles).toList()) {
                 List<String> lines = readLines(file);
                 for (int index = 0; index < lines.size(); index++) {
                     if (!lines.get(index).strip().equals(wanted)) continue;

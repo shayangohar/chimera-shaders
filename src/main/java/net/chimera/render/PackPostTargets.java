@@ -82,10 +82,8 @@ public final class PackPostTargets {
     private final PackTemporalState temporal = new PackTemporalState();
     /** Images whose sampler reads their generated mip chain until the frame ends. */
     private final Set<VulkanImage> mipSampling = Collections.newSetFromMap(new IdentityHashMap<>());
-    /** The flip plan's step the frame is at (beginStep), and the graph step and plan of the drawing pass. */
+    /** The flip plan's step the frame is at (beginStep). */
     private PackFlipPlan.Step currentFlipStep;
-    private TargetStep currentStep;
-    private PostTargetPlan currentPlan;
 
     /**
      * Installs the graph and allocates the sides it needs: main for each target, and alt when the flip plan
@@ -180,21 +178,6 @@ public final class PackPostTargets {
      */
     public boolean carriesColortex0() {
         return this.configured && this.sides.carriesColortex0();
-    }
-
-    /** Invalidates target 0 before pack geometry initializes it at render-pass load. */
-    public void prepareGeometryTarget(VkCommandBuffer commandBuffer) {
-        if (!this.configured || !this.used[0]) {
-            throw new IllegalStateException("pack geometry target 0 is unavailable");
-        }
-        this.valid[0] = false;
-        this.sourceImages[0] = null;
-    }
-
-    public VulkanImage geometryTarget0() {
-        VulkanImage image = this.configured && this.used[0] ? graphImage(0, this.sides.readSide(0)) : null;
-        trace("geometryTarget0 configured=" + this.configured + " used=" + this.used[0] + " image=" + imageId(image));
-        return image;
     }
 
     /** Starts a geometry window for the declared targets, not necessarily including HDR. */
@@ -322,15 +305,6 @@ public final class PackPostTargets {
         }
     }
 
-    /** Commits target 0 after the scene seed merged host pixels. */
-    public void commitSceneSeed(VulkanImage target) {
-        if (target == null || target != geometryTarget0()) {
-            throw new IllegalStateException("scene seed target does not match active target 0");
-        }
-        this.valid[0] = true;
-        this.sourceImages[0] = target;
-    }
-
     /**
      * Invalidates a skipped stage's outputs for the rest of the frame, keeping their images.
      *
@@ -456,8 +430,6 @@ public final class PackPostTargets {
             throw new IllegalStateException("post step was not begun: " + post.name());
         }
         Arrays.fill(this.pendingImages, null);
-        this.currentStep = step;
-        this.currentPlan = plan;
         int attachmentCount = plan.targetSlots().size();
         int deviceLimit = deviceMaxColorAttachments();
         if (!deviceSupportsMrt(attachmentCount, deviceLimit)) {
@@ -772,8 +744,6 @@ public final class PackPostTargets {
         this.graph = null;
         this.sides = null;
         this.currentFlipStep = null;
-        this.currentStep = null;
-        this.currentPlan = null;
         this.configured = false;
         this.temporal.reset();
         MrtPipelineContext.end();
@@ -839,14 +809,12 @@ public final class PackPostTargets {
     private float[] clearColor(int target) {
         if (target == 0 && this.colortex0Clear != null) return this.colortex0Clear.clone();
         TargetSpec spec = this.specs[target];
-        return spec == null ? new float[] {0.0F, 0.0F, 0.0F, 0.0F} : spec.clearColorCopy();
+        return spec == null ? new float[] {0.0F, 0.0F, 0.0F, 0.0F} : spec.clearColor();
     }
 
     private void clearPendingState() {
         Arrays.fill(this.pendingImages, null);
         this.rendering = false;
-        this.currentStep = null;
-        this.currentPlan = null;
     }
 
     private void finishRendererState() {

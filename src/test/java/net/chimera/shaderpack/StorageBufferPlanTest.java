@@ -208,9 +208,9 @@ final class StorageBufferPlanTest {
                             .findFirst().orElseThrow();
                     assertEquals(VK_SHADER_STAGE_VERTEX_BIT, sampler.stageMask(),
                             "Vertex-only resource was widened in the plan");
-                    String vertex = PackDescriptorContracts.bindStorageImages(shadow.convertedVertex(), "shadow",
+                    String vertex = PackDescriptorContracts.bindStorageImages(shadow.convertedVertex(),
                             resources, layout, VK_SHADER_STAGE_VERTEX_BIT);
-                    String fragment = PackDescriptorContracts.bindStorageImages(shadow.convertedFragment(), "shadow",
+                    String fragment = PackDescriptorContracts.bindStorageImages(shadow.convertedFragment(),
                             resources, layout, VK_SHADER_STAGE_FRAGMENT_BIT);
                     assertTrue(!fragment.contains("uniform sampler3D volume_sampler"),
                             "Vertex-only advanced sampler leaked into final shadow fragment; rewrite=" + fragment);
@@ -285,6 +285,21 @@ final class StorageBufferPlanTest {
         assertEquals(null, PackAdvancedResourcePlan.layoutMismatch(layout, shadow.convertedVertex(),
                 shadow.convertedFragment(), baselineShadowBuilderDescriptors(shadow, resources)),
                 "the layout must accept both stages' blocks at the buffer's binding");
+    }
+
+    /**
+     * Iris 1.21.1 reads storage buffers only from bufferObject.N, so an ssbo. or storage. key is unsupported
+     * and nothing is planned for it, not even a buffer left for a pass compute.
+     */
+    @Test
+    void anOtherStorageKeyIsUnsupportedOnly(@TempDir Path root) throws Exception {
+        Path shaders = Files.createDirectories(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("shaders.properties"), "ssbo.0=64\nstorage.1=32\n");
+        List<String> deviations = new ArrayList<>();
+        var buffers = StorageBufferDeclarations.parseBuffers(PackSettingsPlan.parse(List.of(), shaders), deviations);
+        assertTrue(buffers.isEmpty(), buffers.toString());
+        assertEquals(List.of("STORAGE_BUFFER_UNSUPPORTED_PROPERTY:ssbo.0",
+                "STORAGE_BUFFER_UNSUPPORTED_PROPERTY:storage.1"), deviations);
     }
 
     /**
@@ -434,9 +449,7 @@ final class StorageBufferPlanTest {
             assertTrue(SelectorNamespace.isAddressable(sampler.slot()),
                     label + ": unaddressable composite sampler " + sampler);
         }
-        if (shadow != null && shadow.executable()) {
-            verifyShadowBuilderParity(label, shadow, resources);
-        }
+        verifyShadowBuilderParity(label, shadow, resources);
         for (PackProgramPlan post : pack.programs()) {
             if (!post.executable() || !PostTargetPlan.isPostProgramName(post.name())) continue;
             verifyPostBuilderParity(packName, label, post, resources);
@@ -604,10 +617,10 @@ final class StorageBufferPlanTest {
             String vertex;
             String fragment;
             try {
-                vertex = PackDescriptorContracts.bindStorageImages(shadow.convertedVertex(), "shadow", resources,
+                vertex = PackDescriptorContracts.bindStorageImages(shadow.convertedVertex(), resources,
                         layout,
                         VK_SHADER_STAGE_VERTEX_BIT);
-                fragment = PackDescriptorContracts.bindStorageImages(shadow.convertedFragment(), "shadow", resources,
+                fragment = PackDescriptorContracts.bindStorageImages(shadow.convertedFragment(), resources,
                         layout,
                         VK_SHADER_STAGE_FRAGMENT_BIT);
             } catch (PackPipelines.PreparationFailure failure) {
@@ -759,8 +772,7 @@ final class StorageBufferPlanTest {
                 + "vec4 unreachable() { return texture2D(helperSampler, vec2(0.0)); }\n"
                 + "void main() { gl_FragColor = vec4(1.0); }\n";
         PostTargetPlan.ParseResult targetResult = PostTargetPlan.parse("composite", deadHelperSource);
-        UniformRegistry.ProgramInterface deadPlan = InterfacePlanner.planPreparedPost(
-                deadHelperSource, targetResult.plan());
+        UniformRegistry.ProgramInterface deadPlan = InterfacePlanner.planPreparedPost(deadHelperSource);
         String deadConverted = FragmentConverter.convertPostFragment(
                 deadHelperSource, null, deadPlan, targetResult.plan());
         assertTrue(deadConverted != null && !deadConverted.contains("unreachable")
@@ -774,8 +786,7 @@ final class StorageBufferPlanTest {
                 + "uniform sampler2D helperSampler;\n"
                 + "vec4 reachable() { return texture2D(helperSampler, vec2(0.0)); }\n"
                 + "void main() { gl_FragColor = reachable(); }\n";
-        UniformRegistry.ProgramInterface livePlan = InterfacePlanner.planPreparedPost(
-                liveHelperSource, PostTargetPlan.parse("composite", liveHelperSource).plan());
+        UniformRegistry.ProgramInterface livePlan = InterfacePlanner.planPreparedPost(liveHelperSource);
         assertTrue(livePlan.deviations().contains("SAMPLER_NOT_MAPPED:helperSampler"),
                 "reachable unmapped sampler did not fail closed");
     }
@@ -851,8 +862,7 @@ final class StorageBufferPlanTest {
         UniformRegistry.ProgramInterface callablePlan = InterfacePlanner.planPreparedPost(
                 "#version 120\nuniform sampler2D textureAtlas;\n"
                         + "void main() { ivec2 size = textureSize(textureAtlas, 0); "
-                        + "gl_FragColor = vec4(float(size.x)); }",
-                PostTargetPlan.parse("composite", "#version 120\nDRAWBUFFERS:0").plan());
+                        + "gl_FragColor = vec4(float(size.x)); }");
         assertTrue(callablePlan.deviations().stream().noneMatch(value ->
                         value.equals("UNIFORM_IMPLICIT_DECLARATION:textureSize")),
                 "textureSize was added to the generated UBO");
@@ -873,9 +883,7 @@ final class StorageBufferPlanTest {
                         && normalizedFog.source().contains("uniform float iris_FogStart;")
                         && normalizedFog.source().contains("uniform float iris_FogEnd;"),
                 "legacy gl_Fog fields were not normalized");
-        UniformRegistry.ProgramInterface fogPlan = InterfacePlanner.planPreparedPost(
-                normalizedFog.source(),
-                PostTargetPlan.parse("composite", fogSource).plan());
+        UniformRegistry.ProgramInterface fogPlan = InterfacePlanner.planPreparedPost(normalizedFog.source());
         assertTrue(fogPlan.uniforms().stream().anyMatch(value -> value.name().equals("iris_FogStart"))
                         && fogPlan.uniforms().stream().anyMatch(value -> value.name().equals("iris_FogEnd"))
                         && fogPlan.executable(),

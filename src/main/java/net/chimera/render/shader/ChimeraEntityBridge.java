@@ -20,6 +20,7 @@ import net.vulkanmod.vulkan.texture.VulkanImage;
 
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -152,7 +153,8 @@ public final class ChimeraEntityBridge {
                 status(lanes.translucentParticle()));
         if (!lanes.hostLayout().isEmpty()) {
             ChimeraMod.LOGGER.debug("[chimera] family bridge: host-layout lanes={}",
-                    lanes.hostLayout().keySet().stream().map(family -> family.name().toLowerCase()).toList());
+                    lanes.hostLayout().keySet().stream()
+                            .map(family -> family.name().toLowerCase(Locale.ROOT)).toList());
         }
         ChimeraMod.LOGGER.debug("[chimera] family bridge: shadow casters={}, moving blocks={}, block entities={}",
                 status(lanes.shadowEntities()), status(lanes.shadowMovingBlock()), status(lanes.shadowBlock()));
@@ -582,10 +584,6 @@ public final class ChimeraEntityBridge {
         return enabled && drawActive;
     }
 
-    public static Family activeFamily() {
-        return activeFamily;
-    }
-
     /** The open draw's pack pipeline, or null when no draw is open. */
     public static GraphicsPipeline pipeline() {
         return isDrawActive() ? activePipeline : null;
@@ -720,7 +718,7 @@ public final class ChimeraEntityBridge {
     private static void noteDraw(Family family, String shader, VertexFormat format) {
         if (drawnLanes.add(family)) {
             ChimeraMod.LOGGER.debug("[chimera] family bridge: lane={} drawing shader={} stride={}B",
-                    family.name().toLowerCase(), shader, format.getVertexSize());
+                    family.name().toLowerCase(Locale.ROOT), shader, format.getVertexSize());
         }
     }
 
@@ -728,7 +726,7 @@ public final class ChimeraEntityBridge {
     static void noteDrawRefused(Family family, RenderType host) {
         if (refusedLanes.add(family)) {
             ChimeraMod.LOGGER.warn("[chimera] family bridge: lane={} refused its batch type={}",
-                    family.name().toLowerCase(), host.name);
+                    family.name().toLowerCase(Locale.ROOT), host.name);
         }
     }
 

@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static net.chimera.render.MaterialMapFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -185,6 +187,7 @@ final class MaterialMapsTest {
             int[] s0 = specular.levels.get(0).pixels();
             assertEquals(pack(255, 128, 0, 0), s0[0], "brick specular origin");
             assertEquals(pack(255, 128, 32, 32), s0[2 * 64 + 2], "brick specular interior");
+            assertEquals(pack(255, 128, 32, 224), s0[2 * 64 + 14], "brick specular near the rect's edge");
             assertEquals(FALLBACK_SPECULAR, s0[2 * 64 + 16], "no ring leaks past the rect");
             assertEquals(FALLBACK_SPECULAR, s0[8 * 64 + 40], "plain specular fallback");
             assertEquals(pack(255, 10, 200, 10), s0[48], "lab specular texel");
@@ -300,6 +303,52 @@ final class MaterialMapsTest {
             owner.close();
         }
         assertTrue(factory.allClosed(), "shutdown closed every companion");
+    }
+
+    /** A close that races another waits for it, so neither returns while companions are still open. */
+    @Test
+    void aSecondCloseWaitsForTheFirst() throws Exception {
+        CountDownLatch closing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        MaterialMapOwner owner = MaterialMapOwner.withImages(markerImage(), markerImage(),
+                (location, kind, width, height, levels) -> new MaterialMapOwner.CompanionSet() {
+                    private final VulkanImage image = markerImage();
+
+                    @Override
+                    public VulkanImage image() {
+                        return image;
+                    }
+
+                    @Override
+                    public void writeRegion(int level, int x, int y, int width, int height, int[] pixels) {}
+
+                    @Override
+                    public void close() {
+                        closing.countDown();
+                        try {
+                            release.await();
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                });
+        owner.noteAtlasUpload(layout(), markerImage());
+        owner.pumpPendingBuilds(mapLookup(fixtureFiles()), MaterialMapFixtures::decodeImageIO);
+        Thread first = new Thread(owner::close);
+        first.start();
+        assertTrue(closing.await(10, TimeUnit.SECONDS), "the first close never reached the lock");
+        Thread second = new Thread(owner::close);
+        second.start();
+        Thread.State state = second.getState();
+        long deadline = System.nanoTime() + 10_000_000_000L;
+        while (state != Thread.State.BLOCKED && state != Thread.State.TERMINATED && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+            state = second.getState();
+        }
+        release.countDown();
+        first.join();
+        second.join();
+        assertEquals(Thread.State.BLOCKED, state, "a second close returned while the first was closing companions");
     }
 
     @Test
@@ -478,7 +527,7 @@ final class MaterialMapsTest {
             assertEquals(pack(255, 199, 100, 8), n1[5 * 32 + 5], "shrunk content origin");
             assertEquals(n1[5 * 32 + 5], n1[4 * 32 + 4], "shrunk border replicates");
             int[] n2 = normals.levels.get(2).pixels();
-            assertEquals(pack(255, 198, 101, 25), n2[2 * 16 + 2], "unpaded level 2 content");
+            assertEquals(pack(255, 198, 101, 25), n2[2 * 16 + 2], "unpadded level 2 content");
 
             // lab specular content sits inside its 1-texel border on its own canvas
             FakeSet specular = factory.set("minecraft:padded",

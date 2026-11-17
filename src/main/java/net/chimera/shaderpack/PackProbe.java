@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -203,7 +204,7 @@ public final class PackProbe {
 
         /** Iris preprocesses every id map with each option the pack's shader files declare. */
         private Map<String, String> idMapMacros() {
-            return PackEngineDefines.forPack(PackOptionMacros.forIdMaps(shadersDir,
+            return PackEngineDefines.forPack(PackOptionMacros.forIdMaps(loaded.options().applied(),
                     settingsPlan.preprocessorDefines(), settingsPlan.overriddenNames()));
         }
 
@@ -347,7 +348,7 @@ public final class PackProbe {
                 String fileName = file.getFileName().toString();
                 String base = fileName.substring(0, fileName.lastIndexOf('.'));
                 Inventory inventory = inventories.computeIfAbsent(base, Inventory::new);
-                String extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+                String extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase(Locale.ROOT);
                 String stage = stageName(extension);
                 if (inventory.sourcePaths.containsKey(stage)) {
                     continue;
@@ -413,7 +414,7 @@ public final class PackProbe {
             return "pack";
         }
         String name = packPath.getFileName().toString();
-        return name.toLowerCase().endsWith(".zip")
+        return name.toLowerCase(Locale.ROOT).endsWith(".zip")
                 ? name.substring(0, name.length() - 4)
                 : name;
     }
@@ -545,7 +546,7 @@ public final class PackProbe {
     }
 
     private static boolean isStageFile(Path path) {
-        String name = path.getFileName().toString().toLowerCase();
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
         int dot = name.lastIndexOf('.');
         return dot >= 0 && STAGE_EXTENSIONS.contains(name.substring(dot));
     }

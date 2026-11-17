@@ -14,10 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** One pack geometry window is open at a time, and what it reports follows the kind it was opened as. */
+/** One pack geometry window is open at a time, and it reports the attachments it was opened with. */
 final class PackGeometryContextTest {
     private final VulkanImage target = image();
-    private final VulkanImage coverage = image();
+    private final VulkanImage auxiliary = image();
     private final VulkanImage depth = image();
 
     @AfterEach
@@ -26,37 +26,24 @@ final class PackGeometryContextTest {
     }
 
     @Test
-    void aCoverageWindowReportsItsTargetAndCoverage() {
-        PackGeometryContext.begin(this.target, this.coverage, this.depth);
-        assertTrue(PackGeometryContext.active() && PackGeometryContext.coverageActive());
-        assertFalse(PackGeometryContext.geometryActive());
-        assertSame(this.target, PackGeometryContext.target());
-        assertSame(this.coverage, PackGeometryContext.coverage());
+    void aGeometryWindowReportsItsAttachments() {
+        PackGeometryContext.beginGeometry(List.of(this.target, this.auxiliary), this.depth);
+        assertTrue(PackGeometryContext.active());
         assertSame(this.depth, PackGeometryContext.depth());
-        assertEquals(List.of(this.target, this.coverage), PackGeometryContext.colors());
-    }
-
-    @Test
-    void aGeometryWindowIsNoCoverageWindow() {
-        PackGeometryContext.beginGeometry(List.of(this.target, this.coverage), this.depth);
-        assertTrue(PackGeometryContext.geometryActive());
-        assertFalse(PackGeometryContext.coverageActive());
+        assertEquals(List.of(this.target, this.auxiliary), PackGeometryContext.colors());
     }
 
     @Test
     void oneWindowAtATimeAndCloseForgetsIt() {
-        PackGeometryContext.beginPreserving(this.target, this.coverage, this.depth);
+        PackGeometryContext.beginGeometry(List.of(this.target, this.auxiliary), this.depth);
         assertThrows(IllegalStateException.class, () -> PackGeometryContext.beginGeometry(List.of(this.target),
                 this.depth));
         PackGeometryContext.close();
-        assertFalse(PackGeometryContext.active() || PackGeometryContext.coverageActive()
-                || PackGeometryContext.geometryActive());
-        assertNull(PackGeometryContext.target());
-        assertNull(PackGeometryContext.coverage());
+        assertFalse(PackGeometryContext.active());
         assertNull(PackGeometryContext.depth());
         assertEquals(List.of(), PackGeometryContext.colors());
         PackGeometryContext.beginGeometry(List.of(this.target), this.depth);
-        assertTrue(PackGeometryContext.geometryActive(), "a closed window can be followed by another");
+        assertTrue(PackGeometryContext.active(), "a closed window can be followed by another");
     }
 
     @Test
@@ -69,9 +56,9 @@ final class PackGeometryContextTest {
         assertThrows(IllegalArgumentException.class, () -> PackGeometryContext.beginShadow(List.of(this.target),
                 this.depth, List.of()));
         assertFalse(PackGeometryContext.active());
-        PackGeometryContext.beginShadow(List.of(this.target, this.coverage), this.depth,
+        PackGeometryContext.beginShadow(List.of(this.target, this.auxiliary), this.depth,
                 Arrays.asList(new float[4], null));
-        assertTrue(PackGeometryContext.geometryActive(), "a shadow window may load a colour");
+        assertTrue(PackGeometryContext.active(), "a shadow window may load a colour");
     }
 
     private static VulkanImage image() {

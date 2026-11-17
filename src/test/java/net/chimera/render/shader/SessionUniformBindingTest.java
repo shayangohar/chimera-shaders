@@ -12,12 +12,13 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Each session
- * resolves the shared bindings again, so switching WAVES on serves the declared value in place of the
- * unset zero the default variant bound.
+ * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Closing a session
+ * frees its bindings, so the next session resolves the name afresh: the declared value in place of the unset
+ * zero.
  */
 final class SessionUniformBindingTest {
     @Test
@@ -44,15 +45,15 @@ final class SessionUniformBindingTest {
             assertEquals("unset:waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
                     "an undeclared name is served Iris's unset zero");
 
-            PackUniformProvider.installRuntimeSettings(waves);
-            UniformRegistry.UniformDescriptor served = provider.boundDescriptor("waveState", "vec3");
-            assertEquals("custom:waveState", served.sourceKey(), "the variant's own value is served");
-            assertSame(unset, provider.supplier("waveState", "vec3").get(),
-                    "a pipeline built earlier keeps reading the same buffer");
+            assertSame(unset, provider.supplier("waveState", "vec3").get(), "a pipeline reads one buffer per name");
 
             PackUniformProvider.resetSession();
-            assertEquals("unset:waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
-                    "a session without the declaration serves zero again");
+            assertNull(provider.boundDescriptor("waveState", "vec3"),
+                    "a closed session frees its bindings with the pipelines that read them");
+            PackUniformProvider.installRuntimeSettings(waves);
+            provider.supplier("waveState", "vec3");
+            UniformRegistry.UniformDescriptor served = provider.boundDescriptor("waveState", "vec3");
+            assertEquals("custom:waveState", served.sourceKey(), "the next session serves its own value");
         } finally {
             PackUniformProvider.resetSession();
         }
@@ -72,5 +73,11 @@ final class SessionUniformBindingTest {
             new PackFrameState().write(unset, "float", buffer);
             assertEquals(0.0f, buffer.getFloat(0), name + " reads zero");
         }
+        UniformRegistry.UniformDescriptor matrix = UniformRegistry.resolve("packOwnMatrix", "mat4", Map.of());
+        assertEquals("unset:packOwnMatrix", matrix.sourceKey());
+        MappedBuffer buffer = new MappedBuffer(64);
+        for (int i = 0; i < 16; i++) buffer.putFloat(i * 4, 1.0f);
+        new PackFrameState().write(matrix, "mat4", buffer);
+        for (int i = 0; i < 16; i++) assertEquals(0.0f, buffer.getFloat(i * 4), "an unset mat4 reads zero, " + i);
     }
 }

@@ -2,6 +2,7 @@ package net.chimera.shaderpack;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +13,9 @@ import java.util.TreeMap;
  * a post program without one draws on Chimera's fullscreen vertex.
  */
 final class PostVertexBridge {
+    /** The vertex data a fullscreen pass gives a program: the quad's position and texture coordinate. */
+    private static final Set<String> FULLSCREEN_INPUTS = Set.of("Position", "UV0", "vaPosition", "vaUV0");
+
     private PostVertexBridge() {}
 
     private static final Set<String> INTERPOLATION = Set.of("flat", "noperspective", "smooth", "centroid", "sample");
@@ -55,6 +59,15 @@ final class PostVertexBridge {
             }
         }
         return GlslDeclarations.apply(source, edits);
+    }
+
+    /** The inputs the stage reads. */
+    private static Set<String> readInputs(String source) {
+        Set<String> read = new HashSet<>();
+        for (GlslInterfaceScanner.Declaration input : GlslInterfaceScanner.scan(source, true).inputs()) {
+            if (input.referenced()) read.add(input.name());
+        }
+        return read;
     }
 
     /** Rewrites legacy {@code attribute} qualifiers as {@code in}. */
@@ -123,16 +136,16 @@ final class PostVertexBridge {
             if (GlslDeclarations.main(GlslTree.parse(converted)) == null) {
                 throw new IllegalArgumentException("POST_VERTEX_MAIN_MISSING");
             }
-            for (GlslInterfaceScanner.Declaration input : vertexInterface.inputs()) {
-                throw new IllegalArgumentException("POST_VERTEX_INPUT_UNSUPPORTED:" + input.name());
-            }
             Map<String, Integer> locations = outputLocations(vertexInterface, match);
             converted = attributesAsInputs(converted);
+            // a read input with no vertex data behind it takes GL's default generic attribute, as under Iris
+            Set<String> read = readInputs(converted);
+            converted = UnboundAttributes.substitute(converted,
+                    name -> read.contains(name) && !FULLSCREEN_INPUTS.contains(name));
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),
                     true,
                     declaration -> {
-                        // a fullscreen pass feeds no vertex attributes, and Iris leaves an unread one unbound
-                        // I Like Vanilla's composites declare mc_Entity in a header
+                        // an unread input is dropped; I Like Vanilla's composites declare mc_Entity in a header
                         if (declaration.input() && !declaration.referenced()) return "";
                         Integer location = locations.get(declaration.name());
                         if (declaration.input() || location == null) {

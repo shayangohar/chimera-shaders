@@ -46,7 +46,7 @@ final class TargetImagePlanTest {
                 List.of(binding.symbol(), binding.imageName(), binding.glslType(), binding.viewFormat(),
                         binding.target(), binding.selectorSlot()));
         String fragment = PackDescriptorContracts.bindStorageImages(plan.program("prepare").convertedFragment(),
-                "prepare", advanced, layout, VK_SHADER_STAGE_FRAGMENT_BIT);
+                advanced, layout, VK_SHADER_STAGE_FRAGMENT_BIT);
         assertTrue(fragment.contains("layout(r32ui, binding = " + layout.imageBase()
                 + ") uniform uimage2D colorimg9;"), fragment);
         assertEquals(Map.of(9, Set.of(IrisColorFormats.of("r32ui").vkFormat())), advanced.targetImageFormats());

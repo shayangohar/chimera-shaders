@@ -11,7 +11,6 @@ import net.chimera.shaderpack.ConformanceReport;
 import net.chimera.shaderpack.HandLightDirectives;
 import net.chimera.shaderpack.PackAdvancedResourcePlan;
 import net.chimera.shaderpack.PackConfig;
-import net.chimera.shaderpack.PackCoveragePlan;
 import net.chimera.shaderpack.PackDirectives;
 import net.chimera.shaderpack.PackEngineDefines;
 import net.chimera.shaderpack.PackFrameSchedulePlan;
@@ -200,9 +199,6 @@ final class PackSessionLifecycle {
         pass.shadowPass.packShadowDepth.cleanUp();
         pass.packPostTargets.cleanUp();
         pass.packDepthTargets.cleanUp();
-        pass.coverage.packCoverageOwner.close();
-        pass.coverage.packCoverageState.endFrame();
-        pass.coverage.packCoveragePlan = PackCoveragePlan.disabled();
         pass.pipelines.destroy();
         if (pass.packPassComputes != null) pass.packPassComputes.close();
         pass.packPassComputes = null;
@@ -585,7 +581,7 @@ final class PackSessionLifecycle {
                 .anyMatch(program -> program.samplers().contains("depthtex0")
                         || program.samplers().contains("depthtex1")
                         || program.samplers().contains("depthtex2"));
-        installIdMaps(result.shadersDir());
+        installIdMaps(result);
         pass.packHdrFormat = pass.packConfig.colortexFormats().getOrDefault(0, PostTargetPlan.DEFAULT_FORMAT);
         loadResourceOwners(result.shadersDir());
         logResourcePlans();
@@ -697,9 +693,10 @@ final class PackSessionLifecycle {
     }
 
     /** Parses the pack's block and item id maps and installs them with its hand-light setting. */
-    private void installIdMaps(Path shadersDir) {
+    private void installIdMaps(PackSource.LoadResult result) {
+        Path shadersDir = result.shadersDir();
         // Iris preprocesses the id maps with every option the pack's shader files declare
-        Map<String, String> macros = PackEngineDefines.forPack(PackOptionMacros.forIdMaps(shadersDir,
+        Map<String, String> macros = PackEngineDefines.forPack(PackOptionMacros.forIdMaps(result.options().applied(),
                 pass.packPlan.settingsPreprocessorDefines(), pass.packPlan.settingsOverriddenNames()));
         PackMaterialResolver.ParseResult material = PackMaterialResolver.parse(shadersDir, macros);
         ChimeraTerrainPipelines.setMaterialResolver(material.resolver());
@@ -869,18 +866,6 @@ final class PackSessionLifecycle {
 
         PendingPackChange pending() {
             return pending;
-        }
-
-        boolean hasPending() {
-            return pending != null;
-        }
-
-        Path pendingPath() {
-            return pending == null ? null : pending.path();
-        }
-
-        boolean pendingForced() {
-            return pending != null && pending.forceReload();
         }
 
         void clear() {

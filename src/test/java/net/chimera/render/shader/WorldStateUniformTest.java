@@ -51,7 +51,7 @@ final class WorldStateUniformTest {
                 "a dimension without fixed time reads the day time");
         assertEquals(3, WorldClock.worldDay(72000L),
                 "world day semantics");
-        assertEquals(0.007f, PackFrameState.quantizedFrameSecondsForTest(7_250_000L),
+        assertEquals(0.007f, PackFrameState.quantizedFrameSeconds(7_250_000L),
                 "frame time millisecond quantization");
     }
 
@@ -76,12 +76,12 @@ final class WorldStateUniformTest {
                 "sunrise is half a turn");
         assertNear(0.75f, CelestialSnapshot.angle01(180.0f), 1.0e-6f,
                 "midnight is three quarters");
-        assertNear(1.0f, CelestialSnapshot.angle01(270.0f), 1.0e-6f,
-                "the top of the wrap stays at one turn, as the reference carries it");
-        assertTrue(CelestialSnapshot.isDay(0.0f) && !CelestialSnapshot.isDay(90.0f)
-                        && !CelestialSnapshot.isDay(180.0f) && !CelestialSnapshot.isDay(270.0f),
-                "day selection must follow the raw sky angle, and hand the light to the moon"
-                        + " at the horizon crossing itself");
+        assertNear(0.0f, CelestialSnapshot.angle01(270.0f), 1.0e-6f,
+                "the top of the wrap lands on zero, as Iris's getSunAngle wraps it");
+        assertTrue(CelestialSnapshot.isDay(0.0f) && CelestialSnapshot.isDay(90.0f)
+                        && !CelestialSnapshot.isDay(180.0f) && CelestialSnapshot.isDay(270.0f),
+                "day selection must follow the raw sky angle, and keep the sun at the horizon crossing"
+                        + " itself, as Iris's getSunAngle() <= 0.5");
     }
 
     @Test
@@ -122,11 +122,11 @@ final class WorldStateUniformTest {
             CelestialSnapshot.position(modelView, 0.0f, 0.0f, angle, eye);
             CelestialSnapshot.position(turned, 0.0f, 0.0f, angle, turnedEye);
             Vector3f roundTrip =
-                    inverse.transformPosition(new Vector3f(eye)).normalize();
+                    inverse.transformDirection(new Vector3f(eye)).normalize();
             assertVectorNear(world.x, world.y, world.z, roundTrip,
                     "eye-space sun disagreed with the world light at raw " + angle);
             Vector3f turnedRoundTrip = new Matrix4f(turned).invert()
-                    .transformPosition(new Vector3f(turnedEye)).normalize();
+                    .transformDirection(new Vector3f(turnedEye)).normalize();
             assertVectorNear(world.x, world.y, world.z, turnedRoundTrip,
                     "a camera rotation moved the world light at raw " + angle);
             assertTrue(eye.distance(turnedEye) > 1.0f,
@@ -138,7 +138,8 @@ final class WorldStateUniformTest {
     void celestialNoonUniforms() {
         Matrix4f modelView = celestialCamera();
         PackFrameState state = noonState(modelView);
-        Vector3f expectedSun = modelView.transformPosition(
+        // a direction, as Iris carries it: the camera's translation stays out
+        Vector3f expectedSun = modelView.transformDirection(
                 new Vector3f(0.0f, 100.0f, 0.0f));
         Vector3f expectedUp = modelView.transformDirection(
                 new Vector3f(0.0f, 100.0f, 0.0f));
@@ -179,7 +180,7 @@ final class WorldStateUniformTest {
                         "shadow angle left the light body at raw " + time[0]);
                 Vector3f packLight = writtenVec3(state, "shadowLightPosition");
                 Vector3f carried =
-                        inverse.transformPosition(new Vector3f(packLight)).normalize();
+                        inverse.transformDirection(new Vector3f(packLight)).normalize();
                 assertVectorNear(state.sunLightVector().x, state.sunLightVector().y,
                         state.sunLightVector().z, carried,
                         "pack light position left the shadow light at raw " + time[0]);

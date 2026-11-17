@@ -129,6 +129,22 @@ final class PackSourceEdgesTest {
     }
 
     /**
+     * JCPP matches directive names as written. An uppercase #IFDEF is an unknown directive: JCPP reports it, drops
+     * the line and goes on, so the lines it would guard stay; any other unknown directive goes the same way.
+     */
+    @Test
+    void anUnknownOrUppercaseDirectiveIsReportedAndDropped(@TempDir Path root) {
+        ShaderSourcePreprocessor.Result result = ShaderSourcePreprocessor.prepare(root, root.resolve("main.fsh"),
+                "#version 120\n#IFDEF FOO\nfloat upper = 1.0;\n#ENDIF\n#foo bar\nvoid main() {}\n", Map.of());
+        assertTrue(result.successful(), String.valueOf(result.deviations()));
+        assertTrue(result.source().contains("float upper = 1.0;"), result.source());
+        assertFalse(result.source().contains("#IFDEF") || result.source().contains("#foo"), result.source());
+        assertTrue(result.deviations().containsAll(List.of("PREPROCESSOR_DIRECTIVE_REPORTED:IFDEF",
+                "PREPROCESSOR_DIRECTIVE_REPORTED:ENDIF", "PREPROCESSOR_DIRECTIVE_REPORTED:foo")),
+                String.valueOf(result.deviations()));
+    }
+
+    /**
      * Iris sets no limit on how many files a program includes; Complementary Unbound with Euphoria Patches
      * includes several hundred in gbuffers_entities_translucent. Includes that fan out into thousands of empty
      * files still stop, since the line and character budgets never see them.
@@ -431,8 +447,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan targetPlan = PostTargetPlan.parse("final", simple130).plan();
-        UniformRegistry.ProgramInterface interfacePlan = InterfacePlanner.planPreparedPost(
-                simple130, targetPlan);
+        UniformRegistry.ProgramInterface interfacePlan = InterfacePlanner.planPreparedPost(simple130);
         String converted = FragmentConverter.convertPostFragment(
                 simple130, null, interfacePlan, targetPlan);
         assertTrue(converted != null, "GLSL 130 post conversion failed");
@@ -477,7 +492,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan target = PostTargetPlan.parse("final", simple130).plan();
-        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(simple130, target);
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planPreparedPost(simple130);
         String converted = FragmentConverter.convertPostFragment(
                 simple130, shaders.resolve("final.fsh"), plan, target);
         assertTrue(converted != null, "metadata and constant conversion failed");
@@ -502,8 +517,7 @@ final class PackSourceEdgesTest {
                 }
                 """;
         PostTargetPlan unsupportedTarget = PostTargetPlan.parse("final", unsupported).plan();
-        UniformRegistry.ProgramInterface unsupportedPlan = InterfacePlanner.planPreparedPost(
-                unsupported, unsupportedTarget);
+        UniformRegistry.ProgramInterface unsupportedPlan = InterfacePlanner.planPreparedPost(unsupported);
         assertTrue(FragmentConverter.convertPostFragment(
                         unsupported, shaders.resolve("final.fsh"), unsupportedPlan, unsupportedTarget) == null,
                 "unsupported fullscreen varying was converted");

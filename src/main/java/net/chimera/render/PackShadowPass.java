@@ -453,7 +453,7 @@ final class PackShadowPass {
         VkCommandBuffer cmd = Renderer.getCommandBuffer();
         InterruptedGeometry interrupted = InterruptedGeometry.capture();
         Renderer.getInstance().endRenderPass(cmd);
-        if (interrupted.coverage() || interrupted.terrain()) {
+        if (interrupted.terrain()) {
             // close the pack geometry scope, or the shadow draws land in the world target at the map's
             // viewport and the shadow pass's clear erases the terrain just drawn
             PackGeometryContext.close();
@@ -466,27 +466,19 @@ final class PackShadowPass {
     }
 
     /** The pack geometry scope the shadow segment interrupts, to reopen once the map is drawn. */
-    private record InterruptedGeometry(boolean coverage, boolean terrain, List<VulkanImage> colors,
-            VulkanImage depth) {
+    private record InterruptedGeometry(boolean terrain, List<VulkanImage> colors, VulkanImage depth) {
         static InterruptedGeometry capture() {
-            return new InterruptedGeometry(PackGeometryContext.coverageActive(), PackGeometryContext.geometryActive(),
-                    PackGeometryContext.colors(), PackGeometryContext.depth());
+            return new InterruptedGeometry(PackGeometryContext.active(), PackGeometryContext.colors(),
+                    PackGeometryContext.depth());
         }
     }
 
-    /** Reopens the interrupted pack terrain or coverage scope, or else the plain HDR pass. */
+    /** Reopens the interrupted pack terrain scope, or else the plain HDR pass. */
     private void resumeAfterShadow(InterruptedGeometry interrupted) {
         List<VulkanImage> resumeColors = interrupted.colors();
         if (interrupted.terrain() && !resumeColors.isEmpty() && interrupted.depth() != null
                 && pass.targets.hdrFramebuffer != null) {
             PackGeometryContext.beginGeometry(resumeColors, interrupted.depth());
-            pass.rebindMainTarget();
-        } else if (interrupted.coverage() && pass.targets.hdrFramebuffer != null) {
-            // continue the interrupted coverage window on the same pack target; its owner closes and commits it
-            PackGeometryContext.beginPreserving(
-                    resumeColors.get(0),
-                    resumeColors.size() > 1 ? resumeColors.get(1) : pass.coverage.packCoverageOwner.image(),
-                    pass.targets.hdrFramebuffer.getDepthAttachment());
             pass.rebindMainTarget();
         } else {
             // reopen the HDR pass with load ops for the terrain layers

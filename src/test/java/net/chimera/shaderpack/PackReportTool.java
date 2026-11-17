@@ -1,16 +1,16 @@
 package net.chimera.shaderpack;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * Developer tool: runs the offline pack analysis ({@link PackProbe}) on each pack named by
- * {@code -Dchimera.packReport.packs}, a path-separator list. Per pack it prints every program's support
+ * {@code -Dchimera.packReport.packs}, a {@code ;}-separated list. Per pack it prints every program's support
  * status and blocking reasons, then the blocking reasons ranked by how many programs they touch. It needs
  * no GPU and no game; this is the plan a runtime load starts from.
  *
@@ -31,9 +31,14 @@ public final class PackReportTool {
             throw new IllegalArgumentException("set -Dchimera.packReport.packs=<pack>[;<pack>...]");
         }
         boolean verbose = Boolean.getBoolean("chimera.packReport.verbose");
-        for (String pack : packs.split(File.pathSeparator)) {
-            report(Path.of(pack.trim()), verbose);
+        for (Path pack : packPaths(packs)) {
+            report(pack, verbose);
         }
+    }
+
+    /** The packs a {@code ;}-separated list names, on every platform, as the usage says. */
+    static List<Path> packPaths(String packs) {
+        return Stream.of(packs.split(";")).map(pack -> Path.of(pack.trim())).toList();
     }
 
     private static void report(Path pack, boolean verbose) {

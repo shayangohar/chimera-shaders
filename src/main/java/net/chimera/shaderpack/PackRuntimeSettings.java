@@ -48,7 +48,7 @@ public final class PackRuntimeSettings {
             if (value.exposed()) {
                 descriptors.put(value.name(), new UniformRegistry.UniformDescriptor(
                         value.name(), glslTypes(value.type()), UniformRegistry.Availability.LIVE,
-                        "custom:" + value.name(), UniformRegistry.DefaultPolicy.ZERO));
+                        "custom:" + value.name()));
             }
         }
         if (rejectedDescriptors != null) {
@@ -195,8 +195,7 @@ public final class PackRuntimeSettings {
             if (declaration != null && declaration.exposed()) {
                 descriptors.put(name, new UniformRegistry.UniformDescriptor(
                         name, glslTypes(declaration.type()),
-                        UniformRegistry.Availability.REJECTED, "rejected:" + name,
-                        UniformRegistry.DefaultPolicy.ZERO));
+                        UniformRegistry.Availability.REJECTED, "rejected:" + name));
             }
         }
         return descriptors;

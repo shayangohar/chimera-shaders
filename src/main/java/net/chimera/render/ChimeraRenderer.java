@@ -419,7 +419,7 @@ public final class ChimeraRenderer {
     private static void legacyUnhand() {
         Renderer.getInstance().endRenderPass();
         Renderer.getInstance().setMainPass(hostPass);
-        ChimeraTerrainPipelines.suspendForScreens();
+        ChimeraTerrainPipelines.disable();
         ChimeraEntityBridge.setEnabled(false);
         ChimeraSkyBridge.setEnabled(false);
         // reset the global state VulkanMod reads at pipeline bind to host defaults before the host records
@@ -472,13 +472,6 @@ public final class ChimeraRenderer {
         ChimeraMod.LOGGER.debug("[chimera] screen without a level; host renders until it closes");
     }
 
-    public static void exitScreenMode() {
-        if (!screenMode) {
-            return;
-        }
-        ChimeraMod.LOGGER.debug("[chimera] screen closed; resuming at the next frame boundary");
-    }
-
     /** A level unloading under an open screen hands the frame to the host until a live level returns. */
     public static void onLevelUnloaded() {
         ShadowSectionQueue.release();
@@ -488,10 +481,6 @@ public final class ChimeraRenderer {
 
         legacyUnhand();
         ChimeraMod.LOGGER.debug("[chimera] level unloaded; host renders");
-    }
-
-    public static void onLevelLoaded() {
-        onLevelLoaded(Minecraft.getInstance().level);
     }
 
     /**

@@ -378,41 +378,31 @@ final class HostFamilyTest {
                 + " uniform bool hasSkylight; uniform sampler2D tex; void main() {"
                 + " gl_FragColor = texture2D(tex, uv) * (hasSkylight ? 1.0 : 0.5); }\n";
         Path properties = shaders.resolve("shaders.properties");
-        try {
-            for (String name : names) {
-                Files.writeString(shaders.resolve(name + ".vsh"), vertex);
-                Files.writeString(shaders.resolve(name + ".fsh"), fragment);
-            }
-            String directives = "program.gbuffers_entities_translucent.enabled=false\n"
-                    + "program.final.enabled=false\nblend.gbuffers_entities.colortex1=off\n"
-                    + "alphaTest.gbuffers_entities=GREATER 0.2\n";
-            Files.writeString(properties, directives);
-            PackProbe.Analysis analysis = PackProbe.analyze(root);
-            assertHandAliasesKeepHandFamily(analysis);
-            assertTranslucentAliasKeepsRequestedFamily(analysis);
-            assertCrumblingWidensTheBlockLayout(analysis);
-            Files.writeString(properties, directives + "program.gbuffers_entities.enabled=false\n");
-            analysis = PackProbe.analyze(root);
-            assertEquals("gbuffers_textured_lit", analysis.resolution()
-                    .resolution("gbuffers_entities_translucent").selectedProgram(),
-                    "fallback stopped at disabled parent");
-            assertTrue(analysis.plan().shouldAttempt("gbuffers_entities_translucent"),
-                    "second ancestor did not execute through requested family");
-            Files.delete(shaders.resolve("gbuffers_entities_translucent.fsh"));
-            Files.delete(shaders.resolve("gbuffers_entities_translucent.vsh"));
-            Files.writeString(properties, "");
-            analysis = PackProbe.analyze(root);
-            assertTrue(analysis.report().shouldAttempt("gbuffers_entities_translucent"),
-                    "missing child did not materialize its parent source");
-        } finally {
-            Files.deleteIfExists(properties);
-            for (String name : names) {
-                Files.deleteIfExists(shaders.resolve(name + ".fsh"));
-                Files.deleteIfExists(shaders.resolve(name + ".vsh"));
-            }
-            Files.deleteIfExists(shaders);
-            Files.deleteIfExists(root);
+        for (String name : names) {
+            Files.writeString(shaders.resolve(name + ".vsh"), vertex);
+            Files.writeString(shaders.resolve(name + ".fsh"), fragment);
         }
+        String directives = "program.gbuffers_entities_translucent.enabled=false\n"
+                + "program.final.enabled=false\nblend.gbuffers_entities.colortex1=off\n"
+                + "alphaTest.gbuffers_entities=GREATER 0.2\n";
+        Files.writeString(properties, directives);
+        PackProbe.Analysis analysis = PackProbe.analyze(root);
+        assertHandAliasesKeepHandFamily(analysis);
+        assertTranslucentAliasKeepsRequestedFamily(analysis);
+        assertCrumblingWidensTheBlockLayout(analysis);
+        Files.writeString(properties, directives + "program.gbuffers_entities.enabled=false\n");
+        analysis = PackProbe.analyze(root);
+        assertEquals("gbuffers_textured_lit", analysis.resolution()
+                .resolution("gbuffers_entities_translucent").selectedProgram(),
+                "fallback stopped at disabled parent");
+        assertTrue(analysis.plan().shouldAttempt("gbuffers_entities_translucent"),
+                "second ancestor did not execute through requested family");
+        Files.delete(shaders.resolve("gbuffers_entities_translucent.fsh"));
+        Files.delete(shaders.resolve("gbuffers_entities_translucent.vsh"));
+        Files.writeString(properties, "");
+        analysis = PackProbe.analyze(root);
+        assertTrue(analysis.report().shouldAttempt("gbuffers_entities_translucent"),
+                "missing child did not materialize its parent source");
     }
 
     /** Both hand phases inherit gbuffers_textured_lit yet keep the hand family and its bool uniform. */
@@ -970,38 +960,30 @@ final class HostFamilyTest {
                     gl_Position = mvp * gl_Vertex;
                 }
                 """;
-        try {
-            Files.writeString(vertex, source);
-            Files.writeString(fragment, """
-                    #version 120
-                    /* DRAWBUFFERS:1 */
-                    uniform sampler2D tex;
-                    uniform float frameTimeCounter;
-                    varying vec2 uv;
-                    varying vec4 tint;
-                    varying vec2 light;
-                    varying vec3 normal;
-                    varying float time;
-                    void main() {
-                        gl_FragData[0] = texture2D(tex, uv) * tint
-                            + vec4(light, normal.z + time - frameTimeCounter, 0.0) * 0.001;
-                    }
-                    """);
-            Files.writeString(properties, "blend.gbuffers_textured.colortex1=off\n");
-            var analysis = PackProbe.analyze(root);
-            for (String name : List.of("gbuffers_particles", "gbuffers_particles_translucent")) {
-                assertParentSourceParticle(analysis, name);
-            }
-            var compiled = PackCompileTest.run(root, analysis);
-            assertTrue(compiled.failures().isEmpty(), "particle alias compilation: " + compiled.failures());
-            assertParticleAdmissionStaysStrict(analysis, source, fragment);
-        } finally {
-            Files.deleteIfExists(properties);
-            Files.deleteIfExists(fragment);
-            Files.deleteIfExists(vertex);
-            Files.deleteIfExists(shaders);
-            Files.deleteIfExists(root);
+        Files.writeString(vertex, source);
+        Files.writeString(fragment, """
+                #version 120
+                /* DRAWBUFFERS:1 */
+                uniform sampler2D tex;
+                uniform float frameTimeCounter;
+                varying vec2 uv;
+                varying vec4 tint;
+                varying vec2 light;
+                varying vec3 normal;
+                varying float time;
+                void main() {
+                    gl_FragData[0] = texture2D(tex, uv) * tint
+                        + vec4(light, normal.z + time - frameTimeCounter, 0.0) * 0.001;
+                }
+                """);
+        Files.writeString(properties, "blend.gbuffers_textured.colortex1=off\n");
+        var analysis = PackProbe.analyze(root);
+        for (String name : List.of("gbuffers_particles", "gbuffers_particles_translucent")) {
+            assertParentSourceParticle(analysis, name);
         }
+        var compiled = PackCompileTest.run(root, analysis);
+        assertTrue(compiled.failures().isEmpty(), "particle alias compilation: " + compiled.failures());
+        assertParticleAdmissionStaysStrict(analysis, source, fragment);
     }
 
     /** A particle phase runs gbuffers_textured on the native particle layout, keeping its target and blend. */

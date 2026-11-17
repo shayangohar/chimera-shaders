@@ -49,10 +49,6 @@ public final class ChimeraPostPipelines {
                 + source.substring(lineEnd + 1);
     }
 
-    public static GraphicsPipeline createSceneSeedPipeline() {
-        return create("chimera_scene_seed");
-    }
-
     /**
      * A terrain-format pipeline for shadow rendering. It reads the section offset and the ChunkOffset push
      * constant VulkanMod's DrawBuffers sets per chunk area.

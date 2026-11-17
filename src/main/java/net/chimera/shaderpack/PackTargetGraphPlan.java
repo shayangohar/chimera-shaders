@@ -406,7 +406,7 @@ public final class PackTargetGraphPlan {
             // target 0 is reseeded from the HDR image every frame, so graph persistence does not apply to it
             boolean persistent = source.index() != 0 && source.persistent();
             targets.add(new TargetSpec(source.index(), source.format(), source.width(), source.height(),
-                    source.clear(), source.clearColorCopy(), persistent,
+                    source.clear(), source.clearColor(), persistent,
                     flips.sided(source.index()),
                     mipmappedTargets.contains(source.index()), source.paddedAlpha(), source.deviations()));
         }

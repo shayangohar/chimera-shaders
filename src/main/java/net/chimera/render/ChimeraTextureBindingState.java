@@ -126,17 +126,6 @@ public final class ChimeraTextureBindingState {
             return bindings.get(slot);
         }
 
-        Map<Integer, Entry<I>> snapshot() {
-            return new HashMap<>(bindings);
-        }
-
-        void restore(Map<Integer, Entry<I>> snapshot) {
-            bindings.clear();
-            if (snapshot != null) {
-                bindings.putAll(snapshot);
-            }
-        }
-
         void clear(int slot) {
             bindings.remove(slot);
         }

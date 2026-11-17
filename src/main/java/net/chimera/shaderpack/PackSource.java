@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -136,11 +137,6 @@ public final class PackSource {
         /** Prepares the sources as a kept analysis left them, so the load reads the same programs. */
         void restore(AnalyzedDimension known) {
             prepare(known.macros(), known.locked());
-        }
-
-        /** Prepares the sources with these macros and no locked names. */
-        public void prepare(Map<String, String> initialMacros) {
-            prepare(initialMacros, Set.of());
         }
 
         /**
@@ -849,7 +845,7 @@ public final class PackSource {
     }
 
     private static boolean isStageFile(Path path) {
-        String name = path.getFileName().toString().toLowerCase();
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
         int dot = name.lastIndexOf('.');
         return dot >= 0 && switch (name.substring(dot)) {
             case ".vsh", ".fsh", ".gsh", ".tcs", ".tes", ".csh" -> true;

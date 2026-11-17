@@ -28,7 +28,6 @@ public final class FragmentConverter {
     /** The sampler types a descriptor binding is written onto. */
     private static final Set<String> BINDABLE_SAMPLERS = Set.of("sampler3D", "isampler3D", "usampler3D",
             "sampler2D", "sampler2DShadow", "isampler2D", "usampler2D", "sampler1D", "isampler1D", "usampler1D");
-    private static final Set<String> COVERAGE_PEER_TYPES = Set.of("float", "vec2", "vec3", "vec4");
 
     /**
      * How many host blocks precede a terrain-lane program's own uniform block: chimera_terrain.json's view
@@ -597,32 +596,6 @@ public final class FragmentConverter {
                 .withInterfacePlan(interfacePlan)
                 .withGeometryOutputPlan(outputPlan)
                 .convert();
-    }
-
-    /** Adds a {@code chimeraCoverage} output after the highest colour output, written with the fragment depth. */
-    public static String withCoverageOutput(String source) {
-        if (source == null || source.contains("gl_FragDepth")
-                || GlslTokenRewriter.containsIdentifier(source, "chimeraCoverage")) {
-            throw new IllegalArgumentException("coverage requires implicit fragment depth");
-        }
-        GlslTree tree = GlslTree.parse(source);
-        int max = -1;
-        for (GlslDeclarations.Variable output : GlslDeclarations.variables(tree)) {
-            Integer location = GlslDeclarations.location(tree, output.declaration());
-            if (location != null && output.qualifiers().equals(List.of("layout", "out"))
-                    && COVERAGE_PEER_TYPES.contains(output.type()) && output.plain()) {
-                max = Math.max(max, location);
-            }
-        }
-        if (max < 0 || max >= 7) {
-            throw new IllegalArgumentException("coverage output has no safe color location");
-        }
-        String declaration = "layout(location = " + (max + 1) + ") out float chimeraCoverage;\n";
-        int versionEnd = source.indexOf('\n');
-        int insertAt = versionEnd < 0 ? 0 : versionEnd + 1;
-        String result = source.substring(0, insertAt) + declaration + source.substring(insertAt);
-        return GlslTokenRewriter.appendMainEpilogue(result,
-                "chimeraCoverage = gl_FragCoord.z;");
     }
 
     /**

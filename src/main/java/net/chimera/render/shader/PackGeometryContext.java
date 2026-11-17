@@ -28,24 +28,22 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPT
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 /**
- * The pack window open on the render thread: the attachments a coverage, geometry or shadow window renders
- * into with dynamic rendering, and what its first rendering clears.
+ * The pack window open on the render thread: the attachments a geometry or shadow window renders into with
+ * dynamic rendering, and what its first rendering clears.
  */
 public final class PackGeometryContext {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private static final boolean TRACE = Boolean.getBoolean("chimera.traceTransitions");
 
     /**
-     * An open window: its attachments, whether it is a geometry window (else a coverage window), and what its
-     * first rendering clears. {@code clearFirstColor} clears a fresh coverage window's target to 0;
-     * {@code shadowClears}, when not null, clears a shadow window's depth to 1 and each colour to its own clear
-     * colour, a null one loading. Both apply only to the window's first rendering, so later terrain layers load.
+     * An open window: its attachments, and what its first rendering clears. {@code shadowClears}, when not
+     * null, clears a shadow window's depth to 1 and each colour to its own clear colour, a null one loading.
+     * It applies only to the window's first rendering, so later terrain layers load.
      */
-    private record Window(List<VulkanImage> colors, VulkanImage depth, boolean geometry, boolean clearFirstColor,
-                          List<float[]> shadowClears) {
+    private record Window(List<VulkanImage> colors, VulkanImage depth, List<float[]> shadowClears) {
         /** The window once it has begun rendering: later renderings load what it drew. */
         Window opened() {
-            return new Window(this.colors, this.depth, this.geometry, false, null);
+            return new Window(this.colors, this.depth, null);
         }
     }
 
@@ -53,19 +51,9 @@ public final class PackGeometryContext {
 
     private PackGeometryContext() {}
 
-    public static void begin(VulkanImage targetImage, VulkanImage coverageImage, VulkanImage depthImage) {
-        open(List.of(targetImage, coverageImage), depthImage, true, false, null);
-    }
-
-    /** Resumes a coverage window without clearing the target already drawn. */
-    public static void beginPreserving(VulkanImage targetImage, VulkanImage coverageImage,
-                                       VulkanImage depthImage) {
-        open(List.of(targetImage, coverageImage), depthImage, false, false, null);
-    }
-
     /** Opens a geometry window over the program's pack outputs, in attachment order. */
     public static void beginGeometry(List<VulkanImage> colorImages, VulkanImage depthImage) {
-        open(colorImages, depthImage, false, true, null);
+        open(colorImages, depthImage, null);
     }
 
     /**
@@ -76,35 +64,22 @@ public final class PackGeometryContext {
         if (clears.size() != colorImages.size()) {
             throw new IllegalArgumentException("one shadow clear per colour attachment");
         }
-        open(colorImages, depthImage, false, true, Collections.unmodifiableList(new ArrayList<>(clears)));
+        open(colorImages, depthImage, Collections.unmodifiableList(new ArrayList<>(clears)));
     }
 
-    private static void open(List<VulkanImage> colorImages, VulkanImage depthImage, boolean clearFirst,
-                             boolean geometry, List<float[]> shadowClears) {
+    private static void open(List<VulkanImage> colorImages, VulkanImage depthImage, List<float[]> shadowClears) {
         if (window != null) throw new IllegalStateException("pack geometry context already active");
         if (colorImages == null || colorImages.isEmpty() || colorImages.stream().anyMatch(value -> value == null)
                 || depthImage == null) {
             throw new IllegalArgumentException("pack geometry attachments are incomplete");
         }
-        window = new Window(List.copyOf(colorImages), depthImage, geometry, clearFirst, shadowClears);
-        trace("begin geometry=" + geometry + " colors=" + window.colors().stream()
+        window = new Window(List.copyOf(colorImages), depthImage, shadowClears);
+        trace("begin colors=" + window.colors().stream()
                 .map(value -> Long.toString(value.getId())).toList()
                 + " depth=" + depthImage.getId());
     }
 
     public static boolean active() { return window != null; }
-
-    public static boolean coverageActive() {
-        return window != null && !window.geometry() && window.colors().size() > 1;
-    }
-
-    public static boolean geometryActive() { return window != null && window.geometry(); }
-
-    public static VulkanImage target() { return window == null ? null : window.colors().get(0); }
-
-    public static VulkanImage coverage() {
-        return window == null || window.colors().size() < 2 ? null : window.colors().get(1);
-    }
 
     public static VulkanImage depth() { return window == null ? null : window.depth(); }
 
@@ -151,17 +126,13 @@ public final class PackGeometryContext {
                 glOriented);
     }
 
-    /**
-     * The colour attachments: a shadow window's colours clear to their own colours as it opens, a fresh
-     * coverage window's target to 0, and the rest load.
-     */
+    /** The colour attachments: a shadow window's colours clear to their own colours as it opens, the rest load. */
     private static VkRenderingAttachmentInfo.Buffer colorAttachments(Window open, MemoryStack stack) {
         List<VulkanImage> colors = open.colors();
         VkRenderingAttachmentInfo.Buffer colorAttachments =
                 VkRenderingAttachmentInfo.calloc(colors.size(), stack);
         for (int index = 0; index < colors.size(); index++) {
-            float[] clearColor = open.shadowClears() != null ? open.shadowClears().get(index)
-                    : !open.geometry() && index == 0 && open.clearFirstColor() ? new float[4] : null;
+            float[] clearColor = open.shadowClears() != null ? open.shadowClears().get(index) : null;
             VkRenderingAttachmentInfo info = colorAttachments.get(index);
             info.sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
                     .imageView(PackPostTargets.attachmentView(colors.get(index)))

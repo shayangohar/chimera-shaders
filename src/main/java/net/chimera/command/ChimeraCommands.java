@@ -17,6 +17,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /** Client commands for selecting a shaderpack without restarting Minecraft. */
 public final class ChimeraCommands {
@@ -192,7 +193,7 @@ public final class ChimeraCommands {
         if (!Files.isDirectory(root)) {
             return List.of();
         }
-        String zipName = input.toLowerCase().endsWith(".zip") ? input : input + ".zip";
+        String zipName = input.toLowerCase(Locale.ROOT).endsWith(".zip") ? input : input + ".zip";
         try (var entries = Files.list(root)) {
             return entries
                     .filter(ChimeraCommands::isPackPath)

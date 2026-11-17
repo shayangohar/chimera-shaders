@@ -115,7 +115,6 @@ final class Colortex8RouteTest {
         // every Iris colour target owns one addressable selector, distinct from every other target and
         // from the fixed depth, shadow and material slots
         Set<Integer> reserved = Set.of(5, 6, 7, 12, 13,
-                SelectorNamespace.COVERAGE_SLOT,
                 SelectorNamespace.SHADOW_TEX1_SLOT,
                 SelectorNamespace.SHADOW_COLOR0_SLOT,
                 SelectorNamespace.SHADOW_COLOR1_SLOT,

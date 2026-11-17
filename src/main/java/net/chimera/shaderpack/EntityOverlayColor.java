@@ -135,7 +135,15 @@ final class EntityOverlayColor {
      */
     static String withoutUnreadVertexDeclaration(String vertex) {
         if (vertex == null) return null;
-        String removed = DECLARATION.matcher(vertex).replaceAll("");
+        // match outside comments, as inject does, and cut the source as written at those offsets
+        Matcher declaration = DECLARATION.matcher(GlslLexer.maskComments(vertex));
+        StringBuilder kept = new StringBuilder();
+        int from = 0;
+        while (declaration.find()) {
+            kept.append(vertex, from, declaration.start());
+            from = declaration.end();
+        }
+        String removed = kept.append(vertex.substring(from)).toString();
         if (!READ.matcher(GlslLexer.stripComments(removed)).find()) return removed;
         String pruned = GlslTokenRewriter.removeUnreachableFunctions(removed, GlslResourceUsage.analyze(removed));
         return READ.matcher(GlslLexer.stripComments(pruned)).find() ? vertex : pruned;

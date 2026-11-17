@@ -46,16 +46,8 @@ public final class MrtPipelineContext {
 
     /** Begins a pass's contract; {@code blends} may be null when every attachment keeps the host blend. */
     public static void begin(int[] formats, int deviceMaxColorAttachments, PackBlendPlan.Mode[] blends) {
-        int limit = Math.min(LOGICAL_LIMIT, Math.max(0, deviceMaxColorAttachments));
-        if (formats == null || formats.length < 1 || formats.length > limit) {
-            throw new IllegalArgumentException("post MRT exceeds the safe attachment limit " + limit);
-        }
+        validate(formats, Math.min(LOGICAL_LIMIT, Math.max(0, deviceMaxColorAttachments)));
         SCOPE.set(new Scope(contract(formats, blends), SCOPE.get().pipeline()));
-    }
-
-    /** A two-attachment contract: the pack target and the coverage target. */
-    public static void beginGeometry(int targetFormat, int coverageFormat, int deviceMaxColorAttachments) {
-        begin(new int[] {targetFormat, coverageFormat}, deviceMaxColorAttachments);
     }
 
     /**
@@ -147,8 +139,9 @@ public final class MrtPipelineContext {
     }
 
     private static void validate(int[] formats, int limit) {
-        if (formats == null || formats.length < 1 || formats.length > limit) {
-            throw new IllegalArgumentException("MRT exceeds the safe attachment limit " + limit);
+        int count = formats == null ? 0 : formats.length;
+        if (count < 1 || count > limit) {
+            throw new IllegalArgumentException("MRT needs 1 to " + limit + " attachments, got " + count);
         }
     }
 }

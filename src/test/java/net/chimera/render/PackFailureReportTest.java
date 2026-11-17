@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,7 +53,7 @@ final class PackFailureReportTest {
         String redacted = PackFailureReport.redact(text, List.of("C:\\Users\\Alex"), List.of("alex", "Alex_Plays"));
         assertEquals("at ~\\AppData\\Roaming\\.minecraft and ~/shaderpacks, player <user> joined; alexander stays;"
                 + " user <user>.", redacted);
-        assertFalse(redacted.toLowerCase().contains("users\\alex"));
+        assertFalse(redacted.toLowerCase(Locale.ROOT).contains("users\\alex"));
     }
 
     /** A user folder that is not the home folder as Java names it still names no one. */

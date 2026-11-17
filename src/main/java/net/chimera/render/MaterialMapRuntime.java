@@ -6,18 +6,10 @@ import net.minecraft.resources.ResourceLocation;
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.lwjgl.vulkan.VK10.*;
-
 /** Creates the pass's material-map owner and pumps its builds at the frame boundary. */
 final class MaterialMapRuntime {
-    private final ChimeraMainPass pass;
-
     /** Lives as long as the renderer; null until the first pump or pack install creates it. */
     MaterialMapOwner materialMapOwner;
-
-    MaterialMapRuntime(ChimeraMainPass pass) {
-        this.pass = pass;
-    }
 
     public MaterialMapOwner materialMaps() {
         return this.materialMapOwner;

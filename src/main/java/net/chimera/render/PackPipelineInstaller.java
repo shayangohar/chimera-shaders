@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Builds one pack session's pipelines, family by family, into the pass's pipeline set: admits each program the
@@ -248,7 +249,6 @@ final class PackPipelineInstaller {
             pipelines.shadowCutoutPipeline = shadow.pipeline();
         } else {
             pipelines.shadowPipeline = shadow.pipeline();
-            pipelines.shadowSlots = shadow.samplerSlots();
         }
         if (report != null) {
             report.markRuntime(name,
@@ -306,14 +306,7 @@ final class PackPipelineInstaller {
             return;
         }
         (PassComputePlan.isShadowcomp(name) ? pipelines.shadowcompStages : pipelines.postStages).add(post);
-        if (name.equals("composite")) {
-            pipelines.compositePipeline = post.pipeline();
-            pipelines.compositeSlots = post.samplerSlots();
-            pipelines.compositeSamplerNames = post.samplerNames();
-        } else if (name.equals("final")) {
-            pipelines.finalPipeline = post.pipeline();
-            pipelines.finalSlots = post.samplerSlots();
-            pipelines.finalSamplerNames = post.samplerNames();
+        if (name.equals("final")) {
             pipelines.finalPost = post;
         }
         if (report != null) {
@@ -333,9 +326,7 @@ final class PackPipelineInstaller {
     void installTerrain(PackProgram program, String name, PackProgramPlan programPlan) {
         PackPipelines.PackTerrain terrain = PackPipelines.buildTerrain(programPlan,
                 ChimeraShaderLoader.loadSource("chimera_terrain/chimera_terrain.vsh"),
-                terrainMaterial(),
-                false, pass.packGeometryTargetFormat(),
-                advancedResources(), storage);
+                terrainMaterial(), advancedResources(), storage);
         if (terrain == null) {
             if (report != null) {
                 report.markRuntime(name,
@@ -377,9 +368,7 @@ final class PackPipelineInstaller {
     void installWater(String name, PackProgramPlan programPlan) {
         PackPipelines.PackTerrain water = PackPipelines.buildTranslucent(programPlan,
                 ChimeraShaderLoader.loadSource("chimera_terrain/chimera_terrain.vsh"),
-                terrainMaterial(),
-                false, pass.packGeometryTargetFormat(),
-                advancedResources(), storage);
+                terrainMaterial(), advancedResources(), storage);
         if (water == null) {
             if (report != null) {
                 report.markRuntime(name,
@@ -767,7 +756,7 @@ final class PackPipelineInstaller {
             if (built == null) {
                 if (lane.pass() == HostLayoutLane.Pass.HAND) {
                     LOGGER.warn("[chimera] pack {}: {} variant unavailable; that draw stays host-drawn", name,
-                            lane.name().toLowerCase());
+                            lane.name().toLowerCase(Locale.ROOT));
                     continue;
                 }
                 markFamilyPipelineFallback(name, lane + "_PIPELINE_BUILD_FAILED");
@@ -781,7 +770,7 @@ final class PackPipelineInstaller {
             }
             pipelines.hostLayout.put(lane.family(), built);
             if (lane.pass() == HostLayoutLane.Pass.HAND) {
-                LOGGER.debug("[chimera] pack {}: {} variant installed", name, lane.name().toLowerCase());
+                LOGGER.debug("[chimera] pack {}: {} variant installed", name, lane.name().toLowerCase(Locale.ROOT));
             } else {
                 markFamilyPipelineInstalled(name, lane + "_PIPELINE_INSTALLED");
             }

@@ -35,7 +35,7 @@ final class IrisPlayerState implements FrameValueSource {
             "playerBodyVector",
             "currentDate", "currentTime", "currentYearTime",
             "dhNearPlane", "dhFarPlane", "dhRenderDistance", "blockEntityId", "currentRenderedItemId", "entityId",
-            "is_burning", "is_hurt", "is_invisible", "is_on_ground", "is_sneaking", "is_sprinting", "is_alive");
+            "is_burning", "is_hurt", "is_invisible", "is_on_ground", "is_sneaking", "is_sprinting");
 
 
     /** DHCompat's near and far planes when Distant Horizons is absent. */
@@ -109,7 +109,7 @@ final class IrisPlayerState implements FrameValueSource {
         capturePlayerFlags(player);
     }
 
-    /** IrisExclusiveUniforms' player flags; all false without a player. */
+    /** CommonUniforms' player flags; all false without a player. */
     private void capturePlayerFlags(LocalPlayer player) {
         this.playerFlags.clear();
         if (player == null) return;
@@ -119,7 +119,6 @@ final class IrisPlayerState implements FrameValueSource {
         this.playerFlags.put("is_on_ground", player.onGround());
         this.playerFlags.put("is_sneaking", player.isCrouching());
         this.playerFlags.put("is_sprinting", player.isSprinting());
-        this.playerFlags.put("is_alive", player.isAlive());
     }
 
     /** The local date and time, and the seconds gone and left in the year. */
@@ -135,14 +134,6 @@ final class IrisPlayerState implements FrameValueSource {
                 + now.getSecond();
         this.yearTime[0] = elapsed;
         this.yearTime[1] = now.toLocalDate().lengthOfYear() * 86400 - elapsed;
-    }
-
-    /** Iris's values with no level or player. */
-    void clear() {
-        this.spectator = false;
-        this.health = this.maxHealth = this.hunger = this.armor = this.air = this.maxAir = -1.0f;
-        this.mood = this.constantMood = 0.0f;
-        set(this.bodyVector, null);
     }
 
     @Override
@@ -194,7 +185,7 @@ final class IrisPlayerState implements FrameValueSource {
         };
     }
 
-    /** IrisExclusiveUniforms' player flags such as {@code is_hurt}; NaN for other names. */
+    /** CommonUniforms' player flags such as {@code is_hurt}; NaN for other names. */
     private double playerFlag(String name) {
         return NAMES.contains(name) ? flag(this.playerFlags.getOrDefault(name, false)) : Double.NaN;
     }

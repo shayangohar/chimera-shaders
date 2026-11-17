@@ -20,7 +20,6 @@ import net.chimera.shaderpack.PostTargetPlan;
 import net.chimera.shaderpack.ProgramImageBindingManifest;
 import net.chimera.shaderpack.ScreenOverlayDirectives;
 import net.chimera.shaderpack.SkyDirectives;
-import net.chimera.shaderpack.TargetSpec;
 import net.chimera.shaderpack.WeatherDirectives;
 import net.minecraft.client.renderer.RenderType;
 import net.vulkanmod.render.vertex.TerrainRenderType;
@@ -72,17 +71,12 @@ public final class ChimeraMainPass implements MainPass {
     final MainPassTargets targets = new MainPassTargets(this);
     final PackPipelineSet pipelines = new PackPipelineSet();
     final PackShadowPass shadowPass = new PackShadowPass(this);
-    final PackSceneCoverage coverage = new PackSceneCoverage(this);
+    final TerrainLayerWindows terrainLayers = new TerrainLayerWindows(this);
     final PackImageBindings images = new PackImageBindings(this);
     final PackPipelineLoad load = new PackPipelineLoad(this);
     final OpaqueDepthCapture depth = new OpaqueDepthCapture(this);
-    final MaterialMapRuntime materials = new MaterialMapRuntime(this);
+    final MaterialMapRuntime materials = new MaterialMapRuntime();
     final PackFamilyWindows windows = new PackFamilyWindows(this);
-
-    private static final HandBoundaryPolicy HAND_BOUNDARY_POLICY =
-            new HandBoundaryPolicy(true, true);
-
-    static record HandBoundaryPolicy(boolean loadColor, boolean clearDepth) {}
 
     static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
@@ -336,11 +330,6 @@ public final class ChimeraMainPass implements MainPass {
         Renderer.clearAttachments(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
     }
 
-    /** True while the HDR image is a pack's colortex0. */
-    public boolean packOwnsColortex0() {
-        return this.levelPhase && this.session.packPostChainActive && this.packPostTargets.isConfigured();
-    }
-
     /**
      * Draws the horizon after the world clear and before the sky. Without a gbuffers_skybasic it draws as
      * Iris's SKY_BASIC fallback does (PackHostDraws).
@@ -373,16 +362,11 @@ public final class ChimeraMainPass implements MainPass {
                 depth.captureWorldDepth(stack, commandBuffer);
             }
 
-            if (coverage.packCoverageRuntimeEnabled() && this.coverage.packCoverageState.canSeed()) {
-                coverage.seedPackScene(commandBuffer, hdrColor);
-            }
-
             if (this.session.packPostChainActive && this.packPostTargets.isConfigured()) {
                 postChain.runWorldPostWindows(commandBuffer, hdrColor);
                 resolvePackWorldToOutput(commandBuffer, hdrColor);
                 this.packWorldResolved = true;
                 this.currentFramebuffer = this.targets.compositeFramebuffer;
-                coverage.endCoverageFrame();
                 // pack final must finish before vanilla submits the hand, or hand and GUI draws are lost
                 postChain.finishPackFinalBeforeHand();
                 return;
@@ -394,12 +378,11 @@ public final class ChimeraMainPass implements MainPass {
             // installed pack objects alone for cleanup and reload
             resolveWorldToOutput(commandBuffer, hdrColor);
             this.currentFramebuffer = this.targets.compositeFramebuffer;
-            coverage.endCoverageFrame();
         }
     }
 
-    public void beginPackCoverageWindow(TerrainRenderType renderType) {
-        coverage.beginPackCoverageWindow(renderType);
+    public void beginTerrainLayerWindow(TerrainRenderType renderType) {
+        terrainLayers.beginTerrainLayerWindow(renderType);
     }
 
     /**
@@ -433,12 +416,9 @@ public final class ChimeraMainPass implements MainPass {
     public void endPackFamilyWindow(GeometryOutputPlan outputs) {
         windows.endPackFamilyWindow(outputs);
     }
-     boolean packCoverageRuntimeEnabled() {
-        return coverage.packCoverageRuntimeEnabled();
-    }
 
-    public void endPackCoverageWindow(TerrainRenderType renderType) {
-        coverage.endPackCoverageWindow(renderType);
+    public void endTerrainLayerWindow(TerrainRenderType renderType) {
+        terrainLayers.endTerrainLayerWindow(renderType);
     }
 
     public void bindTerrainImagesAfterSelector(TerrainRenderType renderType) {
@@ -520,7 +500,7 @@ public final class ChimeraMainPass implements MainPass {
             drawFullscreen(commandBuffer, this.presentPipeline);
             // end the frame with slot 0 on outputColor, as the identity path does; slot 0 may still hold
             // hdrColor from bindAsTexture, and the next world target rebuild would hand the host a dead image
-            if (this.pipelines.finalPipeline != null || this.pipelines.finalPost != null) {
+            if (this.pipelines.finalPost != null) {
                 VTextureSelector.bindTexture(outputColor);
             }
         } finally {
@@ -572,39 +552,19 @@ public final class ChimeraMainPass implements MainPass {
 
     /** Copies the pre-hand depth into depthtex2 before the pack's solid hand draws. */
     public void beginHandSegment() {
-        if (this.levelPhase && this.packDepthTargets.isConfigured()
-                && this.packDepthTargets.plan().depthtex2()) {
-            var commandBuffer = Renderer.getCommandBuffer();
-            Renderer.getInstance().endRenderPass(commandBuffer);
-            if (!this.packDepthTargets.currentAvailable("depthtex2")) {
-                this.packDepthTargets.capturePreHand(commandBuffer, this.targets.hdrFramebuffer.getDepthAttachment());
-            }
-            this.rebindMainTarget();
-            return;
-        }
-        if (!this.packWorldResolved || !this.packDepthTargets.isConfigured()
+        if (!this.levelPhase || !this.packDepthTargets.isConfigured()
                 || !this.packDepthTargets.plan().depthtex2()) {
             return;
         }
         VkCommandBuffer commandBuffer = Renderer.getCommandBuffer();
-        if (Renderer.getInstance().getBoundRenderPass() != null) {
-            Renderer.getInstance().endRenderPass(commandBuffer);
-        }
+        Renderer.getInstance().endRenderPass(commandBuffer);
         if (!this.packDepthTargets.currentAvailable("depthtex2")
                 && !this.packDepthTargets.capturePreHand(commandBuffer,
-                this.targets.hdrFramebuffer == null ? null : this.targets.hdrFramebuffer.getDepthAttachment())) {
+                this.targets.hdrFramebuffer.getDepthAttachment()) && !this.session.preHandDepthFailureLogged) {
+            this.session.preHandDepthFailureLogged = true;
             LOGGER.warn("[chimera] pack depth graph: fallback=IDENTITY (pre-hand depth conversion failed)");
         }
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            // the world is already resolved into the output: load its colour and give the hand cleared depth
-            RenderPass handPass = HAND_BOUNDARY_POLICY.clearDepth()
-                    ? this.targets.compositeAuxClearDepthRenderPass : this.targets.compositeAuxRenderPass;
-            Renderer.getInstance().beginRendering(handPass,
-                    this.targets.compositeFramebuffer);
-            Renderer.setViewport(0, 0, this.targets.compositeFramebuffer.getWidth(),
-                    this.targets.compositeFramebuffer.getHeight(), stack);
-            VK10.vkCmdSetScissor(commandBuffer, 0, this.targets.compositeFramebuffer.scissor(stack));
-        }
+        this.rebindMainTarget();
     }
 
     /** Whether the pack draws the hand: only in a live pack frame with both hand programs installed. */
@@ -745,12 +705,14 @@ public final class ChimeraMainPass implements MainPass {
         this.pendingDepthClear = true;
     }
 
-    /** Reopens the current target with a depth clear; does nothing outside the level phase. */
+    /**
+     * Reopens the current target, applying the depth clear {@link #requestPendingDepthClear} asked for; does
+     * nothing outside the level phase.
+     */
     public void reopenWithPendingClear() {
         if (!this.levelPhase) {
             return;
         }
-        this.requestPendingDepthClear();
         this.rebindMainTarget();
     }
 
@@ -846,11 +808,6 @@ public final class ChimeraMainPass implements MainPass {
         return DeviceManager.deviceProperties.limits().maxImageDimension2D();
     }
 
-    int packGeometryTargetFormat() {
-        TargetSpec target = this.packTargetGraph == null ? null : this.packTargetGraph.target(0);
-        return target == null ? this.packHdrFormat : target.format();
-    }
-
     void createPipelines() {
         this.presentPipeline = ChimeraPostPipelines.create("chimera_present");
         this.outputResolve.create();
@@ -900,9 +857,7 @@ public final class ChimeraMainPass implements MainPass {
     void cleanUpPipelines() {
         if (this.presentPipeline != null) this.presentPipeline.cleanUp();
         this.outputResolve.cleanUp();
-        if (this.coverage.sceneSeedPipeline != null) this.coverage.sceneSeedPipeline.cleanUp();
         this.presentPipeline = null;
-        this.coverage.sceneSeedPipeline = null;
     }
 
     /**

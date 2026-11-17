@@ -231,13 +231,13 @@ record PackResolutionPlan(
         addChain(result, "gbuffers_entities", "gbuffers_textured_lit", "gbuffers_textured", "gbuffers_basic");
         addChain(result, "gbuffers_entities_translucent", "gbuffers_entities", "gbuffers_textured_lit",
                 "gbuffers_textured", "gbuffers_basic");
-        addChain(result, "gbuffers_entities_glowing", "gbuffers_entities", "gbuffers_textured_lit", "gbuffers_textured",
-                "gbuffers_basic");
         addChain(result, "gbuffers_lightning", "gbuffers_entities", "gbuffers_textured_lit", "gbuffers_textured",
                 "gbuffers_basic");
         addChain(result, "gbuffers_particles", "gbuffers_textured_lit", "gbuffers_textured", "gbuffers_basic");
         addChain(result, "gbuffers_particles_translucent", "gbuffers_particles", "gbuffers_textured_lit",
                 "gbuffers_textured", "gbuffers_basic");
+        addChain(result, "gbuffers_entities_glowing", "gbuffers_entities", "gbuffers_textured_lit", "gbuffers_textured",
+                "gbuffers_basic");
         addChain(result, "gbuffers_armor_glint", "gbuffers_textured", "gbuffers_basic");
         addChain(result, "gbuffers_spidereyes", "gbuffers_textured", "gbuffers_basic");
         addChain(result, "gbuffers_hand", "gbuffers_textured_lit", "gbuffers_textured", "gbuffers_basic");
@@ -271,10 +271,7 @@ record PackResolutionPlan(
         map.put(key, List.of(programs));
     }
 
-    /**
-     * Iris's ProgramId names in declaration order, except gbuffers_entities_glowing, which Iris declares after
-     * gbuffers_particles_translucent.
-     */
+    /** Iris's ProgramId names in declaration order. */
     static List<String> programIds() {
         return FALLBACKS.keySet().stream().filter(name -> !isShaderKey(name)).toList();
     }

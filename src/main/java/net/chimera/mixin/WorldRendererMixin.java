@@ -27,8 +27,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Every layer call runs in its Iris rendering phase, and only the layers VulkanMod draws ({@link TerrainLayers})
  * open Chimera's windows. Before translucent terrain, depth is captured and the deferred passes run ahead of the
  * pack window, whose guarded attachments must not intercept them; the entity batches a pack's
- * separateEntityDraws held back draw right after (FamilyBufferSource). The pack coverage window spans each
- * layer's draws.
+ * separateEntityDraws held back draw right after (FamilyBufferSource). A pack window spans each layer's
+ * draws.
  *
  * Every layer opens on the main target (ChimeraMainPass.rebindMainTarget), which opens the shadow pass or a
  * pending pack geometry window, since Reforged's renderSectionLayer draws into whatever is bound.
@@ -60,7 +60,7 @@ public abstract class WorldRendererMixin {
                 pass.captureOpaqueDepthBeforeTranslucent();
                 FamilyBufferSource.endHeldLevelBatches(pass);
             }
-            pass.beginPackCoverageWindow(type);
+            pass.beginTerrainLayerWindow(type);
             try {
                 pass.rebindMainTarget();
                 // the shadow pass sets its own layers' alpha references (PackShadowPass)
@@ -69,7 +69,7 @@ public abstract class WorldRendererMixin {
                 }
                 original.call(renderType, camX, camY, camZ, view, projection);
             } finally {
-                pass.endPackCoverageWindow(type);
+                pass.endTerrainLayerWindow(type);
             }
         } finally {
             PackUniformProvider.setRenderingPhase(previous);

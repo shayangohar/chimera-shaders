@@ -34,29 +34,32 @@ final class CelestialSnapshot {
         return wrapped(angleDegrees) / 360.0F;
     }
 
-    /** Whether the sun lights the world at this raw angle, rather than the moon. */
+    /** Whether the sun lights the world at this raw angle, rather than the moon; Iris keeps the sun at 180. */
     static boolean isDay(float sunAngleDegrees) {
-        return wrapped(sunAngleDegrees) < 180.0F;
+        return wrapped(sunAngleDegrees) <= 180.0F;
     }
 
     private static float wrapped(float angleDegrees) {
         float angle = angleDegrees + 90.0F;
         if (angle < 0.0F) {
             angle += 360.0F;
-        } else if (angle > 360.0F) {
+        } else if (angle >= 360.0F) {
             angle -= 360.0F;
         }
         return angle;
     }
 
-    /** Eye-space sun or moon position, unnormalised, at the frame's offset angle. */
+    /**
+     * Eye-space sun or moon position, unnormalised, at the frame's offset angle. Iris carries it with w = 0, so
+     * the view's translation, such as view bobbing's, stays out.
+     */
     static void position(Matrix4f gbufferModelView, float sunPathRotation, float offsetDegrees,
                          float angleDegrees, Vector3f dest) {
         SCRATCH.set(gbufferModelView)
                 .rotateY((float) Math.toRadians(QUARTER_TURN_DEGREES))
                 .rotateZ((float) Math.toRadians(sunPathRotation))
                 .rotateX((float) Math.toRadians(angleDegrees + offsetDegrees));
-        VECTOR.set(0.0F, CELESTIAL_LENGTH, 0.0F, 1.0F);
+        VECTOR.set(0.0F, CELESTIAL_LENGTH, 0.0F, 0.0F);
         SCRATCH.transform(VECTOR);
         dest.set(VECTOR.x, VECTOR.y, VECTOR.z);
     }

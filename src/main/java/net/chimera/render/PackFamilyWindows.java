@@ -152,7 +152,7 @@ final class PackFamilyWindows {
 
     public void endPackFamilyWindow(GeometryOutputPlan outputs) {
         if (outputs == null || !outputs.requiresDynamicAttachments()
-                || !PackGeometryContext.geometryActive() || pass.shadowPass.shadowPassActive) {
+                || !PackGeometryContext.active() || pass.shadowPass.shadowPassActive) {
             return;
         }
         try {

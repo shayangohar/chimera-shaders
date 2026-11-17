@@ -25,13 +25,7 @@ final class GlslResourceUsage {
             "if", "for", "while", "switch", "catch", "sizeof");
 
     /** Token offsets of one top-level function definition. */
-    record FunctionDefinition(
-            String name,
-            int definitionStart,
-            int bodyStart,
-            int bodyEnd,
-            int definitionEnd
-    ) {}
+    record FunctionDefinition(String name, int definitionStart, int definitionEnd) {}
 
     record Analysis(
             Set<String> declaredSamplers,
@@ -107,7 +101,7 @@ final class GlslResourceUsage {
                 if (external instanceof GlslTree.Function function && function.body() != null) {
                     GlslTree.Range body = function.body().range();
                     bodies.put(new FunctionDefinition(tree.text(function.name()), function.range().start(),
-                            body.start() + 1, body.end() - 1, body.end() - 1), uses(tree, declared, body));
+                            body.end() - 1), uses(tree, declared, body));
                 }
             }
             Uses topLevel = topLevelUses(tree, declared);
@@ -215,7 +209,7 @@ final class GlslResourceUsage {
                 String type = tree.text(declaration.type().name());
                 boolean uniform = declaration.qualifiers().stream()
                         .anyMatch(qualifier -> tree.text(qualifier.keyword()).equals("uniform"));
-                Set<String> kind = uniform && isSampler(type) ? names.samplers()
+                Set<String> kind = uniform && UniformRegistry.isSamplerType(type) ? names.samplers()
                         : UniformRegistry.isStorageImageType(type) ? names.images() : null;
                 if (kind == null) continue;
                 for (GlslTree.Declarator declarator : declaration.declarators()) {
@@ -330,10 +324,6 @@ final class GlslResourceUsage {
             for (int index = directive.range().start(); index < directive.range().end(); index++) tokens.add(index);
         }
         return tokens;
-    }
-
-    private static boolean isSampler(String type) {
-        return type.startsWith("sampler") || type.startsWith("isampler") || type.startsWith("usampler");
     }
 
     private static Set<String> sorted(Set<String> values) {

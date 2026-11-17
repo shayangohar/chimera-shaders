@@ -99,7 +99,8 @@ final class EntityRealPackTest {
                     expectation.pack + " " + expectation.program() + " vertex");
             compileStage(plan.convertedFragment(), false,
                     expectation.pack + " " + expectation.program() + " fragment");
-            verifyManifest(analysis.plan().advancedResources(), expectation, plan);        }
+            verifyManifest(analysis.plan().advancedResources(), expectation, plan);
+        }
     }
 
     /** Weather and sky programs are admitted, route to their targets and compile, each sky contract too. */

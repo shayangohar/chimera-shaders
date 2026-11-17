@@ -66,10 +66,6 @@ final class PackPipelineLoad {
         pass.pipelines.postStages.sort(Comparator.comparing(
                 PackPipelines.PackPost::name, PostTargetPlan.programComparator()));
         pass.postChain.buildPackPostExecutionPlan();
-        if (pass.coverage.packCoveragePlan.enabled()) {
-            LOGGER.debug("[chimera] scene seed: direct HDR; coverage merge deferred for {}",
-                    pass.coverage.packCoveragePlan.families());
-        }
         reportShadowFallbacks();
         reportConformance();
         logPackStoragePath("pipelines-installed");

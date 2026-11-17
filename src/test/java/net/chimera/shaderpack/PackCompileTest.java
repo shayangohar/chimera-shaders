@@ -152,8 +152,6 @@ final class PackCompileTest {
                 "chimera_composite/chimera_composite.vsh");
         private final String fixedTerrainVertex = ChimeraShaderLoader.loadSource(
                 "chimera_terrain/chimera_terrain.vsh");
-        /** The current program's vertex error: its own stage's, or the last failing input variant's. */
-        private String vertexError;
 
         ProgramCompiler(Path pack, PackAdvancedResourcePlan resources, List<String> failures,
                         ConvertedOutputSnapshot snapshot) {
@@ -175,7 +173,7 @@ final class PackCompileTest {
             return outcome.error();
         }
 
-        /** Compiles the program's prepared stages and input variants; false when a stage or vertex variant fails. */
+        /** Compiles the program's prepared stages and input variants; false when a stage or variant fails. */
         boolean compiles(PackProgramPlan program) {
             UniformRegistry.Stage stage = FamilyAdapterRegistry.stageFor(program.name());
             String vertex = pairedVertex(program, stage);
@@ -193,12 +191,12 @@ final class PackCompileTest {
                 failures.add(program.name() + " preparation: " + failure);
                 return false;
             }
-            vertexError = program.convertedVertex() == null ? null
+            String vertexError = program.convertedVertex() == null ? null
                     : check(program.name() + ".vsh", prepared.vertex(), true);
             String fragmentError = check(program.name() + ".fsh", prepared.fragment(), false);
             boolean betweenCompiles = prepared.between().present().stream()
                     .map(between -> checkBetween(program.name(), between)).toList().stream().allMatch(ok -> ok);
-            compileInputVariants(program, stage);
+            boolean variantsCompile = compileInputVariants(program, stage);
             // -Pchimera.packCompile.dumpProgram=<name> writes that program's prepared stages for review
             if (program.name().equals(System.getProperty("chimera.packCompile.dumpProgram"))) {
                 dump(pack, program.name() + ".vsh", prepared.vertex());
@@ -210,7 +208,7 @@ final class PackCompileTest {
                     + " [" + dump(pack, program.name() + ".vsh", prepared.vertex()) + "]");
             if (fragmentError != null) failures.add(program.name() + " fragment: " + fragmentError
                     + " [" + dump(pack, program.name() + ".fsh", prepared.fragment()) + "]");
-            return vertexError == null && betweenCompiles && fragmentError == null;
+            return vertexError == null && betweenCompiles && fragmentError == null && variantsCompile;
         }
 
         /** Compiles one stage the program runs between its vertex and fragment stages; false when it fails. */
@@ -225,7 +223,8 @@ final class PackCompileTest {
 
         /**
          * The vertex the runtime draws the program with (a family's own inputs, PackPipelines),
-         * or Chimera's fixed vertex where the pack has none.
+         * Chimera's fixed vertex for a post or terrain program without one, else null: the runtime
+         * builds no pipeline for any other program without a vertex stage, where Iris writes a legacy one.
          */
         private String pairedVertex(PackProgramPlan program, UniformRegistry.Stage stage) {
             if (program.convertedVertex() != null) return PackPipelines.familyVertex(program);
@@ -233,64 +232,65 @@ final class PackCompileTest {
             if (stage == UniformRegistry.Stage.GEOMETRY || stage == UniformRegistry.Stage.TRANSLUCENT) {
                 return fixedTerrainVertex;
             }
-            return program.convertedFragment();
+            return null;
         }
 
-        /** Compiles the host-layout input variants the runtime builds for the program's family. */
-        private void compileInputVariants(PackProgramPlan program, UniformRegistry.Stage stage) {
+        /**
+         * Compiles the host-layout input variants the runtime builds for the program's family; false when one
+         * fails.
+         */
+        private boolean compileInputVariants(PackProgramPlan program, UniformRegistry.Stage stage) {
             String name = program.name();
             String vertex = program.convertedVertex();
+            boolean ok = true;
             if (FamilyAdapterRegistry.isHandFamily(name)) {
                 for (var host : ChimeraVertexFormats.handFormats().keySet()) {
-                    compileLayoutVariant(program, stage, "hand input variant", host);
+                    ok &= compileLayoutVariant(program, stage, "hand input variant", host);
                 }
             }
             if (name.equals("gbuffers_entities_translucent") || name.equals("gbuffers_block_translucent")) {
                 // Iris's GLYPH text variant, for TEXT and TEXT_BE
-                compileLayoutVariant(program, stage, "text input variant",
+                ok &= compileLayoutVariant(program, stage, "text input variant",
                         DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
             }
             if (name.equals("gbuffers_block") || name.equals("shadow_entities")) {
                 // falling blocks and moving pistons on the block layout, Iris's MOVING_BLOCK
-                compileLayoutVariant(program, stage, "moving-block input variant", DefaultVertexFormat.BLOCK);
+                ok &= compileLayoutVariant(program, stage, "moving-block input variant", DefaultVertexFormat.BLOCK);
             }
             if (FamilyAdapterRegistry.isGlintFamily(name)) {
                 // first-person glint: the same program under the hand projection
-                compileVariant(program, stage, "hand glint variant", EntityVertexBridge.handGlintVertex(vertex));
+                ok &= compileVariant(program, stage, "hand glint variant", EntityVertexBridge.handGlintVertex(vertex));
             }
             if (FamilyAdapterRegistry.isSkyFamily(name)) {
                 for (var contract : HostLayoutVertexBridge.SKY_CONTRACTS) {
-                    compileVariant(program, stage, "sky input variant " + contract,
+                    ok &= compileVariant(program, stage, "sky input variant " + contract,
                             HostLayoutVertexBridge.skyVertexForContract(vertex, contract));
                 }
             }
+            return ok;
         }
 
-        private void compileVariant(PackProgramPlan program, UniformRegistry.Stage stage, String label,
-                                    String variant) {
+        private boolean compileVariant(PackProgramPlan program, UniformRegistry.Stage stage, String label,
+                                       String variant) {
             String error = check(variantKey(program, label, ".vsh"),
                     PackPipelines.prepare(program, resources, stage, variant).vertex(), true);
-            if (error != null) {
-                failures.add(program.name() + " " + label + ": " + error);
-                vertexError = error;
-            }
+            if (error != null) failures.add(program.name() + " " + label + ": " + error);
+            return error == null;
         }
 
         /** A native host layout's variant: its own inputs, and its own fragment where the layout has no overlay. */
-        private void compileLayoutVariant(PackProgramPlan program, UniformRegistry.Stage stage, String label,
-                                          VertexFormat host) {
+        private boolean compileLayoutVariant(PackProgramPlan program, UniformRegistry.Stage stage, String label,
+                                             VertexFormat host) {
             String fragment = EntityVertexBridge.fragmentForFormat(program.convertedFragment(), host);
             var prepared = PackPipelines.prepare(program, resources, stage,
                     EntityVertexBridge.layoutVertexForFormat(program.convertedVertex(), host), fragment);
             String layout = label + " " + String.join(",", host.getElementAttributeNames());
             String error = check(variantKey(program, layout, ".vsh"), prepared.vertex(), true);
-            if (error != null) {
-                failures.add(program.name() + " " + label + ": " + error);
-                vertexError = error;
-            }
+            if (error != null) failures.add(program.name() + " " + label + ": " + error);
             String fragmentError = fragment.equals(program.convertedFragment())
                     ? null : check(variantKey(program, layout, ".fsh"), prepared.fragment(), false);
             if (fragmentError != null) failures.add(program.name() + " " + label + " fragment: " + fragmentError);
+            return error == null && fragmentError == null;
         }
 
         private static String variantKey(PackProgramPlan program, String label, String extension) {

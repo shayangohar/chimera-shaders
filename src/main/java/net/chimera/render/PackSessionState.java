@@ -31,6 +31,8 @@ final class PackSessionState {
     /** PACK_TARGET_FRAME_NOT_STARTED is logged once per session. */
     boolean packTargetFrameNotStartedLogged;
     boolean packTranslucentSuspendLogged;
+    /** A failed pre-hand depth capture is warned about once per session. */
+    boolean preHandDepthFailureLogged;
     /** The loaded pack's pass computes, as its analysis translated them. */
     PassComputePlan passComputes = PassComputePlan.empty();
 

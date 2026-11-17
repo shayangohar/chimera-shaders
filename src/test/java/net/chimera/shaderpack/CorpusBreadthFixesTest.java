@@ -67,7 +67,7 @@ final class CorpusBreadthFixesTest {
         // the whole fragment conversion keeps both overloads too
         PostTargetPlan targetPlan = PostTargetPlan.parse("composite", source).plan();
         String converted = FragmentConverter.convertPostFragment(source, null,
-                InterfacePlanner.planPreparedPost(source, targetPlan), targetPlan);
+                InterfacePlanner.planPreparedPost(source), targetPlan);
         assertTrue(converted != null
                         && converted.contains("float texture2DShadow(sampler2D shadowtex, vec3 shadowPos)")
                         && converted.contains("float texture2DShadow(sampler2DShadow shadowtex, vec3 shadowPos)"),

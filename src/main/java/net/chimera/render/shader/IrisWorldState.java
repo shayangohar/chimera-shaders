@@ -106,10 +106,6 @@ final class IrisWorldState implements FrameValueSource {
         this.cloudTime = (ticks + partialTick) * 0.03F;
     }
 
-    void clear() {
-        this.cloudTime = 0.0F;
-    }
-
     @Override
     public Set<String> names() {
         return NAMES;

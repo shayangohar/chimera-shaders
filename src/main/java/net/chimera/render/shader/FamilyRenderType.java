@@ -7,6 +7,7 @@ import net.chimera.shaderpack.PackRenderingPhase;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -27,7 +28,7 @@ public final class FamilyRenderType extends RenderType {
     private long lastDrawn;
 
     FamilyRenderType(Family family, PackRenderingPhase phase, RenderType host) {
-        super("chimera_" + family.name().toLowerCase() + ":" + host.name,
+        super("chimera_" + family.name().toLowerCase(Locale.ROOT) + ":" + host.name,
                 ChimeraEntityBridge.widenedFormat(family, host.format()), host.mode(), host.bufferSize(),
                 host.affectsCrumbling(), host.sortOnUpload(), host::setupRenderState, host::clearRenderState);
         this.family = family;

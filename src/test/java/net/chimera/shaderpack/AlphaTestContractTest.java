@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.lwjgl.util.shaderc.Shaderc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,7 +113,7 @@ final class AlphaTestContractTest {
         String tested = fixed.injectDrawTest(early);
         int test = tested.indexOf("gl_FragData[0].a > 0.5");
         assertTrue(test > tested.indexOf("vec4(1.0);") && test < tested.lastIndexOf('}')
-                && !tested.contains("chimeraAuthoredMain") && tested.indexOf("void main") == tested.lastIndexOf(
+                && tested.indexOf("void main") == tested.lastIndexOf(
                 "void main"), tested);
         for (String index : List.of("0u", "0x0", "00")) {
             String source = "#version 130\nvoid main() { gl_FragData[" + index + "] = vec4(1.0); }\n";
@@ -290,34 +289,6 @@ final class AlphaTestContractTest {
     }
 
     @Test
-    void mainWrapper() {
-        String source = """
-                #version 460
-                void chimeraAuthoredMain() { }
-                void chimeraGeneratedMain() { }
-                // void main() { discard; }
-                void helper() { }
-                layout(location = 0) out vec4 fragColor;
-                void main() {
-                    helper();
-                    fragColor = vec4(1.0);
-                }
-                """;
-        String wrapped = GlslTokenRewriter.appendMainEpilogue(source, "discard;");
-        assertTrue(wrapped.contains("void chimeraAuthoredMain_()"),
-                "authored main name was not collision-safe");
-        assertTrue(wrapped.contains("void chimeraGeneratedMain_()"),
-                "generated main name was not collision-safe");
-        assertTrue(wrapped.lastIndexOf("discard;") > wrapped.lastIndexOf("chimeraAuthoredMain_();"),
-                "main epilogue was not appended after authored main");
-        expectFailure(() -> GlslTokenRewriter.appendMainEpilogue(
-                "void helper() {}", "discard;"), "missing main was accepted");
-        expectFailure(() -> GlslTokenRewriter.appendMainEpilogue(
-                "void main() {} void main() {}", "discard;"),
-                "ambiguous main was accepted");
-    }
-
-    @Test
     void convertedTerrain() {
         Path fixture = Path.of("testpacks/m5_2/material");
         PackProbe.Analysis analysis = PackProbe.analyze(fixture);
@@ -331,12 +302,9 @@ final class AlphaTestContractTest {
         assertTrue(fragment.contains("discard;"), "converted terrain has no fragment termination");
         int main = fragment.indexOf("void main");
         int rejection = fragment.lastIndexOf(UniformRegistry.ENTITY_ALPHA_REFERENCE);
-        assertTrue(main >= 0 && rejection > main && !fragment.contains("chimeraAuthoredMain"),
+        assertTrue(main >= 0 && rejection > main,
                 "alpha test does not end the authored main's body");
         compile(fragment);
-        String covered = FragmentConverter.withCoverageOutput(fragment);
-        assertTrue(covered.indexOf("discard;") < covered.lastIndexOf("chimeraCoverage ="),
-                "coverage was written before alpha rejection");
     }
 
     @Test
@@ -444,27 +412,8 @@ final class AlphaTestContractTest {
                 PackRuntimeSettings.empty(), Map.of(), Map.of(), false, Map.of(), null);
     }
 
-    private static void expectFailure(Runnable action, String message) {
-        try {
-            action.run();
-        } catch (RuntimeException expected) {
-            return;
-        }
-        throw new AssertionError(message);
-    }
-
     private static void compile(String source) {
-        long compiler = Shaderc.shaderc_compiler_initialize();
-        long result = Shaderc.shaderc_compile_into_spv(compiler, source,
-                Shaderc.shaderc_glsl_fragment_shader, "terrain_alpha.fsh", "main", 0);
-        try {
-            assertTrue(result != 0 && Shaderc.shaderc_result_get_compilation_status(result)
-                            == Shaderc.shaderc_compilation_status_success,
-                    result == 0 ? "shaderc returned no result"
-                            : Shaderc.shaderc_result_get_error_message(result));
-        } finally {
-            if (result != 0) Shaderc.shaderc_result_release(result);
-            Shaderc.shaderc_compiler_release(compiler);
-        }
+        String error = PackCompileTest.compile(source, false);
+        assertTrue(error == null, error);
     }
 }

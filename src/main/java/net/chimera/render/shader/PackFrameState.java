@@ -309,28 +309,10 @@ final class PackFrameState {
         return component == 0 ? x : component == 1 ? y : z;
     }
 
-    private static void writeDefault(UniformRegistry.DefaultPolicy policy,
-                                     String type, MappedBuffer target) {
-        if (type.equals("mat4")) {
-            for (int i = 0; i < 16; i++) {
-                target.putFloat(i * 4, i % 5 == 0 ? 1.0f : 0.0f);
-            }
-            return;
-        }
-        if (type.startsWith("i")) {
-            for (int i = 0; i < UniformRegistry.pipelineCount(type); i++) {
-                target.putInt(i * 4, 0);
-            }
-            return;
-        }
-        float value = switch (policy) {
-            case ONE -> 1.0f;
-            case CLOUD_HEIGHT -> 192.0f;
-            case NEAR_CLIP -> 0.05f;
-            default -> 0.0f;
-        };
+    /** GL's value for a uniform nothing sets, as Iris leaves an unset or disabled one: zero, matrices included. */
+    private static void writeDefault(String type, MappedBuffer target) {
         for (int i = 0; i < UniformRegistry.pipelineCount(type); i++) {
-            target.putFloat(i * 4, value);
+            target.putInt(i * 4, 0);
         }
     }
 
@@ -374,17 +356,6 @@ final class PackFrameState {
         setAtlasSize(blockAtlas[0], blockAtlas[1]);
         captureMatrices(capturedModelView, capturedProjection);
         captureHostState();
-
-        if (camera == null || minecraft == null) {
-            clearCameraState();
-            irisPlayer.clear();
-            irisWorld.clear();
-            selectedBlock.clear();
-            heldItems.clear();
-            clearWorldState();
-            evaluateCustomValues();
-            return;
-        }
 
         var position = camera.getPosition();
         advanceCamera(position.x, position.y, position.z, viewportChanged);
@@ -477,7 +448,7 @@ final class PackFrameState {
         }
         FrameValue value = values.get(name);
         if (value == null) {
-            writeDefault(descriptor.defaultPolicy(), type, target);
+            writeDefault(type, target);
             return;
         }
         int count = Math.min(value.width(), UniformRegistry.pipelineCount(type));
@@ -524,7 +495,7 @@ final class PackFrameState {
         this.frameTimeCounter = wrapFrameTimeCounter(this.frameTimeCounter + this.frameTime);
     }
 
-    static float quantizedFrameSecondsForTest(long elapsedNanos) {
+    static float quantizedFrameSeconds(long elapsedNanos) {
         return (float) (Math.max(elapsedNanos, 0L) / 1_000_000L) / 1000.0f;
     }
 

@@ -129,6 +129,40 @@ final class ModernPostTranslationTest {
     }
 
     /**
+     * Iris's fullscreen pass feeds a post vertex stage only the quad's position and texture coordinate. An input
+     * it never reads is dropped, and one it reads takes GL's default generic attribute, (0, 0, 0, 1).
+     */
+    @Test
+    void postVertexInputsReadTheDefaultAttribute() {
+        String fragment = """
+                #version 130
+                varying vec2 texCoord;
+                void main() { gl_FragColor = vec4(texCoord, 0.0, 1.0); }
+                """;
+        String unread = """
+                #version 130
+                in vec4 mc_Entity;
+                varying vec2 texCoord;
+                void main() { gl_Position = ftransform(); texCoord = gl_MultiTexCoord0.xy; }
+                """;
+        PostVertexBridge.PostVertexConversion converted = convertPostVertex(unread, fragment);
+        assertTrue(converted.source() != null && !converted.source().contains("mc_Entity"),
+                "an unread input refused the stage: " + converted.deviations());
+        PostVertexBridge.PostVertexConversion read = convertPostVertex(
+                unread.replace("ftransform();", "ftransform() + mc_Entity;"), fragment);
+        assertTrue(read.source() != null && read.source().contains("const vec4 mc_Entity = vec4(0.0, 0.0, 0.0, 1.0);"),
+                "a read input did not take the default attribute: " + read.deviations());
+    }
+
+    private static PostVertexBridge.PostVertexConversion convertPostVertex(String vertex, String fragment) {
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planProgram(fragment, vertex,
+                UniformRegistry.Stage.POST, null, true).effective(UniformRegistry.Stage.POST);
+        GlslInterfaceScanner.StageInterface vs = GlslInterfaceScanner.scan(vertex, true);
+        GlslInterfaceScanner.StageInterface fs = GlslInterfaceScanner.scan(fragment, false);
+        return PostVertexBridge.convertPostVertex(vertex, vs, fs, GlslInterfaceScanner.match(vs, fs), plan);
+    }
+
+    /**
      * A program compiles the shadow constants it declares as it wrote them, as Iris compiles its
      * source: nothing replaces their values, and nothing declares one the program does not.
      */

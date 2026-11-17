@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -71,8 +72,8 @@ final class OptionSweepTest {
         String filter = System.getProperty("chimera.sweep.packs", "");
         StringBuilder summary = new StringBuilder("# Option sweep\n");
         for (Path source : packs) {
-            if (!filter.isBlank() && Stream.of(filter.split(";")).noneMatch(
-                    word -> source.getFileName().toString().toLowerCase().contains(word.toLowerCase()))) {
+            if (!filter.isBlank() && Stream.of(filter.split(";")).noneMatch(word -> source.getFileName().toString()
+                    .toLowerCase(Locale.ROOT).contains(word.toLowerCase(Locale.ROOT)))) {
                 continue;
             }
             summary.append(sweepPack(source));
@@ -93,9 +94,10 @@ final class OptionSweepTest {
         packs.addAll(TestPacks.extra());
         StringBuilder text = new StringBuilder();
         for (String request : requests.split(";")) {
-            String word = request.substring(0, request.indexOf(':')).toLowerCase();
+            String word = request.substring(0, request.indexOf(':')).toLowerCase(Locale.ROOT);
             String variant = request.substring(request.indexOf(':') + 1);
-            Path source = packs.stream().filter(path -> path.getFileName().toString().toLowerCase().contains(word))
+            Path source = packs.stream()
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).contains(word))
                     .findFirst().orElseThrow();
             text.append(explainVariant(TestPacks.copyWithoutOptions(source, OUTPUT.resolve("packs")), variant));
         }

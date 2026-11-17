@@ -48,10 +48,6 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
         return gl == null ? this : new SamplerProfile(SamplerManager.getTextureSampler(gl), gl);
     }
 
-    public boolean complete() {
-        return key != null;
-    }
-
     /**
      * This profile's sampling, clamped to the base level when {@code baseLevelOnly}; null when the key is
      * unknown. A {@code nearest} map reads the nearest texel of the nearest level, as Iris sets up a labPBR

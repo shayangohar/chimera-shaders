@@ -59,16 +59,11 @@ public final class PackFrameSchedulePlan {
     private final List<PostStage> postStages;
     private final boolean depthtex0;
     private final boolean depthtex1;
-    private final boolean depthtex2;
     private final boolean earlyDepthtex0;
-    private final boolean handBeforeEarlyPost;
-    private final boolean particlesBeforeLatePost;
     private final List<String> deviations;
 
-    private PackFrameSchedulePlan(List<PostStage> postStages, boolean depthtex0,
-                                  boolean depthtex1, boolean depthtex2, boolean earlyDepthtex0,
-                                  boolean handBeforeEarlyPost, boolean particlesBeforeLatePost,
-                                  List<String> deviations) {
+    private PackFrameSchedulePlan(List<PostStage> postStages, boolean depthtex0, boolean depthtex1,
+                                  boolean earlyDepthtex0, List<String> deviations) {
         this.postStages = postStages == null ? List.of() : List.copyOf(postStages);
         // the begin and prepare phases exist only with a pass of their window
         this.phases = ORDER.stream()
@@ -77,17 +72,14 @@ public final class PackFrameSchedulePlan {
                 .toList();
         this.depthtex0 = depthtex0;
         this.depthtex1 = depthtex1;
-        this.depthtex2 = depthtex2;
         this.earlyDepthtex0 = earlyDepthtex0;
-        this.handBeforeEarlyPost = handBeforeEarlyPost;
-        this.particlesBeforeLatePost = particlesBeforeLatePost;
         this.deviations = deviations == null ? List.of()
                 : deviations.stream().filter(value -> value != null && !value.isBlank())
                 .distinct().sorted().toList();
     }
 
     public static PackFrameSchedulePlan empty() {
-        return new PackFrameSchedulePlan(List.of(), false, false, false, false, false, true, List.of());
+        return new PackFrameSchedulePlan(List.of(), false, false, false, List.of());
     }
 
     public static PackFrameSchedulePlan build(List<PackProgramPlan> programs,
@@ -135,8 +127,7 @@ public final class PackFrameSchedulePlan {
             deviations.add("SCHEDULE_LATE_POST_AFTER_WORLD");
         }
         deviations.add("HAND_PHASE_HOST_BOUNDARY");
-        return new PackFrameSchedulePlan(stages, depth0, depth1, depth2, earlyDepth0,
-                false, true, deviations);
+        return new PackFrameSchedulePlan(stages, depth0, depth1, earlyDepth0, deviations);
     }
 
     /** The post programs with a target plan, in Iris's pass order. */
@@ -229,8 +220,6 @@ public final class PackFrameSchedulePlan {
     public boolean requiresDepthtex1() { return depthtex1; }
     /** A deferred pass or its computes read depthtex0, the opaque depth at that seam. */
     public boolean earlyReadsDepthtex0() { return earlyDepthtex0; }
-    public boolean handBeforeEarlyPost() { return handBeforeEarlyPost; }
-    public boolean particlesBeforeLatePost() { return particlesBeforeLatePost; }
     public List<String> deviations() { return deviations; }
 
     public List<PostStage> stages(PostWindow window) {
@@ -257,10 +246,8 @@ public final class PackFrameSchedulePlan {
 
     public String snapshot() {
         return "phases=" + phases + ";posts=" + postStages
-                + ";depth=" + List.of(depthtex0, depthtex1, depthtex2)
+                + ";depth=" + List.of(depthtex0, depthtex1)
                 + ";earlyDepth0=" + earlyDepthtex0
-                + ";handBeforeEarly=" + handBeforeEarlyPost
-                + ";particlesBeforeLate=" + particlesBeforeLatePost
                 + ";deviations=" + deviations;
     }
 

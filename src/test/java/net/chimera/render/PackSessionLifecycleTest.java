@@ -21,15 +21,15 @@ final class PackSessionLifecycleTest {
                         Path.of("relative", ".", "active").toAbsolutePath(), false),
                 "equivalent normalized paths must be a no-op");
         assertTrue(queue.request(active, first, false), "first request must queue");
-        assertEquals(first, queue.pendingPath(), "first pending pack");
+        assertEquals(first, queue.pending().path(), "first pending pack");
         assertTrue(queue.request(active, second, false), "latest request must replace first");
-        assertEquals(second, queue.pendingPath(), "latest pending pack");
+        assertEquals(second, queue.pending().path(), "latest pending pack");
         assertTrue(!queue.request(active, second, false), "duplicate pending request must be a no-op");
         assertTrue(queue.request(active, second, true), "forced reload must queue");
-        assertTrue(queue.pendingForced(), "forced reload marker");
+        assertTrue(queue.pending().forceReload(), "forced reload marker");
         queue.clear();
-        assertTrue(!queue.hasPending(), "clear must remove pending request");
+        assertTrue(queue.pending() == null, "clear must remove pending request");
         assertTrue(queue.request(active, null, false), "identity selection must queue");
-        assertTrue(queue.pendingPath() == null, "identity selection path");
+        assertTrue(queue.pending().path() == null, "identity selection path");
     }
 }

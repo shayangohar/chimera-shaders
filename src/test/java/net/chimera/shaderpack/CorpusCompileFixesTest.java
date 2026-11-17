@@ -503,6 +503,21 @@ final class CorpusCompileFixesTest {
         assertTrue(converted.contains("layout(location = 1) in mat3 tbnMatrix;"), converted);
     }
 
+    /** An entity-stage fragment's varying lists take one location per name, two lists on one line included. */
+    @Test
+    void entityVaryingListsOnOneLineTakeTheirLayoutLocations() {
+        LegacyGlslConverter.TerrainVaryingLayout layout = new LegacyGlslConverter.TerrainVaryingLayout(
+                Map.of("a", "vec4", "b", "vec4", "c", "vec2", "d", "vec2"), Map.of("a", 0, "b", 1, "c", 2, "d", 3));
+        String converted = LegacyGlslConverter.convertVaryings(
+                "#version 330\nin vec4 a, b; in vec2 c, d;\nout vec4 color;\n"
+                        + "void main() { color = a + b + vec4(c, d); }\n",
+                true, layout, null, UniformRegistry.Stage.ENTITY);
+        for (String declaration : List.of("layout(location = 0) in vec4 a;", "layout(location = 1) in vec4 b;",
+                "layout(location = 2) in vec2 c;", "layout(location = 3) in vec2 d;")) {
+            assertTrue(converted.contains(declaration), converted);
+        }
+    }
+
     /** Noble's composite99.csh runs before composite99's draw; it is not a stage of that program. */
     @Test
     void passComputesShareTheirPassName() {

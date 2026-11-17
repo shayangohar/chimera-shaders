@@ -3,7 +3,7 @@ package net.chimera.testing;
 import java.util.Map;
 
 /**
- * The shader options the development game instance passes as JVM arguments. A plan resolves pack
+ * Shader option sets the tests plan with, as {@code chimera.option.*} overrides. A plan resolves pack
  * branches from them, so a test that compares against runtime must plan with the same set.
  */
 public enum InstanceOptions {

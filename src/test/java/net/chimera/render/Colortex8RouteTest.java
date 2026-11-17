@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The logical colortex8 target and the Complementary post chain that produces it. */
 final class Colortex8RouteTest {
-    // the routes depend on the CHIMERA instance's options, as at runtime
+    // the routes depend on pack options; plan with the set the expectations were recorded under
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.ROUTES.apply();

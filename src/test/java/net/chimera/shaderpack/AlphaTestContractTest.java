@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The terrain alpha-test contract: how each family's alpha rejection is planned and converted. */
 final class AlphaTestContractTest {
-    // the terrain plans depend on the CHIMERA instance's options, as at runtime
+    // the terrain plans depend on pack options; plan with the set the expectations were recorded under
     @BeforeAll
     static void instanceOptions() {
         InstanceOptions.ROUTES.apply();

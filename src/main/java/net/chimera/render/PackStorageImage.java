@@ -73,6 +73,8 @@ import static org.lwjgl.vulkan.VK10.vkCreateSampler;
 import static org.lwjgl.vulkan.VK10.vkDestroyImageView;
 import static org.lwjgl.vulkan.VK10.vkDestroySampler;
 import static org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceFormatProperties;
+import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
 
 /** A pack-owned 1D, 2D or 3D image (Iris's custom image) with storage and sampled descriptor views. */
 final class PackStorageImage extends VulkanImage {
@@ -212,13 +214,20 @@ final class PackStorageImage extends VulkanImage {
         try (MemoryStack stack = stackPush()) {
             VkFormatProperties properties = VkFormatProperties.calloc(stack);
             vkGetPhysicalDeviceFormatProperties(DeviceManager.physicalDevice, format, properties);
-            int required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT
-                    | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
-            if ((properties.optimalTilingFeatures() & required) != required) {
-                throw new IllegalArgumentException("advanced image format lacks sampled/storage support: "
-                        + name + " format=" + format);
-            }
+            String failure = formatFailure(properties.optimalTilingFeatures(), name, format);
+            if (failure != null) throw new IllegalArgumentException(failure);
         }
+    }
+
+    /**
+     * Why a format with these optimal-tiling features cannot back the image, or null. The image is sampled,
+     * stored to and cleared with vkCmdClearColorImage, and it is created for transfers both ways.
+     */
+    static String formatFailure(int features, String name, int format) {
+        int required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
+                | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+        return (features & required) == required ? null
+                : "advanced image format lacks sampled/storage/transfer support: " + name + " format=" + format;
     }
 
     int depth() { return depth; }

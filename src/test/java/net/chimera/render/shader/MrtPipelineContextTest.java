@@ -19,6 +19,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -89,6 +90,19 @@ final class MrtPipelineContextTest {
             assertNull(MrtPipelineContext.hostPassBlends());
             MrtPipelineContext.endPipeline();
             assertArrayEquals(new int[] {37}, MrtPipelineContext.colorFormats());
+        } finally {
+            MrtPipelineContext.end();
+        }
+    }
+
+    /** A pass with no attachment is refused for that, and one with too many for the limit it passes. */
+    @Test
+    void aPassContractNamesTheAttachmentsItWasGiven() {
+        try {
+            assertEquals("MRT needs 1 to 8 attachments, got 0", assertThrows(IllegalArgumentException.class,
+                    () -> MrtPipelineContext.begin(new int[0], 8)).getMessage());
+            assertEquals("MRT needs 1 to 4 attachments, got 5", assertThrows(IllegalArgumentException.class,
+                    () -> MrtPipelineContext.begin(new int[5], 4)).getMessage());
         } finally {
             MrtPipelineContext.end();
         }

@@ -731,9 +731,9 @@ public final class MaterialMapOwner implements AutoCloseable {
 
     @Override
     public void close() {
-        if (closed) return;
-        closed = true;
         synchronized (companionsLock) {
+            if (closed) return;
+            closed = true;
             pendingUploads.clear();
             ticksSinceUpload.clear();
             wantedSimple.clear();

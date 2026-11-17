@@ -12,12 +12,13 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Each session
- * resolves the shared bindings again, so switching WAVES on serves the declared value in place of the
- * unset zero the default variant bound.
+ * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Installing a
+ * session resolves the bindings again, so switching WAVES on serves the declared value in place of the
+ * unset zero, and closing a session frees them.
  */
 final class SessionUniformBindingTest {
     @Test
@@ -51,6 +52,9 @@ final class SessionUniformBindingTest {
                     "a pipeline built earlier keeps reading the same buffer");
 
             PackUniformProvider.resetSession();
+            assertNull(provider.boundDescriptor("waveState", "vec3"),
+                    "a closed session frees its bindings with the pipelines that read them");
+            provider.supplier("waveState", "vec3");
             assertEquals("unset:waveState", provider.boundDescriptor("waveState", "vec3").sourceKey(),
                     "a session without the declaration serves zero again");
         } finally {

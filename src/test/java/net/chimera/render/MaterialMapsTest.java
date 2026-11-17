@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import static net.chimera.render.MaterialMapFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -301,6 +302,52 @@ final class MaterialMapsTest {
             owner.close();
         }
         assertTrue(factory.allClosed(), "shutdown closed every companion");
+    }
+
+    /** A close that races another waits for it, so neither returns while companions are still open. */
+    @Test
+    void aSecondCloseWaitsForTheFirst() throws Exception {
+        CountDownLatch closing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        MaterialMapOwner owner = MaterialMapOwner.withImages(markerImage(), markerImage(),
+                (location, kind, width, height, levels) -> new MaterialMapOwner.CompanionSet() {
+                    private final VulkanImage image = markerImage();
+
+                    @Override
+                    public VulkanImage image() {
+                        return image;
+                    }
+
+                    @Override
+                    public void writeRegion(int level, int x, int y, int width, int height, int[] pixels) {}
+
+                    @Override
+                    public void close() {
+                        closing.countDown();
+                        try {
+                            release.await();
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                });
+        owner.noteAtlasUpload(layout(), markerImage());
+        owner.pumpPendingBuilds(mapLookup(fixtureFiles()), MaterialMapFixtures::decodeImageIO);
+        Thread first = new Thread(owner::close);
+        first.start();
+        closing.await();
+        Thread second = new Thread(owner::close);
+        second.start();
+        Thread.State state = second.getState();
+        long deadline = System.nanoTime() + 10_000_000_000L;
+        while (state != Thread.State.BLOCKED && state != Thread.State.TERMINATED && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+            state = second.getState();
+        }
+        release.countDown();
+        first.join();
+        second.join();
+        assertEquals(Thread.State.BLOCKED, state, "a second close returned while the first was closing companions");
     }
 
     @Test

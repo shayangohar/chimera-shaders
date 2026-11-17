@@ -18,6 +18,7 @@ import net.vulkanmod.vulkan.texture.VulkanImage;
 import net.vulkanmod.vulkan.util.MappedBuffer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -74,7 +75,7 @@ public final class PackUniformProvider {
      * Gives each binding what its name resolves to in the session just installed; the buffer stays, as built
      * pipelines read it. A name can change meaning between sessions, and Iris builds each program's uniforms
      * afresh with the pack. RenderPearl's water reads waveState in every variant but declares it only with
-     * WAVES on, so the binding the default variant made must take the declaration when WAVES turns on.
+     * WAVES on.
      */
     private void resolveBindings() {
         bindings.replaceAll((key, binding) -> {
@@ -312,7 +313,11 @@ public final class PackUniformProvider {
         INSTANCE.frameState.installDirectives(directives);
     }
 
-    /** Drops frame history when the pack session is destroyed or reloaded. */
+    /**
+     * Drops frame history and frees every binding when the pack session is destroyed or reloaded. The session's
+     * pipelines are destroyed first, and VulkanMod copies a binding's bytes at each upload, so nothing reads a
+     * freed buffer.
+     */
     public static void resetSession() {
         setRenderingPhase(PackRenderingPhase.NONE);
         INSTANCE.lastFrameNanos = 0L;
@@ -320,8 +325,8 @@ public final class PackUniformProvider {
         INSTANCE.frameState.installRuntimeSettings(INSTANCE.runtimeSettings);
         INSTANCE.frameState.installDirectives(PackDirectives.DEFAULTS);
         INSTANCE.frameState.resetSession();
-        INSTANCE.resolveBindings();
-        INSTANCE.refreshBindings();
+        INSTANCE.bindings.values().forEach(binding -> MemoryUtil.memFree(binding.buffer.buffer));
+        INSTANCE.bindings.clear();
     }
 
     /** Writes the same captured frame values into a compute uniform block. */

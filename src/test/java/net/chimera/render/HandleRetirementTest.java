@@ -5,10 +5,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -101,6 +105,27 @@ final class HandleRetirementTest {
             assertFalse(calls.stream().anyMatch(call -> call.contains(".vkDestroy") || call.contains(".vmaDestroy")),
                     name + " destroys nothing itself: " + calls);
         }
+    }
+
+    /**
+     * A raw texture whose upload throws is retired whether or not its copy was recorded: the frame op runs
+     * after the work recorded before it, as every other retirement does. Read from the bytecode, since the
+     * upload needs a device.
+     */
+    @Test
+    void aRawTextureWhoseUploadFailsIsRetired() throws IOException {
+        MethodNode load = MixinBytecode.nativeClass("net/chimera/render/PackRawTexture").methods.stream()
+                .filter(method -> method.name.equals("load")).findFirst().orElseThrow();
+        TryCatchBlockNode upload = load.tryCatchBlocks.stream()
+                .filter(block -> "java/lang/RuntimeException".equals(block.type)).findFirst().orElseThrow();
+        List<String> handler = new ArrayList<>();
+        for (AbstractInsnNode instruction = upload.handler; instruction.getOpcode() != Opcodes.ATHROW;
+                instruction = instruction.getNext()) {
+            if (instruction instanceof MethodInsnNode call) handler.add(call.name);
+            if (instruction instanceof FieldInsnNode field) handler.add(field.name);
+            if (instruction instanceof JumpInsnNode) handler.add("branch");
+        }
+        assertEquals(List.of("free"), handler, "the failed upload frees the texture on every path");
     }
 
     private static List<String> callers(String retirementMethod) throws IOException, URISyntaxException {

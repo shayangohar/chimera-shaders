@@ -58,7 +58,7 @@ public final class PackExpression {
 
     /** The half life unit packs write: a decisecond, so two ticks. */
     private static final double HALF_LIFE_UNIT_SECONDS = 0.1;
-    private static final double LN_OF_2 = Math.log(2.0);
+    private static final double LN_2 = Math.log(2.0);
     private static final int MAX_DEPTH = 64;
     /** Iris's accessor names, by the component they pick. */
     private static final String[] ACCESSORS = {"0rxs", "1gyt", "2bzp", "3awq"};
@@ -501,7 +501,7 @@ public final class PackExpression {
 
     private static double decay(float halfLife) {
         return halfLife <= 0.0F ? Double.POSITIVE_INFINITY
-                : 1.0 / (halfLife * HALF_LIFE_UNIT_SECONDS / LN_OF_2);
+                : LN_2 / (halfLife * HALF_LIFE_UNIT_SECONDS);
     }
 
     /**

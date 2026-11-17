@@ -1,157 +1,152 @@
 package net.chimera.render;
 
-import net.chimera.shaderpack.ShadowCullingPlan;
+import net.chimera.shaderpack.ShadowCullingPlan.Culler;
+import net.chimera.shaderpack.ShadowCullingPlan.Mode;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * One frame's shadow caster culling, as Iris's ShadowRenderer.createShadowFrustum builds it:
- * AdvancedShadowCullingFrustum, SafeZoneCullingFrustum, BoxCullingFrustum or no culling. Boxes are
- * camera-relative.
+ * Which chunk sections and entities one shadow frame draws: those that could darken something the camera sees.
  *
- * The advanced frustum keeps what can cast a shadow into the camera's view. It keeps the camera frustum's
- * planes that face the light ("back" planes) and adds a plane through each silhouette edge between a back
- * plane and a front one, parallel to the light. Nothing on the far side of these planes, seen from the light,
- * can shadow what the camera sees. This is L. Spiro's directional-light caster culling, as Iris ports it.
+ * Every mode keeps a box only where it meets the camera-centred outer cube, when there is one. The advanced and
+ * safe-zone modes also need the box to reach the sweep: the camera frustum extruded without limit toward the
+ * light, since a caster shades the points behind it along the light. The safe-zone mode also draws every box that
+ * meets its inner cube, within the outer one, whatever the view, so a pack that voxelises the scene in its shadow
+ * program receives every caster near the camera.
+ *
+ * The sweep is tested one bounding plane at a time: a box is culled only when a single plane has all of it
+ * outside, so a box just past one of the sweep's corners can still be kept. Nothing here adds a margin; callers
+ * pad the boxes they need to ({@link #SECTION_MARGIN}).
+ *
+ * Immutable once built. {@link #visible} and {@link #forced} allocate nothing, since they run for every section
+ * and entity each frame.
  */
 public final class ShadowCullingFrustum {
     /**
-     * Iris's AdvancedShadowCullingFrustum.CHUNK_SECTION_MARGIN: how far a block model reaches out of its
-     * section, plus an epsilon.
+     * How far, in blocks, a chunk section's box is padded on every side before it is tested. A block model may
+     * reach a block outside its own cell, so geometry can stick out of its section by up to a block; the last
+     * eighth is slack.
      */
-    public static final float SECTION_MARGIN = 1.0F + 0.125F;
-    /** Six frustum planes and at most twelve silhouette edges. */
-    private static final int MAX_PLANES = 18;
-    /** Iris's NeighboringPlaneSet: the planes sharing an edge with each pair (x, y, near/far). */
-    private static final int[][] NEIGHBOURS = {{2, 3, 4, 5}, {0, 1, 4, 5}, {0, 1, 2, 3}};
+    public static final float SECTION_MARGIN = 1.125F;
 
-    private final ShadowCullingPlan.Culler culler;
-    private final float[][] planes = new float[MAX_PLANES][];
-    private int planeCount;
+    private static final Vector4f[] NO_PLANES = new Vector4f[0];
+    private static final ShadowCullingFrustum NONE =
+            new ShadowCullingFrustum(Culler.NONE, new Matrix4f(), new Vector3f());
+
+    private final Culler culler;
+    /** Half-size of the cube around the camera that every drawn box meets; infinite when there is none. */
+    private final double outerHalfSize;
+    private final boolean hasSafeZone;
+    private final double safeZoneHalfSize;
+    /** The sweep's bounding planes as (inward normal, offset); none when the mode does not sweep. */
+    private final Vector4f[] sweep;
 
     /**
-     * @param cameraViewProjection the camera's gbufferProjection x gbufferModelView, GL clip range
-     * @param lightVector          unit world-space direction toward the shadow light
+     * @param cameraViewProjection the camera's projection times its model-view, camera-relative, with GL clip
+     *                             depth; read here and not kept
+     * @param lightVector          the world direction toward the shadow light; only its direction counts, and
+     *                             it is read here and not kept
      */
-    public ShadowCullingFrustum(ShadowCullingPlan.Culler culler, Matrix4fc cameraViewProjection,
-                                Vector3fc lightVector) {
+    public ShadowCullingFrustum(Culler culler, Matrix4fc cameraViewProjection, Vector3fc lightVector) {
+        Mode mode = culler.mode();
         this.culler = culler;
-        ShadowCullingPlan.Mode mode = culler.mode();
-        if (mode == ShadowCullingPlan.Mode.ADVANCED || mode == ShadowCullingPlan.Mode.SAFE_ZONE) {
-            Vector4f[] base = baseClippingPlanes(cameraViewProjection);
-            boolean[] back = addBackPlanes(base, lightVector);
-            addEdgePlanes(base, back, lightVector);
-        }
+        this.outerHalfSize = mode == Mode.NONE ? Double.POSITIVE_INFINITY : culler.box();
+        this.hasSafeZone = mode == Mode.SAFE_ZONE;
+        this.safeZoneHalfSize = culler.safeZone();
+        boolean swept = mode == Mode.ADVANCED || mode == Mode.SAFE_ZONE;
+        this.sweep = swept ? sweepPlanes(cameraViewProjection, lightVector) : NO_PLANES;
     }
 
-    /** No culling beyond the light volume, for a session without a shadow culling plan. */
+    /** Culls nothing and forces nothing. */
     public static ShadowCullingFrustum none() {
-        return new ShadowCullingFrustum(ShadowCullingPlan.Culler.NONE, new Matrix4f(), new Vector3f(0.0F, 1.0F, 0.0F));
+        return NONE;
     }
 
-    public ShadowCullingPlan.Culler culler() {
+    public Culler culler() {
         return culler;
     }
 
-    /** True when a caster in this box may shadow something the camera sees. */
+    /** Whether the camera-relative box goes into the shadow map. */
     public boolean visible(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
-        return switch (culler.mode()) {
-            case NONE -> true;
-            case DISTANCE -> !outside(culler.box(), minX, minY, minZ, maxX, maxY, maxZ);
-            case ADVANCED -> !outside(culler.box(), minX, minY, minZ, maxX, maxY, maxZ)
-                    && insidePlanes(minX, minY, minZ, maxX, maxY, maxZ);
-            case SAFE_ZONE -> !outside(culler.box(), minX, minY, minZ, maxX, maxY, maxZ)
-                    && (!outside(culler.safeZone(), minX, minY, minZ, maxX, maxY, maxZ)
-                    || insidePlanes(minX, minY, minZ, maxX, maxY, maxZ));
-        };
+        return forced(minX, minY, minZ, maxX, maxY, maxZ)
+                || (meets(outerHalfSize, minX, minY, minZ, maxX, maxY, maxZ)
+                && reachesSweep(minX, minY, minZ, maxX, maxY, maxZ));
+    }
+
+    /** Whether the camera-relative box is drawn whatever the view and the light: only in the safe zone. */
+    public boolean forced(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+        return hasSafeZone && meets(outerHalfSize, minX, minY, minZ, maxX, maxY, maxZ)
+                && meets(safeZoneHalfSize, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     /**
-     * True inside the safe zone, which Iris draws regardless of the light volume and the view, since a
-     * voxelizing vertex stage must see every caster there.
+     * Whether the box meets the closed cube of this half-size around the camera. The comparison is in double, so
+     * a half-size that is not a float is not rounded.
      */
-    public boolean forced(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
-        return culler.mode() == ShadowCullingPlan.Mode.SAFE_ZONE
-                && !outside(culler.box(), minX, minY, minZ, maxX, maxY, maxZ)
-                && !outside(culler.safeZone(), minX, minY, minZ, maxX, maxY, maxZ);
+    private static boolean meets(double halfSize, float minX, float minY, float minZ, float maxX, float maxY,
+                                 float maxZ) {
+        return !(maxX < -halfSize || minX > halfSize
+                || maxY < -halfSize || minY > halfSize
+                || maxZ < -halfSize || minZ > halfSize);
     }
 
-    /** Iris's BoxCuller: outside the camera-centred cube of this half-size; never for infinity. */
-    private static boolean outside(double half, float minX, float minY, float minZ,
-                                   float maxX, float maxY, float maxZ) {
-        return maxX < -half || minX > half || maxY < -half || minY > half || maxZ < -half || minZ > half;
-    }
-
-    private boolean insidePlanes(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
-        for (int i = 0; i < planeCount; i++) {
-            float[] plane = planes[i];
-            // the corner farthest along the plane normal; if it is outside, so is the whole box
-            float x = plane[0] < 0.0F ? minX : maxX;
-            float y = plane[1] < 0.0F ? minY : maxY;
-            float z = plane[2] < 0.0F ? minZ : maxZ;
-            if (plane[0] * x + plane[1] * y + plane[2] * z < -plane[3]) return false;
+    /** Whether no single bounding plane of the sweep has the whole box strictly outside it. */
+    private boolean reachesSweep(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+        for (Vector4f plane : sweep) {
+            // the corner farthest along the inward normal
+            float x = plane.x < 0.0F ? minX : maxX;
+            float y = plane.y < 0.0F ? minY : maxY;
+            float z = plane.z < 0.0F ? minZ : maxZ;
+            if (plane.x * x + plane.y * y + plane.z * z + plane.w < 0.0F) return false;
         }
         return true;
     }
 
-    /** Iris's BaseClippingPlanes: right, left, top, bottom, far and near, normals inward. */
-    private static Vector4f[] baseClippingPlanes(Matrix4fc viewProjection) {
-        Matrix4f transposed = new Matrix4f(viewProjection).transpose();
-        return new Vector4f[] {
-                clippingPlane(transposed, -1.0F, 0.0F, 0.0F),
-                clippingPlane(transposed, 1.0F, 0.0F, 0.0F),
-                clippingPlane(transposed, 0.0F, -1.0F, 0.0F),
-                clippingPlane(transposed, 0.0F, 1.0F, 0.0F),
-                clippingPlane(transposed, 0.0F, 0.0F, -1.0F),
-                clippingPlane(transposed, 0.0F, 0.0F, 1.0F)};
-    }
-
-    private static Vector4f clippingPlane(Matrix4fc transposed, float x, float y, float z) {
-        return new Vector4f(x, y, z, 1.0F).mul(transposed).normalize();
-    }
-
-    /** Planes whose normal faces the light; a caster behind one shadows only what lies farther away. */
-    private boolean[] addBackPlanes(Vector4f[] base, Vector3fc light) {
-        boolean[] back = new boolean[base.length];
-        for (int i = 0; i < base.length; i++) {
-            Vector4f plane = base[i];
-            float dot = plane.x * light.x() + plane.y * light.y() + plane.z * light.z();
-            back[i] = dot > 0.0F;
-            if (dot >= 0.0F) addPlane(plane.x, plane.y, plane.z, plane.w);
+    /**
+     * The planes bounding the camera frustum swept toward the light. A face turned away from the light, or
+     * parallel to it, still bounds the sweep; one turned toward the light is swept past. Where a face turned away
+     * meets a face turned toward the light, the sweep is bounded by the plane through their shared edge that runs
+     * parallel to the light. With no light, the sweep is the frustum.
+     */
+    private static Vector4f[] sweepPlanes(Matrix4fc camera, Vector3fc light) {
+        Vector4f[] faces = new Vector4f[6];
+        // the inward normal's component along the light: positive on a face turned away from the light
+        float[] along = new float[6];
+        for (int face = 0; face < faces.length; face++) {
+            faces[face] = camera.frustumPlane(face, new Vector4f());
+            along[face] = faces[face].x * light.x() + faces[face].y * light.y() + faces[face].z * light.z();
         }
-        return back;
-    }
-
-    private void addEdgePlanes(Vector4f[] base, boolean[] back, Vector3fc light) {
-        for (int i = 0; i < base.length; i++) {
-            if (!back[i]) continue;
-            for (int neighbour : NEIGHBOURS[i >>> 1]) {
-                if (!back[neighbour]) addEdgePlane(base[i], base[neighbour], light);
+        List<Vector4f> planes = new ArrayList<>();
+        for (int face = 0; face < faces.length; face++) {
+            if (along[face] >= 0.0F) planes.add(faces[face]);
+        }
+        for (int away = 0; away < faces.length; away++) {
+            for (int toward = 0; toward < faces.length; toward++) {
+                if (along[away] > 0.0F && along[toward] < 0.0F && !opposite(away, toward)) {
+                    planes.add(rimPlane(faces[away], along[away], faces[toward], along[toward]));
+                }
             }
         }
+        return planes.toArray(NO_PLANES);
+    }
+
+    /** JOML numbers the frustum's planes in opposite pairs: -x and +x, -y and +y, near and far. */
+    private static boolean opposite(int face, int other) {
+        return face / 2 == other / 2;
     }
 
     /**
-     * The plane through the line where a back plane meets a front plane, parallel to the light. Its normal,
-     * the edge direction crossed with the light, is a positive mix of both inward normals, so it faces into
-     * the volume as they do.
+     * The plane through the edge where a face turned away from the light meets one turned toward it, parallel to
+     * the light. Every plane through that edge is a blend of the two face planes; these weights cancel the
+     * light's component, and being both positive they keep the frustum, and so the whole sweep, inside.
      */
-    private void addEdgePlane(Vector4f backPlane, Vector4f frontPlane, Vector3fc light) {
-        Vector3f backNormal = new Vector3f(backPlane.x, backPlane.y, backPlane.z);
-        Vector3f frontNormal = new Vector3f(frontPlane.x, frontPlane.y, frontPlane.z);
-        Vector3f intersection = new Vector3f(backNormal).cross(frontNormal);
-        Vector3f edgeNormal = new Vector3f(intersection).cross(light);
-        // a point on both planes, from Graphics Gems' intersection of two planes
-        Vector3f point = new Vector3f(intersection).cross(backNormal).mul(-frontPlane.w)
-                .add(new Vector3f(frontNormal).cross(intersection).mul(-backPlane.w))
-                .div(intersection.lengthSquared());
-        addPlane(edgeNormal.x, edgeNormal.y, edgeNormal.z, -edgeNormal.dot(point));
-    }
-
-    private void addPlane(float x, float y, float z, float w) {
-        planes[planeCount++] = new float[] {x, y, z, w};
+    private static Vector4f rimPlane(Vector4f away, float awayAlong, Vector4f toward, float towardAlong) {
+        return new Vector4f(away).mul(-towardAlong).fma(awayAlong, toward);
     }
 }

@@ -80,7 +80,7 @@ final class PackDeviceTest {
                 PackDevice.offline("amd").missing(module, PackDevice.STAGE_COMPUTE));
     }
 
-    /** The NVIDIA profile, an RTX card, has no 16-bit stage inputs and outputs, which f16vec4 varyings need. */
+    /** The NVIDIA profile has no 16-bit stage inputs and outputs, which f16vec4 varyings need. */
     @Test
     void halfVaryingsNeedStorageInputOutput16() {
         var module = requirements("""

@@ -61,10 +61,16 @@ processResources {
     }
 }
 
-// the licence travels with the jar
+// the licences travel with the jar
 jar {
     from('LICENSE') {
         rename { 'LICENSE_chimera' }
+    }
+    from('NOTICE') {
+        rename { 'NOTICE_chimera' }
+    }
+    from('LICENSES') {
+        into 'LICENSES_chimera'
     }
 }
 

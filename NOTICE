@@ -1,0 +1,10 @@
+Chimera is licensed under the MIT License (LICENSE), except for the file below.
+
+src/main/resources/assets/chimera/lang/en_us.json
+    Chimera's English interface text. Most of its wording comes from Iris
+    (https://github.com/IrisShaders/Iris), assets/iris/lang/en_us.json, by the
+    Iris contributors, licensed under the GNU Lesser General Public License,
+    version 3 only. It was modified for Chimera in 2026: the keys were renamed,
+    Chimera's own entries were added, and some of Iris's wording was moved into
+    it from Iris's code. This file is licensed under LGPL-3.0-only; the licence
+    texts are in LICENSES/LGPL-3.0.txt and LICENSES/GPL-3.0.txt.

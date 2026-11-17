@@ -67,8 +67,8 @@ final class PackFailureReporter implements PackFailureNotices.Reporter {
 
     private static PackFailureReport.Environment environment() {
         Device device = DeviceManager.device;
-        return new PackFailureReport.Environment(ChimeraMod.version(), ChimeraMod.commit(),
-                modVersion("vulkanmod"), modVersion("neoforge"), modVersion("minecraft"),
+        return new PackFailureReport.Environment(ChimeraMod.version(), modVersion("vulkanmod"),
+                modVersion("neoforge"), modVersion("minecraft"),
                 device == null ? "unknown" : device.deviceName + " (" + device.vendorIdString + ")",
                 device == null ? "unknown" : device.driverVersion,
                 device == null ? "unknown" : device.vkVersion,

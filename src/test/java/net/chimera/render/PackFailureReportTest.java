@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class PackFailureReportTest {
     private static final LocalDateTime WHEN = LocalDateTime.of(2026, 11, 12, 19, 5, 3);
     private static final PackFailureReport.Environment ENVIRONMENT = new PackFailureReport.Environment(
-            "0.1.0", "ae96b9c6", "0.3.5-ALPHA+1.21.1", "21.1.262", "1.21.1", "NVIDIA GeForce RTX",
-            "560.94", "1.4.312", "Windows 11 10.0 amd64", "21.0.7 Microsoft");
+            "0.1.0", "0.3.5-ALPHA+1.21.1", "21.1.262", "1.21.1", "NVIDIA GeForce RTX (NVIDIA)", "560.94",
+            "1.4.312", "Windows 11 10.0 amd64", "21.0.7 Microsoft");
 
     @Test
     void aReportHasEverySectionTheTaskNames() {
@@ -32,9 +32,9 @@ final class PackFailureReportTest {
         String text = PackFailureReport.text(failure, new IllegalStateException("boom"), ENVIRONMENT, pack, WHEN);
         for (String expected : List.of("Chimera failure report, 2026-11-12 19:05:03", "Program or pass: final",
                 "Phase: shader-compilation", "Outcome: SKIPPED", "'lenscolor' : redefinition",
-                "java.lang.IllegalStateException: boom", "Chimera: 0.1.0 (commit ae96b9c6)",
+                "java.lang.IllegalStateException: boom", "Chimera: 0.1.0\n",
                 "VulkanMod: 0.3.5-ALPHA+1.21.1", "NeoForge: 21.1.262", "Minecraft: 1.21.1",
-                "GPU: NVIDIA GeForce RTX", "Driver: 560.94", "Vulkan: 1.4.312", "OS: Windows 11",
+                "GPU: NVIDIA GeForce RTX (NVIDIA)", "Driver: 560.94", "Vulkan: 1.4.312", "OS: Windows 11",
                 "Name: RedHat v34.3.1.zip", "SHA-256: ab12", "Profile: HIGH", "DIRTY_LENS=true",
                 "{\"formatVersion\":1}")) {
             assertTrue(text.contains(expected), expected + " in\n" + text);

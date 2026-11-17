@@ -198,7 +198,7 @@ public final class ChimeraRenderer {
      */
     public static List<String> debugLines() {
         List<String> lines = new ArrayList<>(List.of("",
-                "[Chimera] Version: " + ChimeraMod.version() + " (" + ChimeraMod.commit() + ")", ""));
+                "[Chimera] Version: " + ChimeraMod.version(), ""));
         Path pack = selectedPackPath();
         if (pack == null) {
             lines.add("[Chimera] Shaders are disabled");

@@ -58,7 +58,15 @@ processResources {
 
     filesMatching('META-INF/neoforge.mods.toml') {
         expand 'version': project.version
-    }}
+    }
+}
+
+// the licence travels with the jar
+jar {
+    from('LICENSE') {
+        rename { 'LICENSE_chimera' }
+    }
+}
 
 tasks.register('packReport', JavaExec) {
     group = 'help'

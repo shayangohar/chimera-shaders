@@ -55,7 +55,8 @@ final class VertexBridgeFailuresTest {
 
     /**
      * A shadow with no vertex stage has nothing the runtime can draw it with (PackPipelines.buildShadow), so the
-     * compile check reports it instead of compiling its fragment alone.
+     * compile check reports it instead of compiling its fragment alone. This differs from Iris, which writes a
+     * legacy vertex stage for any program shipped as a fragment alone (ProgramSet.readProgramSource).
      */
     @Test
     void aFragmentOnlyShadowFailsToPrepare(@TempDir Path root) throws IOException {

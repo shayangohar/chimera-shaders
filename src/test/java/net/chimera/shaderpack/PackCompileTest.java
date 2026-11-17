@@ -224,7 +224,7 @@ final class PackCompileTest {
         /**
          * The vertex the runtime draws the program with (a family's own inputs, PackPipelines),
          * Chimera's fixed vertex for a post or terrain program without one, else null: the runtime
-         * builds no pipeline for a shadow program without a vertex stage (PackPipelines.buildShadow).
+         * builds no pipeline for any other program without a vertex stage, where Iris writes a legacy one.
          */
         private String pairedVertex(PackProgramPlan program, UniformRegistry.Stage stage) {
             if (program.convertedVertex() != null) return PackPipelines.familyVertex(program);

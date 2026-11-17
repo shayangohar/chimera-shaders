@@ -1,5 +1,7 @@
 package net.chimera.shaderpack;
 
+import net.chimera.shaderpack.options.PendingOptions;
+import net.chimera.shaderpack.options.ShaderPackOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -82,10 +84,32 @@ final class BlockLayerTest {
                 #ifndef LAUNCHER_OFF
                 #endif
                 """);
-        Map<String, String> macros = PackOptionMacros.forIdMaps(shadersDir, Map.of("SHADOW_QUALITY", "3"),
-                Set.of("SHADOW_QUALITY", "LAUNCHER_OFF"));
+        Map<String, String> macros = PackOptionMacros.forIdMaps(ShaderPackOptions.load(shadersDir, Map.of()).values(),
+                Map.of("SHADOW_QUALITY", "3"), Set.of("SHADOW_QUALITY", "LAUNCHER_OFF"));
         assertEquals(Map.of("FORCE_TRANSLUCENT_GLASS", "1", "SHADOW_QUALITY", "3", "shadowMapResolution", "2048"),
                 macros);
+    }
+
+    /**
+     * A value the player changed reaches the id maps. Staging rewrites the option's line without its value list,
+     * so the macros come from the pack's own options at the staged values, as Iris preprocesses with its chosen
+     * values.
+     */
+    @Test
+    void idMapMacrosTakeThePlayersValues(@TempDir Path packRoot) throws IOException {
+        Path shaders = Files.createDirectories(packRoot.resolve("shaders"));
+        Files.writeString(shaders.resolve("gbuffers_terrain.fsh"), """
+                #define GLASS_STYLE 1 // [1 2 3]
+                #define TINTED_GLASS
+                #ifdef TINTED_GLASS
+                #endif
+                void main() {}
+                """);
+        try (PackSource.LoadResult loaded = PackSource.loadResult(packRoot, "minecraft:overworld",
+                new PendingOptions.Drained(Map.of("GLASS_STYLE", "3", "TINTED_GLASS", "false"), false))) {
+            Map<String, String> macros = PackOptionMacros.forIdMaps(loaded.options().applied(), Map.of(), Set.of());
+            assertEquals(Map.of("GLASS_STYLE", "3"), macros);
+        }
     }
 
     /** superDuperVanilla keeps ids with no blocks for user additions; Iris maps nothing for them. */

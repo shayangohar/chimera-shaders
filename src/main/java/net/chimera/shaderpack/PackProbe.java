@@ -204,7 +204,7 @@ public final class PackProbe {
 
         /** Iris preprocesses every id map with each option the pack's shader files declare. */
         private Map<String, String> idMapMacros() {
-            return PackEngineDefines.forPack(PackOptionMacros.forIdMaps(shadersDir,
+            return PackEngineDefines.forPack(PackOptionMacros.forIdMaps(loaded.options().applied(),
                     settingsPlan.preprocessorDefines(), settingsPlan.overriddenNames()));
         }
 

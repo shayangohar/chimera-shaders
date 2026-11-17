@@ -581,7 +581,7 @@ final class PackSessionLifecycle {
                 .anyMatch(program -> program.samplers().contains("depthtex0")
                         || program.samplers().contains("depthtex1")
                         || program.samplers().contains("depthtex2"));
-        installIdMaps(result.shadersDir());
+        installIdMaps(result);
         pass.packHdrFormat = pass.packConfig.colortexFormats().getOrDefault(0, PostTargetPlan.DEFAULT_FORMAT);
         loadResourceOwners(result.shadersDir());
         logResourcePlans();
@@ -693,9 +693,10 @@ final class PackSessionLifecycle {
     }
 
     /** Parses the pack's block and item id maps and installs them with its hand-light setting. */
-    private void installIdMaps(Path shadersDir) {
+    private void installIdMaps(PackSource.LoadResult result) {
+        Path shadersDir = result.shadersDir();
         // Iris preprocesses the id maps with every option the pack's shader files declare
-        Map<String, String> macros = PackEngineDefines.forPack(PackOptionMacros.forIdMaps(shadersDir,
+        Map<String, String> macros = PackEngineDefines.forPack(PackOptionMacros.forIdMaps(result.options().applied(),
                 pass.packPlan.settingsPreprocessorDefines(), pass.packPlan.settingsOverriddenNames()));
         PackMaterialResolver.ParseResult material = PackMaterialResolver.parse(shadersDir, macros);
         ChimeraTerrainPipelines.setMaterialResolver(material.resolver());

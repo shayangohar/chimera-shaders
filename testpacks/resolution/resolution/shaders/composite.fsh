@@ -4,7 +4,7 @@ uniform sampler2D colortex0;
 varying vec2 texcoord;
 
 void main() {
-    gl_FragColor = m71Marker(texture2D(colortex0, texcoord));
+    gl_FragColor = resolutionMarker(texture2D(colortex0, texcoord));
 }
 /*
 const int colortex0Format = RGBA16F;

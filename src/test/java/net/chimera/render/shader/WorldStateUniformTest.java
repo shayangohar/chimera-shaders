@@ -769,13 +769,13 @@ final class WorldStateUniformTest {
 
     /** The fixture's custom declarations: planned, and cycle and unknown reported. */
     private static void verifyCustomPlan(PackRuntimeSettings settings) {
-        assertTrue(settings.customDescriptors().containsKey("m73Marker"),
+        assertTrue(settings.customDescriptors().containsKey("customMarker"),
                 "exposed custom uniform was not planned");
-        assertTrue(!settings.customDescriptors().containsKey("m73CycleA"),
+        assertTrue(!settings.customDescriptors().containsKey("customCycleA"),
                 "invalid cycle became executable");
-        assertTrue(settings.deviations().contains("CUSTOM_VALUE_CYCLE:m73CycleA"),
+        assertTrue(settings.deviations().contains("CUSTOM_VALUE_CYCLE:customCycleA"),
                 "cycle was not reported");
-        assertTrue(settings.deviations().contains("CUSTOM_EXPRESSION_UNKNOWN:m73Unknown:missingM73Value"),
+        assertTrue(settings.deviations().contains("CUSTOM_EXPRESSION_UNKNOWN:customUnknown:missingCustomValue"),
                 "unknown custom dependency was not reported");
     }
 
@@ -784,22 +784,22 @@ final class WorldStateUniformTest {
         PackRuntimeSettings.Session session = settings.newSession();
         settings.evaluate((name, component) -> name.equals("frameTimeCounter") ? 1.0 : 0.25,
                 session, 0.05f);
-        int marker = settings.indexOf("m73Marker");
+        int marker = settings.indexOf("customMarker");
         assertTrue(marker >= 0 && session.values()[marker] > 2.0f
                         && session.values()[marker] < 2.5f,
                 "custom dependency evaluation was incorrect");
-        int derived = settings.indexOf("m73Derived");
+        int derived = settings.indexOf("customDerived");
         assertNear(6.25f, (float) session.values()[derived], 1.0e-4f,
                 "derived value must be the smoothing, the biome test, the root and the "
                         + "continued declaration together");
-        int component = settings.indexOf("m73Component");
+        int component = settings.indexOf("customComponent");
         assertTrue(component >= 0, "component reference was not evaluated");
-        int nonFinite = settings.indexOf("m73NonFinite");
-        assertTrue(nonFinite >= 0 && session.failures().containsKey("m73NonFinite"),
+        int nonFinite = settings.indexOf("customNonFinite");
+        assertTrue(nonFinite >= 0 && session.failures().containsKey("customNonFinite"),
                 "a non-finite derived value was not reported");
-        assertTrue(session.failures().get("m73NonFinite").contains("sqrt(0.0 - 1.0)"),
+        assertTrue(session.failures().get("customNonFinite").contains("sqrt(0.0 - 1.0)"),
                 "the non-finite report must name the expression that produced it");
-        assertTrue(session.failures().get("m73NonFinite").contains("is NaN at frame 1"),
+        assertTrue(session.failures().get("customNonFinite").contains("is NaN at frame 1"),
                 "the non-finite report must carry the frame context");
         assertTrue(Double.isNaN(session.values()[nonFinite]),
                 "a non-finite derived value is served as computed, as Iris serves it");
@@ -808,23 +808,23 @@ final class WorldStateUniformTest {
     /** Declarations the language refuses are reported and never served. */
     private static void verifyCustomRefusals(PackRuntimeSettings settings) {
         assertTrue(settings.deviations().contains(
-                        "CUSTOM_EXPRESSION_UNKNOWN_FUNCTION:m73BadFunction:sinh"),
+                        "CUSTOM_EXPRESSION_UNKNOWN_FUNCTION:customBadFunction:sinh"),
                 "unknown function was not reported");
-        assertTrue(settings.deviations().contains("CUSTOM_EXPRESSION_ARITY:m73BadArity:smooth"),
+        assertTrue(settings.deviations().contains("CUSTOM_EXPRESSION_ARITY:customBadArity:smooth"),
                 "wrong arity was not reported");
         assertTrue(settings.deviations().contains(
-                        "CUSTOM_EXPRESSION_COMPONENT:m73BadComponent:frameTime.x"),
+                        "CUSTOM_EXPRESSION_COMPONENT:customBadComponent:frameTime.x"),
                 "component of a scalar was not reported");
         assertTrue(settings.deviations().contains(
-                        "CUSTOM_EXPRESSION_UNKNOWN:m73BadConstant:BIOME_NOT_A_BIOME"),
+                        "CUSTOM_EXPRESSION_UNKNOWN:customBadConstant:BIOME_NOT_A_BIOME"),
                 "unknown constant was not reported");
         assertEquals(UniformRegistry.Availability.REJECTED,
-                settings.customDescriptors().get("m73BadFunction").availability(),
+                settings.customDescriptors().get("customBadFunction").availability(),
                 "a refused declaration must be refused rather than served");
         assertEquals(UniformRegistry.Availability.REJECTED,
-                settings.customDescriptors().get("m73BadConstant").availability(),
+                settings.customDescriptors().get("customBadConstant").availability(),
                 "a declaration with an unresolved reference must be refused");
-        assertTrue(settings.rejected().contains("m73BadArity"),
+        assertTrue(settings.rejected().contains("customBadArity"),
                 "refused declaration was not recorded as rejected");
     }
 
@@ -833,15 +833,15 @@ final class WorldStateUniformTest {
         assertTrue(composite != null && composite.executable(),
                 "fixture composite was not executable");
         assertTrue(composite.interfacePlan().uniforms().stream()
-                        .anyMatch(value -> value.name().equals("m73Marker")),
+                        .anyMatch(value -> value.name().equals("customMarker")),
                 "custom uniform was not in the shared interface plan");
-        assertTrue(composite.interfacePlan().deviations().contains("CUSTOM_UNIFORM_BRIDGE:m73Marker"),
+        assertTrue(composite.interfacePlan().deviations().contains("CUSTOM_UNIFORM_BRIDGE:customMarker"),
                 "custom uniform bridge deviation was not recorded");
 
         PackUniformProvider.resetSession();
         PackUniformProvider.installRuntimeSettings(settings);
-        MappedBuffer firstBuffer = PackUniformProvider.shared().supplier("m73Marker", "float").get();
-        MappedBuffer secondBuffer = PackUniformProvider.shared().supplier("m73Marker", "float").get();
+        MappedBuffer firstBuffer = PackUniformProvider.shared().supplier("customMarker", "float").get();
+        MappedBuffer secondBuffer = PackUniformProvider.shared().supplier("customMarker", "float").get();
         assertTrue(firstBuffer == secondBuffer, "custom uniform buffer was recreated");
         PackUniformProvider.resetSession();
     }

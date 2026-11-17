@@ -1,7 +1,7 @@
 #version 120e
-#define M62_FEATURE 1
-#define M62_FEATURE 2
-#if defined(M62_FEATURE) && (M62_FEATURE == 2)
+#define CATALOG_FEATURE 1
+#define CATALOG_FEATURE 2
+#if defined(CATALOG_FEATURE) && (CATALOG_FEATURE == 2)
 #include "/lib/marker.glsl"
 #endif
 
@@ -22,7 +22,7 @@ varying vec2 texcoord;
 
 void main() {
     vec4 scene = texture2D(colortex0, texcoord);
-    vec3 marker = m62CatalogMarker(cameraPosition,
+    vec3 marker = catalogMarker(cameraPosition,
             wetness + rainStrength + thunderStrength + nightVision,
             frameTimeCounter + float(worldTime + worldDay)
                     + float(eyeBrightness.x + eyeBrightnessSmooth.y)

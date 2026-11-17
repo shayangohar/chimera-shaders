@@ -1,21 +1,21 @@
 {
   "fixture": "uniform_semantics/uniform_semantics",
-  "reportSha256": "2394cd9d0c82951847e6ca0eb32d3d3a66d58adb6db6a218fbbaf78d957163a8",
+  "reportSha256": "d9df32ac9df78618deef1416ca39c376dc30ad4b8bc1225cff0cdb3639191a3b",
   "sourceHashes": {
-    "composite.fsh": "ce696c93e38df544da3bbf7a3470afcdc4bf8c23ed118fa62711a68cf25b11e8",
+    "composite.fsh": "ec5676a97d2ba737cbac4f3ffbcb52dda8edefebd92ba52100c9e9e5adaf9098",
     "final.fsh": "5cb9494a788a703d7b8dfd8db593b8387def022fe3b0acd726270d748689b097"
   },
   "expectedExecutablePrograms": ["composite", "final"],
   "expectedFallbackPrograms": [],
-  "expectedCustomUniforms": ["m73Component", "m73Derived", "m73Marker", "m73NonFinite"],
+  "expectedCustomUniforms": ["customComponent", "customDerived", "customMarker", "customNonFinite"],
   "expectedSettingsDeviations": [
-    "CUSTOM_EXPRESSION_ARITY:m73BadArity:smooth",
-    "CUSTOM_EXPRESSION_COMPONENT:m73BadComponent:frameTime.x",
-    "CUSTOM_EXPRESSION_UNKNOWN:m73BadConstant:BIOME_NOT_A_BIOME",
-    "CUSTOM_EXPRESSION_UNKNOWN:m73Unknown:missingM73Value",
-    "CUSTOM_EXPRESSION_UNKNOWN_FUNCTION:m73BadFunction:sinh",
-    "CUSTOM_VALUE_CYCLE:m73CycleA",
-    "CUSTOM_VALUE_DEPENDENCY_INVALID:m73CycleA",
-    "CUSTOM_VALUE_DEPENDENCY_INVALID:m73CycleB"
+    "CUSTOM_EXPRESSION_ARITY:customBadArity:smooth",
+    "CUSTOM_EXPRESSION_COMPONENT:customBadComponent:frameTime.x",
+    "CUSTOM_EXPRESSION_UNKNOWN:customBadConstant:BIOME_NOT_A_BIOME",
+    "CUSTOM_EXPRESSION_UNKNOWN:customUnknown:missingCustomValue",
+    "CUSTOM_EXPRESSION_UNKNOWN_FUNCTION:customBadFunction:sinh",
+    "CUSTOM_VALUE_CYCLE:customCycleA",
+    "CUSTOM_VALUE_DEPENDENCY_INVALID:customCycleA",
+    "CUSTOM_VALUE_DEPENDENCY_INVALID:customCycleB"
   ]
 }

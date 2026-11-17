@@ -70,7 +70,7 @@ final class SettingsResolutionTest {
                     "commented option was not inventoried for " + dimension);
             assertEquals("0", settings.options().get("BLOOM").defaultValue(),
                     "commented option default for " + dimension);
-            assertTrue(settings.options().containsKey("M71_EXPOSURE"),
+            assertTrue(settings.options().containsKey("EXPOSURE"),
                     "scalar option was not inventoried for " + dimension);
             assertTrue(settings.profiles().containsKey("high")
                             && settings.profiles().containsKey("low"),
@@ -133,7 +133,7 @@ final class SettingsResolutionTest {
                 + overworld.reportDeviations());
         assertTrue(overworld.compositeEligible(), "fixture composite was rejected");
         assertTrue(!overworld.finalEligible(), "disabled final remained eligible");
-        assertTrue(overworld.compositeSource().contains("m71Marker"),
+        assertTrue(overworld.compositeSource().contains("resolutionMarker"),
                 "root-relative or relative include was not prepared");
         assertTrue(overworld.reportDeviations().contains("DUPLICATE_PROGRAM:composite"),
                 "duplicate program deviation is missing");

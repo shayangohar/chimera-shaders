@@ -32,6 +32,15 @@ final class FrameUniformCatalogTest {
         verifyFixture(TestPacks.fixture("m6_2/uniform_catalog"), TestPacks.baseline("m6_2"));
     }
 
+    /** Iris 1.21.1's CommonUniforms serves is_sneaking and its siblings but no is_alive, which GL leaves zero. */
+    @Test
+    void isAliveIsUnsetAsInIris() {
+        for (String type : List.of("bool", "int")) {
+            assertEquals("unset:is_alive", UniformRegistry.resolve("is_alive", type, Map.of()).sourceKey(), type);
+        }
+        assertEquals("is_sneaking", UniformRegistry.resolve("is_sneaking", "bool", Map.of()).sourceKey());
+    }
+
     @Test
     void catalog() {
         List<UniformRegistry.UniformDescriptor> catalog = UniformRegistry.catalog();

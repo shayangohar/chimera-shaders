@@ -840,7 +840,7 @@ public final class UniformRegistry {
      */
     private static void addIrisPlayerState(Map<String, UniformDescriptor> specs) {
         for (String flag : List.of("hideGUI", "isRightHanded", "firstPersonCamera", "isSpectator",
-                "is_burning", "is_hurt", "is_invisible", "is_on_ground", "is_sneaking", "is_sprinting", "is_alive")) {
+                "is_burning", "is_hurt", "is_invisible", "is_on_ground", "is_sneaking", "is_sprinting")) {
             addLive(specs, flag, List.of("bool", "int"), flag);
         }
         for (String value : List.of("currentPlayerHealth", "maxPlayerHealth", "currentPlayerHunger",

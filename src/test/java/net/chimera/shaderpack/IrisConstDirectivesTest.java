@@ -52,6 +52,16 @@ final class IrisConstDirectivesTest {
                 "final is read after the gbuffers; a vertex stage and an unknown program are not read");
     }
 
+    /** Iris's ProgramId declares EntitiesGlowing after ParticlesTrans, so glowing entities are read later. */
+    @Test
+    void glowingEntitiesAreReadAfterTranslucentParticles(@TempDir Path shaders) {
+        PackConfig.ShadowSettings settings = PackConfig.parse(List.of(
+                program(shaders, "gbuffers_entities_glowing", "const int shadowMapResolution = 1024;"),
+                program(shaders, "gbuffers_particles_translucent", "const int shadowMapResolution = 2048;")),
+                shaders).shadowSettings();
+        assertEquals(1024, settings.resolution(), "gbuffers_entities_glowing's directive replaces the particles'");
+    }
+
     /** Iris reads each directive as the type it declares, and a bool only as exactly true or false. */
     @Test
     void aDirectiveOfAnotherTypeOrValueIsIgnored(@TempDir Path shaders) {

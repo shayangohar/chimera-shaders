@@ -1,6 +1,5 @@
 {
   "fixture": "simplex",
-  "reportSha256": "49a5d33cbf5455a7bc559be6f6954d2359f79c5d855ea55da82de875cd059539",
   "sourceHashes": {
     "composite.fsh": "41ddaad523fd7534c7f3d0e47ef54fe7f1903622638c9a13ac815c40ab6195c6",
     "composite.vsh": "f12a8a5277df2127173a151db0856931d5f761f79c279171c6a7455576dc327f",
@@ -13,25 +12,5 @@
     "composite",
     "final",
     "gbuffers_terrain"
-  ],
-  "runtime": {
-    "resolution": [2560, 1440],
-    "camera": {
-      "position": [166.254012368339, 73.0, -745.946895931714],
-      "rotation": [35.9814, 1.649966],
-      "rotationOrder": "yaw,pitch",
-      "positionSource": "CHIMERA playerdata Pos"
-    },
-    "hdrTarget": {
-      "format": "R16G16B16A16_FLOAT",
-      "width": 2560,
-      "height": 1440
-    },
-    "finalTarget": {
-      "format": "R8G8B8A8_UNORM",
-      "width": 2560,
-      "height": 1440
-    },
-    "renderdocVerified": true
-  }
+  ]
 }

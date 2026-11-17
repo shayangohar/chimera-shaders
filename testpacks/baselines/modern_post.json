@@ -1,8 +1,0 @@
-{
-  "formatVersion": 1,
-  "scope": "measured-modern-post-translation",
-  "supportedVersions": "every desktop GLSL version from 110 to 460, compatibility or core (GlslVersion)",
-  "runtimeTarget": "post",
-  "externalPacks": ["Complementary Reimagined r5.8.1", "BSL v10.1.3"],
-  "staticEligibilityIsNotRuntimeInstallation": true
-}

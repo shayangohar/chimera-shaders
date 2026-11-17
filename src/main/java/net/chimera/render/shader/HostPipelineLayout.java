@@ -247,8 +247,7 @@ public final class HostPipelineLayout {
             if (hostSupplies(field)) continue;
             Supplier<MappedBuffer> supplier = uniforms.supplier(field.name(), field.type());
             if (supplier == null) {
-                throw new LayoutFailure("No uniform supplier found for uniform: (%s:%s)"
-                        .formatted(field.type(), field.name()));
+                throw new LayoutFailure("nothing supplies uniform %s (%s)".formatted(field.name(), field.type()));
             }
             built.get(index).setSupplier(supplier);
         }

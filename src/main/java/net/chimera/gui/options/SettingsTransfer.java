@@ -2,6 +2,7 @@ package net.chimera.gui.options;
 
 import net.chimera.ChimeraMod;
 import net.chimera.shaderpack.options.OptionFile;
+import net.minecraft.client.resources.language.I18n;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
@@ -22,7 +23,7 @@ import java.util.function.Consumer;
  */
 final class SettingsTransfer {
     private static final String FILTER = "*.txt";
-    private static final String FILTER_LABEL = "Shader Pack Settings (.txt)";
+    private static final String FILTER_LABEL = "options.chimera.settingsFile.filter";
     private static final ExecutorService DIALOGS = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "Chimera settings dialog");
         thread.setDaemon(true);
@@ -34,11 +35,14 @@ final class SettingsTransfer {
 
     /** Asks for a settings file to import and hands the choice to {@code chosen}, off the render thread. */
     static void chooseImport(Path packPath, Consumer<Path> chosen) {
+        // the dialog runs off the render thread, so its text is read here
+        String title = I18n.get("options.chimera.importSettings.dialog");
+        String filterLabel = I18n.get(FILTER_LABEL);
         run(() -> {
             String file;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                file = TinyFileDialogs.tinyfd_openFileDialog("Import Shader Settings from File",
-                        OptionFile.of(packPath).toString(), filter(stack), FILTER_LABEL, false);
+                file = TinyFileDialogs.tinyfd_openFileDialog(title, OptionFile.of(packPath).toString(),
+                        filter(stack), filterLabel, false);
             }
             if (file != null) chosen.accept(Path.of(file));
         });
@@ -50,11 +54,13 @@ final class SettingsTransfer {
      * be parsed exports nothing, so the dialog's default target, that same file, is never emptied.
      */
     static void export(Path packPath) {
+        String title = I18n.get("options.chimera.exportSettings.dialog");
+        String filterLabel = I18n.get(FILTER_LABEL);
         run(() -> {
             String file;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                file = TinyFileDialogs.tinyfd_saveFileDialog("Export Shader Settings to File",
-                        OptionFile.of(packPath).toString(), filter(stack), FILTER_LABEL);
+                file = TinyFileDialogs.tinyfd_saveFileDialog(title, OptionFile.of(packPath).toString(),
+                        filter(stack), filterLabel);
             }
             if (file == null) return;
             try {

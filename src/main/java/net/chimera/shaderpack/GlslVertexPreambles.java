@@ -428,47 +428,6 @@ final class GlslVertexPreambles {
             .replace("layout(location = 8) in vec4 ChimeraPackedTangent;",
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
-    /** Iris's VanillaTransformer VIEW_SHRINK, applied to the model-view matrix of widened lines. */
-    static final String LINE_WIDEN_GLOBALS = """
-            vec3 chimeraLineOffset = vec3(0.0);
-            const mat4 chimeraLineViewScale = mat4(
-                    1.0 - (1.0 / 256.0), 0.0, 0.0, 0.0,
-                    0.0, 1.0 - (1.0 / 256.0), 0.0, 0.0,
-                    0.0, 0.0, 1.0 - (1.0 / 256.0), 0.0,
-                    0.0, 0.0, 0.0, 1.0);
-            """;
-
-    /**
-     * Iris's VanillaTransformer iris_widen_lines: the program runs once at the far end of the segment and once
-     * at the near end, and the near end is offset across the line in screen space.
-     */
-    static final String LINE_WIDEN_MAIN = """
-
-            void main() {
-                chimeraLineOffset = chimeraLineDirection;
-                chimeraLineMain();
-                vec4 linePosEnd = gl_Position;
-                gl_Position = vec4(0.0);
-                chimeraLineOffset = vec3(0.0);
-                chimeraLineMain();
-                vec4 linePosStart = gl_Position;
-                vec2 chimeraScreenSize = vec2(viewWidth, viewHeight);
-                vec3 ndc1 = linePosStart.xyz / linePosStart.w;
-                vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
-                vec2 lineScreenDirection = normalize((ndc2.xy - ndc1.xy) * chimeraScreenSize);
-                vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x)
-                        * chimeraLineWidth / chimeraScreenSize;
-                if (lineOffset.x < 0.0) {
-                    lineOffset *= -1.0;
-                }
-                if (chimeraLineVertexIndex % 2 == 0) {
-                    gl_Position = vec4((ndc1 + vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
-                } else {
-                    gl_Position = vec4((ndc1 - vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
-                }
-            }
-            """;
-
     /**
      * DefaultVertexFormat.POSITION_TEX glint layers. Iris supplies the missing inputs, a +Z normal and full
      * light; gl_Color is the host ColorModulator with the glint strength in its alpha

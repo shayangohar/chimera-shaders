@@ -1,6 +1,9 @@
 package net.chimera.shaderpack;
 
+import net.chimera.render.shader.GlslCompiler;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.shaderc.Shaderc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,11 +21,28 @@ final class EntityOverlayColorTest {
     @Test
     void aFetchOutsideTheBoundOverlayReadsGlsEmptyTexel() {
         String fragment = EntityOverlayColor.inject(FRAGMENT);
-        assertTrue(fragment.contains("vec4 chimeraOverlayTexel = all(lessThan(uvec2(chimeraOverlayUV), "
+        int fetch = fragment.indexOf("vec4 chimeraOverlayTexel = all(lessThan(uvec2(chimeraOverlayUV), "
                 + "uvec2(textureSize(chimeraOverlay, 0)))) ? texelFetch(chimeraOverlay, chimeraOverlayUV, 0)"
-                + " : vec4(0.0, 0.0, 0.0, 1.0);"), fragment);
-        assertTrue(fragment.contains("entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);"),
+                + " : vec4(0.0, 0.0, 0.0, 1.0);");
+        int served = fragment.indexOf("entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);");
+        assertTrue(fetch >= 0 && served > fetch && served < fragment.indexOf("gl_FragColor"),
+                "entityColor is served from the texel before the pack reads it: " + fragment);
+        assertTrue(fragment.contains("if (entityColor.a == 0.0) entityColor = vec4(0.0);"),
                 "the empty texel leaves entityColor's alpha 0, so nothing is mixed over the eyes");
+    }
+
+    /** The fetch and the colour served from it compile in a Vulkan fragment stage. */
+    @Test
+    void theServedColourCompiles() {
+        String fragment = EntityOverlayColor.inject("""
+                #version 460
+                layout(location = 0) flat in ivec2 chimeraOverlayUV;
+                layout(location = 0) out vec4 color;
+                uniform vec4 entityColor;
+                void main() { color = entityColor; }
+                """);
+        MemoryUtil.memFree(GlslCompiler.compile("overlay.fsh", fragment, Shaderc.shaderc_glsl_fragment_shader,
+                options -> Shaderc.shaderc_compile_options_set_auto_bind_uniforms(options, true)));
     }
 
     /**

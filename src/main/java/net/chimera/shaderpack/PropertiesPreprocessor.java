@@ -36,7 +36,7 @@ final class PropertiesPreprocessor {
     private static final List<String> JCPP_DIRECTIVES = List.of("define", "elif", "else", "endif", "error",
             "if", "ifdef", "ifndef", "include", "line", "pragma", "undef", "warning", "include_next", "import");
     /** Stands in for a backslash while a line expands, as Iris hides backslashes from JCPP. */
-    private static final String BACKSLASH = "IRIS_PASSTHROUGHBACKSLASH";
+    private static final String BACKSLASH = "CHIMERA_KEPT_BACKSLASH";
 
     private PropertiesPreprocessor() {}
 

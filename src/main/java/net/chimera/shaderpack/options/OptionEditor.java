@@ -86,8 +86,8 @@ public final class OptionEditor {
     }
 
     /** The profile the pending values match, with its neighbours. */
-    public PackProfiles.Scan profile() {
-        return pack.profiles().scan(pending);
+    public PackProfiles.ProfileMatch profile() {
+        return pack.profiles().match(pending);
     }
 
     /** Queues every value a profile sets. */

@@ -330,8 +330,9 @@ final class ShadowPassTest {
         Files.writeString(shaders.resolve("shadow_text.fsh"), "#version 120\nvoid main() { decoy(); }\n");
         var analysis = PackProbe.analyze(root);
         Map<String, List<String>> inputs = Map.of(
-                "shadow_lines", List.of("#define chimeraLineWidth LineWidth", "void chimeraLineMain()",
-                        "chimeraLineViewScale", "chimeraShadowUniforms.viewWidth"),
+                "shadow_lines", List.of("#define chimeraLineWidth LineWidth",
+                        "void " + IrisCoreProfile.PACK_LINE_MAIN + "()", "chimeraLineShrink * ModelViewMat",
+                        "chimeraShadowUniforms.viewWidth"),
                 "shadow_leash", List.of("layout(location = 2) in ivec2 UV2;", "const vec2 UV0 = vec2(0.5);"),
                 "shadow_lightning", List.of("layout(location = 1) in vec4 Color;", "const ivec2 UV2 = ivec2(240);"),
                 "shadow_text_bg", List.of("layout(location = 2) in ivec2 UV2;", "const vec2 UV0 = vec2(0.5);"),

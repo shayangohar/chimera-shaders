@@ -36,13 +36,16 @@ final class AtlasMipBlend {
     }
 
     /** One pair of texels blended. */
-    static int blend(int one, int two) {
-        int alphaOne = one >>> 24;
-        int alphaTwo = two >>> 24;
-        if (alphaOne == alphaTwo) return mix(one, two, 1, 1) | alphaOne << 24;
-        if (alphaOne == 0) return two & 0xFFFFFF | (alphaTwo >> 2) << 24;
-        if (alphaTwo == 0) return one & 0xFFFFFF | (alphaOne >> 2) << 24;
-        return mix(one, two, alphaOne, alphaTwo) | (alphaOne + alphaTwo) >> 1 << 24;
+    static int blend(int first, int second) {
+        int firstAlpha = first >>> 24;
+        int secondAlpha = second >>> 24;
+        if ((firstAlpha == 0) != (secondAlpha == 0)) {
+            int visible = firstAlpha == 0 ? second : first;
+            return visible & 0xFFFFFF | visible >>> 26 << 24;
+        }
+        boolean evenAlpha = firstAlpha == secondAlpha;
+        int rgb = evenAlpha ? mix(first, second, 1, 1) : mix(first, second, firstAlpha, secondAlpha);
+        return rgb | (firstAlpha + secondAlpha) >> 1 << 24;
     }
 
     /** The two colours weighed in linear light, as 8-bit sRGB in the low 24 bits. */

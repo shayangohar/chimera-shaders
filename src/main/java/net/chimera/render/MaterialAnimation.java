@@ -73,18 +73,23 @@ final class MaterialAnimation {
         int weight = (int) ((1.0f - (float) subFrame / (float) frames.get(frame).time()) * 255.0f) & 0xFF;
         int[] mixed = new int[current.length];
         for (int i = 0; i < current.length; i++) {
-            mixed[i] = mix(current[i], next[i], weight) & 0x00FFFFFF | current[i] & 0xFF000000;
+            mixed[i] = mixRgb(current[i], next[i], weight) | current[i] & 0xFF000000;
         }
         return mixed;
     }
 
-    /** Sodium's {@code ColorMixer.mix}: each channel weighted by {@code weight / 255}, rounded as Sodium rounds. */
-    private static int mix(int current, int next, int weight) {
-        long redBlue = (current & 0x00FF00FFL) * weight + (next & 0x00FF00FFL) * (255 - weight);
-        long greenAlpha = (current & 0xFF00FF00L) * weight + (next & 0xFF00FF00L) * (255 - weight);
-        long mixedRedBlue = (redBlue + 0x00FF00FFL) >>> 8 & 0x00FF00FFL;
-        long mixedGreenAlpha = (greenAlpha + 0xFF00FF00L) >>> 8 & 0xFF00FF00L;
-        return (int) (mixedRedBlue | mixedGreenAlpha);
+    /**
+     * Each colour channel of {@code current} weighted by {@code weight / 255} against {@code next}, rounded up
+     * as Sodium's interpolation rounds; the alpha byte comes back zero.
+     */
+    private static int mixRgb(int current, int next, int weight) {
+        int rgb = 0;
+        for (int shift = 0; shift < 24; shift += 8) {
+            int mine = current >>> shift & 0xFF;
+            int theirs = next >>> shift & 0xFF;
+            rgb |= (mine * weight + theirs * (255 - weight) + 255) >> 8 << shift;
+        }
+        return rgb;
     }
 
     int levels() {

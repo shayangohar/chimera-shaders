@@ -36,19 +36,22 @@ final class PackCenterDepth implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private static final List<ComputeValueBlock.Value> VALUES =
             ComputeValueBlock.layout(Map.of("frameTime", "float"));
+    /** The kernel, with frameTime's block and the decay rate to fill in. */
     private static final String SOURCE = """
             #version 450
             layout(local_size_x = 1) in;
-            layout(binding = 0) uniform sampler2D depth;
-            layout(binding = 1, r32f) uniform image2D smoothed;
+
+            layout(binding = 0) uniform sampler2D worldDepth;
+            layout(binding = 1, r32f) uniform image2D smoothedDepth;
             %s
             const float DECAY = %s;
+
             void main() {
-                float currentDepth = textureLod(depth, vec2(0.5), 0.0).r;
-                float decay2 = 1.0 - exp(-DECAY * frameTime);
-                float oldDepth = imageLoad(smoothed, ivec2(0)).r;
-                if (isnan(oldDepth)) oldDepth = currentDepth;
-                imageStore(smoothed, ivec2(0), vec4(mix(oldDepth, currentDepth, decay2)));
+                float target = textureLod(worldDepth, vec2(0.5), 0.0).r;
+                float smoothed = imageLoad(smoothedDepth, ivec2(0)).r;
+                if (isnan(smoothed)) smoothed = target;
+                float approach = 1.0 - exp(-DECAY * frameTime);
+                imageStore(smoothedDepth, ivec2(0), vec4(mix(smoothed, target, approach)));
             }
             """;
 
@@ -97,12 +100,16 @@ final class PackCenterDepth implements AutoCloseable {
     }
 
     /**
-     * Iris's decay, {@code 1 / ((halfLife * 0.1) / ln 2)}, as a GLSL literal. A half-life of zero makes it
-     * infinite; the largest float stands in, which takes the new depth whole.
+     * The decay rate per second as a GLSL literal: the gap to the centre depth halves every {@code halfLife}
+     * tenths of a second, at any frame rate.
+     *
+     * A half-life of zero divides to infinity, which would make the kernel's {@code -DECAY * frameTime} a NaN
+     * on a frame of zero time. The largest float takes the new depth whole on any other frame and keeps the
+     * value on that one, as {@code -MAX * 0} is {@code -0}.
      */
     static String decayLiteral(float halfLife) {
-        float decay = (float) (1.0 / ((halfLife * 0.1) / Math.log(2)));
-        return String.format(Locale.ROOT, "%.9e", Float.isFinite(decay) ? decay : Float.MAX_VALUE);
+        float decay = (float) (Math.log(2.0) / (halfLife * 0.1));
+        return String.format(Locale.ROOT, "%.9e", Float.isInfinite(decay) ? Float.MAX_VALUE : decay);
     }
 
     /** Clears the image to zero before anything first reads it; call outside any render pass. */

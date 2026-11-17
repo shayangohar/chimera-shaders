@@ -220,55 +220,125 @@ final class IrisCoreProfile {
         return GlslDeclarations.apply(source, GlslDeclarations.removeVariables(tree, removed));
     }
 
-    private static String renameMain(String source) {
-        String renamed = GlslDeclarations.renameMain(source, "chimeraLineMain");
-        if (renamed == null) throw new IllegalArgumentException("line vertex requires main");
-        return renamed;
-    }
+    /**
+     * The values a pack's own gbuffers_line reads for the core names on the line layout. The layout has no UVs,
+     * so the UV inputs read zero, and vaNormal reads the segment's direction the layout stores as its normal.
+     */
+    private static final Map<String, String> LINE_CORE_NAMES = Map.ofEntries(
+            Map.entry("vaPosition", "gl_Vertex.xyz"), Map.entry("vaColor", "gl_Color"),
+            Map.entry("vaNormal", "gl_Normal"), Map.entry("vaUV0", "vec2(0.0)"), Map.entry("vaUV1", "vec2(0.0)"),
+            Map.entry("vaUV2", "vec2(0.0)"), Map.entry("modelViewMatrix", "gl_ModelViewMatrix"),
+            Map.entry("modelViewMatrixInverse", "inverse(gl_ModelViewMatrix)"),
+            Map.entry("projectionMatrix", "gl_ProjectionMatrix"),
+            Map.entry("projectionMatrixInverse", "inverse(gl_ProjectionMatrix)"),
+            Map.entry("normalMatrix", "gl_NormalMatrix"), Map.entry("textureMatrix", "gl_TextureMatrix[0]"),
+            Map.entry("chunkOffset", "vec3(0.0)"));
+
+    /** The name the pack's main takes once the widened line's entry point claims {@code main}. */
+    static final String PACK_LINE_MAIN = "chimeraPackLineMain";
 
     /**
-     * Applies Iris's line handling to an authored vertex source before its interface is planned.
+     * What the pack's vertex code reads while Chimera widens its line, in every function. The vertex moves by
+     * the current run's offset, the model view is shrunk toward the eye, and the normal reads +Z rather than
+     * the segment's direction. ftransform() becomes {@link #LINE_FTRANSFORM}, which reads the same.
+     */
+    private static final Map<String, String> WIDENED_LINE_BUILTINS = Map.of(
+            "gl_Vertex", "(gl_Vertex + vec4(chimeraLineOffset, 0.0))",
+            "gl_ModelViewMatrix", "(chimeraLineShrink * gl_ModelViewMatrix)",
+            "gl_ModelViewProjectionMatrix", "(gl_ProjectionMatrix * chimeraLineShrink * gl_ModelViewMatrix)",
+            "gl_Normal", "vec3(0.0, 0.0, 1.0)",
+            "ftransform", "chimeraLineFtransform");
+
+    /**
+     * The widened line's globals. The offset is what each run of the pack's code adds to its vertex: the line's
+     * direction for the far point, zero for the vertex's own. The shrink scales the view position by 255/256,
+     * so the line keeps its place on screen and comes just in front of the face it outlines.
+     */
+    private static final String LINE_GLOBALS = """
+            vec3 chimeraLineOffset;
+            const mat4 chimeraLineShrink = mat4(mat3(255.0 / 256.0));
+            """;
+
+    /** Fixed-function ftransform(), declared where the pack calls it and read through the widened built-ins. */
+    private static final String LINE_FTRANSFORM = """
+            vec4 chimeraLineFtransform() {
+                return gl_ModelViewProjectionMatrix * gl_Vertex;
+            }
+            """;
+
+    /**
+     * The widened line's entry point. The pack's code runs twice: first from the far point, the vertex moved
+     * by the line's direction, keeping only the clip position, then from the vertex's own point, which leaves
+     * every other output. The two projected points give the line's direction on screen, and the vertex moves half
+     * the line width across it, in pixels, to the side its index picks.
+     */
+    private static final String LINE_ENTRY = """
+
+            vec4 chimeraWidenLine(vec4 vertexClip, vec4 farClip) {
+                vec2 screen = vec2(viewWidth, viewHeight);
+                vec2 vertexNdc = vertexClip.xy / vertexClip.w;
+                vec2 along = normalize((farClip.xy / farClip.w - vertexNdc) * screen);
+                vec2 offset = vec2(-along.y, along.x) * chimeraLineWidth / screen;
+                // the even vertex always moves toward +x, whichever way the segment runs
+                if (offset.x < 0.0) offset = -offset;
+                if ((chimeraLineVertexIndex & 1) == 1) offset = -offset;
+                return vertexClip + vec4(offset * vertexClip.w, 0.0, 0.0);
+            }
+
+            void main() {
+                chimeraLineOffset = chimeraLineDirection;
+                %1$s();
+                vec4 farClip = gl_Position;
+                gl_Position = vec4(0.0);
+                chimeraLineOffset = vec3(0.0);
+                %1$s();
+                gl_Position = chimeraWidenLine(gl_Position, farClip);
+            }
+            """.formatted(PACK_LINE_MAIN);
+
+    /**
+     * Prepares the vertex stage of a program drawn on the host line layout, before its interface is planned.
+     * The host's vertex index replaces gl_VertexID either way.
      *
-     * When the pack has its own gbuffers_line, IrisRenderingPipeline sets isLines and Iris compiles it through
-     * VanillaCoreTransformer: the core inputs and matrices name the host values, and the program widens its own
-     * line. Iris's VanillaTransformer widens a fallback program such as gbuffers_basic itself: its main runs
-     * twice and gl_ModelViewMatrix carries VIEW_SHRINK.
+     * A pack's own gbuffers_line ({@code packLineProgram}) widens its own line from the core names, which read
+     * the compatibility built-ins here. Any other program, a fallback serving gbuffers_line or any shadow_lines
+     * program, is widened as Iris widens it: see {@link #widenLine}.
      */
     public static String prepareLineVertex(String source, Path sourceFile, boolean packLineProgram) {
         if (source == null) return null;
-        String src = expandIncludes(source, sourceFile);
-        src = GlslTokenRewriter.replaceIdentifiers(src, Map.of("gl_VertexID", "chimeraLineVertexIndex"));
-        if (packLineProgram) {
-            src = withoutLineCoreDeclarations(src);
-            return GlslScopedReferences.replace(src, Map.ofEntries(
-                    Map.entry("vaPosition", "gl_Vertex.xyz"),
-                    Map.entry("vaColor", "gl_Color"),
-                    Map.entry("vaNormal", "gl_Normal"),
-                    Map.entry("vaUV0", "vec2(0.0)"),
-                    Map.entry("vaUV1", "vec2(0.0)"),
-                    Map.entry("vaUV2", "vec2(0.0)"),
-                    Map.entry("modelViewMatrix", "gl_ModelViewMatrix"),
-                    Map.entry("modelViewMatrixInverse", "inverse(gl_ModelViewMatrix)"),
-                    Map.entry("projectionMatrix", "gl_ProjectionMatrix"),
-                    Map.entry("projectionMatrixInverse", "inverse(gl_ProjectionMatrix)"),
-                    Map.entry("normalMatrix", "gl_NormalMatrix"),
-                    Map.entry("textureMatrix", "gl_TextureMatrix[0]"),
-                    Map.entry("chunkOffset", "vec3(0.0)")));
-        }
-        src = src.replaceAll("\\bftransform\\s*\\(\\s*\\)", "(gl_ModelViewProjectionMatrix * gl_Vertex)");
-        src = GlslTokenRewriter.replaceIdentifiers(src, Map.of(
-                "gl_Vertex", "(gl_Vertex + vec4(chimeraLineOffset, 0.0))",
-                "gl_ModelViewMatrix", "(chimeraLineViewScale * gl_ModelViewMatrix)",
-                "gl_ModelViewProjectionMatrix", "(gl_ProjectionMatrix * chimeraLineViewScale * gl_ModelViewMatrix)",
-                // Iris feeds a widened program +Z; only the wrapper reads the line direction
-                "gl_Normal", "vec3(0.0, 0.0, 1.0)"));
-        src = renameMain(src);
-        String globals = GlslVertexPreambles.LINE_WIDEN_GLOBALS;
+        String src = GlslTokenRewriter.replaceIdentifiers(expandIncludes(source, sourceFile),
+                Map.of("gl_VertexID", "chimeraLineVertexIndex"));
+        if (!packLineProgram) return widenLine(src);
+        // a parameter or local named like a core name keeps its own meaning
+        return GlslScopedReferences.replace(withoutLineCoreDeclarations(src), LINE_CORE_NAMES);
+    }
+
+    /**
+     * Widens a line drawn by a program that does not widen its own. The line must stay as wide as the host
+     * asks, in pixels, after the pack's own transform, which may jitter, bend or project in its own way, so
+     * both ends go through the pack's code ({@link #LINE_ENTRY}).
+     *
+     * The pack reads gl_Vertex moved by the run's offset, and the model view, its product with the projection
+     * and ftransform() all shrunk toward the eye ({@link #WIDENED_LINE_BUILTINS}); the projection and normal
+     * matrix stay the host's. The screen size is the pack's viewWidth and viewHeight, declared where the pack
+     * does not declare them.
+     */
+    private static String widenLine(String src) {
+        String renamed = GlslDeclarations.renameMain(src, PACK_LINE_MAIN);
+        if (renamed == null) throw new IllegalArgumentException("line vertex stage has no main");
+        String stripped = stripComments(src);
         Set<String> declared = new HashSet<>();
-        InterfacePlanner.scanUniformDeclarations(stripComments(src)).forEach(value -> declared.add(value.name()));
-        if (!declared.contains("viewWidth")) globals += "uniform float viewWidth;\n";
-        if (!declared.contains("viewHeight")) globals += "uniform float viewHeight;\n";
-        return insertAfterHeader(src, globals) + GlslVertexPreambles.LINE_WIDEN_MAIN;
+        InterfacePlanner.scanUniformDeclarations(stripped).forEach(uniform -> declared.add(uniform.name()));
+        StringBuilder globals = new StringBuilder();
+        for (String size : List.of("viewWidth", "viewHeight")) {
+            if (!declared.contains(size)) globals.append("uniform float ").append(size).append(";\n");
+        }
+        globals.append(LINE_GLOBALS);
+        if (GlslTokenRewriter.containsIdentifier(stripped, "ftransform")) globals.append(LINE_FTRANSFORM);
+        // the helper goes in before the rewrite, so its built-ins read as the pack's do
+        String widened = GlslTokenRewriter.replaceIdentifiers(insertAfterHeader(renamed, globals.toString()),
+                WIDENED_LINE_BUILTINS);
+        return widened + LINE_ENTRY;
     }
 
     /**

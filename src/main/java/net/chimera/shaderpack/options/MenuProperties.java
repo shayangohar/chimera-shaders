@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -18,41 +17,41 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * The menu entries of shaders.properties: {@code screen}, {@code screen.<id>},
- * {@code screen.columns}, {@code screen.<id>.columns}, {@code sliders} and {@code profile.<name>}.
+ * The menu entries of a pack's shaders.properties: the screens, their column counts, the sliders and the
+ * profiles. The file is read as plain properties: {@code #if} and {@code #define} lines are comments, so
+ * where a key appears in several branches the last value wins.
  *
- * These come from the file as written, without preprocessing. A properties reader takes {@code #if}
- * lines for comments, so when a key appears in several branches the last one wins, as in OptiFine
- * and Iris. Lists split on runs of spaces.
+ * @param mainScreen the {@code screen} entries
+ * @param subScreens the {@code screen.<id>} entries, iterating as a {@code HashMap} keyed by id and filled in
+ *                   file order; which sub-screen takes the {@code *} fill depends on it
+ * @param profiles the {@code profile.<name>} entries, in the order the keys first appear
+ * @param problems one {@code MENU_COLUMNS_MALFORMED} entry for each column count that is no integer
  */
-public record MenuProperties(
-        Optional<List<String>> mainScreen,
-        Optional<Integer> mainColumns,
-        Map<String, List<String>> subScreens,
-        Map<String, Integer> subColumns,
-        Set<String> sliders,
-        Map<String, List<String>> profiles,
-        List<String> problems
-) {
+public record MenuProperties(Optional<List<String>> mainScreen, Optional<Integer> mainColumns,
+                             Map<String, List<String>> subScreens, Map<String, Integer> subScreenColumns,
+                             Set<String> sliders, Map<String, List<String>> profiles, List<String> problems) {
+    private static final String SCREEN = "screen.";
+    private static final String COLUMNS = ".columns";
+    private static final String PROFILE = "profile.";
+
     public MenuProperties {
-        subScreens = Collections.unmodifiableMap(subScreens);
-        subColumns = Collections.unmodifiableMap(subColumns);
+        mainScreen = mainScreen.map(List::copyOf);
+        subScreens = frozen(subScreens);
+        subScreenColumns = Map.copyOf(subScreenColumns);
         sliders = Set.copyOf(sliders);
-        profiles = Collections.unmodifiableMap(profiles);
+        profiles = frozen(profiles);
         problems = List.copyOf(problems);
     }
 
     public static MenuProperties empty() {
-        return new MenuProperties(Optional.empty(), Optional.empty(), Map.of(), Map.of(), Set.of(), Map.of(),
-                List.of());
+        return parse("");
     }
 
-    /** Reads {@code shaders.properties} under {@code shadersRoot}; empty when there is none. */
+    /** The shaders.properties under {@code shadersRoot}, as ISO-8859-1; empty when it is no readable file. */
     public static MenuProperties read(Path shadersRoot) {
         Path file = shadersRoot.resolve("shaders.properties");
         if (!Files.isRegularFile(file)) return empty();
         try {
-            // Iris reads shaders.properties as ISO-8859-1, which never fails on a stray byte
             return parse(Files.readString(file, StandardCharsets.ISO_8859_1));
         } catch (IOException unreadable) {
             return empty();
@@ -60,71 +59,74 @@ public record MenuProperties(
     }
 
     static MenuProperties parse(String contents) {
-        Map<String, String> entries = orderedEntries(new StringReader(contents));
-        Builder builder = new Builder();
-        entries.forEach(builder::accept);
-        return builder.build();
+        Optional<List<String>> main = Optional.empty();
+        Optional<Integer> mainColumns = Optional.empty();
+        Map<String, List<String>> subScreens = new HashMap<>();
+        Map<String, Integer> subScreenColumns = new HashMap<>();
+        Set<String> sliders = Set.of();
+        Map<String, List<String>> profiles = new LinkedHashMap<>();
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, String> entry : orderedEntries(new StringReader(contents)).entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key.equals("screen")) {
+                main = Optional.of(list(value));
+            } else if (key.equals(SCREEN + "columns")) {
+                mainColumns = columns(key, value, problems);
+            } else if (key.startsWith(SCREEN) && key.endsWith(COLUMNS)
+                    && key.length() > SCREEN.length() + COLUMNS.length()) {
+                // a malformed count stays a count key and makes no screen
+                String id = key.substring(SCREEN.length(), key.length() - COLUMNS.length());
+                columns(key, value, problems).ifPresent(count -> subScreenColumns.put(id, count));
+            } else if (key.startsWith(SCREEN)) {
+                subScreens.put(key.substring(SCREEN.length()), list(value));
+            } else if (key.equals("sliders")) {
+                sliders = Set.copyOf(list(value));
+            } else if (key.startsWith(PROFILE)) {
+                profiles.put(key.substring(PROFILE.length()), list(value));
+            }
+        }
+        return new MenuProperties(main, mainColumns, subScreens, subScreenColumns, sliders, profiles, problems);
     }
 
-    /** Properties in first-seen key order, each with its last value. */
+    /**
+     * Reads properties exactly as {@link Properties#load(Reader)} does, keeping each key where it first
+     * appears with the value it last had. A malformed unicode escape or a read failure ends the read and
+     * keeps what came before.
+     */
     static Map<String, String> orderedEntries(Reader reader) {
-        Map<String, String> ordered = new LinkedHashMap<>();
-        Properties properties = new Properties() {
+        Map<String, String> entries = new LinkedHashMap<>();
+        Properties recorder = new Properties() {
             @Override
             public synchronized Object put(Object key, Object value) {
-                ordered.put((String) key, (String) value);
-                return super.put(key, value);
+                return entries.put((String) key, (String) value);
             }
         };
         try {
-            properties.load(reader);
-        } catch (IOException | IllegalArgumentException malformed) {
-            // whatever loaded before the bad line stays, as the properties reader leaves it
+            recorder.load(reader);
+        } catch (IOException | IllegalArgumentException stopped) {
+            // the entries read so far stand
         }
-        return ordered;
+        return Collections.unmodifiableMap(entries);
     }
 
-    private static final class Builder {
-        private List<String> mainScreen;
-        private Integer mainColumns;
-        private final Map<String, List<String>> subScreens = new HashMap<>();
-        private final Map<String, Integer> subColumns = new HashMap<>();
-        private List<String> sliders = List.of();
-        private final Map<String, List<String>> profiles = new LinkedHashMap<>();
-        private final List<String> problems = new ArrayList<>();
+    /** A list value, split on runs of spaces only; an empty value is one empty entry. */
+    private static List<String> list(String value) {
+        return List.of(value.split(" +"));
+    }
 
-        void accept(String key, String value) {
-            if (key.equals("sliders")) sliders = list(value);
-            if (key.startsWith("profile.")) profiles.put(key.substring("profile.".length()), list(value));
-            if (key.equals("screen.columns")) {
-                columns(key, value).ifPresent(columns -> mainColumns = columns);
-                return;
-            }
-            if (key.startsWith("screen.") && key.endsWith(".columns") && key.length() > "screen..columns".length()) {
-                String screen = key.substring("screen.".length(), key.length() - ".columns".length());
-                columns(key, value).ifPresent(columns -> subColumns.put(screen, columns));
-                return;
-            }
-            if (key.equals("screen")) mainScreen = list(value);
-            if (key.startsWith("screen.")) subScreens.put(key.substring("screen.".length()), list(value));
+    private static Optional<Integer> columns(String key, String value, List<String> problems) {
+        try {
+            return Optional.of(Integer.parseInt(value));
+        } catch (NumberFormatException malformed) {
+            problems.add("MENU_COLUMNS_MALFORMED:" + key + "=" + value);
+            return Optional.empty();
         }
+    }
 
-        private Optional<Integer> columns(String key, String value) {
-            try {
-                return Optional.of(Integer.parseInt(value));
-            } catch (NumberFormatException malformed) {
-                problems.add("MENU_COLUMNS_MALFORMED:" + key + "=" + value);
-                return Optional.empty();
-            }
-        }
-
-        private static List<String> list(String value) {
-            return Arrays.asList(value.split(" +"));
-        }
-
-        MenuProperties build() {
-            return new MenuProperties(Optional.ofNullable(mainScreen), Optional.ofNullable(mainColumns),
-                    subScreens, subColumns, Set.copyOf(sliders), profiles, problems);
-        }
+    private static Map<String, List<String>> frozen(Map<String, List<String>> lists) {
+        Map<String, List<String>> copy = new LinkedHashMap<>();
+        lists.forEach((key, list) -> copy.put(key, List.copyOf(list)));
+        return Collections.unmodifiableMap(copy);
     }
 }

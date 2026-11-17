@@ -309,21 +309,10 @@ final class PackFrameState {
         return component == 0 ? x : component == 1 ? y : z;
     }
 
+    /** GL's value for a uniform nothing sets, as Iris leaves an unset or disabled one: zero, matrices included. */
     private static void writeDefault(String type, MappedBuffer target) {
-        if (type.equals("mat4")) {
-            for (int i = 0; i < 16; i++) {
-                target.putFloat(i * 4, i % 5 == 0 ? 1.0f : 0.0f);
-            }
-            return;
-        }
-        if (type.startsWith("i")) {
-            for (int i = 0; i < UniformRegistry.pipelineCount(type); i++) {
-                target.putInt(i * 4, 0);
-            }
-            return;
-        }
         for (int i = 0; i < UniformRegistry.pipelineCount(type); i++) {
-            target.putFloat(i * 4, 0.0f);
+            target.putInt(i * 4, 0);
         }
     }
 

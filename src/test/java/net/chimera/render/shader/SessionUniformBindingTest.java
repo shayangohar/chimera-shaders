@@ -73,5 +73,11 @@ final class SessionUniformBindingTest {
             new PackFrameState().write(unset, "float", buffer);
             assertEquals(0.0f, buffer.getFloat(0), name + " reads zero");
         }
+        UniformRegistry.UniformDescriptor matrix = UniformRegistry.resolve("packOwnMatrix", "mat4", Map.of());
+        assertEquals("unset:packOwnMatrix", matrix.sourceKey());
+        MappedBuffer buffer = new MappedBuffer(64);
+        for (int i = 0; i < 16; i++) buffer.putFloat(i * 4, 1.0f);
+        new PackFrameState().write(matrix, "mat4", buffer);
+        for (int i = 0; i < 16; i++) assertEquals(0.0f, buffer.getFloat(i * 4), "an unset mat4 reads zero, " + i);
     }
 }

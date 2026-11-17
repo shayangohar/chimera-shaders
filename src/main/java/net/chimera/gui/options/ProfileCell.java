@@ -60,8 +60,8 @@ final class ProfileCell extends ValueCell {
     }
 
     private void step(boolean forward) {
-        PackProfiles.Scan scan = context.editor().profile();
-        PackProfiles.Profile target = forward ? scan.next() : scan.previous();
+        PackProfiles.ProfileMatch match = context.editor().profile();
+        PackProfiles.Profile target = forward ? match.next() : match.previous();
         if (target != null) context.editor().applyProfile(target);
     }
 

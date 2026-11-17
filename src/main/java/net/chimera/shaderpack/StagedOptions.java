@@ -34,7 +34,7 @@ public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<St
 
     /** The profile the applied values match, or {@code Custom} when none does, as Iris names it. */
     public String profileName() {
-        return pack.profiles().scan(applied).current().map(PackProfiles.Profile::name).orElse("Custom");
+        return pack.profiles().match(applied).current().map(PackProfiles.Profile::name).orElse("Custom");
     }
 
     /**
@@ -42,7 +42,7 @@ public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<St
      * counting the changes beyond those the profile makes (ShaderPack.profileInfo).
      */
     public String profileInfo() {
-        Optional<PackProfiles.Profile> profile = pack.profiles().scan(applied).current();
+        Optional<PackProfiles.Profile> profile = pack.profiles().match(applied).current();
         int byProfile = profile.map(match -> OptionValues.of(applied.options(), match.values()).changedCount())
                 .orElse(0);
         int byUser = applied.changedCount() - byProfile;

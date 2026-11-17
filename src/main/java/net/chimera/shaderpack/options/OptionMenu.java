@@ -2,48 +2,19 @@ package net.chimera.shaderpack.options;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * The pack's option menu: a main screen and named sub-screens, each a grid of elements.
- *
- * An element is {@code <empty>} (a blank cell), {@code <profile>} (the profile button, dropped
- * when the pack has no profiles), {@code [ID]} (a link to sub-screen ID), or an option name. A name
- * the pack does not declare becomes a blank cell. {@code *} stands for every option no screen places,
- * filled in after all screens are read. Without a {@code screen} entry the main screen is just
- * {@code *}. A screen without a column count uses three columns above eighteen elements, else two.
+ * The settings screens shaders.properties lays out over a pack's options: a main screen and the sub-screens
+ * its links open. Entries that name nothing become blank cells with a problem.
  */
 public final class OptionMenu {
-    /** One cell of a screen. */
-    public sealed interface Element permits Empty, ProfileButton, Link, OptionEntry {}
-
-    /** A blank cell. */
-    public record Empty() implements Element {}
-
-    /** The profile button. */
-    public record ProfileButton() implements Element {}
-
-    /** A button that opens sub-screen {@code screen}. */
-    public record Link(String screen) implements Element {}
-
-    /** An option; {@code slider} when shaders.properties lists it under {@code sliders}. */
-    public record OptionEntry(ShaderOption option, boolean slider) implements Element {}
-
-    /** A screen's elements and its explicit column count, if the pack gave one. */
-    public record Screen(String id, List<Element> elements, Optional<Integer> columns) {
-        public Screen {
-            elements = Collections.unmodifiableList(elements);
-        }
-
-        public int columnCount() {
-            return columns.orElse(elements.size() > 18 ? 3 : 2);
-        }
-    }
-
-    private static final Element EMPTY = new Empty();
+    /** More elements than this get three columns by default, otherwise two. */
+    private static final int TWO_COLUMN_LIMIT = 18;
 
     private final Screen main;
     private final Map<String, Screen> subScreens;
@@ -55,92 +26,122 @@ public final class OptionMenu {
         this.problems = List.copyOf(problems);
     }
 
+    public sealed interface Element permits Empty, ProfileButton, Link, OptionEntry {}
+
+    /** A blank cell. */
+    public record Empty() implements Element {}
+
+    /** The button that cycles the pack's profiles. */
+    public record ProfileButton() implements Element {}
+
+    /** A button opening another screen, which need not exist. */
+    public record Link(String screen) implements Element {}
+
+    public record OptionEntry(ShaderOption option, boolean slider) implements Element {}
+
+    /** A screen; the main screen's id is null. */
+    public record Screen(String id, List<Element> elements, Optional<Integer> columns) {
+        public Screen {
+            elements = List.copyOf(elements);
+        }
+
+        /** The column count the pack gives, any integer, or one that suits the number of elements. */
+        public int columnCount() {
+            return columns.orElse(elements.size() > TWO_COLUMN_LIMIT ? 3 : 2);
+        }
+    }
+
+    /**
+     * Lays out the screens. The main screen without a {@code screen} key is a lone {@code *}. The first
+     * {@code *}, counting the main screen then the sub-screens in their iteration order, lists every option
+     * no sub-screen names, toggles then choices; every later {@code *} adds nothing.
+     */
     public static OptionMenu build(MenuProperties properties, OptionSet options, PackProfiles profiles) {
-        return new Assembly(options, profiles, properties).assemble();
+        Layout layout = new Layout(options, properties.sliders(), !profiles.declared().isEmpty(),
+                unplaced(properties, options));
+        Screen main = layout.screen(null, properties.mainScreen().orElse(List.of("*")), properties.mainColumns());
+        Map<String, Screen> subScreens = new LinkedHashMap<>();
+        properties.subScreens().forEach((id, entries) -> subScreens.put(id,
+                layout.screen(id, entries, Optional.ofNullable(properties.subScreenColumns().get(id)))));
+        return new OptionMenu(main, subScreens, layout.problems);
     }
 
     public Screen main() {
         return main;
     }
 
-    /** The sub-screen a link names; empty for an unknown id, which the menu shows as the main screen. */
     public Optional<Screen> subScreen(String id) {
         return Optional.ofNullable(subScreens.get(id));
     }
 
+    /** The sub-screens by id, in the order they were laid out. */
     public Map<String, Screen> subScreens() {
         return subScreens;
     }
 
-    /** Elements that named no declared option. */
+    /** One {@code MENU_ELEMENT_UNKNOWN} entry per unknown entry: the main screen's, then each sub-screen's. */
     public List<String> problems() {
         return problems;
     }
 
-    /** Builds every screen, then fills each {@code *} with the options left unplaced. */
-    private static final class Assembly {
+    /**
+     * The names the fill lists: every toggle, then every choice, so a name that is both comes twice, less
+     * one occurrence for each time a sub-screen names it. The main screen's own names stay.
+     */
+    private static List<String> unplaced(MenuProperties properties, OptionSet options) {
+        List<String> names = new ArrayList<>(options.toggles().keySet());
+        names.addAll(options.choices().keySet());
+        for (List<String> entries : properties.subScreens().values()) {
+            for (String entry : entries) names.remove(entry);
+        }
+        return names;
+    }
+
+    /** Turns screen entries into elements, handing the fill to the first {@code *}. */
+    private static final class Layout {
         private final OptionSet options;
-        private final PackProfiles profiles;
-        private final MenuProperties properties;
-        /** Where a {@code *} stood: the screen's element list and the index it fills from. */
-        private record FillPoint(List<Element> elements, int index) {}
-
-        private final List<String> unplaced = new ArrayList<>();
-        private final List<FillPoint> fillPoints = new ArrayList<>();
+        private final Set<String> sliders;
+        private final boolean profileButton;
         private final List<String> problems = new ArrayList<>();
+        private List<String> fill;
 
-        Assembly(OptionSet options, PackProfiles profiles, MenuProperties properties) {
+        Layout(OptionSet options, Set<String> sliders, boolean profileButton, List<String> fill) {
             this.options = options;
-            this.profiles = profiles;
-            this.properties = properties;
+            this.sliders = sliders;
+            this.profileButton = profileButton;
+            this.fill = fill;
         }
 
-        /**
-         * Iris builds the main screen before it gathers the unplaced options, so the options the
-         * main screen names are never taken out: a {@code *} lists them again.
-         */
-        OptionMenu assemble() {
-            Screen main = screen(null, properties.mainScreen().orElse(List.of("*")), properties.mainColumns());
-            unplaced.addAll(options.toggles().keySet());
-            unplaced.addAll(options.choices().keySet());
-            Map<String, Screen> subScreens = new HashMap<>();
-            properties.subScreens().forEach((id, entries) -> subScreens.put(id,
-                    screen(id, entries, Optional.ofNullable(properties.subColumns().get(id)))));
-            for (FillPoint point : fillPoints) {
-                List<Element> fill = new ArrayList<>();
-                for (String name : List.copyOf(unplaced)) fill.add(element(name));
-                point.elements().addAll(point.index(), fill);
-            }
-            return new OptionMenu(main, subScreens, problems);
-        }
-
-        private Screen screen(String id, List<String> entries, Optional<Integer> columns) {
+        Screen screen(String id, List<String> entries, Optional<Integer> columns) {
             List<Element> elements = new ArrayList<>();
             for (String entry : entries) {
-                if (entry.equals("*")) {
-                    fillPoints.add(new FillPoint(elements, elements.size()));
-                    continue;
+                if (!entry.equals("*")) {
+                    element(entry).ifPresent(elements::add);
+                } else if (fill != null) {
+                    fill.forEach(name -> elements.add(option(name)));
+                    fill = null;
                 }
-                Element element = entry.equals("<profile>") ? (profiles.isEmpty() ? null : new ProfileButton())
-                        : element(entry);
-                if (element != null) elements.add(element);
             }
             return new Screen(id, elements, columns);
         }
 
-        private Element element(String entry) {
-            if (entry.equals("<empty>")) return EMPTY;
-            if (entry.startsWith("[") && entry.endsWith("]") && entry.length() >= 2) {
-                return new Link(entry.substring(1, entry.length() - 1));
+        /** The element an entry gives; none for the profile button of a pack without profiles. */
+        private Optional<Element> element(String entry) {
+            if (entry.equals("<empty>")) return Optional.of(new Empty());
+            if (entry.equals("<profile>")) return profileButton ? Optional.of(new ProfileButton()) : Optional.empty();
+            if (entry.length() >= 2 && entry.startsWith("[") && entry.endsWith("]")) {
+                return Optional.of(new Link(entry.substring(1, entry.length() - 1)));
             }
-            ShaderOption option = options.isToggle(entry) ? options.toggles().get(entry).option()
-                    : options.isChoice(entry) ? options.choices().get(entry).option() : null;
-            if (option == null) {
-                problems.add("MENU_ELEMENT_UNKNOWN:" + entry);
-                return EMPTY;
-            }
-            unplaced.remove(entry);
-            return new OptionEntry(option, properties.sliders().contains(entry));
+            if (options.isToggle(entry) || options.isChoice(entry)) return Optional.of(option(entry));
+            problems.add("MENU_ELEMENT_UNKNOWN:" + entry);
+            return Optional.of(new Empty());
+        }
+
+        /** The option a declared name gives, the toggle where it is both. */
+        private OptionEntry option(String name) {
+            ShaderOption option = options.isToggle(name) ? options.toggles().get(name).option()
+                    : options.choices().get(name).option();
+            return new OptionEntry(option, sliders.contains(name));
         }
     }
 }

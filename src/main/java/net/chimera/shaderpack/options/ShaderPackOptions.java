@@ -85,8 +85,8 @@ public final class ShaderPackOptions {
     }
 
     /** Which profile the applied values match. */
-    public PackProfiles.Scan profile() {
-        return profiles.scan(values);
+    public PackProfiles.ProfileMatch profile() {
+        return profiles.match(values);
     }
 
     /**
@@ -94,7 +94,7 @@ public final class ShaderPackOptions {
      * without the extension: {@code composite1}, or {@code world0/composite1} in a dimension folder.
      */
     public List<String> profileDisabledPrograms(OptionValues current) {
-        return profiles.scan(current).current().map(PackProfiles.Profile::disabledPrograms).orElse(List.of());
+        return profiles.match(current).current().map(PackProfiles.Profile::disabledPrograms).orElse(List.of());
     }
 
     /** The source files {@code current} changes, with their new text, by pack-relative path. */

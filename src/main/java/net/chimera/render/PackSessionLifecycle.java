@@ -11,7 +11,6 @@ import net.chimera.shaderpack.ConformanceReport;
 import net.chimera.shaderpack.HandLightDirectives;
 import net.chimera.shaderpack.PackAdvancedResourcePlan;
 import net.chimera.shaderpack.PackConfig;
-import net.chimera.shaderpack.PackCoveragePlan;
 import net.chimera.shaderpack.PackDirectives;
 import net.chimera.shaderpack.PackEngineDefines;
 import net.chimera.shaderpack.PackFrameSchedulePlan;
@@ -200,9 +199,6 @@ final class PackSessionLifecycle {
         pass.shadowPass.packShadowDepth.cleanUp();
         pass.packPostTargets.cleanUp();
         pass.packDepthTargets.cleanUp();
-        pass.coverage.packCoverageOwner.close();
-        pass.coverage.packCoverageState.endFrame();
-        pass.coverage.packCoveragePlan = PackCoveragePlan.disabled();
         pass.pipelines.destroy();
         if (pass.packPassComputes != null) pass.packPassComputes.close();
         pass.packPassComputes = null;

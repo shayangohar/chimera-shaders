@@ -15,8 +15,8 @@ import static org.lwjgl.vulkan.KHRDynamicRendering.vkCmdEndRenderingKHR;
 
 /**
  * The render pass VulkanMod sees while one of Chimera's dynamic-rendering windows is open. Pack targets, depth
- * snapshots, scene coverage and pack geometry render with vkCmdBeginRenderingKHR, and their attachment sets
- * have no VulkanMod framebuffer.
+ * snapshots and pack geometry render with vkCmdBeginRenderingKHR, and their attachment sets have no VulkanMod
+ * framebuffer.
  *
  * VulkanMod keys each pipeline's variants by the bound render pass and creates a variant against it. Binding
  * one of these makes the variant a dynamic-rendering pipeline for {@link #colorFormats()} and

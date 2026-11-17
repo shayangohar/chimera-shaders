@@ -226,23 +226,6 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Renames the authored main and calls it from a generated main that runs {@code epilogue} afterwards, so
-     * the epilogue runs even when the authored body returns early.
-     */
-    static String appendMainEpilogue(String source, String epilogue) {
-        if (source == null || epilogue == null || epilogue.isBlank()) return source;
-        GlslTree tree = GlslTree.parse(source);
-        GlslTree.Function main = mainDefinition(tree);
-        String authored = uniqueIdentifier(source, "chimeraAuthoredMain");
-        String wrapper = uniqueIdentifier(source, "chimeraGeneratedMain");
-        String generated = "\nvoid " + wrapper + "() {\n    " + authored + "();\n"
-                + indent(epilogue) + "\n}\nvoid main() {\n    " + wrapper + "();\n}\n";
-        int close = main.body().range().end() - 1;
-        return tree.print(List.of(new GlslTree.Edit(new GlslTree.Range(main.name(), main.name() + 1), authored),
-                new GlslTree.Edit(new GlslTree.Range(close + 1, close + 1), generated)));
-    }
-
-    /**
      * Appends statements at the end of main's body, as glsl-transformer's appendMainFunctionBody does for
      * Iris, so a {@code return} earlier in main skips them.
      */

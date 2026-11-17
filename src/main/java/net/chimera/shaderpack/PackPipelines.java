@@ -12,7 +12,6 @@ import net.chimera.shaderpack.PackAdvancedResourcePlan.ProgramBindingLayout;
 import net.vulkanmod.render.vertex.CustomVertexFormat;
 import net.vulkanmod.vulkan.device.DeviceManager;
 import net.vulkanmod.vulkan.shader.GraphicsPipeline;
-import org.lwjgl.vulkan.VK10;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -509,13 +508,12 @@ public final class PackPipelines {
 
     /**
      * The blend modes for a world pipeline's attachments: the authored route's when it takes its own
-     * attachments, none for a coverage build's colour-plus-depth pair, and the host pass's otherwise.
+     * attachments, and the host pass's otherwise.
      */
     private static PackBlendPlan.Mode[] routedBlends(PackBlendPlan blendPlan, GeometryOutputPlan outputPlan,
                                                      int[] attachmentFormats) {
-        if (attachmentFormats == null) return hostPassBlends(blendPlan);
-        return outputPlan != null && outputPlan.requiresDynamicAttachments()
-                ? blendPlan.attachments(outputPlan.targetSlots()) : null;
+        return attachmentFormats == null ? hostPassBlends(blendPlan)
+                : blendPlan.attachments(outputPlan.targetSlots());
     }
 
     /**
@@ -603,21 +601,17 @@ public final class PackPipelines {
     /** Builds the extended terrain pipeline from the shared program plan. */
     public static PackTerrain buildTerrain(
             PackProgramPlan plan, String fixedVertexSource, TerrainMaterialPlan materialPlan,
-            boolean coverage, int targetFormat, PackAdvancedResourcePlan advancedResources,
-            PackStorageBufferOwner storageOwner
+            PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
-        return buildTerrainLikePlan(plan, fixedVertexSource, materialPlan, coverage, targetFormat,
-                advancedResources, storageOwner);
+        return buildTerrainLikePlan(plan, fixedVertexSource, materialPlan, advancedResources, storageOwner);
     }
 
     /** Builds the translucent terrain pipeline from the shared program plan. */
     public static PackTerrain buildTranslucent(
             PackProgramPlan plan, String fixedVertexSource, TerrainMaterialPlan materialPlan,
-            boolean coverage, int targetFormat, PackAdvancedResourcePlan advancedResources,
-            PackStorageBufferOwner storageOwner
+            PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
-        return buildTerrainLikePlan(plan, fixedVertexSource, materialPlan, coverage, targetFormat,
-                advancedResources, storageOwner);
+        return buildTerrainLikePlan(plan, fixedVertexSource, materialPlan, advancedResources, storageOwner);
     }
 
     /** Builds the shadow pipeline on the pack-wide terrain format, so its vertices match the terrain builder's. */
@@ -690,8 +684,6 @@ public final class PackPipelines {
             PackProgramPlan plan,
             String fixedVertexSource,
             TerrainMaterialPlan materialPlan,
-            boolean coverage,
-            int targetFormat,
             PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
     ) {
         if (plan == null || !plan.executable() || plan.convertedFragment() == null) {
@@ -708,11 +700,8 @@ public final class PackPipelines {
             if (layout == null) {
                 throw new IllegalStateException("advanced terrain image declaration rejected");
             }
-            String fragment = coverage
-                    ? FragmentConverter.withCoverageOutput(plan.convertedFragment())
-                    : plan.convertedFragment();
-            fragment = PackDescriptorContracts.bindPackShader(fragment, plan.name(), advancedResources, layout,
-                    interfacePlan, stage, VK_SHADER_STAGE_FRAGMENT_BIT);
+            String fragment = PackDescriptorContracts.bindPackShader(plan.convertedFragment(), plan.name(),
+                    advancedResources, layout, interfacePlan, stage, VK_SHADER_STAGE_FRAGMENT_BIT);
             if (fragment == null) {
                 throw new IllegalStateException("advanced terrain image declaration rejected");
             }
@@ -730,12 +719,10 @@ public final class PackPipelines {
             PackDescriptorContracts.verifyAdvancedLayout(descriptors, plan.name(), advancedResources, vertex, between,
                     fragment, storageOwner);
             ProgramImageBindingManifest imageBindings = ProgramImageBindingManifest.from(layout, ordinary);
-            // an authored route takes its own attachments; otherwise a coverage build writes the pack colour and a
-            // coverage depth
+            // an authored route takes its own attachments; otherwise the layer draws in the host pass
             GeometryOutputPlan outputPlan = plan.geometryOutputPlan();
             boolean dynamicAttachments = outputPlan != null && outputPlan.requiresDynamicAttachments();
-            int[] attachmentFormats = dynamicAttachments ? outputPlan.outputFormatsArray()
-                    : coverage ? new int[] {targetFormat, VK10.VK_FORMAT_R32_SFLOAT} : null;
+            int[] attachmentFormats = dynamicAttachments ? outputPlan.outputFormatsArray() : null;
             PackBlendPlan.Mode[] attachmentBlends = routedBlends(plan.blendPlan(), outputPlan, attachmentFormats);
             GraphicsPipeline pipeline = createRouted("pack_" + plan.name(),
                     ChimeraVertexFormats.terrainFormat(materialPlan), descriptors, vertex, between, fragment,

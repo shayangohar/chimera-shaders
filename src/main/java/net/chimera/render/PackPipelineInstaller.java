@@ -325,9 +325,7 @@ final class PackPipelineInstaller {
     void installTerrain(PackProgram program, String name, PackProgramPlan programPlan) {
         PackPipelines.PackTerrain terrain = PackPipelines.buildTerrain(programPlan,
                 ChimeraShaderLoader.loadSource("chimera_terrain/chimera_terrain.vsh"),
-                terrainMaterial(),
-                false, pass.packGeometryTargetFormat(),
-                advancedResources(), storage);
+                terrainMaterial(), advancedResources(), storage);
         if (terrain == null) {
             if (report != null) {
                 report.markRuntime(name,
@@ -369,9 +367,7 @@ final class PackPipelineInstaller {
     void installWater(String name, PackProgramPlan programPlan) {
         PackPipelines.PackTerrain water = PackPipelines.buildTranslucent(programPlan,
                 ChimeraShaderLoader.loadSource("chimera_terrain/chimera_terrain.vsh"),
-                terrainMaterial(),
-                false, pass.packGeometryTargetFormat(),
-                advancedResources(), storage);
+                terrainMaterial(), advancedResources(), storage);
         if (water == null) {
             if (report != null) {
                 report.markRuntime(name,

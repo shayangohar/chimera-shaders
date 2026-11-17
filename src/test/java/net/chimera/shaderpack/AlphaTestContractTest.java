@@ -290,34 +290,6 @@ final class AlphaTestContractTest {
     }
 
     @Test
-    void mainWrapper() {
-        String source = """
-                #version 460
-                void chimeraAuthoredMain() { }
-                void chimeraGeneratedMain() { }
-                // void main() { discard; }
-                void helper() { }
-                layout(location = 0) out vec4 fragColor;
-                void main() {
-                    helper();
-                    fragColor = vec4(1.0);
-                }
-                """;
-        String wrapped = GlslTokenRewriter.appendMainEpilogue(source, "discard;");
-        assertTrue(wrapped.contains("void chimeraAuthoredMain_()"),
-                "authored main name was not collision-safe");
-        assertTrue(wrapped.contains("void chimeraGeneratedMain_()"),
-                "generated main name was not collision-safe");
-        assertTrue(wrapped.lastIndexOf("discard;") > wrapped.lastIndexOf("chimeraAuthoredMain_();"),
-                "main epilogue was not appended after authored main");
-        expectFailure(() -> GlslTokenRewriter.appendMainEpilogue(
-                "void helper() {}", "discard;"), "missing main was accepted");
-        expectFailure(() -> GlslTokenRewriter.appendMainEpilogue(
-                "void main() {} void main() {}", "discard;"),
-                "ambiguous main was accepted");
-    }
-
-    @Test
     void convertedTerrain() {
         Path fixture = Path.of("testpacks/m5_2/material");
         PackProbe.Analysis analysis = PackProbe.analyze(fixture);
@@ -334,9 +306,6 @@ final class AlphaTestContractTest {
         assertTrue(main >= 0 && rejection > main && !fragment.contains("chimeraAuthoredMain"),
                 "alpha test does not end the authored main's body");
         compile(fragment);
-        String covered = FragmentConverter.withCoverageOutput(fragment);
-        assertTrue(covered.indexOf("discard;") < covered.lastIndexOf("chimeraCoverage ="),
-                "coverage was written before alpha rejection");
     }
 
     @Test
@@ -442,15 +411,6 @@ final class AlphaTestContractTest {
         return new PackSettingsPlan(Map.of(), Map.of(), Map.of(), properties, Map.of(),
                 Set.of(), Set.of(), Set.of(), List.of(), "default",
                 PackRuntimeSettings.empty(), Map.of(), Map.of(), false, Map.of(), null);
-    }
-
-    private static void expectFailure(Runnable action, String message) {
-        try {
-            action.run();
-        } catch (RuntimeException expected) {
-            return;
-        }
-        throw new AssertionError(message);
     }
 
     private static void compile(String source) {

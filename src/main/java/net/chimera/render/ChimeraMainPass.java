@@ -20,7 +20,6 @@ import net.chimera.shaderpack.PostTargetPlan;
 import net.chimera.shaderpack.ProgramImageBindingManifest;
 import net.chimera.shaderpack.ScreenOverlayDirectives;
 import net.chimera.shaderpack.SkyDirectives;
-import net.chimera.shaderpack.TargetSpec;
 import net.chimera.shaderpack.WeatherDirectives;
 import net.minecraft.client.renderer.RenderType;
 import net.vulkanmod.render.vertex.TerrainRenderType;
@@ -363,16 +362,11 @@ public final class ChimeraMainPass implements MainPass {
                 depth.captureWorldDepth(stack, commandBuffer);
             }
 
-            if (coverage.packCoverageRuntimeEnabled() && this.coverage.packCoverageState.canSeed()) {
-                coverage.seedPackScene(commandBuffer, hdrColor);
-            }
-
             if (this.session.packPostChainActive && this.packPostTargets.isConfigured()) {
                 postChain.runWorldPostWindows(commandBuffer, hdrColor);
                 resolvePackWorldToOutput(commandBuffer, hdrColor);
                 this.packWorldResolved = true;
                 this.currentFramebuffer = this.targets.compositeFramebuffer;
-                coverage.endCoverageFrame();
                 // pack final must finish before vanilla submits the hand, or hand and GUI draws are lost
                 postChain.finishPackFinalBeforeHand();
                 return;
@@ -384,7 +378,6 @@ public final class ChimeraMainPass implements MainPass {
             // installed pack objects alone for cleanup and reload
             resolveWorldToOutput(commandBuffer, hdrColor);
             this.currentFramebuffer = this.targets.compositeFramebuffer;
-            coverage.endCoverageFrame();
         }
     }
 
@@ -422,9 +415,6 @@ public final class ChimeraMainPass implements MainPass {
 
     public void endPackFamilyWindow(GeometryOutputPlan outputs) {
         windows.endPackFamilyWindow(outputs);
-    }
-     boolean packCoverageRuntimeEnabled() {
-        return coverage.packCoverageRuntimeEnabled();
     }
 
     public void endPackCoverageWindow(TerrainRenderType renderType) {
@@ -815,11 +805,6 @@ public final class ChimeraMainPass implements MainPass {
         return DeviceManager.deviceProperties.limits().maxImageDimension2D();
     }
 
-    int packGeometryTargetFormat() {
-        TargetSpec target = this.packTargetGraph == null ? null : this.packTargetGraph.target(0);
-        return target == null ? this.packHdrFormat : target.format();
-    }
-
     void createPipelines() {
         this.presentPipeline = ChimeraPostPipelines.create("chimera_present");
         this.outputResolve.create();
@@ -869,9 +854,7 @@ public final class ChimeraMainPass implements MainPass {
     void cleanUpPipelines() {
         if (this.presentPipeline != null) this.presentPipeline.cleanUp();
         this.outputResolve.cleanUp();
-        if (this.coverage.sceneSeedPipeline != null) this.coverage.sceneSeedPipeline.cleanUp();
         this.presentPipeline = null;
-        this.coverage.sceneSeedPipeline = null;
     }
 
     /**

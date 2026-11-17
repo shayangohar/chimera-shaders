@@ -1,13 +1,10 @@
 package net.chimera.render;
 
 import net.chimera.render.shader.ChimeraEntityBridge;
-import net.chimera.render.shader.ChimeraPostPipelines;
 import net.chimera.render.shader.ChimeraSkyBridge;
 import net.chimera.render.shader.ChimeraTerrainPipelines;
-import net.chimera.render.shader.MrtPipelineContext;
 import net.chimera.render.shader.PackGeometryContext;
 import net.chimera.shaderpack.ConformanceReport;
-import net.chimera.shaderpack.PackCoveragePlan;
 import net.chimera.shaderpack.PackFlipPlan;
 import net.chimera.shaderpack.PackFrameSchedulePlan;
 import net.chimera.shaderpack.PackPipelines;
@@ -68,19 +65,11 @@ final class PackPostChain {
         }
     }
 
-    /**
-     * Opens the frame's target executor, with colortex0's clear colour this frame, and scene
-     * coverage when it runs.
-     */
+    /** Opens the frame's target executor, with colortex0's clear colour this frame. */
     void beginPostFrame(VkCommandBuffer commandBuffer, float[] colortex0Clear) {
         VulkanImage hdrColor = pass.targets.hdrFramebuffer.getColorAttachment();
         pass.packPostTargets.beginFrame(commandBuffer, hdrColor, colortex0Clear);
         pass.packPostFrameStarted = true;
-        if (pass.coverage.packCoverageRuntimeEnabled() && pass.session.packPostChainActive) {
-            pass.packPostTargets.prepareGeometryTarget(commandBuffer);
-            pass.coverage.packCoverageOwner.beginFrame(commandBuffer);
-            pass.coverage.packCoverageState.beginFrame();
-        }
     }
 
     /** Whether a frame opens with pack work: setup computes due, or a begin group to open. */
@@ -683,25 +672,6 @@ final class PackPostChain {
                     pass.packPlan.resources(), new PackTargetGraphPlan.Limits(width, height, maxAttachments,
                             ChimeraMainPass.deviceMaxImageDimension()),
                     pass.packPassComputes == null ? PackTargetGraphPlan.ComputeUse.NONE : pass.packPassComputes.use());
-            pass.coverage.packCoveragePlan = PackCoveragePlan.from(
-                    pass.packTargetGraph, pass.packPlan, width, height);
-            if (pass.coverage.packCoveragePlan.enabled() && pass.packCoverageRuntimeEnabled()) {
-                pass.coverage.packCoverageOwner.ensure(width, height);
-                if (pass.coverage.sceneSeedPipeline != null) {
-                    pass.coverage.sceneSeedPipeline.cleanUp();
-                }
-                MrtPipelineContext.begin(new int[] {pass.packGeometryTargetFormat()}, maxAttachments);
-                try {
-                    pass.coverage.sceneSeedPipeline = ChimeraPostPipelines.createSceneSeedPipeline();
-                } finally {
-                    MrtPipelineContext.end();
-                }
-                LOGGER.debug("[chimera] scene seed: planned families={} deviations={}",
-                        pass.coverage.packCoveragePlan.families(), pass.coverage.packCoveragePlan.deviations());
-            } else if (!pass.coverage.packCoveragePlan.deviations().isEmpty()) {
-                LOGGER.debug("[chimera] scene seed: fallback deviations={}",
-                        pass.coverage.packCoveragePlan.deviations());
-            }
             pass.packFrameSchedule = PackFrameSchedulePlan.build(
                     pass.packPlan.activePrograms(), pass.packTargetGraph, computeDepthReads());
             pass.packNeedsHdrDepth = pass.packTargetGraph.depth().any();
@@ -716,9 +686,6 @@ final class PackPostChain {
         } catch (RuntimeException e) {
             pass.packPostTargets.cleanUp();
             pass.packDepthTargets.cleanUp();
-            pass.coverage.packCoverageOwner.close();
-            pass.coverage.packCoverageState.endFrame();
-            pass.coverage.packCoveragePlan = PackCoveragePlan.disabled();
             pass.session.packPostChainActive = false;
             pass.session.packTargetResourcesReady = false;
             pass.packTargetGraph = null;

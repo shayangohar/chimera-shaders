@@ -180,21 +180,6 @@ public final class PackPostTargets {
         return this.configured && this.sides.carriesColortex0();
     }
 
-    /** Invalidates target 0 before pack geometry initializes it at render-pass load. */
-    public void prepareGeometryTarget(VkCommandBuffer commandBuffer) {
-        if (!this.configured || !this.used[0]) {
-            throw new IllegalStateException("pack geometry target 0 is unavailable");
-        }
-        this.valid[0] = false;
-        this.sourceImages[0] = null;
-    }
-
-    public VulkanImage geometryTarget0() {
-        VulkanImage image = this.configured && this.used[0] ? graphImage(0, this.sides.readSide(0)) : null;
-        trace("geometryTarget0 configured=" + this.configured + " used=" + this.used[0] + " image=" + imageId(image));
-        return image;
-    }
-
     /** Starts a geometry window for the declared targets, not necessarily including HDR. */
     public void beginGeometry(VkCommandBuffer commandBuffer, VulkanImage hdrColor,
                               List<Integer> outputTargets) {
@@ -318,15 +303,6 @@ public final class PackPostTargets {
                 this.sourceImages[target] = worldSideImage(target);
             }
         }
-    }
-
-    /** Commits target 0 after the scene seed merged host pixels. */
-    public void commitSceneSeed(VulkanImage target) {
-        if (target == null || target != geometryTarget0()) {
-            throw new IllegalStateException("scene seed target does not match active target 0");
-        }
-        this.valid[0] = true;
-        this.sourceImages[0] = target;
     }
 
     /**

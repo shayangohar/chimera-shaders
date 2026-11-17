@@ -117,8 +117,6 @@ final class GlslDeclarationsTest {
                         + "layout(binding = 3) uniform sampler2D depthtex0; // depth\n"
                         + "void main() { color = texture(depthtex0, vec2(0.0)); }\n",
                 FragmentConverter.rewriteSamplerDeclaration(source, "depthtex0", 3));
-        assertTrue(FragmentConverter.withCoverageOutput("#version 460\n" + source)
-                .contains("layout(location = 1) out float chimeraCoverage;"));
     }
 
     /** A modern terrain fragment's one output goes with the blank lines before it and the space after it. */

@@ -8,8 +8,7 @@ import java.util.function.IntConsumer;
 public final class SelectorNamespace {
     /** Slots from here up live in Chimera's own array (VTextureSelectorMixin). */
     public static final int FIRST_EXTENDED = 8;
-    /** Reserved for pack scene coverage. */
-    public static final int COVERAGE_SLOT = 14;
+    // slot 14 is unused; the slots around it keep their numbers
     /** shadowtex1, which every stage reads on its own selector. */
     public static final int SHADOW_TEX1_SLOT = 15;
     // pack-owned sampled resources between the reserved slots

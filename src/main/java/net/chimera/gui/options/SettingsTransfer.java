@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  */
 final class SettingsTransfer {
     private static final String FILTER = "*.txt";
-    private static final String FILTER_LABEL = "Shader Pack Settings (.txt)";
+    private static final String FILTER_LABEL = "Pack settings files (.txt)";
     private static final ExecutorService DIALOGS = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "Chimera settings dialog");
         thread.setDaemon(true);
@@ -37,7 +37,7 @@ final class SettingsTransfer {
         run(() -> {
             String file;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                file = TinyFileDialogs.tinyfd_openFileDialog("Import Shader Settings from File",
+                file = TinyFileDialogs.tinyfd_openFileDialog("Choose a settings file to load",
                         OptionFile.of(packPath).toString(), filter(stack), FILTER_LABEL, false);
             }
             if (file != null) chosen.accept(Path.of(file));
@@ -53,7 +53,7 @@ final class SettingsTransfer {
         run(() -> {
             String file;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                file = TinyFileDialogs.tinyfd_saveFileDialog("Export Shader Settings to File",
+                file = TinyFileDialogs.tinyfd_saveFileDialog("Save the applied pack settings",
                         OptionFile.of(packPath).toString(), filter(stack), FILTER_LABEL);
             }
             if (file == null) return;

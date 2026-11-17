@@ -18,7 +18,6 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -279,52 +278,20 @@ public final class ShaderPackScreen extends Screen {
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
+    /**
+     * Files dropped on the window. The list copies packs into the shaderpacks folder and picks a lone one;
+     * the settings import a settings file, and ignore drops while they wait for their pack.
+     */
     @Override
     public void onFilesDrop(List<Path> paths) {
         if (this.optionsMode) {
             if (this.optionList != null) this.optionsView.filesDropped(paths);
             return;
         }
-        Path root = ShaderpackDirectory.root();
-        List<Path> packs = paths.stream().filter(ShaderpackDirectory::isValidPack).toList();
-        for (Path pack : packs) {
-            String name = pack.getFileName().toString();
-            try {
-                ShaderpackDirectory.copyInto(root, pack);
-            } catch (FileAlreadyExistsException failure) {
-                notify(Component.translatable("options.chimera.shaderPackSelection.copyErrorAlreadyExists", name)
-                        .withStyle(ChatFormatting.ITALIC, ChatFormatting.RED));
-                this.packList.refresh();
-                return;
-            } catch (IOException failure) {
-                ChimeraMod.LOGGER.warn("[chimera] cannot copy dropped shader pack {}", pack, failure);
-                notify(Component.translatable("options.chimera.shaderPackSelection.copyError", name)
-                        .withStyle(ChatFormatting.ITALIC, ChatFormatting.RED));
-                this.packList.refresh();
-                return;
-            }
-        }
+        PackDrop.Result result = PackDrop.copy(ShaderpackDirectory.root(), paths);
         this.packList.refresh();
-        notifyAdded(paths, packs);
-    }
-
-    private void notifyAdded(List<Path> paths, List<Path> packs) {
-        if (packs.isEmpty()) {
-            notify((paths.size() == 1
-                    ? Component.translatable("options.chimera.shaderPackSelection.failedAddSingle",
-                    paths.get(0).getFileName().toString())
-                    : Component.translatable("options.chimera.shaderPackSelection.failedAdd"))
-                    .withStyle(ChatFormatting.ITALIC, ChatFormatting.RED));
-        } else if (packs.size() == 1) {
-            String name = packs.get(0).getFileName().toString();
-            notify(Component.translatable("options.chimera.shaderPackSelection.addedPack", name)
-                    .withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW));
-            // a single dropped pack is most likely the one the player wants next
-            this.packList.select(name);
-        } else {
-            notify(Component.translatable("options.chimera.shaderPackSelection.addedPacks", packs.size())
-                    .withStyle(ChatFormatting.ITALIC, ChatFormatting.YELLOW));
-        }
+        notify(result.notice());
+        if (result.added() != null) this.packList.select(result.added());
     }
 
     @Override

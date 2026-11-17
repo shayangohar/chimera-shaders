@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -218,7 +217,8 @@ public final class ShaderSourcePreprocessor {
                 line = line.substring(start);
             }
 
-            String directive = matcher.group(1).toLowerCase(Locale.ROOT);
+            // JCPP matches directive names as written, so #IFDEF is no #ifdef
+            String directive = matcher.group(1);
             String argument = PackConditionals.withoutComments(
                     matcher.group(2) == null ? "" : matcher.group(2)).trim();
             switch (directive) {
@@ -235,17 +235,12 @@ public final class ShaderSourcePreprocessor {
         }
 
         /**
-         * A directive with no handler. JCPP, Iris's preprocessor, reports #error and #warning and drops the
-         * line (Photon's prepare stage reaches an #error whenever cloud shadows are off); any other active one
-         * fails the source.
+         * A directive with no handler, including a known one written in another case. JCPP, Iris's preprocessor,
+         * reports it and drops the line, and the source goes on: #error and #warning (Photon's prepare stage
+         * reaches an #error whenever cloud shadows are off) and unknown names alike.
          */
         private void otherDirective(String directive) {
-            if (!active()) return;
-            if (directive.equals("error") || directive.equals("warning")) {
-                deviations.add("PREPROCESSOR_DIRECTIVE_REPORTED:" + directive);
-                return;
-            }
-            throw new PreparationFailure("PREPROCESSOR_DIRECTIVE_UNSUPPORTED:" + directive);
+            if (active()) deviations.add("PREPROCESSOR_DIRECTIVE_REPORTED:" + directive);
         }
 
         private void undefine(String argument) {

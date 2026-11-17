@@ -129,6 +129,22 @@ final class PackSourceEdgesTest {
     }
 
     /**
+     * JCPP matches directive names as written. An uppercase #IFDEF is an unknown directive: JCPP reports it, drops
+     * the line and goes on, so the lines it would guard stay; any other unknown directive goes the same way.
+     */
+    @Test
+    void anUnknownOrUppercaseDirectiveIsReportedAndDropped(@TempDir Path root) {
+        ShaderSourcePreprocessor.Result result = ShaderSourcePreprocessor.prepare(root, root.resolve("main.fsh"),
+                "#version 120\n#IFDEF FOO\nfloat upper = 1.0;\n#ENDIF\n#foo bar\nvoid main() {}\n", Map.of());
+        assertTrue(result.successful(), String.valueOf(result.deviations()));
+        assertTrue(result.source().contains("float upper = 1.0;"), result.source());
+        assertFalse(result.source().contains("#IFDEF") || result.source().contains("#foo"), result.source());
+        assertTrue(result.deviations().containsAll(List.of("PREPROCESSOR_DIRECTIVE_REPORTED:IFDEF",
+                "PREPROCESSOR_DIRECTIVE_REPORTED:ENDIF", "PREPROCESSOR_DIRECTIVE_REPORTED:foo")),
+                String.valueOf(result.deviations()));
+    }
+
+    /**
      * Iris sets no limit on how many files a program includes; Complementary Unbound with Euphoria Patches
      * includes several hundred in gbuffers_entities_translucent. Includes that fan out into thousands of empty
      * files still stop, since the line and character budgets never see them.

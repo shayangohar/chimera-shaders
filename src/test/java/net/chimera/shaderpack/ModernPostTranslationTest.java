@@ -129,6 +129,40 @@ final class ModernPostTranslationTest {
     }
 
     /**
+     * GL compiles a post vertex stage that declares an input it never reads, and Iris's fullscreen pass feeds
+     * it nothing. A read input has nothing to read, so that stage is refused by the input's name.
+     */
+    @Test
+    void anUnreadPostVertexInputIsDropped() {
+        String fragment = """
+                #version 130
+                varying vec2 texCoord;
+                void main() { gl_FragColor = vec4(texCoord, 0.0, 1.0); }
+                """;
+        String unread = """
+                #version 130
+                in vec4 mc_Entity;
+                varying vec2 texCoord;
+                void main() { gl_Position = ftransform(); texCoord = gl_MultiTexCoord0.xy; }
+                """;
+        PostVertexBridge.PostVertexConversion converted = convertPostVertex(unread, fragment);
+        assertTrue(converted.source() != null && !converted.source().contains("mc_Entity"),
+                "an unread input refused the stage: " + converted.deviations());
+        PostVertexBridge.PostVertexConversion read = convertPostVertex(
+                unread.replace("ftransform();", "ftransform() + mc_Entity;"), fragment);
+        assertTrue(read.source() == null && read.deviations().contains("POST_VERTEX_INPUT_UNSUPPORTED:mc_Entity"),
+                "a read input was not refused by name: " + read.deviations());
+    }
+
+    private static PostVertexBridge.PostVertexConversion convertPostVertex(String vertex, String fragment) {
+        UniformRegistry.ProgramInterface plan = InterfacePlanner.planProgram(fragment, vertex,
+                UniformRegistry.Stage.POST, null, true).effective(UniformRegistry.Stage.POST);
+        GlslInterfaceScanner.StageInterface vs = GlslInterfaceScanner.scan(vertex, true);
+        GlslInterfaceScanner.StageInterface fs = GlslInterfaceScanner.scan(fragment, false);
+        return PostVertexBridge.convertPostVertex(vertex, vs, fs, GlslInterfaceScanner.match(vs, fs), plan);
+    }
+
+    /**
      * A program compiles the shadow constants it declares as it wrote them, as Iris compiles its
      * source: nothing replaces their values, and nothing declares one the program does not.
      */

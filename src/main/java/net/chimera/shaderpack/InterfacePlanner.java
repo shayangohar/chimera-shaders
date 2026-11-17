@@ -215,7 +215,7 @@ public final class InterfacePlanner {
         UniformDeclaration declaration = new UniformDeclaration(variable.name(),
                 effectiveType);
         UniformDeclaration previous = declared.uniforms().putIfAbsent(variable.name(), declaration);
-        if (previous != null && !previous.glslType().equals(type)) {
+        if (previous != null && !previous.glslType().equals(effectiveType)) {
             declared.conflicts().add(variable.name());
             declared.uniforms().put(variable.name(), declaration);
         }

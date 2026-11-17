@@ -343,6 +343,16 @@ final class FixturePackTest {
         assertTrue(!conflict.executable(), "conflicting uniform declarations were accepted");
         assertTrue(conflict.deviations().contains("UNIFORM_CONFLICT:wetness"),
                 "conflicting uniform deviation is missing");
+        // an array and a scalar of one element type differ; a repeated array matches itself
+        UniformRegistry.ProgramInterface scalarThenArray = InterfacePlanner.plan(
+                "uniform float wetness; uniform float wetness[2];", UniformRegistry.Stage.POST);
+        assertTrue(scalarThenArray.deviations().contains("UNIFORM_CONFLICT:wetness"),
+                "a scalar redeclared as an array was not a conflict: " + scalarThenArray.deviations());
+        UniformRegistry.ProgramInterface repeatedArray = InterfacePlanner.plan(
+                "uniform float wetness[2]; uniform float wetness[2];", UniformRegistry.Stage.POST);
+        assertTrue(!repeatedArray.deviations().contains("UNIFORM_CONFLICT:wetness")
+                        && repeatedArray.deviations().contains("UNIFORM_TYPE_UNSUPPORTED:wetness"),
+                "a repeated array must read as the unsupported array, not a conflict: " + repeatedArray.deviations());
 
         UniformRegistry.ProgramInterface alias = InterfacePlanner.plan(
                 "uniform sampler2D colortex1;", UniformRegistry.Stage.POST);

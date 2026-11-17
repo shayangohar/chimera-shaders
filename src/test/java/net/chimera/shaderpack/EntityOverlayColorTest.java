@@ -2,6 +2,7 @@ package net.chimera.shaderpack;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -22,6 +23,21 @@ final class EntityOverlayColorTest {
                 + " : vec4(0.0, 0.0, 0.0, 1.0);"), fragment);
         assertTrue(fragment.contains("entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);"),
                 "the empty texel leaves entityColor's alpha 0, so nothing is mixed over the eyes");
+    }
+
+    /**
+     * The vertex stage beside an injected fragment loses an unread declaration as Iris's EntityPatcher deletes
+     * it, read outside comments: a comment before it does not hide it, and one inside a comment is not code.
+     */
+    @Test
+    void anUnreadVertexDeclarationIsFoundOutsideComments() {
+        String commented = "#version 120\n/* tint */ uniform vec4 entityColor;\n"
+                + "void main() { gl_Position = ftransform(); }\n";
+        assertEquals("#version 120\n\nvoid main() { gl_Position = ftransform(); }\n",
+                EntityOverlayColor.withoutUnreadVertexDeclaration(commented));
+        String disabled = "#version 120\n/*\nuniform vec4 entityColor;\n*/\n"
+                + "void main() { gl_Position = ftransform(); }\n";
+        assertEquals(disabled, EntityOverlayColor.withoutUnreadVertexDeclaration(disabled));
     }
 
     /** A shadow geometry stage reads the primitive's first vertex the same way. */

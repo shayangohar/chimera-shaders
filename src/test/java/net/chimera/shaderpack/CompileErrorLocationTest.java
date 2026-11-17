@@ -51,6 +51,18 @@ final class CompileErrorLocationTest {
         assertTrue(info.contains("Translated line"), info);
     }
 
+    /**
+     * Past the file cap the sources read are the first in path order, whatever order the walk visits them in:
+     * it enters lib/ before lib.glsl, which sorts first.
+     */
+    @Test
+    void theCapKeepsTheFirstFilesInPathOrder(@TempDir Path shaders) throws IOException {
+        Files.createDirectories(shaders.resolve("lib"));
+        Files.writeString(shaders.resolve("lib/z.glsl"), "void unrelated() {}\n");
+        Files.writeString(shaders.resolve("lib.glsl"), "vec3 lenscolor = vec3(0.5);\n");
+        assertEquals("lib.glsl:1", CompileErrorLocation.authoredLine("vec3 lenscolor = vec3(0.5);", shaders, 1));
+    }
+
     @Test
     void aShortOrRewrittenLineNamesNone(@TempDir Path shaders) throws IOException {
         Files.writeString(shaders.resolve("a.glsl"), "}\nvec3 lenscolour = vec3(0.5);\n");

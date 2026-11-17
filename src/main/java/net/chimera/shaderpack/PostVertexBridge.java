@@ -123,9 +123,6 @@ final class PostVertexBridge {
             if (GlslDeclarations.main(GlslTree.parse(converted)) == null) {
                 throw new IllegalArgumentException("POST_VERTEX_MAIN_MISSING");
             }
-            for (GlslInterfaceScanner.Declaration input : vertexInterface.inputs()) {
-                throw new IllegalArgumentException("POST_VERTEX_INPUT_UNSUPPORTED:" + input.name());
-            }
             Map<String, Integer> locations = outputLocations(vertexInterface, match);
             converted = attributesAsInputs(converted);
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),

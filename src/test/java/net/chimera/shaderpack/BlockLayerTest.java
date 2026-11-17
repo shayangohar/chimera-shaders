@@ -50,7 +50,8 @@ final class BlockLayerTest {
     /**
      * The id maps see the options every program file and its includes declare, as Iris finds them:
      * Bliss's glass switch lives in lib/settings.glsl. A switch counts only when an #ifdef names
-     * it, a value define only with an allowed-values list, and a launcher choice wins.
+     * it, a value define only with an allowed-values list, a const only under a name Iris makes
+     * configurable (shadowMapResolution, not Noble's colortex8Format), and a launcher choice wins.
      */
     @Test
     void idMapMacrosCarryEveryIncludedOption() throws IOException {
@@ -65,10 +66,15 @@ final class BlockLayerTest {
                 #define SHADOW_QUALITY 2 // [1 2 3]
                 #define PI 3.14159
                 const int shadowMapResolution = 2048; // [1024 2048 4096]
+                const int colortex8Format = RGBA16F; // [RGBA16F RGBA32F]
+                const float sunStrength = 1.5; // [1.0 1.5 2.0]
+                const bool lightShafts = true;
                 #include "more.glsl"
                 """);
         Files.writeString(shadersDir.resolve("lib/more.glsl"), """
                 #ifdef FORCE_TRANSLUCENT_GLASS
+                #endif
+                #ifdef lightShafts
                 #endif
                 #ifdef DEBUG_VIEW
                 #endif

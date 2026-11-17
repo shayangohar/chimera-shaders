@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Translation cases reached through pack options a player can set on the settings screen. */
-final class OptionSweepFixesTest {
+final class PackOptionCasesTest {
     /** Complementary WATER_FOG_MULT: the macro is defined inside a function body, behind an #if. */
     @Test
     void aDefineInsideAFunctionReachesTheCompiler(@TempDir Path dir) {

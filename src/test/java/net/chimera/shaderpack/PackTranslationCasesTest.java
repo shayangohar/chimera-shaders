@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Translation cases real packs depend on, each shown in a pack that has it. */
-final class CorpusCompileFixesTest {
+final class PackTranslationCasesTest {
     /**
      * Kappa names a parameter after its lightDir uniform; the parameter and a local hide the uniform.
      * A struct member and a prototype's parameter are declarations, never references to the global.

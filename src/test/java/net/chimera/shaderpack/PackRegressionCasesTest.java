@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Programs popular packs run at default settings, which Iris 1.21.1 runs as written. */
-final class CorpusBreadthFixesTest {
+final class PackRegressionCasesTest {
     /**
      * AstraLex derives {@code uniform.float.velocity} from the camera's motion. Iris 1.21.1 never
      * registers its HardcodedCustomUniforms, so velocity is no built-in there and the pack's own value

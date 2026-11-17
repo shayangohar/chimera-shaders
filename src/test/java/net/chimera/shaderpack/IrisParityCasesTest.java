@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Forms real packs use that run in Iris; Chimera runs each as Iris does. */
-final class SweepParityFixesTest {
+final class IrisParityCasesTest {
     /** Mellow writes texture.composite.colortex3=/img/smaaArea.png; Iris drops the leading slash. */
     @Test
     void aLeadingSlashTexturePathIsPackRelative(@TempDir Path root) throws IOException {

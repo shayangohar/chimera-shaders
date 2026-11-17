@@ -31,9 +31,9 @@ final class WorldEntityAdapterTest {
     @Test
     void worldEntityAdapter() throws Exception {
         Path fixtureRoot = TestPacks.fixtures();
-        Path fixture = fixtureRoot.resolve("m6_3/entities");
-        Path unsupported = fixtureRoot.resolve("m6_3/unsupported_entities");
-        Path baseline = TestPacks.baseline("m6_3");
+        Path fixture = fixtureRoot.resolve("entities/entities");
+        Path unsupported = fixtureRoot.resolve("entities/unsupported_entities");
+        Path baseline = TestPacks.baseline("entities");
 
         verifyEntityIdResolver(fixture.resolve("shaders"));
         verifySupportedFixture(fixture, baseline, "entities");
@@ -468,7 +468,7 @@ final class WorldEntityAdapterTest {
         assertEquals(0, PackEntityIdResolver.empty().resolveName("zombie"),
                 "missing map default");
 
-        Path temporary = Files.createTempDirectory("chimera-m63-entity-");
+        Path temporary = Files.createTempDirectory("chimera-entity-");
         try {
             Files.writeString(temporary.resolve("entity.properties"), "# no usable mappings\n",
                     StandardCharsets.UTF_8);

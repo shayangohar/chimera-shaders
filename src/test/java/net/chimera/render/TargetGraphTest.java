@@ -21,8 +21,8 @@ final class TargetGraphTest {
     @Test
     void targetGraph() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supported = root.resolve("m7_4/target_graph");
-        Path unsupported = root.resolve("m7_4/unsupported_graph");
+        Path supported = root.resolve("target_graph/target_graph");
+        Path unsupported = root.resolve("target_graph/unsupported_graph");
         PackProbe.Analysis first = PackProbe.analyze(supported);
         PackProbe.Analysis second = PackProbe.analyze(supported);
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(
@@ -80,9 +80,9 @@ final class TargetGraphTest {
                                 || value.startsWith("POST_TARGET_ATTACHMENT_LIMIT")),
                 "unsupported graph did not name its unsafe layout");
 
-        Path baseline = TestPacks.baseline("m7_4");
+        Path baseline = TestPacks.baseline("target_graph");
         if (TestPacks.printBaselines()) {
-            System.out.println("m7_4 reportSha256=" + first.report().sha256() + " graphFingerprint="
+            System.out.println("target_graph reportSha256=" + first.report().sha256() + " graphFingerprint="
                     + graph.fingerprint());
         }
         String expected = Files.readString(baseline, StandardCharsets.UTF_8).trim();

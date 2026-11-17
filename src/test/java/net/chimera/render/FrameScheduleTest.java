@@ -26,8 +26,8 @@ final class FrameScheduleTest {
     @Test
     void frameSchedule() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supportedPath = root.resolve("m7_7/schedule");
-        Path unsupportedPath = root.resolve("m7_7/unsupported_schedule");
+        Path supportedPath = root.resolve("frame_schedule/schedule");
+        Path unsupportedPath = root.resolve("frame_schedule/unsupported_schedule");
         PackProbe.Analysis supported = PackProbe.analyze(supportedPath);
         PackProbe.Analysis supportedAgain = PackProbe.analyze(supportedPath);
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(
@@ -43,7 +43,7 @@ final class FrameScheduleTest {
 
         verifySchedule(schedule, scheduleAgain, graph, graphAgain);
         verifyUnsupported(unsupportedPath);
-        verifyBaseline(root.resolve("baselines/m7_7.json"), supported, schedule);
+        verifyBaseline(root.resolve("baselines/frame_schedule.json"), supported, schedule);
     }
 
     private static void verifySchedule(

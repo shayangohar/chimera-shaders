@@ -428,7 +428,7 @@ final class SkyWeatherTest {
             if (instruction instanceof MethodInsnNode call && call.name.equals("drawWithShader")
                     && call.owner.equals("com/mojang/blaze3d/vertex/BufferUploader")) draws = true;
         }
-        assertTrue(draws, "re-audit where rain and snow draw");
+        assertTrue(draws, "renderSnowAndRain draws through BufferUploader.drawWithShader");
         assertEquals("6", PackEngineDefines.standard().get("MC_RENDER_STAGE_STARS"), "Iris star macro ABI");
         assertEquals("21", PackEngineDefines.standard().get("MC_RENDER_STAGE_RAIN_SNOW"), "Iris weather macro ABI");
         assertEquals("8", PackEngineDefines.standard().get("MC_RENDER_STAGE_TERRAIN_SOLID"), "Iris terrain macro ABI");
@@ -443,7 +443,7 @@ final class SkyWeatherTest {
     void skyPhaseHooks() throws IOException {
         var sky = MixinBytecode.nativeClass("net/minecraft/client/renderer/LevelRenderer").methods.stream()
                 .filter(method -> method.name.equals("renderSky")).findFirst().orElseThrow();
-        assertTrue(sunPathSeamPrecedesTimeTurn(sky), "re-audit the Iris celestial sun-path rotation seam");
+        assertTrue(sunPathSeamPrecedesTimeTurn(sky), "renderSky turns by the sun path before its time-of-day turn");
     }
 
     /** True when the first pose rotation after the Y axis is read comes before the X axis is read. */

@@ -101,17 +101,16 @@ final class GlslVertexPreambles {
             const float CHIMERA_UV_SCALE = 1.0 / 32768.0;
             const vec3 CHIMERA_POSITION_SCALE = vec3(1.0 / 2048.0);
 
-            // The draw's base instance holds the section's offset in its area: x, z and y bytes.
+            // the section's offset in its area, from the draw's base instance: x, z and y bytes
             vec3 chimeraSectionOffset() {
                 return vec3(bitfieldExtract(ivec3(gl_InstanceIndex) >> ivec3(0, 16, 8), 0, 8));
             }
 
-            // The camera-relative position, watertight across sections and chunk areas. VulkanMod
-            // rounds each area's ChunkOffset (its origin minus the camera) to float on its own, so
-            // adding it first put a corner two areas share a float step apart in each. Here the
-            // position in the section, the section's place in its area and the area's whole-block
-            // offset from the camera's block all add exactly; the camera's fraction, one value for
-            // every area (TerrainVertexUniforms), is subtracted last, so a shared corner rounds once.
+            // camera-relative position, watertight across sections and chunk areas: VulkanMod rounds
+            // each area's ChunkOffset to float on its own, so only its whole blocks are used; the
+            // position in the section, the section's place in its area and the area's block offset
+            // add exactly, and the camera's fraction, one value for every area
+            // (TerrainVertexUniforms), comes off last, so a corner two areas share rounds once
             vec3 chimeraWorldPosition() {
                 vec3 areaBlocks = round(ChunkOffset + ChimeraCameraFraction.xyz);
                 precise vec3 blocks = fma(vec3(inPositionLight.xyz), CHIMERA_POSITION_SCALE,
@@ -128,19 +127,19 @@ final class GlslVertexPreambles {
                 return inColor;
             }
 
-            // Iris's terrain coordinate (XHFPTerrainVertex): the word holds the coordinate rounded to
-            // 1/32768 plus one step toward the quad's centre, and in bit 15 whether that step went up
-            // (ChimeraExtVertexBuilder.encodeTexture). Taking the step back less one sub-texel
-            // (ChimeraTexCoordShrink) leaves every coordinate just inside its sprite, never on its edge.
+            // Iris's terrain coordinate (XHFPTerrainVertex): rounded to 1/32768 plus one step toward
+            // the quad's centre, with bit 15 set for a step up (ChimeraExtVertexBuilder.encodeTexture);
+            // taking the step back less one sub-texel (ChimeraTexCoordShrink) keeps every coordinate
+            // just inside its sprite
             vec4 chimeraTexCoord0Value() {
                 vec2 stepUp = vec2(greaterThan(inUV, uvec2(0x7FFFu))) * 2.0 - 1.0;
                 vec2 uv = vec2(inUV & 0x7FFFu) * CHIMERA_UV_SCALE - stepUp * ChimeraTexCoordShrink.xy;
                 return vec4(uv, 0.0, 1.0);
             }
 
-            // Raw UV2 light coordinates, one byte each (block, sky), as Iris supplies
-            // gl_MultiTexCoord1 from Sodium's vertices; gl_TextureMatrix[1] normalizes
-            // them. Smooth lighting keeps fractions of a level below the top nibble.
+            // raw UV2 light coordinates, one byte each (block, sky), as Iris supplies
+            // gl_MultiTexCoord1 from Sodium's vertices; gl_TextureMatrix[1] normalises them, and
+            // smooth lighting keeps fractions of a level below the top nibble
             vec4 chimeraTexCoord1Value() {
                 uint light = uint(inPositionLight.w);
                 return vec4(float(light & 0xFFu), float((light >> 8u) & 0xFFu), 0.0, 1.0);
@@ -178,16 +177,15 @@ final class GlslVertexPreambles {
                         bitfieldExtract(inMidBlock, 24, 8));
             }
 
-            // Iris's at_midBlock: four unnormalized signed bytes, the offset from the
-            // vertex to its block's centre in 1/64 blocks, then the block's light
-            // emission. Packs divide by 64 themselves.
+            // Iris's at_midBlock: four unnormalised signed bytes, the offset from the vertex to its
+            // block's centre in 1/64 blocks, then the block's light emission; packs divide by 64
             vec4 chimeraMidBlockValue() {
                 return vec4(chimeraMidBlockRawValue());
             }
 
-            // Iris at_tangent from the quad's UVs, stored as a turn around the
-            // normal plus handedness in the normal word's spare byte
-            // (TerrainTangentCodec); 0 means the plain reference tangent.
+            // Iris's at_tangent from the quad's UVs, stored as a turn around the normal plus
+            // handedness in the normal word's spare byte (TerrainTangentCodec); 0 is the plain
+            // reference tangent
             vec4 chimeraTangentValue() {
                 vec3 normal = normalize(inTangent.xyz);
                 vec3 axis = abs(normal.y) < 0.999
@@ -327,7 +325,7 @@ final class GlslVertexPreambles {
                 return vec4(UV0, 0.0, 1.0);
             }
 
-            // Raw UV2 light coordinates (level * 16, 0..240), as for terrain.
+            // raw UV2 light coordinates (level * 16, 0..240), as for terrain
             vec4 chimeraTexCoord1Value() {
                 return vec4(vec2(UV2), 0.0, 1.0);
             }
@@ -616,7 +614,7 @@ final class GlslVertexPreambles {
                     return vec4(UV0, 0.0, 1.0);
                 }
 
-                // Raw UV2 light coordinates (level * 16, 0..240), as for terrain.
+                // raw UV2 light coordinates (level * 16, 0..240), as for terrain
                 vec4 chimeraTexCoord1Value() {
                     return vec4(vec2(UV2), 0.0, 1.0);
                 }

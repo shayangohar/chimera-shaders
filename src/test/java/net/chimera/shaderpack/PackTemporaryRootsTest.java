@@ -30,7 +30,7 @@ final class PackTemporaryRootsTest {
         Path unlocked = folder(directory, "chimera-pack-1", true, Duration.ofDays(2));
         Path beforeLocks = folder(directory, "chimera-pack-2", false, Duration.ofHours(1));
         Path brandNew = folder(directory, "chimera-pack-3", false, Duration.ZERO);
-        Path other = folder(directory, "chimera-renderdoc-1", false, Duration.ofDays(2));
+        Path other = folder(directory, "chimera-other-1", false, Duration.ofDays(2));
 
         assertEquals(2, PackTemporaryRoots.sweep(directory));
         assertTrue(Files.isDirectory(held), "this game's folder is still in use");

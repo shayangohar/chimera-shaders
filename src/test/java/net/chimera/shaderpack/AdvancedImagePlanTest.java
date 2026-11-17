@@ -26,10 +26,10 @@ final class AdvancedImagePlanTest {
     @Test
     void advancedImages() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supportedPath = root.resolve("m8_6/advanced_images");
-        Path unsupportedPath = root.resolve("m8_6/unsupported_advanced");
+        Path supportedPath = root.resolve("advanced_images/advanced_images");
+        Path unsupportedPath = root.resolve("advanced_images/unsupported_advanced");
         assertTrue(Files.isDirectory(supportedPath), "supported fixture is missing");
-        assertTrue(Files.isRegularFile(root.resolve("baselines/m8_6.json")),
+        assertTrue(Files.isRegularFile(root.resolve("baselines/advanced_images.json")),
                 "baseline is missing");
 
         PackProbe.Analysis supported = PackProbe.analyze(supportedPath);
@@ -74,11 +74,11 @@ final class AdvancedImagePlanTest {
         assertTrue(unsupportedPlan.deviations().contains("STORAGE_BUFFER_DEFERRED:bufferObject.0"),
                 "storage-buffer deferral missing");
 
-        PackAdvancedResourcePlan budgetPlan = budgetIsolationPlan(root.resolve("m8_6/budget_isolation"));
+        PackAdvancedResourcePlan budgetPlan = budgetIsolationPlan(root.resolve("advanced_images/budget_isolation"));
         assertNoAbsolutePaths(supportedPlan.snapshot());
         assertNoAbsolutePaths(budgetPlan.snapshot());
 
-        String baseline = Files.readString(root.resolve("baselines/m8_6.json"));
+        String baseline = Files.readString(root.resolve("baselines/advanced_images.json"));
         assertTrue(baseline.contains(supportedPlan.fingerprint()),
                 "supported fingerprint baseline mismatch");
         assertTrue(baseline.contains(unsupportedPlan.fingerprint()),
@@ -481,7 +481,7 @@ final class AdvancedImagePlanTest {
 
     @Test
     void optionOverrideActivatesAdvancedImages() throws Exception {
-        Path overridePath = TestPacks.fixture("m8_6/option_override");
+        Path overridePath = TestPacks.fixture("advanced_images/option_override");
         assertTrue(Files.isDirectory(overridePath), "option override fixture is missing");
         PackAdvancedResourcePlan defaultOverridePlan = PackProbe.analyze(overridePath)
                 .plan().advancedResources();
@@ -585,7 +585,7 @@ final class AdvancedImagePlanTest {
             verifyPostDescriptorStageOwnership(packPlan, plan, label);
             verifyDepthDependentPostSchedule(analysis, label);
             PassComputePlan.PassCompute shadowcomp = analysis.passComputes().compute("shadowcomp");
-            System.out.println("[chimera] M8.6 " + label + " imagePlan=" + plan.images().keySet()
+            System.out.println("[chimera] advanced images " + label + " imagePlan=" + plan.images().keySet()
                     + " shadowcomp=" + (shadowcomp == null ? "none" : shadowcomp.deviations())
                     + " dependent=" + plan.dependentPrograms()
                     + " graphics=" + plan.graphicsImages()

@@ -37,7 +37,7 @@ final class PackFailureReport {
     private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
 
     /** The versions of Chimera and its host, and the system it runs on. */
-    record Environment(String chimera, String commit, String vulkanMod, String neoForge, String minecraft,
+    record Environment(String chimera, String vulkanMod, String neoForge, String minecraft,
                        String gpu, String driver, String vulkan, String os, String java) {}
 
     /** The pack the failure struck, as loaded. */
@@ -62,8 +62,7 @@ final class PackFailureReport {
             text.append(stackTrace(cause)).append("\n\n");
         }
         section(text, "Versions");
-        text.append("Chimera: ").append(environment.chimera()).append(" (commit ").append(environment.commit())
-                .append(")\n")
+        text.append("Chimera: ").append(environment.chimera()).append('\n')
                 .append("VulkanMod: ").append(environment.vulkanMod()).append('\n')
                 .append("NeoForge: ").append(environment.neoForge()).append('\n')
                 .append("Minecraft: ").append(environment.minecraft()).append("\n\n");

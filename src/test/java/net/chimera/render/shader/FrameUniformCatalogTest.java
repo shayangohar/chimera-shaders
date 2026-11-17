@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class FrameUniformCatalogTest {
     @Test
     void fixturePack() throws Exception {
-        verifyFixture(TestPacks.fixture("m6_2/uniform_catalog"), TestPacks.baseline("m6_2"));
+        verifyFixture(TestPacks.fixture("uniform_catalog/uniform_catalog"), TestPacks.baseline("uniform_catalog"));
     }
 
     /** Iris 1.21.1's CommonUniforms serves is_sneaking and its siblings but no is_alive, which GL leaves zero. */
@@ -217,9 +217,9 @@ final class FrameUniformCatalogTest {
         JsonObject baseline = JsonParser.parseString(
                 Files.readString(baselinePath, StandardCharsets.UTF_8)).getAsJsonObject();
         if ("TO_BE_FILLED".equals(baseline.get("reportSha256").getAsString())) {
-            System.out.println("[chimera] M6.2 fixture report hash: " + report.sha256());
-            System.out.println("[chimera] M6.2 fixture source hashes: " + sourceHashes(report));
-            System.out.println("[chimera] M6.2 fixture deviations: " + allDeviations(report));
+            System.out.println("[chimera] uniform catalog fixture report hash: " + report.sha256());
+            System.out.println("[chimera] uniform catalog fixture source hashes: " + sourceHashes(report));
+            System.out.println("[chimera] uniform catalog fixture deviations: " + allDeviations(report));
             return;
         }
         assertEquals(baseline.get("reportSha256").getAsString(), report.sha256(),

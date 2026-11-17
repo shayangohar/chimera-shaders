@@ -23,9 +23,9 @@ final class WorldFamilyAdapterTest {
     @Test
     void worldFamilyAdapters() throws Exception {
         Path fixtureRoot = TestPacks.fixtures();
-        Path supported = fixtureRoot.resolve("m8_4/families");
-        Path unsupported = fixtureRoot.resolve("m8_4/unsupported_families");
-        Path baseline = TestPacks.baseline("m8_4");
+        Path supported = fixtureRoot.resolve("world_families/families");
+        Path unsupported = fixtureRoot.resolve("world_families/unsupported_families");
+        Path baseline = TestPacks.baseline("world_families");
 
         verifySupported(supported, baseline);
         verifyUnsupported(unsupported, baseline);
@@ -183,12 +183,12 @@ final class WorldFamilyAdapterTest {
     }
 
     private static void printBaseline(String name, ConformanceReport report) {
-        System.out.println("[chimera] M8.4 baseline " + name
+        System.out.println("[chimera] world families baseline " + name
                 + " reportSha256=" + report.sha256());
         sourceHashes(report).forEach((path, hash) ->
-                System.out.println("[chimera] M8.4 baseline " + name
+                System.out.println("[chimera] world families baseline " + name
                         + " source " + path + "=" + hash));
-        System.out.println("[chimera] M8.4 baseline " + name
+        System.out.println("[chimera] world families baseline " + name
                 + " deviations=" + allDeviations(report));
     }
 

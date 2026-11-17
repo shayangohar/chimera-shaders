@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "fixture": "uniform_catalog/uniform_catalog",
+  "reportSha256": "5c6ce179522da4c1728b1fcc86f556c7fb0c87b523a0bac056e257ff27806045",
+  "sourceHashes": {
+    "composite.fsh": "575791b74d6fb168c4dfc8eab844be86bc90d8868bc07a379a561afb2b7f482d",
+    "composite1.fsh": "eeb0f13bbfa6172a10414e131c0e18d387aae70211845c636d936f41012d2d9b",
+    "final.fsh": "5cb9494a788a703d7b8dfd8db593b8387def022fe3b0acd726270d748689b097"
+  },
+  "expectedExecutablePrograms": [
+    "composite",
+    "final"
+  ],
+  "expectedFallbackPrograms": [
+    "composite1"
+  ],
+  "expectedDeviations": [
+    "LIVE_UNIFORM_BRIDGE",
+    "PREPROCESSOR_MACRO_REDEFINED:CATALOG_FEATURE",
+    "SHADOW_SETTING_LOGGED_ONLY:shadowMapResolution",
+    "UNIFORM_NAME_UNSUPPORTED:alphaTestRef"
+  ]
+}

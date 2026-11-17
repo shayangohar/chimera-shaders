@@ -88,7 +88,7 @@ final class GlslVendorExtensionsTest {
 
     /**
      * RenderPearl's NVIDIA path writes {@code out f16vec4 colortex1}, which a Vulkan device without
-     * storageInputOutput16, like the RTX card, cannot take. Stage inputs and outputs widen to their
+     * storageInputOutput16, as NVIDIA GPUs are, cannot take. Stage inputs and outputs widen to their
      * 32-bit types; parameters, locals and uniforms keep theirs.
      */
     @Test

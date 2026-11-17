@@ -53,8 +53,8 @@ final class StorageBufferPlanTest {
     @Test
     void storageBuffers() throws Exception {
         Path root = TestPacks.fixtures();
-        Path supportedPath = root.resolve("m8_6b/ssbo_supported");
-        Path unsupportedPath = root.resolve("m8_6b/unsupported_ssbo");
+        Path supportedPath = root.resolve("storage_buffers/ssbo_supported");
+        Path unsupportedPath = root.resolve("storage_buffers/unsupported_ssbo");
         assertTrue(Files.isDirectory(supportedPath), "supported fixture is missing");
         assertTrue(Files.isDirectory(unsupportedPath), "unsupported fixture is missing");
 

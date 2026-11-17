@@ -18,7 +18,7 @@ final class ModernPostTranslationTest {
     @Test
     void modernPostTranslation() {
         Path root = TestPacks.fixtures();
-        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("m8_0/modern_post"));
+        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("modern_post/modern_post"));
         PackProgramPlan composite = require(analysis.plan(), "composite");
         PackProgramPlan composite1 = require(analysis.plan(), "composite1");
         PackProgramPlan unsupported = require(analysis.plan(), "composite2");
@@ -260,7 +260,7 @@ final class ModernPostTranslationTest {
     }
 
     private static void verifyOrientationFixture(Path root) {
-        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("m8_0/orientation"));
+        PackProbe.Analysis analysis = PackProbe.analyze(root.resolve("modern_post/orientation"));
         String[] executable = {"composite", "composite1", "final"};
         for (String name : executable) {
             PackProgramPlan plan = require(analysis.plan(), name);
@@ -278,7 +278,7 @@ final class ModernPostTranslationTest {
     }
 
     private static void verifyPerTargetFallback(Path root) {
-        PackProbe.Analysis resources = PackProbe.analyze(root.resolve("m7_5/resources"));
+        PackProbe.Analysis resources = PackProbe.analyze(root.resolve("sampled_resources/resources"));
         PackConfig.PackConfigData base = resources.config();
         Map<Integer, Integer> formats = new TreeMap<>(base.colortexFormats());
         formats.put(4, -1);
@@ -302,9 +302,9 @@ final class ModernPostTranslationTest {
 
     /** A mipmap directive gives an allocated target a full chain, which its program regenerates. */
     private static void verifyMipmapDirectives(Path root) {
-        PackProbe.Analysis targetGraph = PackProbe.analyze(root.resolve("m7_4/target_graph"));
+        PackProbe.Analysis targetGraph = PackProbe.analyze(root.resolve("target_graph/target_graph"));
         String source = readFixture(
-                root.resolve("m7_4/target_graph/shaders/composite1.fsh"));
+                root.resolve("target_graph/target_graph/shaders/composite1.fsh"));
         PostTargetPlan mipmapped = PostTargetPlan.parse("composite1", source.replaceFirst("\n",
                 "\nconst bool colortex0MipmapEnabled = true;\nconst bool colortex9MipmapEnabled = true;\n"),
                 targetGraph.config().colortexFormats()).plan();

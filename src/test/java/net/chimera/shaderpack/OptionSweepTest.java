@@ -40,7 +40,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Iris edits them, then analysed and compiled as PackCompileTest does. Programs newly rejected, with the
  * report's reasons, and newly failing compiles go to {@code build/option-sweep/<pack>.json} and summary.md.
  *
- * Run with {@code tools/check-packs.ps1 optionSweep}; {@code -Pchimera.sweep.packs=<name>;<name>}
+ * Run with {@code gradlew optionSweep -Pchimera.pack.complementary=<zip> -Pchimera.pack.bsl=<zip>}, adding
+ * {@code -Pchimera.pack.extra=<pack>;<pack>} for more packs; {@code -Pchimera.sweep.packs=<name>;<name>}
  * narrows it to the packs whose file names contain those words.
  */
 @Tag("sweep")

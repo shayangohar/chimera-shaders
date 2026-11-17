@@ -164,11 +164,11 @@ final class MaterialMapDrawTest {
         files.put("minecraft:optifine/texture.properties", "format=lab-pbr\n".getBytes(
                 StandardCharsets.UTF_8));
         byte[] mobN = Files.readAllBytes(
-                FIXTURE.resolve("assets/minecraft/textures/block/m87_brick_n.png"));
+                FIXTURE.resolve("assets/minecraft/textures/block/brick_n.png"));
         byte[] mobS = Files.readAllBytes(
-                FIXTURE.resolve("assets/minecraft/textures/block/m87_brick_s.png"));
-        files.put("minecraft:textures/entity/m87_mob_n.png", mobN);
-        files.put("minecraft:textures/entity/m87_mob_s.png", mobS);
+                FIXTURE.resolve("assets/minecraft/textures/block/brick_s.png"));
+        files.put("minecraft:textures/entity/mob_n.png", mobN);
+        files.put("minecraft:textures/entity/mob_s.png", mobS);
         FakeFactory factory = new FakeFactory();
         FakeSamplers samplers = new FakeSamplers();
         MaterialMapOwner owner =
@@ -177,7 +177,7 @@ final class MaterialMapDrawTest {
         VulkanImage mob = markerImage();
         MaterialMapOwner.SimpleTextureSource source = () -> List.of(
                 new MaterialMapOwner.SimpleEntry(mob, "minecraft",
-                        SimpleTextureIndex.relativeSpritePath("textures/entity/m87_mob.png")));
+                        SimpleTextureIndex.relativeSpritePath("textures/entity/mob.png")));
         try {
             owner.resolveDrawMaterial(contextFor(mob, 0L), "normals");
             owner.pumpPendingBuilds(mapLookup(files), MaterialMapFixtures::decodeImageIO, source);
@@ -283,11 +283,11 @@ final class MaterialMapDrawTest {
                         "bogus", 0, 10, "bogus")));
         boolean failed = false;
         try {
-            ProgramImageBindingTransaction.bind("slice-c-test", manifest, store,
+            ProgramImageBindingTransaction.bind("material-map-test", manifest, store,
                     entry -> owner.resolveDrawMaterial(contextFor(base, 0L), entry.resourceKey()));
         } catch (RuntimeException failure) {
             failed = failure.getMessage() != null
-                    && failure.getMessage().startsWith("RESOURCE_BINDING_UNAVAILABLE:slice-c-test:");
+                    && failure.getMessage().startsWith("RESOURCE_BINDING_UNAVAILABLE:material-map-test:");
         }
         assertTrue(failed, "resolver failure did not fail the transaction loudly");
         assertTrue(slots.get(25) == prior, "rollback did not restore slot 25");

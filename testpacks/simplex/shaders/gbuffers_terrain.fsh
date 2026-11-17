@@ -1,16 +1,13 @@
 #version 120e
-// M4 part-2 geometry fixture: runs as gbuffers_terrain on chimera's fixed
-// terrain vertex (outputs: color->0, texcoord->1, lightSpacePos->5).
-// Declares pack consts + DRAWBUFFERS for the part-2 parser, samples the
-// block atlas (texture -> registry slot 0) and the shadow map
-// (shadowtex0 -> registry slot 5), and applies a horizontal warm/cool
-// gradient so the geometry stage is unmistakable on screen.
+// geometry fixture: runs as gbuffers_terrain on chimera's fixed terrain vertex
+// (outputs: color->0, texcoord->1, lightSpacePos->5); declares pack consts and
+// DRAWBUFFERS, samples the block atlas (texture -> registry slot 0) and the
+// shadow map (shadowtex0 -> registry slot 5), and applies a horizontal warm/cool
+// gradient so the geometry stage is plain to see on screen
 //
-// The atlas is sampled through texel-center snapping (host chimera_terrain
-// parity): the fixed vertex hands out full-atlas normalized UVs, and a naive
-// texture2D() lets the shared atlas sampler linear-blend across texel centers
-// and smear mips (block textures look fuzzy/gray). Snapping keeps each screen
-// pixel anchored to a texel center, same as the host's own fragment.
+// the atlas is sampled at snapped texel centres, as the host chimera_terrain
+// fragment samples it: the fixed vertex hands out full-atlas normalised UVs, and
+// a plain texture2D() would blend across texel centres and smear mips
 const int colortex0Format = RGBA16F;
 const int shadowMapResolution = 2048;
 /* DRAWBUFFERS:0 */

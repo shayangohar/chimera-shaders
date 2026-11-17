@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class TerrainGbufferContractTest {
     @Test
     void fixture() throws Exception {
-        Path fixture = TestPacks.fixture("m8_5/terrain_gbuffers");
-        Path baseline = TestPacks.baseline("m8_5");
+        Path fixture = TestPacks.fixture("sky_and_terrain/terrain_gbuffers");
+        Path baseline = TestPacks.baseline("sky_and_terrain");
 
         PackProbe.Analysis first = PackProbe.analyze(fixture);
         PackProbe.Analysis second = PackProbe.analyze(fixture);
@@ -94,7 +94,7 @@ final class TerrainGbufferContractTest {
             assertTrue(countDeclarations(terrain.convertedFragment(), constant) <= 1,
                     label + " terrain duplicated pack constant: " + constant);
         }
-        System.out.println("[chimera] M8.5a " + label + " terrain: installed-eligible outputs="
+        System.out.println("[chimera] " + label + " terrain: installed-eligible outputs="
                 + terrain.geometryOutputPlan().targetSlots());
     }
 

@@ -91,7 +91,7 @@ final class EntityRealPackTest {
                             + ", expected " + expectation.targets());
             assertTrue(plan.convertedVertex() != null && plan.convertedFragment() != null,
                     expectation.pack + " " + expectation.program() + " missing converted sources");
-            System.out.println("[chimera] m8.7 real-pack converted " + expectation.pack + " "
+            System.out.println("[chimera] entity real-pack converted " + expectation.pack + " "
                     + expectation.program() + ": vertex=" + plan.convertedVertex().length()
                     + " chars, fragment=" + plan.convertedFragment().length() + " chars");
             verifyOverlayColour(expectation, plan);
@@ -278,7 +278,7 @@ final class EntityRealPackTest {
                             < converted.indexOf("gl_Position.z = 0.5 *"),
                     pack + " clip-range remap does not follow the authored entry point");
             compileStage(converted, true, pack + " shadow vertex");
-            System.out.println("[chimera] m8.7 " + pack + " shadow clip-range wrapper verified");
+            System.out.println("[chimera] entity " + pack + " shadow clip-range wrapper verified");
         }
         for (Expectation expectation : expectations) {
             PackProgramPlan plan = analysis.plan().program(expectation.program());
@@ -306,7 +306,7 @@ final class EntityRealPackTest {
                                 + " declares unsupported type " + sampler.glslType());
             }
             if (!declared.isEmpty()) {
-                System.out.println("[chimera] m8.7 " + pack + " shadow samplers "
+                System.out.println("[chimera] entity " + pack + " shadow samplers "
                         + plan.name() + ": " + String.join(", ", declared));
             }
         }
@@ -408,7 +408,7 @@ final class EntityRealPackTest {
 
     private static String dumpSource(String source, String what) {
         try {
-            Path dir = Path.of("build", "m87-fail");
+            Path dir = Path.of("build", "entity-compile-fail");
             Files.createDirectories(dir);
             String name = what.replaceAll("[^a-zA-Z0-9]+", "_") + ".glsl";
             Path file = dir.resolve(name);

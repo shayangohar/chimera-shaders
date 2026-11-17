@@ -134,7 +134,7 @@ final class TerrainMaterialBridgeTest {
         entry.add("expectedUnsupportedPrograms", jsonStrings(programsWithStatus(analysis.report(),
                 ConformanceReport.SupportStatus.UNSUPPORTED)));
         entry.add("expectedDeviations", jsonStrings(allDeviations(analysis.report())));
-        System.out.println("[chimera] M8.1 baseline " + fixtureName + "="
+        System.out.println("[chimera] terrain water baseline " + fixtureName + "="
                 + new GsonBuilder().setPrettyPrinting().create().toJson(entry));
     }
 

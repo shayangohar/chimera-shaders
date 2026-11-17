@@ -295,10 +295,10 @@ final class CoreFamilyAdapterTest {
     }
 
     private static void printBaseline(String name, ConformanceReport report) {
-        System.out.println("[chimera] M7.6 baseline " + name + " reportSha256=" + report.sha256());
+        System.out.println("[chimera] core families baseline " + name + " reportSha256=" + report.sha256());
         sourceHashes(report).forEach((path, hash) ->
-                System.out.println("[chimera] M7.6 baseline " + name + " source " + path + "=" + hash));
-        System.out.println("[chimera] M7.6 baseline " + name + " deviations=" + allDeviations(report));
+                System.out.println("[chimera] core families baseline " + name + " source " + path + "=" + hash));
+        System.out.println("[chimera] core families baseline " + name + " deviations=" + allDeviations(report));
     }
 
     private static List<String> allDeviations(ConformanceReport report) {

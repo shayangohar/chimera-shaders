@@ -183,12 +183,12 @@ final class WorldFamilyAdapterTest {
     }
 
     private static void printBaseline(String name, ConformanceReport report) {
-        System.out.println("[chimera] M8.4 baseline " + name
+        System.out.println("[chimera] world families baseline " + name
                 + " reportSha256=" + report.sha256());
         sourceHashes(report).forEach((path, hash) ->
-                System.out.println("[chimera] M8.4 baseline " + name
+                System.out.println("[chimera] world families baseline " + name
                         + " source " + path + "=" + hash));
-        System.out.println("[chimera] M8.4 baseline " + name
+        System.out.println("[chimera] world families baseline " + name
                 + " deviations=" + allDeviations(report));
     }
 

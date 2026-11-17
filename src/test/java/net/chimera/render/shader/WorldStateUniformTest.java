@@ -850,9 +850,9 @@ final class WorldStateUniformTest {
         JsonObject baseline = JsonParser.parseString(
                 Files.readString(baselinePath, StandardCharsets.UTF_8)).getAsJsonObject();
         if ("TO_BE_FILLED".equals(baseline.get("reportSha256").getAsString())) {
-            System.out.println("[chimera] M7.3 report hash: " + analysis.report().sha256());
-            System.out.println("[chimera] M7.3 source hashes: " + sourceHashes(analysis.report()));
-            System.out.println("[chimera] M7.3 settings deviations: "
+            System.out.println("[chimera] uniform semantics report hash: " + analysis.report().sha256());
+            System.out.println("[chimera] uniform semantics source hashes: " + sourceHashes(analysis.report()));
+            System.out.println("[chimera] uniform semantics settings deviations: "
                     + analysis.plan().runtimeSettings().deviations());
             return;
         }

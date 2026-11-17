@@ -94,7 +94,7 @@ final class TerrainGbufferContractTest {
             assertTrue(countDeclarations(terrain.convertedFragment(), constant) <= 1,
                     label + " terrain duplicated pack constant: " + constant);
         }
-        System.out.println("[chimera] M8.5a " + label + " terrain: installed-eligible outputs="
+        System.out.println("[chimera] " + label + " terrain: installed-eligible outputs="
                 + terrain.geometryOutputPlan().targetSlots());
     }
 

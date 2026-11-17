@@ -230,7 +230,7 @@ final class TerrainInputsTest {
         assertEquals(0.0F, PackProbe.analyze(root).plan().terrainShading().ambientOcclusionLevel());
         var state = MixinBytecode.nativeClass("net/minecraft/world/level/block/state/BlockBehaviour$BlockStateBase");
         assertTrue(state.methods.stream().anyMatch(method -> method.name.equals("getShadeBrightness")),
-                "re-audit the shade brightness hook");
+                "BlockStateBase has the getShadeBrightness method the hook targets");
         var light = MixinBytecode.nativeClass("net/vulkanmod/render/chunk/build/light/data/LightDataAccess");
         assertTrue(MixinBytecode.instructionsThrough(light, "compute").stream().anyMatch(instruction ->
                         instruction instanceof MethodInsnNode call

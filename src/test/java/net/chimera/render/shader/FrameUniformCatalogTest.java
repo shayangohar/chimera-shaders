@@ -217,9 +217,9 @@ final class FrameUniformCatalogTest {
         JsonObject baseline = JsonParser.parseString(
                 Files.readString(baselinePath, StandardCharsets.UTF_8)).getAsJsonObject();
         if ("TO_BE_FILLED".equals(baseline.get("reportSha256").getAsString())) {
-            System.out.println("[chimera] M6.2 fixture report hash: " + report.sha256());
-            System.out.println("[chimera] M6.2 fixture source hashes: " + sourceHashes(report));
-            System.out.println("[chimera] M6.2 fixture deviations: " + allDeviations(report));
+            System.out.println("[chimera] uniform catalog fixture report hash: " + report.sha256());
+            System.out.println("[chimera] uniform catalog fixture source hashes: " + sourceHashes(report));
+            System.out.println("[chimera] uniform catalog fixture deviations: " + allDeviations(report));
             return;
         }
         assertEquals(baseline.get("reportSha256").getAsString(), report.sha256(),

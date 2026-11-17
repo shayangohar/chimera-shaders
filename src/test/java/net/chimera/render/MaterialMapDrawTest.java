@@ -283,11 +283,11 @@ final class MaterialMapDrawTest {
                         "bogus", 0, 10, "bogus")));
         boolean failed = false;
         try {
-            ProgramImageBindingTransaction.bind("slice-c-test", manifest, store,
+            ProgramImageBindingTransaction.bind("material-map-test", manifest, store,
                     entry -> owner.resolveDrawMaterial(contextFor(base, 0L), entry.resourceKey()));
         } catch (RuntimeException failure) {
             failed = failure.getMessage() != null
-                    && failure.getMessage().startsWith("RESOURCE_BINDING_UNAVAILABLE:slice-c-test:");
+                    && failure.getMessage().startsWith("RESOURCE_BINDING_UNAVAILABLE:material-map-test:");
         }
         assertTrue(failed, "resolver failure did not fail the transaction loudly");
         assertTrue(slots.get(25) == prior, "rollback did not restore slot 25");

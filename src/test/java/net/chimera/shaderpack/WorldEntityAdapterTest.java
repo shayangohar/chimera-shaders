@@ -468,7 +468,7 @@ final class WorldEntityAdapterTest {
         assertEquals(0, PackEntityIdResolver.empty().resolveName("zombie"),
                 "missing map default");
 
-        Path temporary = Files.createTempDirectory("chimera-m63-entity-");
+        Path temporary = Files.createTempDirectory("chimera-entity-");
         try {
             Files.writeString(temporary.resolve("entity.properties"), "# no usable mappings\n",
                     StandardCharsets.UTF_8);

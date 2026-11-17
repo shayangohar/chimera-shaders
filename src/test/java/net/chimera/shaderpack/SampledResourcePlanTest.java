@@ -297,7 +297,7 @@ final class SampledResourcePlanTest {
 
     private static void verifyZipEquivalence(Path directory, String expectedResourceFingerprint)
             throws IOException {
-        Path archive = Files.createTempFile("chimera-m75-resources-", ".zip");
+        Path archive = Files.createTempFile("chimera-resources-", ".zip");
         try {
             try (OutputStream output = Files.newOutputStream(archive);
                  ZipOutputStream zip = new ZipOutputStream(output)) {

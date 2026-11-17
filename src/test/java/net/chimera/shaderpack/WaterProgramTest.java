@@ -237,7 +237,7 @@ final class WaterProgramTest {
             assertTrue(stage.window() == PackFrameSchedulePlan.PostWindow.EARLY,
                     name + " " + stage.name() + " does not run before translucents: " + schedule.snapshot());
         }
-        System.out.println("[chimera] m8.8 " + name + " gbuffers_water: targets="
+        System.out.println("[chimera] water " + name + " gbuffers_water: targets="
                 + water.geometryOutputPlan().targetSlots() + " manifest=" + entries.size()
                 + " early=" + schedule.stages(PackFrameSchedulePlan.PostWindow.EARLY).stream()
                 .map(PackFrameSchedulePlan.PostStage::name).toList());
@@ -380,7 +380,7 @@ final class WaterProgramTest {
             assertTrue(off ? modes[i] == PackBlendPlan.Mode.OFF : modes[i] == null,
                     name + " gbuffers_water colortex" + target + " blend " + modes[i]);
         }
-        System.out.println("[chimera] m8.8 " + name + " gbuffers_water blends " + targets + " "
+        System.out.println("[chimera] water " + name + " gbuffers_water blends " + targets + " "
                 + Arrays.toString(modes));
     }
 
@@ -418,7 +418,7 @@ final class WaterProgramTest {
                 .map(ProgramImageBindingManifest.Entry::resourceKey).sorted().toList();
         assertTrue(shadowKeys.contains("shadowtex1"),
                 name + " gbuffers_water manifest has no separate shadowtex1: " + shadowKeys);
-        System.out.println("[chimera] m8.8 " + name + " shadowtex1 split: " + checked
+        System.out.println("[chimera] water " + name + " shadowtex1 split: " + checked
                 + " program bindings, water shadow depths " + shadowKeys);
     }
 

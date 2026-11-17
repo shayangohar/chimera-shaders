@@ -585,7 +585,7 @@ final class AdvancedImagePlanTest {
             verifyPostDescriptorStageOwnership(packPlan, plan, label);
             verifyDepthDependentPostSchedule(analysis, label);
             PassComputePlan.PassCompute shadowcomp = analysis.passComputes().compute("shadowcomp");
-            System.out.println("[chimera] M8.6 " + label + " imagePlan=" + plan.images().keySet()
+            System.out.println("[chimera] advanced images " + label + " imagePlan=" + plan.images().keySet()
                     + " shadowcomp=" + (shadowcomp == null ? "none" : shadowcomp.deviations())
                     + " dependent=" + plan.dependentPrograms()
                     + " graphics=" + plan.graphicsImages()

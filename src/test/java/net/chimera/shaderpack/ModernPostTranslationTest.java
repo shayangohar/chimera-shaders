@@ -130,7 +130,7 @@ final class ModernPostTranslationTest {
 
     /**
      * Iris's fullscreen pass feeds a post vertex stage only the quad's position and texture coordinate. An input
-     * it never reads costs nothing, and one it reads takes GL's default generic attribute, (0, 0, 0, 1).
+     * it never reads is dropped, and one it reads takes GL's default generic attribute, (0, 0, 0, 1).
      */
     @Test
     void postVertexInputsReadTheDefaultAttribute() {
@@ -146,7 +146,7 @@ final class ModernPostTranslationTest {
                 void main() { gl_Position = ftransform(); texCoord = gl_MultiTexCoord0.xy; }
                 """;
         PostVertexBridge.PostVertexConversion converted = convertPostVertex(unread, fragment);
-        assertTrue(converted.source() != null,
+        assertTrue(converted.source() != null && !converted.source().contains("mc_Entity"),
                 "an unread input refused the stage: " + converted.deviations());
         PostVertexBridge.PostVertexConversion read = convertPostVertex(
                 unread.replace("ftransform();", "ftransform() + mc_Entity;"), fragment);

@@ -2,6 +2,7 @@ package net.chimera.shaderpack;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +59,15 @@ final class PostVertexBridge {
             }
         }
         return GlslDeclarations.apply(source, edits);
+    }
+
+    /** The inputs the stage reads. */
+    private static Set<String> readInputs(String source) {
+        Set<String> read = new HashSet<>();
+        for (GlslInterfaceScanner.Declaration input : GlslInterfaceScanner.scan(source, true).inputs()) {
+            if (input.referenced()) read.add(input.name());
+        }
+        return read;
     }
 
     /** Rewrites legacy {@code attribute} qualifiers as {@code in}. */
@@ -117,8 +127,6 @@ final class PostVertexBridge {
                 throw new IllegalArgumentException("POST_VERTEX_INTERFACE_UNSUPPORTED");
             }
             String converted = LegacyGlslConverter.prepareSource(source, null, true);
-            // any other input has no vertex data behind it and reads GL's default generic attribute, as under Iris
-            converted = UnboundAttributes.substitute(converted, name -> !FULLSCREEN_INPUTS.contains(name));
             validatePostVersion(converted);
             GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(converted);
             if (!usage.successful()) {
@@ -130,6 +138,10 @@ final class PostVertexBridge {
             }
             Map<String, Integer> locations = outputLocations(vertexInterface, match);
             converted = attributesAsInputs(converted);
+            // a read input with no vertex data behind it takes GL's default generic attribute, as under Iris
+            Set<String> read = readInputs(converted);
+            converted = UnboundAttributes.substitute(converted,
+                    name -> read.contains(name) && !FULLSCREEN_INPUTS.contains(name));
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),
                     true,
                     declaration -> {

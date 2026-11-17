@@ -71,7 +71,7 @@ public final class ChimeraMainPass implements MainPass {
     final MainPassTargets targets = new MainPassTargets(this);
     final PackPipelineSet pipelines = new PackPipelineSet();
     final PackShadowPass shadowPass = new PackShadowPass(this);
-    final PackSceneCoverage coverage = new PackSceneCoverage(this);
+    final TerrainLayerWindows terrainLayers = new TerrainLayerWindows(this);
     final PackImageBindings images = new PackImageBindings(this);
     final PackPipelineLoad load = new PackPipelineLoad(this);
     final OpaqueDepthCapture depth = new OpaqueDepthCapture(this);
@@ -381,8 +381,8 @@ public final class ChimeraMainPass implements MainPass {
         }
     }
 
-    public void beginPackCoverageWindow(TerrainRenderType renderType) {
-        coverage.beginPackCoverageWindow(renderType);
+    public void beginTerrainLayerWindow(TerrainRenderType renderType) {
+        terrainLayers.beginTerrainLayerWindow(renderType);
     }
 
     /**
@@ -417,8 +417,8 @@ public final class ChimeraMainPass implements MainPass {
         windows.endPackFamilyWindow(outputs);
     }
 
-    public void endPackCoverageWindow(TerrainRenderType renderType) {
-        coverage.endPackCoverageWindow(renderType);
+    public void endTerrainLayerWindow(TerrainRenderType renderType) {
+        terrainLayers.endTerrainLayerWindow(renderType);
     }
 
     public void bindTerrainImagesAfterSelector(TerrainRenderType renderType) {
@@ -560,7 +560,8 @@ public final class ChimeraMainPass implements MainPass {
         Renderer.getInstance().endRenderPass(commandBuffer);
         if (!this.packDepthTargets.currentAvailable("depthtex2")
                 && !this.packDepthTargets.capturePreHand(commandBuffer,
-                this.targets.hdrFramebuffer.getDepthAttachment())) {
+                this.targets.hdrFramebuffer.getDepthAttachment()) && !this.session.preHandDepthFailureLogged) {
+            this.session.preHandDepthFailureLogged = true;
             LOGGER.warn("[chimera] pack depth graph: fallback=IDENTITY (pre-hand depth conversion failed)");
         }
         this.rebindMainTarget();

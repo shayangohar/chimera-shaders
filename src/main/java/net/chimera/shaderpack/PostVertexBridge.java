@@ -12,6 +12,9 @@ import java.util.TreeMap;
  * a post program without one draws on Chimera's fullscreen vertex.
  */
 final class PostVertexBridge {
+    /** The vertex data a fullscreen pass gives a program: the quad's position and texture coordinate. */
+    private static final Set<String> FULLSCREEN_INPUTS = Set.of("Position", "UV0", "vaPosition", "vaUV0");
+
     private PostVertexBridge() {}
 
     private static final Set<String> INTERPOLATION = Set.of("flat", "noperspective", "smooth", "centroid", "sample");
@@ -114,6 +117,8 @@ final class PostVertexBridge {
                 throw new IllegalArgumentException("POST_VERTEX_INTERFACE_UNSUPPORTED");
             }
             String converted = LegacyGlslConverter.prepareSource(source, null, true);
+            // any other input has no vertex data behind it and reads GL's default generic attribute, as under Iris
+            converted = UnboundAttributes.substitute(converted, name -> !FULLSCREEN_INPUTS.contains(name));
             validatePostVersion(converted);
             GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(converted);
             if (!usage.successful()) {
@@ -128,8 +133,7 @@ final class PostVertexBridge {
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),
                     true,
                     declaration -> {
-                        // a fullscreen pass feeds no vertex attributes, and Iris leaves an unread one unbound
-                        // I Like Vanilla's composites declare mc_Entity in a header
+                        // an unread input is dropped; I Like Vanilla's composites declare mc_Entity in a header
                         if (declaration.input() && !declaration.referenced()) return "";
                         Integer location = locations.get(declaration.name());
                         if (declaration.input() || location == null) {

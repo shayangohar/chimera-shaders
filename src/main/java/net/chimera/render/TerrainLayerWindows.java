@@ -12,11 +12,11 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /** The terrain layers' pack windows. */
-final class PackSceneCoverage {
+final class TerrainLayerWindows {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
 
-    PackSceneCoverage(ChimeraMainPass pass) {
+    TerrainLayerWindows(ChimeraMainPass pass) {
         this.pass = pass;
     }
 
@@ -24,7 +24,7 @@ final class PackSceneCoverage {
      * Opens a terrain layer's pack window. Terrain writing only colortex0 stays on the live HDR render pass,
      * which the post graph reads as colortex0; terrain with more outputs gets a geometry window over them.
      */
-    public void beginPackCoverageWindow(TerrainRenderType renderType) {
+    public void beginTerrainLayerWindow(TerrainRenderType renderType) {
         if (suspendTranslucentWithoutInputs(renderType)) {
             return;
         }
@@ -80,7 +80,7 @@ final class PackSceneCoverage {
     }
 
     /** Closes a terrain layer's pack window, committing a geometry window's targets. */
-    public void endPackCoverageWindow(TerrainRenderType renderType) {
+    public void endTerrainLayerWindow(TerrainRenderType renderType) {
         if (pass.shadowPass.shadowPassActive) return;
         pass.depth.markWorldDrawn();
         if (pass.packTranslucentSuspended && renderType == TerrainRenderType.TRANSLUCENT) {

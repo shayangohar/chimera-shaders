@@ -260,7 +260,7 @@ public final class ChimeraTerrainPipelines {
 
     /**
      * Routes one translucent layer draw to Chimera's fixed pipeline while the pack water program's sampled
-     * inputs are unavailable. PackSceneCoverage sets it as the layer's window opens and clears it as it closes.
+     * inputs are unavailable. TerrainLayerWindows sets it as the layer's window opens and clears it as it closes.
      */
     public static void suspendTranslucentOverride(boolean suspended) {
         translucentOverrideSuspended = suspended;

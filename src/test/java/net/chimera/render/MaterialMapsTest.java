@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static net.chimera.render.MaterialMapFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -335,7 +336,7 @@ final class MaterialMapsTest {
         owner.pumpPendingBuilds(mapLookup(fixtureFiles()), MaterialMapFixtures::decodeImageIO);
         Thread first = new Thread(owner::close);
         first.start();
-        closing.await();
+        assertTrue(closing.await(10, TimeUnit.SECONDS), "the first close never reached the lock");
         Thread second = new Thread(owner::close);
         second.start();
         Thread.State state = second.getState();

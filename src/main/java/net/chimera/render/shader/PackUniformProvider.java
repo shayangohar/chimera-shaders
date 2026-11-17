@@ -71,20 +71,6 @@ public final class PackUniformProvider {
         });
     }
 
-    /**
-     * Gives each binding what its name resolves to in the session just installed; the buffer stays, as built
-     * pipelines read it. A name can change meaning between sessions, and Iris builds each program's uniforms
-     * afresh with the pack. RenderPearl's water reads waveState in every variant but declares it only with
-     * WAVES on.
-     */
-    private void resolveBindings() {
-        bindings.replaceAll((key, binding) -> {
-            UniformRegistry.UniformDescriptor current = resolveUniform(key.name(), key.type());
-            return current == null || current.equals(binding.descriptor) ? binding
-                    : new Binding(current, binding.type, binding.buffer);
-        });
-    }
-
     /** The descriptor the shared binding of {@code name} is written from, or null without one. */
     UniformRegistry.UniformDescriptor boundDescriptor(String name, String type) {
         Binding binding = bindings.get(new UniformKey(name, type));
@@ -299,12 +285,15 @@ public final class PackUniformProvider {
         INSTANCE.frameState.installHeldItems(items, oldHandLight);
     }
 
-    /** Installs the session's custom values and re-resolves every binding against them. */
+    /**
+     * Installs the session's custom values. Its bindings are made after this, as its pipelines build; the last
+     * session's were freed with it (resetSession), so every name resolves afresh, as Iris builds each program's
+     * uniforms with the pack.
+     */
     public static void installRuntimeSettings(PackRuntimeSettings settings) {
         INSTANCE.runtimeSettings = settings == null ? PackRuntimeSettings.empty() : settings;
         INSTANCE.loggedValueFailures.clear();
         INSTANCE.frameState.installRuntimeSettings(INSTANCE.runtimeSettings);
-        INSTANCE.resolveBindings();
         INSTANCE.refreshBindings();
     }
 

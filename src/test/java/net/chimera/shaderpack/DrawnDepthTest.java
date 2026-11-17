@@ -34,7 +34,7 @@ final class DrawnDepthTest {
         assertCalls("net/chimera/render/PackImageBindings", "prepareProgramImages",
                 "needsDrawnDepth", "captureDrawnDepth");
         assertCalls("net/chimera/render/ChimeraMainPass", "openLevelSegment", "markWorldDrawn");
-        assertCalls("net/chimera/render/PackSceneCoverage", "endPackCoverageWindow", "markWorldDrawn");
+        assertCalls("net/chimera/render/TerrainLayerWindows", "endTerrainLayerWindow", "markWorldDrawn");
         assertCalls("net/chimera/render/PackFamilyWindows", "drawFamilyBatches", "markWorldDrawn");
         for (String particles : new String[] {"chimera$fabulousParticles", "chimera$earlyParticles",
                 "chimera$lateParticles"}) {

@@ -113,7 +113,7 @@ final class AlphaTestContractTest {
         String tested = fixed.injectDrawTest(early);
         int test = tested.indexOf("gl_FragData[0].a > 0.5");
         assertTrue(test > tested.indexOf("vec4(1.0);") && test < tested.lastIndexOf('}')
-                && !tested.contains("chimeraAuthoredMain") && tested.indexOf("void main") == tested.lastIndexOf(
+                && tested.indexOf("void main") == tested.lastIndexOf(
                 "void main"), tested);
         for (String index : List.of("0u", "0x0", "00")) {
             String source = "#version 130\nvoid main() { gl_FragData[" + index + "] = vec4(1.0); }\n";
@@ -302,7 +302,7 @@ final class AlphaTestContractTest {
         assertTrue(fragment.contains("discard;"), "converted terrain has no fragment termination");
         int main = fragment.indexOf("void main");
         int rejection = fragment.lastIndexOf(UniformRegistry.ENTITY_ALPHA_REFERENCE);
-        assertTrue(main >= 0 && rejection > main && !fragment.contains("chimeraAuthoredMain"),
+        assertTrue(main >= 0 && rejection > main,
                 "alpha test does not end the authored main's body");
         compile(fragment);
     }

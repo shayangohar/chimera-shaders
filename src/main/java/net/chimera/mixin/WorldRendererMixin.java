@@ -60,7 +60,7 @@ public abstract class WorldRendererMixin {
                 pass.captureOpaqueDepthBeforeTranslucent();
                 FamilyBufferSource.endHeldLevelBatches(pass);
             }
-            pass.beginPackCoverageWindow(type);
+            pass.beginTerrainLayerWindow(type);
             try {
                 pass.rebindMainTarget();
                 // the shadow pass sets its own layers' alpha references (PackShadowPass)
@@ -69,7 +69,7 @@ public abstract class WorldRendererMixin {
                 }
                 original.call(renderType, camX, camY, camZ, view, projection);
             } finally {
-                pass.endPackCoverageWindow(type);
+                pass.endTerrainLayerWindow(type);
             }
         } finally {
             PackUniformProvider.setRenderingPhase(previous);

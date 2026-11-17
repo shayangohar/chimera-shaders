@@ -129,11 +129,11 @@ final class ModernPostTranslationTest {
     }
 
     /**
-     * GL compiles a post vertex stage that declares an input it never reads, and Iris's fullscreen pass feeds
-     * it nothing. A read input has nothing to read, so that stage is refused by the input's name.
+     * Iris's fullscreen pass feeds a post vertex stage only the quad's position and texture coordinate. An input
+     * it never reads costs nothing, and one it reads takes GL's default generic attribute, (0, 0, 0, 1).
      */
     @Test
-    void anUnreadPostVertexInputIsDropped() {
+    void postVertexInputsReadTheDefaultAttribute() {
         String fragment = """
                 #version 130
                 varying vec2 texCoord;
@@ -146,12 +146,12 @@ final class ModernPostTranslationTest {
                 void main() { gl_Position = ftransform(); texCoord = gl_MultiTexCoord0.xy; }
                 """;
         PostVertexBridge.PostVertexConversion converted = convertPostVertex(unread, fragment);
-        assertTrue(converted.source() != null && !converted.source().contains("mc_Entity"),
+        assertTrue(converted.source() != null,
                 "an unread input refused the stage: " + converted.deviations());
         PostVertexBridge.PostVertexConversion read = convertPostVertex(
                 unread.replace("ftransform();", "ftransform() + mc_Entity;"), fragment);
-        assertTrue(read.source() == null && read.deviations().contains("POST_VERTEX_INPUT_UNSUPPORTED:mc_Entity"),
-                "a read input was not refused by name: " + read.deviations());
+        assertTrue(read.source() != null && read.source().contains("const vec4 mc_Entity = vec4(0.0, 0.0, 0.0, 1.0);"),
+                "a read input did not take the default attribute: " + read.deviations());
     }
 
     private static PostVertexBridge.PostVertexConversion convertPostVertex(String vertex, String fragment) {

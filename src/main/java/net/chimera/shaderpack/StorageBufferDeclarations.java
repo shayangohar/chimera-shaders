@@ -35,7 +35,6 @@ final class StorageBufferDeclarations {
                     String key = entry.getKey();
                     if (key.startsWith("ssbo.") || key.startsWith("storage.")) {
                         deviations.add("STORAGE_BUFFER_UNSUPPORTED_PROPERTY:" + key);
-                        deviations.add("STORAGE_BUFFER_DEFERRED:" + key);
                         return;
                     }
                     if (!key.startsWith("bufferObject.")) {

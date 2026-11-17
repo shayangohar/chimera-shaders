@@ -288,6 +288,21 @@ final class StorageBufferPlanTest {
     }
 
     /**
+     * Iris 1.21.1 reads storage buffers only from bufferObject.N, so an ssbo. or storage. key is unsupported
+     * and nothing is planned for it, not even a buffer left for a pass compute.
+     */
+    @Test
+    void anOtherStorageKeyIsUnsupportedOnly(@TempDir Path root) throws Exception {
+        Path shaders = Files.createDirectories(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("shaders.properties"), "ssbo.0=64\nstorage.1=32\n");
+        List<String> deviations = new ArrayList<>();
+        var buffers = StorageBufferDeclarations.parseBuffers(PackSettingsPlan.parse(List.of(), shaders), deviations);
+        assertTrue(buffers.isEmpty(), buffers.toString());
+        assertEquals(List.of("STORAGE_BUFFER_UNSUPPORTED_PROPERTY:ssbo.0",
+                "STORAGE_BUFFER_UNSUPPORTED_PROPERTY:storage.1"), deviations);
+    }
+
+    /**
      * The shadow program's descriptors as the runtime hands them to the host's pipeline builder, where
      * HostPipelineLayout makes one host descriptor per entry at the same binding.
      */

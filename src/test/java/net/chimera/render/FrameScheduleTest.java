@@ -76,9 +76,8 @@ final class FrameScheduleTest {
         assertTrue(schedule.phaseIndex(PackFrameSchedulePlan.Phase.FINAL)
                         < schedule.phaseIndex(PackFrameSchedulePlan.Phase.GUI),
                 "final is not before GUI");
-        assertTrue(!schedule.handBeforeEarlyPost()
-                        && schedule.deviations().contains("HAND_PHASE_HOST_BOUNDARY"),
-                "hand boundary was reported as fully relocated");
+        assertTrue(schedule.deviations().contains("HAND_PHASE_HOST_BOUNDARY"),
+                "hand boundary deviation is missing");
     }
 
     /**

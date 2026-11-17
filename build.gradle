@@ -36,7 +36,7 @@ neoForge {
 }
 
 dependencies {
-    // host renderer, treated as GPL-3.0 and linked as a library; Chimera stays MIT
+    // host renderer, treated as GPL-3.0 and linked as a library; Chimera's LGPL-3.0 combines with it
     implementation "maven.modrinth:vulkanmod-reforged:${project.reforged_version}"
 
     // VulkanMod bundles these at runtime
@@ -69,8 +69,8 @@ jar {
     from('NOTICE') {
         rename { 'NOTICE_chimera' }
     }
-    from('LICENSES') {
-        into 'LICENSES_chimera'
+    from('COPYING') {
+        rename { 'COPYING_chimera' }
     }
 }
 

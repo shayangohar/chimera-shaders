@@ -1,7 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
-# the English lang file follows Iris and is LGPL-3.0 (NOTICE)
-license = "MIT AND LGPL-3.0-only"
+license = "LGPL-3.0-only"
 # placeholder until the public repository exists
 issueTrackerURL = "https://github.com/REPLACE_WITH_OWNER/REPLACE_WITH_REPO/issues"
 

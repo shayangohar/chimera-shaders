@@ -185,6 +185,7 @@ final class MaterialMapsTest {
             int[] s0 = specular.levels.get(0).pixels();
             assertEquals(pack(255, 128, 0, 0), s0[0], "brick specular origin");
             assertEquals(pack(255, 128, 32, 32), s0[2 * 64 + 2], "brick specular interior");
+            assertEquals(pack(255, 128, 32, 224), s0[2 * 64 + 14], "brick specular near the rect's edge");
             assertEquals(FALLBACK_SPECULAR, s0[2 * 64 + 16], "no ring leaks past the rect");
             assertEquals(FALLBACK_SPECULAR, s0[8 * 64 + 40], "plain specular fallback");
             assertEquals(pack(255, 10, 200, 10), s0[48], "lab specular texel");
@@ -478,7 +479,7 @@ final class MaterialMapsTest {
             assertEquals(pack(255, 199, 100, 8), n1[5 * 32 + 5], "shrunk content origin");
             assertEquals(n1[5 * 32 + 5], n1[4 * 32 + 4], "shrunk border replicates");
             int[] n2 = normals.levels.get(2).pixels();
-            assertEquals(pack(255, 198, 101, 25), n2[2 * 16 + 2], "unpaded level 2 content");
+            assertEquals(pack(255, 198, 101, 25), n2[2 * 16 + 2], "unpadded level 2 content");
 
             // lab specular content sits inside its 1-texel border on its own canvas
             FakeSet specular = factory.set("minecraft:padded",

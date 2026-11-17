@@ -5,7 +5,6 @@ import net.chimera.render.shader.HostPipelineLayout;
 import net.chimera.testing.TestPacks;
 import net.vulkanmod.vulkan.shader.descriptor.UBO;
 import org.junit.jupiter.api.Test;
-import org.lwjgl.util.shaderc.Shaderc;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -426,44 +425,8 @@ final class MaterialPlanTest {
                 .withInterfacePlan(fragment)
                 .convert();
         assertTrue(convertedFragment != null, "entity fragment conversion failed");
-        compileVertexShader(source, "entity Fixture vertex");
-        compileFragmentShader(convertedFragment, "entity Fixture fragment");
-    }
-
-    private static void compileVertexShader(String source, String what) {
-        long compiler = Shaderc.shaderc_compiler_initialize();
-        long result = 0;
-        try {
-            result = Shaderc.shaderc_compile_into_spv(compiler, source,
-                    Shaderc.shaderc_glsl_vertex_shader,
-                    "entity_fixture.vsh", "main", 0);
-            assertTrue(result != 0
-                            && Shaderc.shaderc_result_get_compilation_status(result)
-                            == Shaderc.shaderc_compilation_status_success,
-                    what + " did not compile: " + (result == 0 ? "no result"
-                            : Shaderc.shaderc_result_get_error_message(result)));
-        } finally {
-            if (result != 0) Shaderc.shaderc_result_release(result);
-            Shaderc.shaderc_compiler_release(compiler);
-        }
-    }
-
-    private static void compileFragmentShader(String source, String what) {
-        long compiler = Shaderc.shaderc_compiler_initialize();
-        long result = 0;
-        try {
-            result = Shaderc.shaderc_compile_into_spv(compiler, source,
-                    Shaderc.shaderc_glsl_fragment_shader,
-                    "entity_fixture.fsh", "main", 0);
-            assertTrue(result != 0
-                            && Shaderc.shaderc_result_get_compilation_status(result)
-                            == Shaderc.shaderc_compilation_status_success,
-                    what + " did not compile: " + (result == 0 ? "no result"
-                            : Shaderc.shaderc_result_get_error_message(result)));
-        } finally {
-            if (result != 0) Shaderc.shaderc_result_release(result);
-            Shaderc.shaderc_compiler_release(compiler);
-        }
+        assertEquals(null, PackCompileTest.compile(source, true), "entity fixture vertex");
+        assertEquals(null, PackCompileTest.compile(convertedFragment, false), "entity fixture fragment");
     }
 
     /**

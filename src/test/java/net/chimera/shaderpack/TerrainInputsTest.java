@@ -376,52 +376,42 @@ final class TerrainInputsTest {
     void prepareStages(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
         List<String> names = List.of("prepare", "prepare2", "prepare10", "gbuffers_terrain", "deferred", "final");
-        try {
-            for (String name : names) {
-                Files.writeString(shaders.resolve(name + ".vsh"),
-                        "#version 120\nvoid main() { gl_Position = ftransform(); }\n");
-                Files.writeString(shaders.resolve(name + ".fsh"), "#version 120\n" + prepareFixtureFragment(name));
-            }
-            PackProbe.Analysis analysis = PackProbe.analyze(root);
-            for (String name : names) {
-                assertTrue(analysis.plan().shouldAttempt(name) && analysis.report().shouldAttempt(name),
-                        "prepare fixture runtime eligibility " + name + ": "
-                                + analysis.plan().program(name).deviations() + "/"
-                                + analysis.report().program(name).deviations());
-            }
-            PackTargetGraphPlan graph = PackTargetGraphPlan.build(analysis.plan().activePrograms(),
-                    analysis.config(), analysis.plan().resources(), 32, 32, 8, 16384);
-            PackFrameSchedulePlan schedule = PackFrameSchedulePlan.build(analysis.plan().activePrograms(), graph);
-            assertEquals(List.of("prepare", "prepare2", "prepare10"),
-                    schedule.stages(PackFrameSchedulePlan.PostWindow.PREPARE).stream()
-                            .map(PackFrameSchedulePlan.PostStage::name).toList(), "prepare numeric order");
-            assertTrue(schedule.phaseIndex(PackFrameSchedulePlan.Phase.SHADOW)
-                            < schedule.phaseIndex(PackFrameSchedulePlan.Phase.PREPARE)
-                            && schedule.phaseIndex(PackFrameSchedulePlan.Phase.PREPARE)
-                            < schedule.phaseIndex(PackFrameSchedulePlan.Phase.OPAQUE), "prepare world seam");
-            assertEquals(List.of("deferred"), schedule.stages(PackFrameSchedulePlan.PostWindow.EARLY)
-                    .stream().map(PackFrameSchedulePlan.PostStage::name).toList(), "prepare leaked into deferred");
-            assertEquals(List.of(1, 7), graph.step("prepare").outputTargets(), "prepare target allocation");
-            assertTrue(graph.target(1).persistent() && graph.target(7).persistent()
-                            && !graph.target(1).clear() && !graph.target(7).clear(),
-                    "prepare changed authored clear policy");
-            assertTrue(graph.geometryReads().contains(7), "terrain did not consume prepare fog target");
-            Files.writeString(shaders.resolve("shaders.properties"), "program.prepare2.enabled=false\n");
-            analysis = PackProbe.analyze(root);
-            graph = PackTargetGraphPlan.build(analysis.plan().activePrograms(), analysis.config(),
-                    analysis.plan().resources(), 32, 32, 8, 16384);
-            schedule = PackFrameSchedulePlan.build(analysis.plan().activePrograms(), graph);
-            assertTrue(graph.step("prepare2") == null && schedule.postStage("prepare2") == null,
-                    "pack-disabled prepare remained a producer");
-        } finally {
-            Files.deleteIfExists(shaders.resolve("shaders.properties"));
-            for (String name : names) {
-                Files.deleteIfExists(shaders.resolve(name + ".vsh"));
-                Files.deleteIfExists(shaders.resolve(name + ".fsh"));
-            }
-            Files.deleteIfExists(shaders);
-            Files.deleteIfExists(root);
+        for (String name : names) {
+            Files.writeString(shaders.resolve(name + ".vsh"),
+                    "#version 120\nvoid main() { gl_Position = ftransform(); }\n");
+            Files.writeString(shaders.resolve(name + ".fsh"), "#version 120\n" + prepareFixtureFragment(name));
         }
+        PackProbe.Analysis analysis = PackProbe.analyze(root);
+        for (String name : names) {
+            assertTrue(analysis.plan().shouldAttempt(name) && analysis.report().shouldAttempt(name),
+                    "prepare fixture runtime eligibility " + name + ": "
+                            + analysis.plan().program(name).deviations() + "/"
+                            + analysis.report().program(name).deviations());
+        }
+        PackTargetGraphPlan graph = PackTargetGraphPlan.build(analysis.plan().activePrograms(),
+                analysis.config(), analysis.plan().resources(), 32, 32, 8, 16384);
+        PackFrameSchedulePlan schedule = PackFrameSchedulePlan.build(analysis.plan().activePrograms(), graph);
+        assertEquals(List.of("prepare", "prepare2", "prepare10"),
+                schedule.stages(PackFrameSchedulePlan.PostWindow.PREPARE).stream()
+                        .map(PackFrameSchedulePlan.PostStage::name).toList(), "prepare numeric order");
+        assertTrue(schedule.phaseIndex(PackFrameSchedulePlan.Phase.SHADOW)
+                        < schedule.phaseIndex(PackFrameSchedulePlan.Phase.PREPARE)
+                        && schedule.phaseIndex(PackFrameSchedulePlan.Phase.PREPARE)
+                        < schedule.phaseIndex(PackFrameSchedulePlan.Phase.OPAQUE), "prepare world seam");
+        assertEquals(List.of("deferred"), schedule.stages(PackFrameSchedulePlan.PostWindow.EARLY)
+                .stream().map(PackFrameSchedulePlan.PostStage::name).toList(), "prepare leaked into deferred");
+        assertEquals(List.of(1, 7), graph.step("prepare").outputTargets(), "prepare target allocation");
+        assertTrue(graph.target(1).persistent() && graph.target(7).persistent()
+                        && !graph.target(1).clear() && !graph.target(7).clear(),
+                "prepare changed authored clear policy");
+        assertTrue(graph.geometryReads().contains(7), "terrain did not consume prepare fog target");
+        Files.writeString(shaders.resolve("shaders.properties"), "program.prepare2.enabled=false\n");
+        analysis = PackProbe.analyze(root);
+        graph = PackTargetGraphPlan.build(analysis.plan().activePrograms(), analysis.config(),
+                analysis.plan().resources(), 32, 32, 8, 16384);
+        schedule = PackFrameSchedulePlan.build(analysis.plan().activePrograms(), graph);
+        assertTrue(graph.step("prepare2") == null && schedule.postStage("prepare2") == null,
+                "pack-disabled prepare remained a producer");
     }
 
     /** Prepare-fixture fragments: prepare writes 1 and 7, terrain reads 7 as gaux4, final keeps both uncleared. */

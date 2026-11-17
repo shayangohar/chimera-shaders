@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.lwjgl.util.shaderc.Shaderc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -414,17 +413,7 @@ final class AlphaTestContractTest {
     }
 
     private static void compile(String source) {
-        long compiler = Shaderc.shaderc_compiler_initialize();
-        long result = Shaderc.shaderc_compile_into_spv(compiler, source,
-                Shaderc.shaderc_glsl_fragment_shader, "terrain_alpha.fsh", "main", 0);
-        try {
-            assertTrue(result != 0 && Shaderc.shaderc_result_get_compilation_status(result)
-                            == Shaderc.shaderc_compilation_status_success,
-                    result == 0 ? "shaderc returned no result"
-                            : Shaderc.shaderc_result_get_error_message(result));
-        } finally {
-            if (result != 0) Shaderc.shaderc_result_release(result);
-            Shaderc.shaderc_compiler_release(compiler);
-        }
+        String error = PackCompileTest.compile(source, false);
+        assertTrue(error == null, error);
     }
 }

@@ -53,6 +53,24 @@ final class VertexBridgeFailuresTest {
         assertTrue(compiled.failures().isEmpty(), compiled.failures().toString());
     }
 
+    /**
+     * A shadow with no vertex stage has nothing the runtime can draw it with (PackPipelines.buildShadow), so the
+     * compile check reports it instead of compiling its fragment alone.
+     */
+    @Test
+    void aFragmentOnlyShadowFailsToPrepare(@TempDir Path root) throws IOException {
+        Path shaders = Files.createDirectory(root.resolve("shaders"));
+        Files.writeString(shaders.resolve("shadow.fsh"), """
+                #version 120
+                void main() { gl_FragData[0] = vec4(1.0); }
+                """);
+        PackProbe.Analysis analysis = PackProbe.analyze(root);
+        assertTrue(analysis.plan().shouldAttempt("shadow"), analysis.plan().program("shadow").deviations().toString());
+        var compiled = PackCompileTest.run(root, analysis);
+        assertTrue(compiled.failures().stream().anyMatch(failure -> failure.startsWith("shadow preparation:")
+                && failure.contains("STAGE_SOURCE_MISSING")), compiled.failures().toString());
+    }
+
     /** The sky formats carry no mid-coordinates or tangents: Iris leaves both unbound. */
     @Test
     void aSkyReadsMaterialAttributesAsUnbound(@TempDir Path root) throws IOException {

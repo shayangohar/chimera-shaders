@@ -434,9 +434,7 @@ final class StorageBufferPlanTest {
             assertTrue(SelectorNamespace.isAddressable(sampler.slot()),
                     label + ": unaddressable composite sampler " + sampler);
         }
-        if (shadow != null && shadow.executable()) {
-            verifyShadowBuilderParity(label, shadow, resources);
-        }
+        verifyShadowBuilderParity(label, shadow, resources);
         for (PackProgramPlan post : pack.programs()) {
             if (!post.executable() || !PostTargetPlan.isPostProgramName(post.name())) continue;
             verifyPostBuilderParity(packName, label, post, resources);

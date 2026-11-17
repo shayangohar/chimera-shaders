@@ -129,7 +129,7 @@ final class ShadowPassUseTest {
         files.put("shaders.properties", properties);
         files.put("gbuffers_terrain.vsh", TERRAIN_VSH);
         files.put("gbuffers_terrain.fsh", terrain);
-        files.putIfAbsent("shadow.fsh", SHADOW_FSH);
+        files.put("shadow.fsh", SHADOW_FSH);
         if (!Files.exists(shaders.resolve("shadow.vsh"))) files.put("shadow.vsh", SHADOW_VSH);
         for (Map.Entry<String, String> file : files.entrySet()) {
             Files.writeString(shaders.resolve(file.getKey()), file.getValue());

@@ -70,14 +70,14 @@ final class CustomUniformInventoryTest {
         inventory(label, settings, consumers);
 
         // pack-authored names the catalog must never answer with a synthetic value
-        for (String retired : new String[] {"eyeBrightnessM", "timeAngle", "timeBrightness",
+        for (String packName : new String[] {"eyeBrightnessM", "timeAngle", "timeBrightness",
                 "shadowFade", "rainFactor", "blindFactor", "framemod2", "framemod4", "framemod8",
                 "framemod600", "frameTimeSmooth", "starter", "isEyeInCave", "isCold", "isDesert",
                 "isJungle", "isMesa", "isMushroom", "isSavanna", "isSwamp", "inDry", "inRainy",
                 "inSnowy", "inNetherWastes", "inCrimsonForest", "inWarpedForest", "inBasaltDeltas",
                 "inSoulValley", "inPaleGarden", "maxBlindnessDarkness", "velocity"}) {
-            assertTrue(UniformRegistry.descriptor(retired) == null,
-                    label + ": retired synthetic uniform is back in the catalog: " + retired);
+            assertTrue(UniformRegistry.descriptor(packName) == null,
+                    label + ": the catalog answers a pack-authored name: " + packName);
         }
     }
 

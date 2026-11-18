@@ -43,8 +43,9 @@ final class HotSwapCommandTest {
 
         Path explicit = gameDirectory.resolve("local pack");
         Files.createDirectories(explicit.resolve("shaders"));
-        assertPath(explicit, ChimeraCommands.resolvePackPath(
-                        shaderpacks, gameDirectory, "\".\\local pack\""),
+        // typed with the separator of the system running the test: a backslash is a separator on Windows only
+        String typed = "\"." + gameDirectory.getFileSystem().getSeparator() + "local pack\"";
+        assertPath(explicit, ChimeraCommands.resolvePackPath(shaderpacks, gameDirectory, typed),
                 "quoted relative path");
         assertTrue(!ChimeraCommands.resolvePackPath(shaderpacks, gameDirectory, "missing").valid(),
                 "missing pack must fail");

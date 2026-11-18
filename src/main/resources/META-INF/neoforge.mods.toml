@@ -1,8 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 license = "LGPL-3.0-only"
-# placeholder until the public repository exists
-issueTrackerURL = "https://github.com/REPLACE_WITH_OWNER/REPLACE_WITH_REPO/issues"
+issueTrackerURL = "https://github.com/shayangohar/chimera-shaders/issues"
 
 [[mods]]
 modId = "chimera"
@@ -11,8 +10,7 @@ displayName = "Chimera"
 description = "Shaderpack pipeline for VulkanMod - Iris-class shaders on Vulkan."
 authors = "shayangohar"
 credits = "Iris (reference behaviour and screens), OptiFine by sp614x (shader pack format), VulkanMod by xCollateral and VulkanMod Reforged by Rindw (host renderer)"
-# placeholder until the public repository exists
-displayURL = "https://github.com/REPLACE_WITH_OWNER/REPLACE_WITH_REPO"
+displayURL = "https://github.com/shayangohar/chimera-shaders"
 # light lettering for the mods list's dark panel
 logoFile = "chimera_logo.png"
 

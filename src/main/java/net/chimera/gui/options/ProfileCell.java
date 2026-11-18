@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.gui.options;
 
 import net.chimera.shaderpack.options.PackProfiles;

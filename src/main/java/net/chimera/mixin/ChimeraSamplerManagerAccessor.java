@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.mixin;
 
 import it.unimi.dsi.fastutil.shorts.Short2LongMap;

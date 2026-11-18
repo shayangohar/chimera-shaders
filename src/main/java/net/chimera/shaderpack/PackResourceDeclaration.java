@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.shaderpack;
 
 /** A resource declaration from shaders.properties; stage {@code *} applies to every stage. */

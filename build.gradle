@@ -35,6 +35,14 @@ neoForge {
     addModdingDependenciesTo sourceSets.test
 }
 
+// the tests load LWJGL's natives for the machine running them
+def lwjglNatives = {
+    def os = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+    def platform = os.contains('win') ? 'windows' : os.contains('mac') ? 'macos' : 'linux'
+    def arm = System.getProperty('os.arch') in ['aarch64', 'arm64']
+    return "natives-$platform${arm ? '-arm64' : ''}"
+}()
+
 dependencies {
     // host renderer, treated as GPL-3.0 and linked as a library; Chimera's LGPL-3.0 combines with it
     implementation "maven.modrinth:vulkanmod-reforged:${project.reforged_version}"
@@ -45,8 +53,8 @@ dependencies {
     compileOnly "org.lwjgl:lwjgl-shaderc:3.3.3"
     testImplementation "org.lwjgl:lwjgl-vulkan:3.3.3"
     testImplementation "org.lwjgl:lwjgl-shaderc:3.3.3"
-    testRuntimeOnly "org.lwjgl:lwjgl:3.3.3:natives-windows"
-    testRuntimeOnly "org.lwjgl:lwjgl-shaderc:3.3.3:natives-windows"
+    testRuntimeOnly "org.lwjgl:lwjgl:3.3.3:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-shaderc:3.3.3:$lwjglNatives"
 
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -135,6 +143,8 @@ tasks.named('test', Test) {
 tasks.register('packTest', Test) {
     group = 'verification'
     description = 'Runs the tests that read the locked packs: -Pchimera.pack.complementary, -Pchimera.pack.bsl.'
+    // a plain build, such as a fresh clone or CI, has no packs and skips these
+    onlyIf('locked packs are given') { chimeraProperties.get().containsKey('chimera.pack.complementary') }
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {

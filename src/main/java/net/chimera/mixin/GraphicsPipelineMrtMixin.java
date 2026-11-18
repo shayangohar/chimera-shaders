@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;

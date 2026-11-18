@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.shaderpack.options;
 
 import org.junit.jupiter.api.Test;

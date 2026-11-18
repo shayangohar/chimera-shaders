@@ -9,8 +9,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE for the GNU
 Lesser General Public License and COPYING for the GNU General Public License
 it builds on.
 
-Thanks to Iris (https://github.com/IrisShaders/Iris), LGPL-3.0-only: most of
-the wording in src/main/resources/assets/chimera/lang/en_us.json comes from
-Iris's assets/iris/lang/en_us.json, by the Iris contributors. It was modified
-for Chimera in 2026: the keys were renamed, Chimera's own entries were added,
-and some of Iris's wording was moved into it from Iris's code.
+The English interface text, src/main/resources/assets/chimera/lang/en_us.json,
+is adapted from Iris (https://github.com/IrisShaders/Iris, LGPL-3.0-only) and
+was modified for Chimera in 2026.

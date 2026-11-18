@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.shaderpack;
 
 /** Load-time status for one sampled pack resource. */

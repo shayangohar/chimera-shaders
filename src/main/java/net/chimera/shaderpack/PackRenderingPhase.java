@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package net.chimera.shaderpack;
 
 /** Iris's WorldRenderingPhase. Shaders read the ordinals, so the order is fixed. */

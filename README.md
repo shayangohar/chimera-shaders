@@ -13,6 +13,18 @@ Chimera runs [Iris](https://irisshaders.dev/) and [OptiFine](https://optifine.ne
 
 Thus far, Chimera has been tested on 46 different shader packs, which you can find in the [test set](https://github.com/shayangohar/chimera-shaders/wiki/Compatibility).
 
+<p align="center">
+  <img src="docs/screenshots/rtx-remix-complementary-reimagined.jpg" alt="RTX Remix world with Complementary Reimagined running on Chimera">
+  <br>
+  <em>RTX Remix world with Complementary Reimagined running on Chimera</em>
+</p>
+
+## Status
+
+I've finally reached a point where I'm happy with Chimera, but I still consider it to be in a **Beta**. On my machine<sup>1</sup>, I see around a 10-15% FPS uplift in my testing scene (sometimes up to 20%), but this will not hold across all scenes, all machines, all software, and all modpacks. I hope to keep improving on Chimera's functionality, compatibility, and expanding it to harness more of Vulkan's modern features. I am an undergraduate studying CS, so I might not have the most time to work on Chimera, but I see this mod as a pet project of mine and intend to see it realized. 
+
+<sup>1</sup> _Tested on an RTX 5080, R7 9800X3D, 32 GB DDR5 RAM @ 1440p 16 chunks render distance. You may see different results on your machine or different results depending on the scene._
+
 ## Requirements
 
 - Minecraft 1.21.1 with [NeoForge](https://neoforged.net/) 21.1 or newer

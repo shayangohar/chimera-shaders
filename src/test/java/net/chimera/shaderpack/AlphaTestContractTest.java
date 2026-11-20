@@ -141,9 +141,8 @@ final class AlphaTestContractTest {
     }
 
     /**
-     * Iris tests a program with its pack alphaTest, else its ShaderKey's (ShaderCreator): the sky's
-     * colour draws NON_ZERO_ALPHA and its others nothing, per draw; skytextured, beacon beams,
-     * lines, lightning and gbuffers_basic nothing, unless the pack's alphaTest says otherwise.
+     * Iris tests a program with its pack alphaTest, else its ShaderKey's (ShaderCreator); the sky tests
+     * per draw, and these other keys test nothing.
      */
     @Test
     void untestedKeysHonourTheirAlphaTest() {
@@ -160,11 +159,7 @@ final class AlphaTestContractTest {
         }
     }
 
-    /**
-     * Iris draws text backgrounds with TEXT_BG, which tests ONE_TENTH_ALPHA per draw unless the
-     * pack's alphaTest replaces it. The plan injects every program's test as its mode says, so
-     * text_bg is tested too.
-     */
+    /** Iris's TEXT_BG tests ONE_TENTH_ALPHA per draw unless the pack's alphaTest replaces it. */
     @Test
     void textBackgroundsTestPerDraw(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -185,11 +180,7 @@ final class AlphaTestContractTest {
                         + (textBackground == null ? "no plan" : textBackground.convertedFragment()));
     }
 
-    /**
-     * The alpha test reads the colour the program wrote, so it runs before the NaN guard rewrites the
-     * outputs, as in Iris, which tests the written alpha. Planning injects the test first,
-     * then the converter appends the guard to main.
-     */
+    /** The alpha test reads the colour the program wrote, as in Iris, so it runs before the NaN guard. */
     @Test
     void theNanGuardRunsAfterTheAlphaTest(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -210,9 +201,8 @@ final class AlphaTestContractTest {
     }
 
     /**
-     * Iris appends the alpha test only in compatibility mode (CommonTransformer, core false): a
-     * core-profile fragment, here 330 with no profile, keeps its authored main and tests itself
-     * against alphaTestRef, which still reads the draw's reference.
+     * Iris appends the alpha test only in compatibility mode (CommonTransformer, core false): a core
+     * fragment keeps its authored main, and its alphaTestRef still reads the draw's reference.
      */
     @Test
     void coreProfileFragmentsTestThemselves(@TempDir Path root) throws Exception {

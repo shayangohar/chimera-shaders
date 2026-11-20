@@ -17,10 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The core-profile uniforms Iris serves per stage (VanillaCoreTransformer, SodiumCoreTransformer,
- * CompositeCoreTransformer), and the initializer an unset uniform reads. Alpha Piscium declares
- * {@code uniform mat4 textureMatrix = mat4(1.0)} in its compatibility passes, where Iris never
- * sets it.
+ * The core-profile uniforms Iris serves per stage, and the initializer an unset uniform reads (Alpha
+ * Piscium's textureMatrix in its compatibility passes).
  */
 final class IrisCoreUniformsTest {
     @Test
@@ -53,7 +51,7 @@ final class IrisCoreUniformsTest {
                 IrisCoreProfile.patchFor("composite", UniformRegistry.Stage.POST, false));
     }
 
-    /** A pack's own line program serves its declared core uniforms, initialized or not (VanillaCoreTransformer). */
+    /** A pack's own line program serves its declared core uniforms, initialised or not (VanillaCoreTransformer). */
     @Test
     void aLineVertexLosesAnInitializedCoreUniform() {
         String line = IrisCoreProfile.prepareLineVertex("""
@@ -68,9 +66,8 @@ final class IrisCoreUniformsTest {
     }
 
     /**
-     * A constant a pass or compute stage reads follows Iris's types: a declaration of another
-     * type is one Iris disables, reading its initializer or zero, and Iris sets an int declared
-     * bool. Every compute program is built with FogMode.OFF.
+     * Pass and compute constants follow Iris's types: a mistyped declaration reads its initializer or zero,
+     * and an int declared bool is still set. Computes are built with FogMode.OFF.
      */
     @Test
     void passAndComputeConstantsFollowIrisTypes() {
@@ -103,10 +100,7 @@ final class IrisCoreUniformsTest {
                 + "unsetPlain;"), initialized.source());
     }
 
-    /**
-     * In a compute, a uniform Iris sets drops its initializer, which the value Iris uploads replaces
-     * and Vulkan GLSL cannot take; one Iris never sets reads its initializer as a constant.
-     */
+    /** A compute drops a set uniform's initializer, which Vulkan GLSL rejects; an unset one becomes a constant. */
     @Test
     void aComputeDropsTheInitializerOfAUniformIrisSets() {
         String compute = ServedUniforms.computeSource("""

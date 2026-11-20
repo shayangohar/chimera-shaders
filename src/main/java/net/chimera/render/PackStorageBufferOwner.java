@@ -86,10 +86,7 @@ public final class PackStorageBufferOwner implements AutoCloseable {
                 .mapToLong(spec -> spec.bytes(screenWidth, screenHeight)));
     }
 
-    /**
-     * Buffer sizes summed, saturating at Long.MAX_VALUE. BufferSpec.bytes gives that for a relative size
-     * past a long, and a plain sum would log it wrapped negative.
-     */
+    /** Buffer sizes summed, saturating at Long.MAX_VALUE so an oversized relative buffer never logs negative. */
     static long totalBytes(LongStream sizes) {
         return sizes.reduce(0L, (total, bytes) -> total > Long.MAX_VALUE - bytes ? Long.MAX_VALUE : total + bytes);
     }
@@ -102,9 +99,8 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * The session's buffers: those a program or a pass compute ({@code computeBuffers}) binds, a
-     * relative one sized for a screen of this size (Iris sizes it at creation). As in Iris, only the
-     * device bounds a buffer: its storage range, then the allocation.
+     * The session's buffers that a program or pass compute binds, relative ones sized for this screen. As in
+     * Iris, only the device bounds a buffer.
      */
     public static PackStorageBufferOwner load(PackAdvancedResourcePlan plan, int screenWidth, int screenHeight,
                                               Set<Integer> computeBuffers) {
@@ -141,11 +137,9 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Recreates each relative buffer for the main target's new size and zero-fills it, as Iris's
-     * ShaderStorageBufferHolder.hasResizedScreen does: contents do not survive a resize. Recorded
-     * outside a render pass. A buffer that cannot take the new size keeps its old one ({@link #refit}),
-     * and is returned, for the caller to turn the pack off: its programs would index past its end.
-     * Returns null when every buffer fits.
+     * Recreates and zero-fills each relative buffer for the main target's new size, as Iris's
+     * ShaderStorageBufferHolder.hasResizedScreen does. Returns the buffers that could not grow, for the caller
+     * to turn the pack off, or null.
      */
     public String fitRelativeBuffers(VkCommandBuffer commandBuffer, int width, int height) {
         if (commandBuffer == null || closed || (width == screenWidth && height == screenHeight)) return null;
@@ -173,11 +167,8 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Recreates one relative buffer at {@code bytes} through {@code recreate}, and says whether it did.
-     *
-     * A size past the device's range, or one the device cannot allocate, keeps the old buffer and is logged,
-     * so the pack never reads a freed buffer. Programs would then index past the old buffer's end, which is
-     * undefined without robustBufferAccess, so the caller turns the pack off (fitRelativeBuffers).
+     * Recreates one relative buffer, or keeps the old one when the device cannot take the size; reading past
+     * its end is undefined without robustBufferAccess, so the caller then turns the pack off.
      */
     static boolean refit(int index, long bytes, long maxRange, String size, IntConsumer recreate) {
         if (bytes > maxRange) {
@@ -252,9 +243,8 @@ public final class PackStorageBufferOwner implements AutoCloseable {
     }
 
     /**
-     * Why the device's descriptor limits refuse {@code program}'s storage buffers, or null. Each limit is an
-     * unsigned 32-bit count: AMD's driver reports the per-stage one as 0xFFFFFFFF, no limit, which a signed
-     * compare would read as -1 and so refuse every program that binds a buffer.
+     * Why the device's descriptor limits refuse {@code program}'s storage buffers, or null. The limits are
+     * unsigned: AMD reports 0xFFFFFFFF, which a signed compare would read as -1.
      */
     static String limitFailure(String program, List<PackAdvancedResourcePlan.StorageBufferBinding> bindings,
                                int setDynamicLimit, int perStageLimit) {

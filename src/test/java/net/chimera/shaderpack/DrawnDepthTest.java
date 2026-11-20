@@ -12,9 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's depthtex0 is the depth drawn so far. A program that runs while the world still draws
- * reads a capture of the world drawn before its group of draws. Reading last frame's instead,
- * superDuperVanilla's end portal sees itself and glows over its whole surface.
+ * Iris's depthtex0 is the depth drawn so far, so a program that runs while the world still draws reads
+ * a capture taken before its group of draws, never last frame's.
  */
 final class DrawnDepthTest {
     @Test

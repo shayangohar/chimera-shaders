@@ -40,7 +40,7 @@ record PackSettingsPlan(
         Map<String, Integer> samplerSlots,
         boolean samplerSlotsFinalized,
         // macros in force at the end of shaders.properties, option values included; Iris expands them
-        // throughout the file, so an image may be COLORED_LIGHTING texels wide
+        // throughout the file
         Map<String, String> propertyMacros,
         // resolved during the parse, since propertyValues is sorted and Iris applies these keys in file order
         ParticleDirectives particleDirectives
@@ -92,9 +92,6 @@ record PackSettingsPlan(
     /**
      * Parses settings with JVM overrides for names the sources do not declare; declared options are already
      * edited into the sources.
-     *
-     * {@code environment} is what the pack's options bring to shaders.properties: their values as macros and the
-     * programs the matching profile switches off.
      */
     static PackSettingsPlan parse(
             List<PackProgram> programs,
@@ -111,9 +108,8 @@ record PackSettingsPlan(
         }
 
         Map<String, String> overrides = normalizeOverrides(explicitOverrides, deviations);
-        // toggle overrides are true/false, as in Iris's option file; true becomes the plain define, written as "1"
-        // false leaves the macro undefined: it drops out of the defaults and stays locked out of the source as an
-        // overridden name with no value
+        // a true toggle override becomes the plain define "1"; a false one leaves the macro undefined, locked out
+        // of the source as an overridden name with no value
         Set<String> disabled = applyToggleOverrides(overrides);
         for (Map.Entry<String, String> override : overrides.entrySet()) {
             options.put(override.getKey(), new Option(override.getKey(), "chimera.option",
@@ -194,9 +190,8 @@ record PackSettingsPlan(
     }
 
     /**
-     * The macros shaders.properties is read with, as Iris preprocesses it: the pack's option values, Iris's
-     * standard environment with {@code IS_IRIS} and the features Chimera provides, and the JVM overrides the pack
-     * does not declare. A false override leaves its name undefined.
+     * The macros shaders.properties is read with, as Iris preprocesses it: the pack's options and undeclared JVM
+     * overrides, then Iris's standard environment with {@code IS_IRIS} and the features Chimera provides.
      */
     private static Map<String, String> mergedConditionMacros(
             Map<String, String> optionMacros,
@@ -235,11 +230,9 @@ record PackSettingsPlan(
     }
 
     /**
-     * Defines for the shader preprocessor: the JVM option overrides, Iris's defines for the optional features the
-     * pack lists and Chimera provides, and the colour spaces when the pack supports colour correction.
-     *
-     * A define in an entry source stays local to it. Those in shaders.properties stay inside that file, since Iris
-     * preprocesses it on its own and nothing it defines reaches a program or an id map.
+     * Defines for the shader preprocessor: JVM option overrides, provided optional features and, with colour
+     * correction, the colour spaces. Nothing shaders.properties defines reaches a program, as Iris preprocesses that
+     * file alone.
      */
     Map<String, String> preprocessorDefines() {
         Map<String, String> result = new TreeMap<>();
@@ -263,13 +256,9 @@ record PackSettingsPlan(
             "COLOR_SPACE_ADOBE_RGB", "4");
 
     /**
-     * Drops custom textures whose file is missing, as Iris's ShaderPack.readTexture skips one it cannot read. A
-     * stage texture then leaves its sampler to the program's own binding, a customTexture name reads unit 0, and a
-     * missing texture.noise leaves the generated noise.
-     *
-     * A raw texture stays declared and refuses its program. Iris renames its sampler to customtexN on unit 0, where
-     * a 1D or 3D sampler would read a 2D image. An unsafe path stays declared too. Mellow and Reverie name LUT files
-     * that only some LUT_FILE choices ship.
+     * Drops pack textures whose file is missing, as Iris's ShaderPack.readTexture skips one it cannot read. A raw
+     * texture stays declared and refuses its program, since Iris would leave a 1D or 3D sampler reading a 2D image
+     * on unit 0; an unsafe path stays declared too.
      */
     private static void dropMissingTextures(Map<String, PackResourceDeclaration> declarations, Path shadersDir,
                                             List<String> deviations) {
@@ -296,8 +285,8 @@ record PackSettingsPlan(
     }
 
     /**
-     * Defines a prepared source keeps for the compiler as {@code #define} lines: the overridden options, and the
-     * colour spaces, which Kappa reads as values ({@code case COLOR_SPACE_SRGB:}) as well as in conditions.
+     * Defines a prepared source keeps as {@code #define} lines: the overridden options, and the colour spaces, which
+     * packs also read as values.
      */
     Set<String> lockedDefineNames() {
         Set<String> names = new TreeSet<>(overriddenNames());
@@ -330,9 +319,8 @@ record PackSettingsPlan(
     }
 
     /**
-     * Iris matches a switch to the program's path exactly. {@code program.world0/composite2.enabled}, Photon's
-     * form, names the dimension folder's program, and a bare {@code program.composite2} only the root one. Bliss
-     * switches a bare {@code composite5} that only its folders have.
+     * Iris matches a switch to the program's path exactly: {@code program.world0/composite2.enabled} names the
+     * dimension folder's program, and a bare {@code program.composite2} only the root one.
      */
     boolean enabled(String folder, String name) {
         return enabled(folder == null || folder.isBlank() ? name : folder + "/" + name);
@@ -397,8 +385,7 @@ record PackSettingsPlan(
         List<Integer> available = SelectorNamespace.PACK_SELECTOR_SLOTS.stream()
                 .filter(slot -> !reserved.contains(slot)).toList();
         int next = 0;
-        // image samplers take slots first, so a decorative texture cannot starve an image that compute or
-        // graphics passes write and read, such as a voxel image
+        // image samplers take slots first, so a decorative texture cannot starve an image passes write and read;
         // within each group the property key orders the slots
         for (Map.Entry<String, String> entry : propertyValues.entrySet()) {
             String sampler = imageSlotKey(entry);

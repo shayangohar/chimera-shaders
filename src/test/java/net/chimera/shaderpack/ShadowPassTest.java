@@ -27,10 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** The shadow pass: its casters, host-layout lanes, culling and place in the frame. */
 final class ShadowPassTest {
     /**
-     * shadow_entities (Iris SHADOW_ENTITIES_CUTOUT): with no authored shadow_entities, the shadow
-     * program converts onto the entity layout, reads the draw's host matrices, carries entityId
-     * and blockEntityId per vertex, and tests alpha per draw; the pass draws entity casters
-     * before the shadowtex1 snapshot and drops what it cannot serve.
+     * shadow_entities (Iris SHADOW_ENTITIES_CUTOUT) falls back to the shadow program on the entity layout; the
+     * pass draws entity casters before the shadowtex1 snapshot and drops what it cannot serve.
      */
     @Test
     void shadowEntityCasters(@TempDir Path root) throws IOException {
@@ -70,11 +68,8 @@ final class ShadowPassTest {
     }
 
     /**
-     * entityColor on the shadow pass's entity casters: Iris patches it from the overlay
-     * there as on gbuffers_entities. Rethinking Voxels' shadow geometry stage reads it to light
-     * primed TNT while it flashes; the stage reads the first vertex's overlay, whose coordinates the
-     * vertex stage forwards from UV1. Without a geometry stage the fragment reads its own. The
-     * terrain shadow program keeps the uniform, which reads zero: Iris's terrain layout has no overlay.
+     * Iris patches entityColor from the overlay on shadow entity casters too, through a geometry stage when
+     * there is one; the terrain shadow program reads zero, as Iris's terrain layout has no overlay.
      */
     @Test
     void shadowEntityCastersReadEntityColor(@TempDir Path root) throws IOException {
@@ -131,11 +126,8 @@ final class ShadowPassTest {
     }
 
     /**
-     * A shadow program samples a shadowcolor target: Iris binds every target to the shadow pass's
-     * samplers. Rethinking Voxels' interactive water reads shadowcolor2, which its shadowcomp2 stores,
-     * in every shadow program. The program binds the target, and the plan names it among those the pass
-     * copies as it opens (ChimeraShadowMap.snapshotPassReads). A target nothing in the pass samples is
-     * not copied.
+     * A shadow program may sample a shadowcolor target, as Iris binds them all in the shadow pass; the pass
+     * copies only the targets it samples as it opens.
      */
     @Test
     void shadowProgramsSampleShadowColorTargets(@TempDir Path root) throws IOException {
@@ -233,10 +225,8 @@ final class ShadowPassTest {
     }
 
     /**
-     * The copies the shadow pass's programs sample close before shadowcomp runs, so shadowcomp reads and
-     * writes the targets themselves. Rethinking Voxels' shadowcomp2 steps its interactive water in
-     * shadowcolor2; on a copy each step would be lost, and its water would read a flat 1.0 as full-strength
-     * waves.
+     * The shadow pass's copies close before shadowcomp runs, so shadowcomp steps the targets themselves; on a
+     * copy each step would be lost.
      */
     @Test
     void shadowcompRunsOnTheTargetsNotThePassCopies() throws IOException {
@@ -256,10 +246,7 @@ final class ShadowPassTest {
         assertTrue(snapshot && shadowcomp, "renderShadowMap must snapshot the pass's reads and run shadowcomp");
     }
 
-    /**
-     * A shadow-pass draw tries its shadow lane first; one without a lane is dropped, never drawn with
-     * its host shader.
-     */
+    /** A shadow-pass draw without a shadow lane is dropped, never drawn with its host shader. */
     @Test
     void shadowDrawWithoutLaneIsDropped() throws IOException {
         var draws = MixinBytecode.nativeClass("net/chimera/render/shader/PackHostDraws");
@@ -276,11 +263,8 @@ final class ShadowPassTest {
     }
 
     /**
-     * The shadow pass's host-layout lanes: each key runs the Iris program it names through the
-     * fallback chain, never a pack file of its own name, on its host layout with Iris's inputs.
-     * Leads, lines, lightning, text backgrounds and the water mask read entityId per draw and
-     * blockEntityId -1; text reads the unbound per-vertex 0. Lines are widened. Every lane tests
-     * alpha per draw and compiles.
+     * Each shadow lane runs the Iris program its key names through the fallback chain, never a pack file of
+     * its own name, on its host layout with Iris's inputs.
      */
     @Test
     void shadowLaneRoutes() {
@@ -305,8 +289,7 @@ final class ShadowPassTest {
         // Iris cancels beacon beams in the shadow pass, so they stay out of the map
         assertTrue(HostLayoutLane.forDraw("rendertype_beacon_beam", DefaultVertexFormat.BLOCK, shadowPass) == null,
                 "beacon beams have no shadow lane");
-        // Iris 1.21.1 keys glint to GLINT in every pass, so no glint reaches the shadow map
-        // glint has no shadow lane, and its shadow-pass draws are dropped
+        // Iris 1.21.1 keys glint to GLINT in every pass, so glint has no shadow lane and its shadow draws drop
         for (String glint : HostLayoutLane.GLINT.shaders()) {
             assertTrue(HostLayoutLane.forDraw(glint, DefaultVertexFormat.POSITION_TEX, shadowPass) == null,
                     glint + " has no shadow lane");

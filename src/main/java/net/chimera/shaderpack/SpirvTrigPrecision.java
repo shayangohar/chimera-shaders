@@ -16,19 +16,10 @@ import java.util.TreeSet;
 
 /**
  * Evaluates the arithmetic that feeds a pack's {@code sin}, {@code cos} or {@code tan} exactly as written, by
- * decorating it {@code NoContraction}.
- *
- * Packs hash with {@code fract(sin(dot(p, k)) * 43758.5453)} at arguments in the thousands, where a one-ulp
- * change in {@code dot} gives an unrelated hash. Value noise built on it, such as BSL's foliage sway, stays
- * continuous only when a lattice corner hashes bit-identically from both cells that share it. NVIDIA's
- * Vulkan compiler can fuse {@code (flr.x + 1.0) * 12.9898} differently at the two call sites, and the sway
- * then jumps at every cell crossing, where under Iris on the GL compiler it stays smooth. Only the backward
- * slice of trigonometric arguments is decorated, so every other operation keeps the driver's fused
+ * decorating it {@code NoContraction}. Packs hash with {@code fract(sin(dot(p, k)) * 43758.5453)}, where a one-ulp
+ * change gives an unrelated hash; NVIDIA's Vulkan compiler can fuse the same expression differently at two call
+ * sites, so value noise jumps at cell edges. Only that backward slice is decorated; the rest keeps fused
  * multiply-adds.
- *
- * Unoptimized glslang output carries values through function variables and pointer parameters, so the slice
- * follows a load to every store into the same variable, a parameter to the argument of every call, and a
- * call to the values its function returns.
  */
 public final class SpirvTrigPrecision {
     private static final int MAGIC = 0x07230203;

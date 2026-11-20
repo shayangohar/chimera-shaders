@@ -25,11 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Entity and block programs of the pinned Complementary and BSL packs: each plans an executable
- * pipeline with exact target routes, builds a complete descriptor manifest and compiles through shaderc.
- *
- * Plans use the full instance option set, so the manifest sees the branches the game takes; with fewer
- * options, samplers such as MCBL's lighttex and noisetex drop out unnoticed.
+ * Entity and block programs of the pinned Complementary and BSL packs plan, bind and compile. Plans use
+ * the full instance option set, or samplers in branches the game takes drop out unnoticed.
  */
 @Tag("packs")
 final class EntityRealPackTest {
@@ -165,9 +162,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Both pinned packs draw their own clouds at their defaults (BSL CLOUDS=2, Complementary
-     * CLOUD_STYLE_DEFINE != 50), and their gbuffers_clouds discards every vanilla cloud fragment. The
-     * plan records this, so the runtime skips the host clouds instead of drawing them over the pack's.
+     * Both pinned packs draw their own clouds and discard every vanilla cloud fragment, so the plan
+     * records it and the runtime skips the host clouds.
      */
     private static void verifyAuthoredEmptyClouds(PackProbe.Analysis analysis, String pack) {
         PackProgramPlan clouds = analysis.plan().program("gbuffers_clouds");
@@ -179,9 +175,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * Iris texture stages cover numbered programs. Complementary's cloud noise
-     * (texture.deferred.colortex3) reaches deferred1, which draws its clouds; BSL's lens dirt
-     * (texture.composite.colortex7) reaches every compositeN that samples colortex7 or its gaux4 alias.
+     * Iris texture stages cover numbered programs: a texture.deferred entry reaches deferred1, and a
+     * texture.composite one every compositeN that samples the target or its alias.
      */
     private static void verifyStageTextures(PackProbe.Analysis analysis, String pack) {
         PackResourcePlan resources = analysis.plan().resources();
@@ -205,12 +200,7 @@ final class EntityRealPackTest {
                 "complementary deferred1 no longer samples colortex3");
     }
 
-    /**
-     * Prepares the program as the runtime does (source projection, ordinary and advanced descriptors,
-     * image manifest) and matches the manifest one to one against the native layout. Fails on
-     * IMAGE_RESOLVER_MISSING, IMAGE_MANIFEST_MISMATCH, a selector or resource mismatch, or a manifest
-     * kind nothing serves.
-     */
+    /** Prepares the program as the runtime does and matches its image manifest one to one against the native layout. */
     private static void verifyManifest(PackAdvancedResourcePlan advanced, Expectation expectation,
             PackProgramPlan plan) {
         String what = expectation.pack + " " + expectation.program();
@@ -291,9 +281,8 @@ final class EntityRealPackTest {
     }
 
     /**
-     * The descriptor sampler follows the declared type: a {@code sampler2DShadow} lookup is a depth
-     * comparison and a {@code sampler2D} lookup reads the value. Prints how each admitted program reads
-     * the shadow textures and fails on a type the shadow resources cannot serve.
+     * The descriptor sampler follows the declared type: a {@code sampler2DShadow} lookup compares depth,
+     * a {@code sampler2D} lookup reads the value. Fails on a type the shadow resources cannot serve.
      */
     private static void verifyShadowSamplerTypes(PackProbe.Analysis analysis, String pack) {
         for (PackProgramPlan plan : analysis.plan().programs()) {

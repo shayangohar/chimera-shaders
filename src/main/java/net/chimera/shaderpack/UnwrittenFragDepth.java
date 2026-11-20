@@ -7,14 +7,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A fragment stage that reads gl_FragDepth and never writes it reads gl_FragCoord.z instead.
- *
- * GL compiles such a read: its value is undefined until the shader writes one, and the fragment keeps
- * its rasterized depth, gl_FragCoord.z. Vulkan's validator rejects any FragDepth access in a module
- * without the DepthReplacing mode, which glslang declares only for a write. Noble passes gl_FragDepth
- * to its shadow lookup in every forward program. A shader that may write it, by assignment, increment
- * or an out or inout argument, keeps every read; a redeclaration
- * ({@code layout(depth_greater) out float gl_FragDepth;}) counts as neither read nor write.
+ * A fragment stage that reads gl_FragDepth and never writes it reads gl_FragCoord.z instead, the depth GL keeps.
+ * Vulkan's validator rejects any FragDepth access without the DepthReplacing mode, which glslang declares only
+ * for a write. A shader that may write it, by assignment or an out argument, keeps every read.
  */
 final class UnwrittenFragDepth {
     private static final String NAME = "gl_FragDepth";

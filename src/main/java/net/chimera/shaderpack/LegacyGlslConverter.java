@@ -18,12 +18,7 @@ import java.util.regex.Pattern;
 
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
-/**
- * The rewrites every family's converter shares to turn legacy OptiFine-style GLSL into Vulkan GLSL 460: source
- * preparation with includes inlined, varying declarations with explicit locations, texture calls, and the
- * removal of pack metadata constants and unused declarations. The families' converters are TerrainVertexBridge,
- * EntityVertexBridge, HostLayoutVertexBridge, PostVertexBridge and FragmentConverter.
- */
+/** The rewrites every family's converter shares to turn legacy OptiFine-style GLSL into Vulkan GLSL 460. */
 public final class LegacyGlslConverter {
     /** The behaviours a removable GL_ARB_shader_texture_lod directive may ask for: the lookups are core. */
     private static final Set<String> TEXTURE_LOD_BEHAVIOURS = Set.of("enable", "require", "disable");
@@ -80,8 +75,7 @@ public final class LegacyGlslConverter {
         return edits.isEmpty() ? source : GlslDeclarations.apply(source, edits);
     }
 
-    // the trivia after a rewritten declaration on its line, which each rewrite's span takes with it;
-    // the tree finds the declarations themselves
+    // the trivia after a rewritten declaration on its line, which its span takes with it
     private static final Pattern TAIL_TO_LINE_END = Pattern.compile("\\s*(?://.*)?$", Pattern.MULTILINE);
     private static final Pattern TAIL_PRECISION = Pattern.compile("\\s*$\\r?\\n?", Pattern.MULTILINE);
     private static final Pattern TAIL_UNIFORM = Pattern.compile("[ \\t]*(?://[^\\r\\n]*)?\\s*$", Pattern.MULTILINE);
@@ -164,11 +158,8 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Removes each interface declaration's {@code layout(...)} with the space after it; interpolation and
-     * storage qualifiers stay. Only a one-line layout on a declaration that starts its line is removed.
-     *
-     * With {@code keepOutputs}, for a fragment stage, an output keeps its layout: the location names the draw
-     * buffer it writes, as GL links it for Iris, and PostTargetPlan.modernOutputs routes it by that location.
+     * Removes each interface declaration's one-line {@code layout(...)}, keeping interpolation and storage. With
+     * {@code keepOutputs} a fragment output keeps its layout, since its location names the draw buffer it writes.
      */
     static String withoutInterfaceLayouts(String source, boolean keepOutputs) {
         GlslTree tree = GlslTree.parse(source);
@@ -400,7 +391,7 @@ public final class LegacyGlslConverter {
 
     /** Gives a legacy geometry fragment's varyings the terrain layout's locations, or the fixed vertex's. */
     private static String convertLegacyGeometryVaryings(String src, TerrainVaryingLayout terrainLayout) {
-        // a legacy varying of any type the vertex layout sized, such as Sildur's varying mat3 tbnMatrix
+        // a legacy varying of any type the vertex layout sized, such as a mat3
         GlslTree tree = GlslTree.parse(src);
         List<Span> varyings = new ArrayList<>();
         for (GlslDeclarations.Variable variable : GlslDeclarations.variables(tree)) {
@@ -464,10 +455,8 @@ public final class LegacyGlslConverter {
     }
 
     /**
-     * Removes value-type uniform declarations the pipeline serves or can ignore: each declarator is either a
-     * member of the shared pack uniform block ({@code fragmentUniforms}) or never referenced outside
-     * declarations. An initializer does not protect a declaration. Referenced unknowns stay, so rejection names
-     * the first one before shaderc fails on it.
+     * Removes value-type uniform declarations the pack uniform block serves or nothing references, initializer or
+     * not. Referenced unknowns stay, so rejection names the first one before shaderc fails on it.
      */
     static String stripUnusableUniformDeclarations(
             String source, List<UniformRegistry.UniformDeclaration> fragmentUniforms) {
@@ -546,7 +535,7 @@ public final class LegacyGlslConverter {
     static String stripUnreferencedSamplerDeclarations(String source) {
         if (source == null || source.isBlank()) return source;
         GlslTree tree = GlslTree.parse(source);
-        // a trailing line comment still ends the span, as in Bliss's `uniform sampler2D noisetex;//depth`
+        // a trailing line comment still ends the span
         List<Span> unreferenced = new ArrayList<>();
         List<Span> samplers = lineSpans(source, tree, TAIL_SAMPLER, LegacyGlslConverter::isOpaqueUniform);
         for (Span span : onePerDeclaration(samplers)) {

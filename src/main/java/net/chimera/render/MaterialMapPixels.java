@@ -9,10 +9,8 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Pixel and layout code for resource-pack material companions, on plain ABGR {@code int[]} buffers so tests
- * need no Minecraft natives or GPU.
- *
- * ABGR packing matches {@code NativeImage}: red in bits 0-7, green 8-15, blue 16-23, alpha 24-31.
+ * Pixel code for resource-pack material companions, on plain ABGR {@code int[]} buffers so tests need no GPU.
+ * The packing matches {@code NativeImage}, with red in the low byte.
  */
 public final class MaterialMapPixels {
     private MaterialMapPixels() {}
@@ -45,11 +43,7 @@ public final class MaterialMapPixels {
         }
     }
 
-    /**
-     * Scales a decoded material frame to its atlas slot size. Equal sizes copy and whole-number enlargement
-     * point-samples. Any other ratio, including every reduction, takes a per-channel box average, since point
-     * sampling would keep only the top-left texel of each footprint.
-     */
+    /** Scales a material frame to its atlas slot; whole-number enlargement point-samples, other ratios box-average. */
     public static int[] scale(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
         checkSize(srcWidth, srcHeight, "scale-src");
         checkSize(dstWidth, dstHeight, "scale-dst");
@@ -76,7 +70,7 @@ public final class MaterialMapPixels {
         return dst;
     }
 
-    /** Plain arithmetic mean per channel: normal maps and non-labPBR specular maps. */
+    /** Per-channel mean, for normal maps and non-labPBR specular maps. */
     public static int[] reduceLinear(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
         checkSize(srcWidth, srcHeight, "reduce-src");
         checkSize(dstWidth, dstHeight, "reduce-dst");
@@ -84,10 +78,8 @@ public final class MaterialMapPixels {
     }
 
     /**
-     * labPBR-aware reduction. Red is a plain mean. Green treats every dielectric (below 230) as one class and
-     * each metal index as its own, since averaging two metal indices would make up a third material. Blue and
-     * alpha split at their thresholds. Green, blue and alpha each average only the texels of the footprint's
-     * majority class; a tie goes to the class seen first in row-major order.
+     * labPBR-aware reduction: green, blue and alpha average only the footprint's majority class, and each metal
+     * index is its own class so two metals never blend into a third. Ties go to the first class in row-major order.
      */
     public static int[] reduceLabPbr(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
         checkSize(srcWidth, srcHeight, "labpbr-src");
@@ -162,7 +154,6 @@ public final class MaterialMapPixels {
         int reduce(int[] src, int srcWidth, int x0, int y0, int x1, int y1);
     }
 
-    /** Downscales by reducing, for each destination texel, the source footprint it covers. */
     private static int[] downscale(int[] src, int srcWidth, int srcHeight, int dstWidth, int dstHeight,
                                    FootprintReducer reducer) {
         int[] dst = new int[dstWidth * dstHeight];
@@ -217,10 +208,7 @@ public final class MaterialMapPixels {
     /** A rectangle of ABGR pixels at a canvas position. */
     public record Rect(int x, int y, int width, int height, int[] pixels) {}
 
-    /**
-     * The part of a rectangle placed at {@code (x, y)} that falls inside a {@code canvasWidth x canvasHeight}
-     * canvas, clipped as {@link #placeRect} clips; null when nothing is inside.
-     */
+    /** The part of a rectangle at {@code (x, y)} inside the canvas, as {@link #placeRect} clips; null if none. */
     public static Rect clipRect(int[] rect, int rectWidth, int rectHeight, int x, int y,
             int canvasWidth, int canvasHeight) {
         int x0 = Math.max(0, x);
@@ -237,11 +225,7 @@ public final class MaterialMapPixels {
         return new Rect(x0, y0, width, height, clipped);
     }
 
-    /**
-     * Pads one logical mip level with its own edge texels on all four sides, as the stitcher pads a sprite.
-     * Returns a {@code (width + 2*pad) x (height + 2*pad)} image with the content in the centre; a zero pad
-     * copies.
-     */
+    /** Pads a mip level with its own edge texels on every side, as the stitcher pads a sprite. */
     public static int[] padReplicate(int[] logical, int width, int height, int pad) {
         checkSize(width, height, "pad-src");
         if (pad < 0) {
@@ -264,10 +248,7 @@ public final class MaterialMapPixels {
         return padded;
     }
 
-    /**
-     * One axis of a stitched sprite's padding: its UV edge in atlas texels minus its placed origin. X and Y
-     * must agree; the builder skips a sprite where they differ.
-     */
+    /** One axis of a stitched sprite's padding; the builder skips a sprite whose two axes disagree. */
     public static int recoverPad(float uvEdge, int atlasDim, int origin) {
         return Math.max(0, Math.round(uvEdge * atlasDim) - origin);
     }
@@ -277,19 +258,13 @@ public final class MaterialMapPixels {
         return Math.max(1, base >> level);
     }
 
-    /**
-     * The {@code namespace:path} of a sprite's material file. Sprites resolve under {@code textures/}, except
-     * OptiFine CIT paths under {@code optifine/cit/}, which keep their directory.
-     */
+    /** A sprite's material file, under {@code textures/} except OptiFine CIT paths, which keep their directory. */
     public static String siblingResource(String namespace, String spritePath, String suffix) {
         String base = spritePath.startsWith("optifine/cit/") ? spritePath : "textures/" + spritePath;
         return namespace + ":" + base + suffix + ".png";
     }
 
-    /**
-     * Whether an {@code optifine/texture.properties} stream declares {@code format=lab-pbr}, with or without a
-     * {@code /version} suffix.
-     */
+    /** Whether {@code optifine/texture.properties} declares {@code format=lab-pbr}, with or without a version. */
     public static boolean detectLabPbr(InputStream properties) throws IOException {
         Properties parsed = new Properties();
         parsed.load(properties);

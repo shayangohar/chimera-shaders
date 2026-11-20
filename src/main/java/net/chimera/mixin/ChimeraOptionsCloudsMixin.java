@@ -13,11 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * As Iris's MixinOptions_CloudsOverride: the pack's {@code clouds} directive, off, fast or fancy, replaces
- * the player's cloud setting while the pack is loaded. Bliss sets {@code clouds=off} because it draws its
- * own clouds.
- */
+/** The pack's {@code clouds} directive overrides the player's cloud setting, as in Iris. */
 @Mixin(Options.class)
 public abstract class ChimeraOptionsCloudsMixin {
     @Shadow

@@ -10,7 +10,7 @@ import java.util.Optional;
 
 /** Creates the pass's material-map owner and pumps its builds at the frame boundary. */
 final class MaterialMapRuntime {
-    /** Lives as long as the renderer; null until the first pump or pack install creates it. */
+    /** Null until the first pump or pack install creates it. */
     MaterialMapOwner materialMapOwner;
 
     public MaterialMapOwner materialMaps() {
@@ -24,10 +24,7 @@ final class MaterialMapRuntime {
         }
     }
 
-    /**
-     * Builds queued companions at the frame boundary. Material maps do not depend on the shader pack, so this
-     * runs with no pack installed too. Never throws.
-     */
+    /** Builds queued companions at the frame boundary, with or without a pack installed. Never throws. */
     public void pumpMaterialMapBuilds() {
         try {
             ensureMaterialMapOwner();
@@ -46,8 +43,7 @@ final class MaterialMapRuntime {
                     return Optional.empty();
                 }
             };
-            // one recording for every companion write of the pump; animated maps write every mip level of each
-            // changed slot, and each write alone would wait on the GPU
+            // one recording for the whole pump, since each write alone would wait on the GPU
             MaterialCompanionPixels.UPLOADS.open();
             try {
                 this.materialMapOwner.pumpPendingBuilds(lookup, MaterialCompanionPixels::decodeNative,

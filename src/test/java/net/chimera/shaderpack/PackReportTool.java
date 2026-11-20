@@ -12,13 +12,9 @@ import java.util.stream.Stream;
 
 /**
  * Developer tool: runs the offline pack analysis ({@link PackProbe}) on each pack named by
- * {@code -Dchimera.packReport.packs}, a {@code ;}-separated list. Per pack it prints every program's support
- * status and blocking reasons, then the blocking reasons ranked by how many programs they touch. It needs
- * no GPU and no game; this is the plan a runtime load starts from.
- *
- * A reason is blocking when its program falls back and the reason names something rejected, unsupported,
- * missing, unmapped or invalid, or a program Iris reads only as a fallback source. Informational
- * deviations, such as translations applied or constants injected, are left out.
+ * {@code -Dchimera.packReport.packs}, a {@code ;}-separated list, and prints each program's status and the
+ * blocking reasons ranked by how many programs they touch. A reason blocks when its program falls back and
+ * it matches BLOCKING; informational deviations are left out.
  */
 public final class PackReportTool {
     private static final String BLOCKING =

@@ -10,9 +10,9 @@ import java.util.Set;
 interface FrameValueSource {
     Set<String> names();
 
-    /** The scalar, or one component of a vector (-1 for a scalar), served under a name; NaN past its width. */
+    /** {@code component} is -1 for a scalar; NaN past the value's width. */
     double value(String name, int component);
 
-    /** Writes a name's value into its buffer slot, in the type the pack declared it. */
+    /** Writes in the type the pack declared. */
     void write(String name, String type, MappedBuffer target);
 }

@@ -8,11 +8,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Scalar overloads of {@code any} and {@code all}, which GLSL defines over boolean vectors only, so glslang
- * refuses a call on a scalar. Escheridia's SSAO tests {@code any(isnan(occlusion))} on a float, which the GL
- * compiler the pack was written against reads as the value itself.
- *
- * A source that makes such a call gets overloads that return their argument; any other source is unchanged.
+ * Scalar overloads of {@code any} and {@code all}, which GLSL defines over boolean vectors only. The GL
+ * compiler packs target reads a scalar call as the value itself; glslang refuses it.
  */
 final class GlslScalarReductions {
     private static final Set<String> REDUCTIONS = Set.of("any", "all");
@@ -44,9 +41,8 @@ final class GlslScalarReductions {
     }
 
     /**
-     * Whether the call at {@code name} passes a bool variable, isnan or isinf of a scalar, or such tests joined
-     * by {@code ||} or {@code &&}. VectorLogicalOperators turns {@code any(isnan(f) || isinf(f))} into
-     * {@code (any(isnan(f)) || any(isinf(f)))}, so each part needs the scalar overload.
+     * Whether the call at {@code name} passes scalar tests, alone or joined by {@code ||} or {@code &&};
+     * VectorLogicalOperators gives each joined part its own call.
      */
     private static boolean scalarCall(GlslTree tree, int name) {
         List<List<Integer>> operands = operands(tree.tokens(), argument(tree.tokens(), name));

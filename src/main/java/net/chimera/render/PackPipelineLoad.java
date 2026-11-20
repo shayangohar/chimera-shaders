@@ -34,15 +34,11 @@ final class PackPipelineLoad {
         this.pass = pass;
     }
 
-    /**
-     * Installs the loaded pack's programs: composite and final onto the post seams, gbuffers programs onto
-     * their geometry paths. A program that does not build keeps its seam's identity pipeline.
-     */
+    /** Installs the loaded pack's programs; a program that does not build keeps its seam's identity pipeline. */
     void loadPackPipelines() {
         if (pass.session.packPipelinesLoaded) {
-            // once per session; VulkanMod picks pipeline variants from the state at bind, render pass included,
-            // so a pipeline outlives createResources' render pass rebuilds
-            // this keeps immediate vkDestroyPipeline out of screen openings; cleanUpPackVariant destroys them
+            // once per session: VulkanMod picks pipeline variants at bind, so a pipeline outlives render pass
+            // rebuilds, and screen openings never wait on vkDestroyPipeline
             return;
         }
         resetSessionPipelines();
@@ -74,12 +70,8 @@ final class PackPipelineLoad {
     }
 
     /**
-     * Clears the last session's pipelines and marks this load.
-     *
-     * cleanUpPackVariant has already reset the session's flags, all but one: createResources configures the
-     * post targets before this load, so a target allocation that just failed has marked the chain rejected.
-     * Clearing the mark lets the world programs, entity bridge and pack shadows run without post, as
-     * PackPostChain's failure notice says. A failure later in the session keeps the mark.
+     * Clears the last session's pipelines and marks this load. A post target allocation that failed just
+     * before this load rejected the chain; clearing that mark lets the world programs run without post.
      */
     private void resetSessionPipelines() {
         pass.pipelines.clear();
@@ -137,10 +129,7 @@ final class PackPipelineLoad {
         }
     }
 
-    /**
-     * Logs the conformance report, with programs never attempted as fallbacks, and tells in chat of each
-     * program skipped where Iris would have run it.
-     */
+    /** Logs the conformance report and tells in chat of each program skipped where Iris would have run it. */
     private void reportConformance() {
         if (pass.conformanceReport != null) {
             pass.conformanceReport.markUnattemptedAsFallback();
@@ -150,10 +139,7 @@ final class PackPipelineLoad {
         PackFailureNotices.publish();
     }
 
-    /**
-     * Records each program the load skipped where Iris would have run it. A program that did not
-     * build was recorded with its compiler's message first, and keeps that record.
-     */
+    /** Records each program skipped where Iris would run it; a build failure keeps its earlier compiler message. */
     static void recordSkippedPrograms(ConformanceReport report) {
         String pack = PackFailureNotices.currentPack();
         for (ConformanceReport.ProgramReport row : report.programs()) {
@@ -170,11 +156,8 @@ final class PackPipelineLoad {
     }
 
     /**
-     * Drops the session to the host frame, and returns false, when the pack authors entity or block programs
-     * that did not install.
-     *
-     * The pack's post passes classify those pixels by material, and pack geometry writes targets only post
-     * presents. Post over host entities ghosts them, and pack geometry without post is invisible.
+     * Drops the session to the host frame, returning false, when the pack's entity or block programs did not
+     * install: post over host entities ghosts them, and pack geometry without post is invisible.
      */
     boolean enforceMaskCriticalFamilyContract() {
         List<String> missing = maskCriticalFamilyFallback();
@@ -189,10 +172,7 @@ final class PackPipelineLoad {
         return false;
     }
 
-    /**
-     * Iris refuses a pack whose {@code iris.features.required} names a feature it cannot provide.
-     * Chimera renders vanilla for it, as for a missing mask-critical family, and names the features.
-     */
+    /** Renders vanilla for a pack whose {@code iris.features.required} names a missing feature, as Iris refuses it. */
     private boolean enforceRequiredFeatures() {
         Set<String> missing = pass.packPlan == null ? Set.of() : pass.packPlan.unsupportedRequiredFeatures();
         if (missing.isEmpty()) {
@@ -213,8 +193,7 @@ final class PackPipelineLoad {
         }
         LOGGER.warn("[chimera] pack frame unsupported: {}; vanilla rendering for {}",
                 reason, PackSessionLifecycle.packLabel(pass.sessions.packPath));
-        // no idle wait: nothing built this session has drawn yet, and a raw texture upload still in flight
-        // keeps its handles until its frames end (HandleRetirement)
+        // no idle wait: nothing built this session has drawn, and in-flight uploads keep their handles
         pass.sessions.cleanUpPackVariant();
         String pack = PackSessionLifecycle.packLabel(pass.sessions.packPath);
         PackFailureNotices.record(new PackFailureNotices.Failure(pack, "pack", "load",

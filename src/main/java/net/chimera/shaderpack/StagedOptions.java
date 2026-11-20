@@ -15,12 +15,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The options a loaded pack was staged with.
- *
- * {@code pack} holds everything the pack declares, with the stored values: the option file plus the
- * settings screen's pending changes. {@code applied} is what its sources were edited with, the stored values
- * with JVM overrides on top. {@code undeclared} holds the JVM overrides the pack does not declare, left to the
- * preprocessor as locked macros, and {@code disabledPrograms} the programs the matching profile switches off.
+ * The options a loaded pack was staged with. {@code pack} holds the stored values, pending screen changes
+ * included; {@code applied} adds the JVM overrides, and {@code undeclared} holds the overrides the pack does not
+ * declare, left to the preprocessor as locked macros.
  */
 public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<String, String> undeclared,
                             Set<String> disabledPrograms, boolean optionFileReadable) {
@@ -53,12 +50,9 @@ public record StagedOptions(ShaderPackOptions pack, OptionValues applied, Map<St
     }
 
     /**
-     * Brings {@code <pack>.txt} in line with the stored values, as Iris rewrites it after every load: only
-     * non-default values, and no file when there are none. JVM overrides are never written.
-     *
-     * The file is left alone when the pack declares no options, when one of its source files could not be
-     * read (Iris refuses such a pack before writing), or when the option file could not be parsed, so values
-     * for options Chimera could not see are never dropped.
+     * Brings {@code <pack>.txt} in line with the stored values, as Iris rewrites it after every load; JVM overrides
+     * are never written. The file is left alone when Chimera could not read the pack or its option file, so values
+     * it could not see are never dropped.
      */
     public void saveOptionFile(Path packPath) throws IOException {
         boolean noOptions = pack.options().toggles().isEmpty() && pack.options().choices().isEmpty();

@@ -12,10 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Backs the extended selector slots ({@link SelectorNamespace#FIRST_EXTENDED} through
- * {@link SelectorNamespace#LAST_RESERVED}) with Chimera's own image array and resolves their {@code SamplerN} names.
- */
+/** Backs the extended selector slots with Chimera's own images and resolves their {@code SamplerN} names. */
 @Mixin(value = VTextureSelector.class, remap = false)
 public abstract class VTextureSelectorMixin {
     @Unique

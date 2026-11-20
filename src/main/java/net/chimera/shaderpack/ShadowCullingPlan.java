@@ -8,17 +8,9 @@ import java.util.Map;
 import java.util.OptionalInt;
 
 /**
- * The shadow culling Iris's ShadowRenderer.createShadowFrustum chooses for a pack, and its distances. The
- * pack decides it once per session; the render distance and the player's Max Shadow Distance are read every
- * frame.
- *
- * {@code shadow.culling} in shaders.properties: {@code false} culls by distance only, {@code true} uses the
- * advanced frustum, {@code reversed} or {@code safe_zone} the safe-zone frustum. Unset means advanced, or
- * distance only when the shadow program has a geometry stage, which Iris takes as voxelization.
- *
- * Distances are half-sizes in blocks of Iris's camera-centred BoxCuller. {@code shadowDistanceRenderMul}
- * defaults to -1, and a negative multiplier means the player's Max Shadow Distance (ChimeraConfig). A
- * multiplier the pack sets forces its own distance on that setting ({@code forcedDistanceChunks}).
+ * The shadow culling Iris's ShadowRenderer.createShadowFrustum chooses for a pack, and its distances: half-sizes
+ * in blocks of a camera-centred BoxCuller. A negative {@code shadowDistanceRenderMul}, the default, means the
+ * player's Max Shadow Distance.
  */
 public record ShadowCullingPlan(
         State state,
@@ -36,9 +28,8 @@ public record ShadowCullingPlan(
     public enum Mode { NONE, DISTANCE, ADVANCED, SAFE_ZONE }
 
     /**
-     * One frustum. {@code box} is the BoxCuller half-size, infinite when Iris has none; in
-     * SAFE_ZONE it is the outer distance box. {@code safeZone} is the half-size of the box
-     * SAFE_ZONE always draws, whatever the camera sees.
+     * One frustum. {@code box} is the BoxCuller half-size, infinite when Iris has none, or SAFE_ZONE's outer
+     * distance box; {@code safeZone} is the half-size of the box SAFE_ZONE always draws.
      */
     public record Culler(Mode mode, double box, double safeZone) {
         public static final Culler NONE = new Culler(Mode.NONE, Double.POSITIVE_INFINITY, 0.0);
@@ -86,27 +77,17 @@ public record ShadowCullingPlan(
                 settings.forcedShadowRenderDistanceChunks(), deviations);
     }
 
-    /**
-     * The shadow distance in force, in chunks: the pack's forced one, else the player's Max Shadow Distance,
-     * as in Iris's IrisVideoSettings.getOverriddenShadowDistance. At 0 there is no shadow pass.
-     */
+    /** The shadow distance in force, in chunks: the pack's forced one, else the player's; 0 means no shadow pass. */
     public int distanceInForce(int playerShadowChunks) {
         return forcedDistanceChunks.orElse(playerShadowChunks);
     }
 
-    /**
-     * The terrain frustum: shadow sections, and the block entities inside them.
-     * {@code playerShadowChunks} is the player's Max Shadow Distance, which bounds the frustum
-     * when the pack sets no shadowDistanceRenderMul.
-     */
+    /** The terrain frustum, which also culls the block entities inside its sections. */
     public Culler terrain(int renderDistanceBlocks, int playerShadowChunks) {
         return create(renderMultiplier, renderDistanceBlocks, playerShadowChunks);
     }
 
-    /**
-     * The entity frustum. Iris reuses the terrain one unless entityShadowDistanceMul is set to
-     * something other than 1 and not negative.
-     */
+    /** The entity frustum; Iris reuses the terrain one unless entityShadowDistanceMul is non-negative and not 1. */
     public Culler entities(int renderDistanceBlocks, int playerShadowChunks) {
         if (entityMultiplier == 1.0F || entityMultiplier < 0.0F) {
             return terrain(renderDistanceBlocks, playerShadowChunks);

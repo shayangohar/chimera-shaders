@@ -191,8 +191,7 @@ final class Colortex8RouteTest {
                 "Post-target-8 BSL colortex0 needs a full 2560x1440 chain: " + graph.target(0));
         assertTrue(graph.deviations().stream().noneMatch(value -> value.contains("MIPMAP")),
                 "Post-target-8 BSL must not report a mipmap fallback");
-        // targets built while the swapchain is 0x0 are 1x1 (MainPassTargets.createResources)
-        // their chain is level 0 alone, which must be skipped, never rejected
+        // targets built at a 0x0 swapchain are 1x1, so their level-0 chain is skipped, never rejected
         PackTargetGraphPlan minimized = PackTargetGraphPlan.build(
                 analysis.plan().programs(), analysis.config(), analysis.plan().resources(),
                 1, 1, 8, 16384);
@@ -209,9 +208,8 @@ final class Colortex8RouteTest {
     }
 
     /**
-     * Complementary r5.9 blends volumetric light with an entity linear depth in colortex13, declared R8:
-     * translucent entities write it and composite1 reads it. Iris exposes colortex0 to 15, so both must run,
-     * on an exact R8 target. Packs that do not use colortex13 skip the check.
+     * Complementary's R8 colortex13, written by translucent entities and read by composite1, needs an
+     * exact R8 target, since Iris exposes colortex0 to 15.
      */
     private static void verifyHighTargets(String label, PackProbe.Analysis analysis,
             PackTargetGraphPlan graph, TargetStep composite1) {

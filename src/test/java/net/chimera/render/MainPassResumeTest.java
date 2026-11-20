@@ -17,10 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Reforged ends the bound pass for a readback (Renderer.flushCmds, a screenshot among them) or
- * a render-target blit and begins MainPass.resumeRenderPass's answer, whose default is the same
- * pass. Chimera's world and output passes that clear would then clear what the frame drew before
- * the split, so each resumes with the twin that loads colour and depth.
+ * Reforged splits the bound pass for a readback or blit and resumes with MainPass.resumeRenderPass's
+ * answer, by default the same pass; a clearing pass would wipe the frame, so each resumes with its
+ * loading twin.
  */
 final class MainPassResumeTest {
     private static final String TARGETS = "net/chimera/render/MainPassTargets";

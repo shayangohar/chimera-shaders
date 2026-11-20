@@ -14,8 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * When pack post cannot run, the world presents through the host identity pipeline, which requests no
- * pack auxiliary sampler. A missing mask-critical family makes the whole frame host-rendered, so the
- * report carries every program as fallback, geometry as well as post.
+ * pack auxiliary sampler.
  */
 final class PostBypassTest {
     /** An installed pack composite: the HDR input and one auxiliary target. */

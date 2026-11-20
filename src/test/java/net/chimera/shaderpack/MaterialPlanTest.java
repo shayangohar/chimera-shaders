@@ -18,10 +18,7 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Material planning: selectors, the stages that bind material maps, resource identity and manifest
- * kind. Also compact target directives, entity output plans and the unset isElytraFlying.
- */
+/** Material planning, plus target directives and entity output plans. */
 final class MaterialPlanTest {
     /** VK_SHADER_STAGE_VERTEX_BIT; the Vulkan bindings are compile-only for main sources. */
     private static final int VK_SHADER_STAGE_VERTEX_BIT = 1;
@@ -141,8 +138,7 @@ final class MaterialPlanTest {
 
         PackProgramPlan composite = analysis.plan().program("composite");
         assertTrue(composite != null, "material fixture composite is missing");
-        // Iris binds material maps only to world programs: in a fullscreen pass both names stay on
-        // unit 0 and read colortex0
+        // Iris binds material maps only to world programs; a fullscreen pass reads colortex0 on unit 0
         assertTrue(composite.deviations().contains("SAMPLER_UNIT0_COLORTEX0:normals")
                         && composite.deviations().contains("SAMPLER_UNIT0_COLORTEX0:specular"),
                 "post material declarations do not read colortex0: " + composite.deviations());
@@ -238,9 +234,8 @@ final class MaterialPlanTest {
     }
 
     /**
-     * The entity fixture's gbuffers_entities plans its material maps as servable bindings and keeps
-     * one target. Its family contract carries the host transform blocks at bindings 0 and 1 with the
-     * converted preambles' fields, which the host fills by name, at the preambles' std140 sizes.
+     * The entity fixture plans servable material bindings and one target; its contract carries the host
+     * transform blocks at bindings 0 and 1, which the host fills by name.
      */
     @Test
     void entityFixturePlan() throws Exception {
@@ -286,8 +281,7 @@ final class MaterialPlanTest {
         assertTrue(plan.interfacePlan().uniforms().stream()
                         .anyMatch(u -> u.name().equals(UniformRegistry.ENTITY_ALPHA_REFERENCE)),
                 "entity program lacks the host alpha-test reference uniform");
-        // VulkanMod sizes a block from its declared fields and the converted preamble declares the
-        // same layout; any size but the host's 160 and 64 bytes would misdescribe the descriptor
+        // VulkanMod sizes a block from its declared fields; any size but the host's 160 and 64 bytes misdescribes it
         assertEquals(160, sizeOf(blocks, UniformRegistry.DYNAMIC_TRANSFORMS_BINDING),
                 "DynamicTransforms std140 size");
         assertEquals(64, sizeOf(blocks, UniformRegistry.PROJECTION_BINDING),
@@ -431,16 +425,12 @@ final class MaterialPlanTest {
         assertEquals(null, PackCompileTest.compile(convertedFragment, false), "entity fixture fragment");
     }
 
-    /**
-     * Iris 1.21.1 serves no isElytraFlying (newer Iris does): a program reading it still runs, and
-     * the bool reads the false an unset GL uniform holds, from a bool field of the generated block.
-     */
+    /** Iris 1.21.1 serves no isElytraFlying, so it reads false, as an unset GL uniform does. */
     @Test
     void elytraUniformIsUnset() {
         assertTrue(UniformRegistry.descriptor("isElytraFlying") == null,
                 "isElytraFlying is not an Iris 1.21.1 uniform");
-        // the entity fragment conversion needs the paired vertex layout, so both stages come from
-        // one snippet pair
+        // the entity fragment conversion needs the paired vertex layout
         UniformRegistry.ProgramInterfacePlan plan = InterfacePlanner.planProgram(
                 ELYTRA_SNIPPET, ELYTRA_VERTEX_SNIPPET, UniformRegistry.Stage.ENTITY, null, true);
         UniformRegistry.ProgramInterface fragment = plan.effective(UniformRegistry.Stage.ENTITY);

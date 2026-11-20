@@ -32,8 +32,7 @@ public abstract class ChimeraRasterOrientationMixin {
         original.call(commandBuffer, first, viewports);
     }
 
-    // Reforged records the scissor box in setScissor and issues it in applyScissor: the framebuffer's full
-    // rectangle while the scissor test is off, else the box in Vulkan rows
+    // applyScissor issues the full framebuffer while the scissor test is off, else the box in Vulkan rows
     @WrapOperation(method = "applyScissor()V", at = @At(value = "INVOKE", target = "Lorg/lwjgl/vulkan/VK10;"
             + "vkCmdSetScissor(Lorg/lwjgl/vulkan/VkCommandBuffer;ILorg/lwjgl/vulkan/VkRect2D$Buffer;)V"), require = 2)
     private static void chimera$glScissor(VkCommandBuffer commandBuffer, int first, VkRect2D.Buffer scissors,

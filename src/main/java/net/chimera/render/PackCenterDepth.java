@@ -27,12 +27,8 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.vkCmdDispatch;
 
 /**
- * Iris's CenterDepthSampler: the 1x1 R32F texture fullscreen passes read as iris_centerDepthSmooth.
- *
- * Each frame at beginHand, before the hand and translucents, the value moves toward the world depth at the
- * screen's centre by {@code 1 - exp(-decay * frameTime)}, with {@code decay = ln 2 / (halfLife * 0.1)} from
- * the pack's centerDepthHalflife; a NaN value takes the new depth whole. The main depth is read with a
- * nearest sampler, as Iris reads it. The image starts at zero, as Iris's unfilled texture reads.
+ * Iris's CenterDepthSampler: the 1x1 R32F iris_centerDepthSmooth, eased toward the centre depth each frame at
+ * beginHand. It starts at zero, as Iris's unfilled texture reads.
  */
 final class PackCenterDepth implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -67,10 +63,7 @@ final class PackCenterDepth implements AutoCloseable {
         this.kernel = kernel;
     }
 
-    /**
-     * The smoothed centre depth when a program of {@code plan} reads it, else null. Without its kernel the
-     * image stays at zero, which every reader then gets.
-     */
+    /** The smoothed centre depth when a program of {@code plan} reads it, else null; without a kernel it stays zero. */
     static PackCenterDepth create(PackPlan plan) {
         if (plan == null || plan.resources().bindings().values().stream().flatMap(Collection::stream)
                 .map(PackResourceBinding::kind).noneMatch(PackResourceKind.CENTER_DEPTH::equals)) {
@@ -102,12 +95,8 @@ final class PackCenterDepth implements AutoCloseable {
     }
 
     /**
-     * The decay rate per second as a GLSL literal: the gap to the centre depth halves every {@code halfLife}
-     * tenths of a second, at any frame rate.
-     *
-     * A half-life of zero divides to infinity, which would make the kernel's {@code -DECAY * frameTime} a NaN
-     * on a frame of zero time. The largest float takes the new depth whole on any other frame and keeps the
-     * value on that one, as {@code -MAX * 0} is {@code -0}.
+     * The decay rate per second as a GLSL literal; the gap halves every {@code halfLife} tenths of a second.
+     * A zero half-life uses the largest float, as infinity times a zero frameTime would be NaN.
      */
     static String decayLiteral(float halfLife) {
         float decay = (float) (Math.log(2.0) / (halfLife * 0.1));

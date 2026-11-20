@@ -13,19 +13,15 @@ import java.util.TreeSet;
 import java.util.stream.Stream;
 
 /**
- * The GPU pack GLSL compiles for: its identity, which a GL driver reports as GL_VENDOR and GL_RENDERER, and
- * what the logical device was created with, which bounds the SPIR-V a pipeline may be built from
- * ({@link #missing}). A GL driver refuses a stage that needs what it lacks when it compiles the stage; a Vulkan
- * driver handed such a module can crash instead.
+ * The GPU pack GLSL compiles for, and what its logical device was created with ({@link #missing}). A GL driver
+ * refuses a stage that needs what it lacks; a Vulkan driver handed such a module can crash instead.
  *
- * In game it is the device VulkanMod created (ChimeraDeviceFeaturesMixin). Before that, and offline in tests
- * and tools, it is the {@code chimera.device} profile: nvidia, the default, or amd, each recorded from a real
- * driver, or intel, typical of an Arc GPU on Intel's Windows driver.
+ * In game it is the device VulkanMod created. Before that, and offline, it is the {@code chimera.device}
+ * profile: nvidia (the default) or amd, recorded from real drivers, or intel, typical of Arc on Windows.
  *
  * @param features the Vulkan features enabled, by their VkPhysicalDevice*Features member names
  * @param subgroupStages VkPhysicalDeviceSubgroupProperties.supportedStages
  * @param subgroupOperations VkPhysicalDeviceSubgroupProperties.supportedOperations
- * @param extensions the device extensions enabled
  */
 public record PackDevice(String profile, int vendorId, int driverId, String name, SortedSet<String> features,
                          int subgroupStages, int subgroupOperations, SortedSet<String> extensions) {
@@ -68,10 +64,8 @@ public record PackDevice(String profile, int vendorId, int driverId, String name
             "shaderSubgroupExtendedTypes", "subgroupBroadcastDynamicId", "shaderBufferInt64Atomics",
             "shaderSharedInt64Atomics");
     /**
-     * Device extensions pack GLSL compiles to that need no feature struct: RenderPearl's
-     * GL_AMD_shader_trinary_minmax, Alpha Piscium's GL_NV_shader_subgroup_partitioned, and GLSL 4.60's
-     * anyInvocation, allInvocations and allInvocationsEqual, which RenderPearl calls without
-     * GL_KHR_shader_subgroup.
+     * Device extensions pack GLSL compiles to that need no feature struct; subgroup_vote serves GLSL 4.60's
+     * anyInvocation family, which packs call without GL_KHR_shader_subgroup.
      */
     public static final List<String> PACK_EXTENSIONS = List.of("VK_AMD_shader_trinary_minmax",
             "VK_NV_shader_subgroup_partitioned", "VK_EXT_shader_subgroup_vote");
@@ -150,18 +144,14 @@ public record PackDevice(String profile, int vendorId, int driverId, String name
                 features.contains("shaderInt64"));
     }
 
-    /**
-     * Whether the device serves GL_AMD_shader_trinary_minmax natively; without it GlslVendorExtensions compiles
-     * the extension's functions as min and max.
-     */
+    /** Whether the device serves GL_AMD_shader_trinary_minmax natively; else its functions compile as min and max. */
     public boolean trinaryMinmax() {
         return extensions.contains("VK_AMD_shader_trinary_minmax");
     }
 
     /**
-     * What a module for {@code stage}, a STAGE_* bit, needs that the device was created without: its device
-     * extensions, the features its capabilities need, and its subgroup operations, which the device runs in the
-     * stages it names. Empty when the device can run it.
+     * What a module for {@code stage}, a STAGE_* bit, needs that the device was created without; empty when the
+     * device can run it. Subgroup operations count only in the stages the device names.
      */
     public List<String> missing(SpirvDeviceRequirements.Requirements module, int stage) {
         List<String> result = new ArrayList<>();

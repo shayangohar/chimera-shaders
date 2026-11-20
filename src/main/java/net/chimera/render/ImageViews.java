@@ -69,9 +69,7 @@ final class ImageViews {
 
     /**
      * A depth-only view of a shadow depth image that samples as R, R, R, 1, as Iris swizzles its shadowtex
-     * textures (ShadowRenderer.configureDepthSampler, for packs that read the depth from z): a read without depth
-     * compare finds the depth in every colour channel. A depth compare happens before the swizzle, so its result
-     * still comes back in R.
+     * textures; a depth compare happens before the swizzle, so its result still comes back in R.
      */
     static long shadowDepth(VulkanImage image) {
         return create(Vulkan.getVkDevice(), image.getId(), VK_IMAGE_VIEW_TYPE_2D, image.format,

@@ -3,14 +3,9 @@
 package net.chimera.render.vertex;
 
 /**
- * Packs a terrain quad's texture tangent into the spare fourth byte of its normal word, so the modern terrain
- * format keeps its stride.
- *
- * The tangent lies in the face plane, so it is one angle around the normal from the reference the terrain
- * shader builds ({@code cross(axis, N)}, axis +Y, or +X on up and down faces), plus Iris's handedness. The
- * byte is {@code handedness * (1 + step)} with 64 steps per turn: block faces land on exact quarter turns,
- * rotated models within 2.9 degrees. Zero means no quad tangent, which the shader reads as the reference
- * itself with handedness +1.
+ * Packs a terrain quad's tangent into the spare fourth byte of its normal word, as an angle around the normal
+ * from the shader's reference {@code cross(axis, N)} (axis +Y, or +X on up and down faces). The byte is
+ * {@code handedness * (1 + step)} with 64 steps per turn; zero reads as the reference with handedness +1.
  */
 public final class TerrainTangentCodec {
     public static final int STEPS = 64;
@@ -18,7 +13,6 @@ public final class TerrainTangentCodec {
 
     private TerrainTangentCodec() {}
 
-    /** The normal word with its fourth byte replaced by the encoded tangent frame. */
     public static int encode(int packedNormal, int packedTangent) {
         float[] frame = frame(packedNormal);
         int base = packedNormal & 0x00FFFFFF;
@@ -35,7 +29,7 @@ public final class TerrainTangentCodec {
         return base | (((handedness * (1 + step)) & 0xFF) << 24);
     }
 
-    /** Decodes as the terrain shader does: xyz tangent and handedness w. */
+    /** As the terrain shader decodes it. */
     public static float[] decode(int word) {
         float[] frame = frame(word);
         if (frame == null) return new float[] {1.0f, 0.0f, 0.0f, 1.0f};

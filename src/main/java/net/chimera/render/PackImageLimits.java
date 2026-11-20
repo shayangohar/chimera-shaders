@@ -5,9 +5,8 @@ package net.chimera.render;
 import net.vulkanmod.vulkan.device.DeviceManager;
 
 /**
- * The largest image a pack may make: the device's maxImageDimension1D, 2D or 3D. Iris leaves the
- * size of a pack texture or image to the driver; Vulkan has no defined result past these limits, so
- * Chimera refuses there and nowhere sooner.
+ * The largest image a pack may make, the device's maxImageDimension. Iris leaves the size to the driver, so
+ * Chimera refuses only past these limits, where Vulkan has no defined result.
  */
 final class PackImageLimits {
     private PackImageLimits() {

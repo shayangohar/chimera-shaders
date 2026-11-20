@@ -23,8 +23,8 @@ final class TerrainLayerWindows {
     }
 
     /**
-     * Opens a terrain layer's pack window. Terrain writing only colortex0 stays on the live HDR render pass,
-     * which the post graph reads as colortex0; terrain with more outputs gets a geometry window over them.
+     * Terrain writing only colortex0 stays on the live HDR render pass, which the post graph reads as colortex0;
+     * more outputs get a geometry window.
      */
     public void beginTerrainLayerWindow(TerrainRenderType renderType) {
         if (suspendTranslucentWithoutInputs(renderType)) {
@@ -62,8 +62,8 @@ final class TerrainLayerWindows {
     }
 
     /**
-     * Hands the translucent layer to the fixed pipeline when the water program's inputs are not
-     * live this frame. True when it did, so the layer opens no pack window.
+     * Hands the translucent layer to the fixed pipeline, so the water program never binds a stale or missing
+     * image. True when it did.
      */
     private boolean suspendTranslucentWithoutInputs(TerrainRenderType renderType) {
         if (renderType != TerrainRenderType.TRANSLUCENT || pass.shadowPass.shadowPassActive
@@ -71,7 +71,6 @@ final class TerrainLayerWindows {
                 || pass.images.packTranslucentInputsReady(pass.pipelines.waterRoute)) {
             return false;
         }
-        // the fixed pipeline draws this layer, so the pack program never binds a stale or missing image
         ChimeraTerrainPipelines.suspendTranslucentOverride(true);
         pass.packTranslucentSuspended = true;
         if (!pass.session.packTranslucentSuspendLogged) {
@@ -81,7 +80,6 @@ final class TerrainLayerWindows {
         return true;
     }
 
-    /** Closes a terrain layer's pack window, committing a geometry window's targets. */
     public void endTerrainLayerWindow(TerrainRenderType renderType) {
         if (pass.shadowPass.shadowPassActive) return;
         pass.depth.markWorldDrawn();

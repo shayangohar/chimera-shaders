@@ -39,11 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongConsumer;
 
 /**
- * Compiles every program a pack plan would install, through the runtime's preparation
- * ({@link PackPipelines#prepare}) and compiler ({@link GlslCompiler}), so a converter defect shows
- * up offline instead of as a failed pipeline in game.
- *
- * Failing sources are written to build/pack-report/ for inspection. PackReportTool and CorpusChecks use it.
+ * Compiles every program a pack plan would install, as the runtime prepares and compiles it, so a converter
+ * defect shows up offline. Failing sources go to build/pack-report/.
  */
 @Tag("packs")
 final class PackCompileTest {
@@ -113,10 +110,7 @@ final class PackCompileTest {
         return new Result(compiled, List.copyOf(failures), List.copyOf(passComputes));
     }
 
-    /**
-     * Translates every pass compute the plan runs as the runtime does, compiles it and checks its
-     * value block; returns how many compiled.
-     */
+    /** Translates and compiles every pass compute the plan runs, checking its value block; returns the count. */
     static int compilePassComputes(Path pack, Path shadersDir, PackPlan plan, List<String> failures,
                                    List<String> compiledNames, ConvertedOutputSnapshot snapshot) {
         int compiled = 0;
@@ -182,9 +176,8 @@ final class PackCompileTest {
             PackPipelines.PreparedPipeline prepared;
             try {
                 prepared = PackPipelines.prepare(program, resources, stage, vertex);
-                // the runtime checks the whole descriptor set of a post or shadow program, or of one with
-                // stages between vertex and fragment, before creating it (PackPipelines.buildPost,
-                // buildShadow, buildGeometry); a mismatch there stops the game
+                // the runtime checks these programs' whole descriptor set before creating them, and a
+                // mismatch there stops the game
                 if (stage == UniformRegistry.Stage.POST || FamilyAdapterRegistry.isShadowFamily(program.name())
                         || !prepared.between().present().isEmpty()) {
                     PackPipelines.prepareLayout(prepared, program.name(), resources);
@@ -224,9 +217,8 @@ final class PackCompileTest {
         }
 
         /**
-         * The vertex the runtime draws the program with (a family's own inputs, PackPipelines),
-         * Chimera's fixed vertex for a post or terrain program without one, else null: the runtime
-         * builds no pipeline for any other program without a vertex stage, where Iris writes a legacy one.
+         * The vertex the runtime draws the program with, or Chimera's fixed vertex for a post or terrain program
+         * without one; else null, as the runtime builds no pipeline for other programs without a vertex stage.
          */
         private String pairedVertex(PackProgramPlan program, UniformRegistry.Stage stage) {
             if (program.convertedVertex() != null) return PackPipelines.familyVertex(program);
@@ -237,10 +229,7 @@ final class PackCompileTest {
             return null;
         }
 
-        /**
-         * Compiles the host-layout input variants the runtime builds for the program's family; false when one
-         * fails.
-         */
+        /** Compiles the host-layout input variants the runtime builds for the family; false when one fails. */
         private boolean compileInputVariants(PackProgramPlan program, UniformRegistry.Stage stage) {
             String name = program.name();
             String vertex = program.convertedVertex();
@@ -301,11 +290,8 @@ final class PackCompileTest {
     }
 
     /**
-     * Compiles a compute source and checks that its value block reads each value at the byte
-     * offset dispatch writes it; returns the first error or disagreement, or null.
-     *
-     * Under implicit std140 packing a value declared after a vec3, such as Solas's frameCounter,
-     * takes the vec3's padding word.
+     * Compiles a compute source and checks its value block reads each value at the offset dispatch writes;
+     * returns the first error or disagreement, or null. Under std140 a value after a vec3 takes its padding word.
      */
     static String compileComputeValues(String source, String block, Map<String, Integer> written) {
         return compileComputeValues(source, block, written, null, null);
@@ -393,9 +379,8 @@ final class PackCompileTest {
     private record Outcome(String error, String spirvHash) {}
 
     /**
-     * Each distinct source compiles once per run, since OptionSweepTest prepares the same program
-     * source under most of its variants. The device is part of the key: a vendor extension compiles
-     * as its equivalent only with the device's sized types (GlslVendorExtensions).
+     * Each distinct source compiles once per run. The device is part of the key, as a vendor extension
+     * compiles as its equivalent only with the device's sized types.
      */
     private static final Map<String, Outcome> COMPILED = new ConcurrentHashMap<>();
 
@@ -416,10 +401,8 @@ final class PackCompileTest {
     }
 
     /**
-     * Compiles each kind as the runtime does (GlslCompiler). A graphics stage takes the optimizer
-     * HostPipelineLayout runs, and shaderc validates the module before it optimizes, so a stage the
-     * validator rejects fails here as in game; Noble's unwritten gl_FragDepth reads pass a plain
-     * compile. A compute takes no optimizer, as in ComputeKernel.
+     * Compiles each kind as the runtime does: a graphics stage takes the optimizer, whose validation rejects
+     * what a plain compile passes, and a compute takes none, as in ComputeKernel.
      */
     private static Compiled spirv(String source, int kind, String fileName) {
         LongConsumer configure = kind == Shaderc.shaderc_glsl_compute_shader ? options -> {} : GlslCompiler::optimize;
@@ -474,10 +457,7 @@ final class PackCompileTest {
         return rejected;
     }
 
-    /**
-     * The rejections a load reports in chat (SkippedPrograms), each with its reason. The runtime adds
-     * those it finds itself, such as a build failure.
-     */
+    /** The rejections a load reports in chat (SkippedPrograms), each with its reason; the runtime adds its own. */
     static List<String> toldSkips(PackProbe.Analysis analysis, Collection<String> rejected) {
         return rejected.stream()
                 .map(program -> analysis.report().program(program))
@@ -496,16 +476,14 @@ final class PackCompileTest {
     }
 
     /**
-     * Checks one pack for CorpusChecks. Every program the pack installs must compile, and the set its
-     * plan rejects must match the recorded admission baseline, since compiling only admitted programs
-     * cannot see a program the plan newly rejects.
+     * Checks one pack for CorpusChecks: every installed program must compile, and the rejected set must match
+     * the admission baseline, since compiling admitted programs alone cannot see a new rejection.
      *
-     * {@code -Pchimera.packCompile.updateAdmission=true} records the rejected set in {@code recorded}
-     * instead, for {@link #writeBaseline}. Every compiled shader must also match its converted-output
-     * baseline ({@link ConvertedOutputSnapshot}); {@code -Pchimera.snapshot.update=true} rewrites
-     * that, and {@code -Pchimera.snapshot.spirvOnly=true} compares SPIR-V alone.
-     * {@code -Pchimera.device=amd} or {@code intel} compiles for that GPU (PackDevice), whose vendor
-     * paths differ, against its own admission baseline and without converted output.
+     * {@code -Pchimera.packCompile.updateAdmission=true} records the rejected set in {@code recorded} instead.
+     * Every compiled shader must also match its converted-output baseline; {@code -Pchimera.snapshot.update=true}
+     * rewrites that, and {@code -Pchimera.snapshot.spirvOnly=true} compares SPIR-V alone.
+     * {@code -Pchimera.device=amd} or {@code intel} compiles for that GPU against its own admission baseline,
+     * with no converted-output check.
      */
     static void checkPack(Path pack, PackProbe.Analysis analysis, Map<String, TreeSet<String>> baseline,
                           Map<String, TreeSet<String>> recorded, List<String> failures) {

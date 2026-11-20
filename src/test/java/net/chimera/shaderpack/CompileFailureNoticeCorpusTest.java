@@ -19,9 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * RedHat v34.3.1 with DIRTY_LENS on declares lenscolor twice in final, and Iris refuses the pack
- * for it. Chimera skips final, and its notice's Copy Info names the error, the translated line and
- * the line the pack wrote. Runs in packTest when {@code -Pchimera.pack.extra=<pack>} names the RedHat zip.
+ * RedHat v34.3.1 with DIRTY_LENS on declares lenscolor twice in final, which Iris refuses; Chimera skips
+ * final and its notice names the line the pack wrote. Runs in packTest when
+ * {@code -Pchimera.pack.extra=<pack>} names the RedHat zip.
  */
 @Tag("packs")
 final class CompileFailureNoticeCorpusTest {

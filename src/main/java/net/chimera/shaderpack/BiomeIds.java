@@ -15,23 +15,17 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * The numbering behind both the {@code biome} input and the {@code BIOME_*} constants.
- *
- * An expression such as {@code in(biome, BIOME_GROVE)} only works when the constant and the value come from
- * the same table, so this class hands out both. Iris numbers the vanilla biomes in the order Minecraft's
- * {@code Biomes} registers them, from the_void 0 to end_barrens 63. Packs also write the numbers directly,
- * as Bliss does with {@code in(biome, 6, 52, 7)}.
- *
- * A biome outside the table, modded or from another namespace, reads {@link #UNKNOWN} as it does in Iris.
+ * One table for both the {@code biome} input and the {@code BIOME_*} constants, so they always agree. Iris
+ * numbers vanilla biomes in Biomes' registration order, and packs also write the numbers directly.
  */
 public final class BiomeIds {
     private static final String PREFIX = "BIOME_";
     private static final String VANILLA_NAMESPACE = "minecraft";
 
-    /** What a biome missing from Iris's map reads: Object2IntMap.getInt's default, also the_void's number. */
+    /** Object2IntMap.getInt's default in Iris, also the_void's number. */
     public static final int UNKNOWN = 0;
 
-    /** The vanilla 1.21.1 biomes in Biomes' registration order, which gives their numbers. */
+    /** In registration order, which gives their numbers. */
     private static final List<String> VANILLA = List.of(
             "the_void", "plains", "sunflower_plains", "snowy_plains", "ice_spikes", "desert", "swamp",
             "mangrove_swamp", "forest", "flower_forest", "birch_forest", "dark_forest",
@@ -46,37 +40,32 @@ public final class BiomeIds {
             "warped_forest", "crimson_forest", "soul_sand_valley", "basalt_deltas", "the_end",
             "end_highlands", "end_midlands", "small_end_islands", "end_barrens");
     /**
-     * Biomes from later versions that packs name, such as Complementary's BIOME_PALE_GARDEN. Iris 1.21.1 has
-     * no such constant and drops the uniform, which then reads 0. A number past the vanilla ones, which no
-     * 1.21.1 biome reads, gives the same 0 without refusing the program for an unknown name.
+     * Later biomes packs name. Iris 1.21.1 drops such a uniform, which reads 0; a number no 1.21.1 biome reads
+     * gives the same 0 without refusing the program.
      */
     private static final List<String> LATER = List.of("pale_garden");
 
     private static final Map<String, Integer> IDS = ids();
-    /** Iris's IrisDefines symbols: vanilla biome numbers, category ordinals and precipitation codes. */
+    /** Iris's IrisDefines symbols. */
     private static final Map<String, Integer> SYMBOLS = symbols();
     private static final PackExpression.Constants CONSTANTS = buildConstants();
     private static final Map<String, String> MACROS = buildMacros();
 
     private BiomeIds() {}
 
-    /** The {@code BIOME_*}, {@code CAT_*} and {@code PPT_*} symbols the packs write. */
     public static PackExpression.Constants constants() {
         return CONSTANTS;
     }
 
     /**
-     * The same symbols as preprocessor macros, which Iris defines in every shader and properties file it
-     * preprocesses (IrisDefines.createIrisReplacements).
-     *
-     * Only the 1.21.1 biomes are here: Iris has no BIOME_PALE_GARDEN macro, so a pack's {@code #ifdef} of it
-     * stays false.
+     * As Iris defines them in every file it preprocesses. Only 1.21.1 biomes, so an {@code #ifdef} of a later
+     * one stays false, as in Iris.
      */
     public static Map<String, String> macros() {
         return MACROS;
     }
 
-    /** The number for a biome key, or {@link #UNKNOWN} when no constant names it. */
+    /** {@link #UNKNOWN} when no constant names it, modded biomes included. */
     public static int id(ResourceLocation key) {
         if (key == null || !VANILLA_NAMESPACE.equals(key.getNamespace())) {
             return UNKNOWN;
@@ -97,18 +86,15 @@ public final class BiomeIds {
         return Map.copyOf(result);
     }
 
-    /**
-     * Iris's biome categories, in its {@code BiomeCategories} order: the {@code CAT_*} constants
-     * are these ordinals and {@code biome_category} answers one of them.
-     */
+    /** In Iris's {@code BiomeCategories} order; the {@code CAT_*} constants are these ordinals. */
     public enum Category {
         NONE, TAIGA, EXTREME_HILLS, JUNGLE, MESA, PLAINS, SAVANNA, ICY, THE_END, BEACH, FOREST,
         OCEAN, DESERT, RIVER, SWAMP, MUSHROOM, NETHER, MOUNTAIN, UNDERGROUND
     }
 
     /**
-     * Iris 1.21.1's {@code BiomeUniforms.getBiomeCategory} in the same order: the first tag a biome has picks
-     * its category. Iris never answers {@code SAVANNA} on this version.
+     * Iris 1.21.1's getBiomeCategory order: the first matching tag wins. Iris never answers {@code SAVANNA} on
+     * this version.
      */
     private static final List<Map.Entry<TagKey<Biome>, Category>> CATEGORY_TAGS = List.of(
             Map.entry(BiomeTags.WITHOUT_WANDERING_TRADER_SPAWNS, Category.NONE),
@@ -129,7 +115,7 @@ public final class BiomeIds {
             Map.entry(BiomeTags.WITHOUT_ZOMBIE_SIEGES, Category.MUSHROOM),
             Map.entry(BiomeTags.IS_MOUNTAIN, Category.MOUNTAIN));
 
-    /** A biome's category by {@link #CATEGORY_TAGS}, else {@code PLAINS}; {@code NONE} for no biome. */
+    /** {@code PLAINS} when no tag matches; {@code NONE} for no biome. */
     public static Category category(Holder<Biome> biome) {
         if (biome == null) return Category.NONE;
         for (Map.Entry<TagKey<Biome>, Category> tag : CATEGORY_TAGS) {
@@ -154,7 +140,7 @@ public final class BiomeIds {
         return Map.copyOf(result);
     }
 
-    /** Iris's symbols, and the later biomes an expression may name (see {@link #LATER}). */
+    /** Iris's symbols plus {@link #LATER}. */
     private static PackExpression.Constants buildConstants() {
         Map<String, Double> values = new TreeMap<>();
         SYMBOLS.forEach((name, value) -> values.put(name, (double) value));

@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Sorts shaders.properties keys against what Iris 1.21.1's ShaderProperties reads.
- *
- * A key Chimera applies is listed here and read elsewhere. A key only Iris reads is unsupported. A key neither
- * reads is unknown, and both ignore it.
+ * Sorts shaders.properties keys against what Iris 1.21.1's ShaderProperties reads. A key only Iris reads is
+ * unsupported; a key neither reads is unknown.
  */
 final class PackPropertyKeys {
     /** Prefixes Chimera reads: settings, resources, programs, directives and the option menu. */
@@ -19,13 +17,8 @@ final class PackPropertyKeys {
             "particles.");
 
     /**
-     * Keys Chimera reads: clouds (PackPlan), shadow.culling (ShadowCullingPlan), shadow.enabled (ShadowPassUse),
-     * the hand-light, terrain-shading, shadow-caster, sky, screen-overlay, weather and culling directives,
-     * separateEntityDraws (ParticleDirectives), supportsColorCorrection (PackSettingsPlan.preprocessorDefines)
-     * and the option menu's screen and sliders.
-     *
-     * A source const such as colortexNFormat or shadowMapResolution is not a key here; neither renderer reads it
-     * from this file.
+     * Keys Chimera reads by exact name. A source const such as shadowMapResolution is not a key here; neither
+     * renderer reads it from this file.
      */
     private static final Set<String> APPLIED_NAMES = Set.of(
             "clouds", "shadow.culling", "shadow.enabled", "oldHandLight", "oldLighting", "separateAo", "shadowTerrain",

@@ -9,12 +9,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The colour outputs of a geometry family's program, read from the same DRAWBUFFERS and RENDERTARGETS
- * directives as a post program's but outside the post execution order.
- *
- * {@code snapshotTargets} are outputs the program also samples. Iris lets a gbuffer program read the target
- * it draws into; Vulkan cannot sample an attachment inside its render pass, so the program reads a copy of
- * each, taken as its window opens.
+ * The colour outputs of a geometry family's program, from its DRAWBUFFERS or RENDERTARGETS directives.
+ * {@code snapshotTargets} are outputs the program also samples; Vulkan cannot sample an attachment inside its
+ * render pass, so the program reads a copy taken as its window opens.
  */
 public record GeometryOutputPlan(
         String programName,
@@ -50,9 +47,7 @@ public record GeometryOutputPlan(
         String text = source == null ? "" : source;
         List<List<Integer>> routes = routes(text);
         if (routes.size() > 1 && routes.stream().allMatch(route -> route != null && !route.isEmpty())) {
-            // the analysed source is already branch-resolved
-            // Iris takes the last route whatever the earlier ones say (CommentDirectiveParser,
-            // ProgramDirectives), as PostTargetPlan does; route length and shape never decide
+            // Iris takes the last route (CommentDirectiveParser); the source is already branch-resolved
             List<Integer> selected = routes.get(routes.size() - 1);
             String canonical = selected.stream().map(String::valueOf)
                     .reduce((left, right) -> left + "," + right).orElse("0");

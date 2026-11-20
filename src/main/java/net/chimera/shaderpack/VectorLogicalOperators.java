@@ -7,18 +7,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code ||} between boolean vectors, inside {@code any()}: Shrimple's parallax check (gbuffers_block,
- * POM displacement) reads {@code any(isnan(b[0]) || isinf(b[0]) || isnan(b[1]) || isinf(b[1]))}.
- *
- * NVIDIA's GL compiler takes {@code ||} and {@code &&} between vectors component-wise, so Iris
- * loads the pack. GLSL takes them on scalars only, and glslang refuses ("no operation '||' exists
- * that takes a left-hand operand of type ... 2-component vector of bool").
- *
- * {@code any} of a component-wise or is the or of each operand's {@code any}, and {@code all} of a
- * component-wise and is the and of each one's {@code all}, so the call moves onto each operand:
- * {@code (any(isnan(b[0])) || any(isinf(b[0])) || ...)}. Each operand must be a call to a built-in
- * that returns a boolean vector for a vector argument, so a source that glslang compiles as written
- * never matches. The operands have no side effects, so stopping at the first true one changes nothing.
+ * Distributes {@code any()} over {@code ||}, and {@code all()} over {@code &&}, between boolean vectors.
+ * NVIDIA's GL compiler takes these operators component-wise, so Iris loads such packs, but GLSL takes them on
+ * scalars only and glslang refuses them. Each operand must be a vector relation call, so a source glslang
+ * compiles as written never matches, and short-circuiting changes nothing as the operands have no side effects.
  */
 final class VectorLogicalOperators {
     private VectorLogicalOperators() {}

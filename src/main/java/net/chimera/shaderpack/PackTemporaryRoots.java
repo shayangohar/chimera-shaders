@@ -20,11 +20,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The temporary folders a pack is unpacked or copied into ({@code chimera-pack-*}).
- *
- * Each folder holds a lock file that this process keeps locked while the folder is in use. A game that crashes or
- * hits a driver fault at shutdown leaves its folder behind; the next start removes every such folder no running
- * game still holds.
+ * The temporary folders a pack is unpacked into ({@code chimera-pack-*}). Each holds a lock file while in use, so a
+ * later start can remove the ones a crashed game left behind.
  */
 public final class PackTemporaryRoots {
     static final String PREFIX = "chimera-pack-";

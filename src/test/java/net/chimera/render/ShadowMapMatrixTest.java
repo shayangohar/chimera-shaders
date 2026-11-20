@@ -35,9 +35,8 @@ final class ShadowMapMatrixTest {
     }
 
     /**
-     * A pack's shadowMapFov selects Iris's perspective shadow projection, written as
-     * ShadowMatrices.createPerspectiveMatrix writes it: ShadowMatrices' NEAR (-100.05) and FAR (156)
-     * planes, and 1 in the last column's w. Iris's own fov=90 test expects other planes.
+     * A pack's shadowMapFov selects Iris's perspective shadow projection, as
+     * ShadowMatrices.createPerspectiveMatrix writes it; Iris's own fov=90 test expects other planes.
      */
     @Test
     void shadowMapFovSelectsIrisPerspective() {
@@ -81,9 +80,8 @@ final class ShadowMapMatrixTest {
     }
 
     /**
-     * Iris snaps the shadow view to a grid so texels stay put in the world. Within one cell a
-     * camera move must leave every world point at the same shadow-space position; that is what
-     * keeps a glass pane's thin frame shadow from sliding and changing width as the player walks.
+     * Iris snaps the shadow view to a grid so texels stay put in the world: within one cell a camera
+     * move leaves every world point at the same shadow-space position.
      */
     @Test
     void gridSnapping() {
@@ -179,9 +177,9 @@ final class ShadowMapMatrixTest {
     }
 
     /**
-     * The fixed receiver may decode only a map the fixed caster wrote. After
-     * a pack-caster commit every receiver point lands outside the map, which
-     * chimera_terrain.fsh treats as lit; a host write restores the light MVP.
+     * The fixed receiver may decode only a map the fixed caster wrote. After a pack-caster commit every
+     * receiver point lands outside the map, which chimera_terrain.fsh treats as lit; a host write
+     * restores the light MVP.
      */
     @Test
     void fixedReceiverFollowsMapWriter() {

@@ -18,10 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
-/**
- * The per-program rules behind the conformance report: what each program's sources, plan and
- * targets deviate from, and the support status those deviations add up to.
- */
+/** The per-program rules behind the conformance report: each program's deviations and the status they add up to. */
 final class ProgramReportRules {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
@@ -31,9 +28,8 @@ final class ProgramReportRules {
     static final String REPORT_FAILED = "PROGRAM_REPORT_FAILED";
 
     /**
-     * A program's report row. When the rules throw, the row still names the program and why, and the rest of the
-     * report is built. Without the rules' verdict the runtime cannot know whether they would refuse the program, so
-     * the row skips it. PackCompileTest fails a pack on this deviation.
+     * A program's report row. When the rules throw, the row names the program and why, and the runtime skips it,
+     * having no verdict on whether the rules would refuse it.
      */
     static ConformanceReport.ProgramReport reportRow(
             PackProbe.Inventory inventory,
@@ -122,13 +118,9 @@ final class ProgramReportRules {
     }
 
     /**
-     * The sources a program's report reads, joined in stage-name order: a world folder program's prepared sources
-     * when it has them, else the authored ones.
-     *
-     * Advanced declarations are judged per stage, as each stage compiles alone and as the plan judges them, so an
-     * image each stage only declares is no use of it. A pass's own {@code <pass>.csh} beside its fragment is
-     * planned apart and dispatched before the program, as Iris's CompositeRenderer does, so the program's row
-     * leaves it out.
+     * The sources a program's report reads, joined in stage-name order: the prepared sources of a world folder
+     * program, else the authored ones. Advanced declarations are judged per stage, as each compiles alone. A pass's
+     * own {@code <pass>.csh} is planned apart, so the row leaves it out.
      */
     private record ReportSources(boolean relaxed, String source, String fragment, boolean advancedDeclarations) {
         static ReportSources of(PackProbe.Inventory inventory) {
@@ -204,9 +196,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * Whether Iris would run a stage of the program that Chimera does not: a geometry stage, or a tessellation
-     * stage the pack enables, that the plan did not convert, or a compute stage that is not a pass compute. A pass
-     * compute such as Noble's composite99.csh is planned and run apart from its pass's draw.
+     * Whether Iris would run a stage of the program that Chimera does not: an unconverted geometry or enabled
+     * tessellation stage, or a compute stage that is not a pass compute.
      */
     private static boolean runsUnsupportedStage(PackProbe.Inventory inventory, PackPlan packPlan,
                                                 PackProgramPlan programPlan) {
@@ -350,10 +341,7 @@ final class ProgramReportRules {
                 && (!needsVertex || inventory.stages.contains("vertex"));
     }
 
-    /**
-     * Whether the plan lets the program run: no plan judges it, the plan admits it, or it is an authored-empty
-     * cloud program, which the runtime installs as drawing nothing.
-     */
+    /** Whether the plan lets the program run; an authored-empty cloud program runs, drawing nothing. */
     static boolean planRuns(PackProgramPlan plan, PackPlan packPlan, String name) {
         return plan == null || plan.executable() || packPlan != null && packPlan.cloudRunsEmpty(name);
     }
@@ -404,8 +392,8 @@ final class ProgramReportRules {
     }
 
     /**
-     * The bridge as reported. A plan refused at admission never runs the entity, host-layout or particle bridges,
-     * so an unconverted vertex with no failed bridge recorded reports {@code <LANE>_VERTEX_BRIDGE_NOT_REACHED}.
+     * The bridge as reported. A plan refused at admission never runs its bridge, so an unconverted vertex with no
+     * failed bridge recorded reports {@code <LANE>_VERTEX_BRIDGE_NOT_REACHED}.
      */
     private static String reached(String bridge, boolean converted, PackProgramPlan plan) {
         boolean attempted = converted || plan.deviations().stream().anyMatch(deviation ->
@@ -479,7 +467,7 @@ final class ProgramReportRules {
         return label + (converted ? "_VERTEX_BRIDGE" : "_VERTEX_BRIDGE_UNSUPPORTED");
     }
 
-    /** A vertex stage no bridge serves: water draws on the fixed host vertex, shadow programs fail. */
+    /** A vertex stage no bridge serves: shadow programs fail, the rest draw on the fixed host vertex. */
     static String unbridgedVertex(String name, boolean hasVertex) {
         if (name.equals("gbuffers_water")) return "FIXED_VERTEX_SUBSTITUTION";
         if (FamilyAdapterRegistry.isShadowTerrain(name)) return "SHADOW_VERTEX_BRIDGE_UNSUPPORTED";
@@ -568,10 +556,7 @@ final class ProgramReportRules {
         return null;
     }
 
-    /**
-     * The row of {@code <pass>[_x].csh}, from its own translation. Iris runs it before the pass, or alone as a
-     * ComputeOnlyPass where the pass has no program.
-     */
+    /** The row of {@code <pass>[_x].csh}, from its own translation. */
     static ConformanceReport.ProgramReport passComputeProgram(PackProbe.Inventory inventory,
                                                              PassComputePlan.PassCompute compute) {
         TreeSet<String> deviations = new TreeSet<>(inventory.deviations);
@@ -606,10 +591,7 @@ final class ProgramReportRules {
                 List.copyOf(deviations));
     }
 
-    /**
-     * Whether the advanced resource plan serves every image and storage buffer the program uses. The runtime still
-     * checks the pipeline and its resources, so a build failure there still falls back.
-     */
+    /** Whether the advanced resource plan serves every image and storage buffer the program uses. */
     static boolean advancedResourcesArePlanned(String program, PackPlan packPlan) {
         if (packPlan == null || packPlan.advancedResources() == null) {
             return false;
@@ -647,12 +629,7 @@ final class ProgramReportRules {
         return executableName(name, inventory, false) ? null : "IRIS_DEFAULT_VERTEX_UNSUPPORTED";
     }
 
-    /**
-     * Why Chimera runs a world program in no lane. Iris draws it under no key of its own; or it is a begin program,
-     * which Iris's composite renderer runs and Chimera does not; or Iris draws it but Chimera routes none of those
-     * draws to it, as with the per-layer terrain and shadow programs and dh_*; or Iris never runs a program of that
-     * name, such as setup.fsh or a name that is no ProgramId.
-     */
+    /** Why Chimera runs a world program in no lane; begin programs run in Iris's composite renderer, not here. */
     private static String laneReason(String name) {
         if (IRIS_FALLBACK_SOURCES.contains(name)) return "IRIS_FALLBACK_SOURCE_ONLY";
         if (name.matches("begin\\d*")) return "PASS_PROGRAM_UNSUPPORTED:" + name;
@@ -735,9 +712,7 @@ final class ProgramReportRules {
 
     /**
      * The pack's target deviations that concern a target the program writes, and the integer targets whose mip
-     * chain it asks for. GL refuses glGenerateMipmap on a format it cannot filter, so under Iris that chain depends
-     * on the driver; Chimera downsamples it nearest. Colortex deviations never concern a route over the shadowcolor
-     * targets.
+     * chain it asks for; under Iris that chain depends on the driver, and Chimera downsamples it nearest.
      */
     static List<String> relevantTargetDeviations(PackConfig.PackConfigData config,
                                                  PostTargetPlan.ParseResult targetResult) {

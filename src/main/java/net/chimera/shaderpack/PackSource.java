@@ -61,15 +61,11 @@ public final class PackSource {
         private String selectedVariantFolder = "";
         private boolean closed;
         /**
-         * The game's mipmap level when this load began. Every analysis of the load prepares with it as
-         * {@code MC_MIPMAP_LEVEL}, since Iris's ShaderPack reads it once per pack load. The device macros are the
-         * only other outside input, and the device does not change while the game runs.
+         * The game's mipmap level when this load began; every analysis of the load prepares with it, as Iris's
+         * ShaderPack reads it once per pack load.
          */
         private final int mipmapLevel = PackEngineDefines.mipmapLevel();
-        /**
-         * Analyses of the dimensions this load selected. The load's options, sources and mipmap level never
-         * change, so an analysis holds for as long as the load does.
-         */
+        /** Analyses of the dimensions this load selected; the load's inputs never change, so each holds as long. */
         private final Map<String, AnalyzedDimension> analyzed = new LinkedHashMap<>(8, 0.75F, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<String, AnalyzedDimension> eldest) {
@@ -142,10 +138,8 @@ public final class PackSource {
         }
 
         /**
-         * Prepares the sources with these macros; locked names keep their values as {@code #define} lines.
-         *
-         * Preparing is the slowest step of a load, so it runs only for the folder a dimension selects, and not again
-         * for the same macros.
+         * Prepares the sources with these macros; locked names keep their values as {@code #define} lines. Preparing
+         * is the slowest step of a load, so it runs only for the selected folder, once per macro set.
          */
         public void prepare(Map<String, String> initialMacros, Set<String> lockedMacros) {
             if (!initialMacros.equals(this.preparedMacros) || !lockedMacros.equals(this.preparedLocked)) {
@@ -157,10 +151,8 @@ public final class PackSource {
         }
 
         /**
-         * The prepared programs of one source folder; null for a folder the pack does not have.
-         *
-         * Every folder starts from the same macros. Iris's StandardMacros predefines no dimension macro, so a pack's
-         * world0 files define OVERWORLD themselves, and code that tests it first reads it undefined.
+         * The prepared programs of one source folder; null for a folder the pack does not have. Every folder starts
+         * from the same macros, as Iris predefines no dimension macro.
          */
         private List<PackProgram> variant(String folder) {
             List<PackProgram> raw = rawVariants.get(folder);
@@ -596,10 +588,8 @@ public final class PackSource {
     }
 
     /**
-     * Preprocesses each geometry and tessellation stage file beside the fragment stage, with the same macros.
-     *
-     * These stages skip legacy normalisation, since GL gives them no compatibility varyings. PackProgram's
-     * runsBetweenStages decides whether one runs, so its deviations stay with its own prepared source.
+     * Preprocesses each geometry and tessellation stage file beside the fragment stage, with the same macros. These
+     * stages skip legacy normalisation, since GL gives them no compatibility varyings.
      */
     private static void prepareGeometryStages(PackProgram candidate, Path shadersRoot,
                                               Map<String, String> initialMacros, Set<String> lockedMacros,
@@ -840,7 +830,7 @@ public final class PackSource {
                 }
             }
         }
-        // a shaders folder at the root wins, as in Iris's walk of the zip; Pegasus keeps its includes in
+        // a shaders folder at the root wins, as in Iris's walk of the zip; a pack may keep includes in
         // shaders/shaders/, which also reads as a nested pack root
         if (candidates.contains("")) return "";
         return candidates.size() == 1 ? candidates.first() : null;

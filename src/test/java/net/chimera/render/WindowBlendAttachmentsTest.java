@@ -26,9 +26,8 @@ final class WindowBlendAttachmentsTest {
             VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_R16G16B16A16_UNORM};
 
     /**
-     * Kappa's gbuffers_water draws colortex1-4 with blend.gbuffers_water.colortex1, 2 and 4 off, and
-     * colortex3 under the translucent render type's own blend, as in Iris. The directive on
-     * attachment 0 must not reach colortex3, or stained glass overwrites the target and draws black.
+     * An attachment without a blend directive keeps the translucent render type's own blend, as in Iris;
+     * attachment 0's directive must not reach it, or stained glass draws black.
      */
     @Test
     void anAttachmentWithoutADirectiveKeepsTheHostBlend() {

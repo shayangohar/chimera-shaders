@@ -10,11 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A skip that changes nothing Iris would draw is expected and stays in debug.log; any other is reported
- * in chat. The labels are the ones the report gives the defaults of Complementary, BSL, Shrimple and
- * Photon, which skip only expected programs.
- */
+/** A skip that changes nothing Iris would draw stays in debug.log; any other is reported in chat. */
 final class SkippedProgramsTest {
     @Test
     void whatThePackOrIrisWouldNotRunIsExpected() {

@@ -5,18 +5,9 @@ package net.chimera.render;
 import java.util.List;
 
 /**
- * One animated material map in an atlas slot: its frame schedule, each frame's mip chain, and a ticker that
- * mirrors Minecraft's {@code SpriteContents.Ticker}, so the map keeps step with its atlas.
- *
- * The first schedule entry shows first. Each atlas tick adds one sub-frame; reaching the entry's time moves to
- * the next entry, wrapping, and restarts the count. A map redraws when the frame index changes, and an
- * interpolated map also redraws on every tick while the next entry shows a different frame. A redraw writes
- * every mip level from that frame's own level.
- *
- * Interpolation follows Sodium's {@code SpriteContentsInterpolationMixin}, which Iris runs with:
- * {@code ColorMixer.mix} on the colour channels, weighted by the current frame's {@code 1 - subFrame / time}
- * as a byte, and the current frame's alpha. Sodium's "animate only visible textures" is not mirrored, since a
- * map off screen changes nothing visible.
+ * One animated material map in an atlas slot, ticking as Minecraft's {@code SpriteContents.Ticker} does so the
+ * map keeps step with its atlas. Interpolation follows Sodium's {@code SpriteContentsInterpolationMixin}, which
+ * Iris runs with.
  */
 final class MaterialAnimation {
     /** Frame of the strip to show, and for how many ticks. */

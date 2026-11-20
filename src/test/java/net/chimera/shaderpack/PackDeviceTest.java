@@ -18,9 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * What a module needs that the device was created without. RenderPearl 2.8's NVIDIA path keeps a
- * float16_t in a storage buffer and runs f16 subgroup arithmetic; on a GPU without the features the
- * program is refused, as a GL driver would refuse it, and the driver never gets the module.
+ * What a module needs that the device was created without; such a program is refused, as a GL driver would
+ * refuse it, and the driver never gets the module.
  */
 final class PackDeviceTest {
     /** A device with every feature, every subgroup stage and operation, and the pack extensions. */

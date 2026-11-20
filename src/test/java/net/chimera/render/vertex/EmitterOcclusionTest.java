@@ -9,9 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A light-emitting block's light word under vanilla's ambient occlusion, read back through
- * VulkanMod's own unpacking: the shade brightness and the corners VulkanMod gives a non-emitter,
- * with every other field as VulkanMod computed it.
+ * A light-emitting block's light word under vanilla's ambient occlusion: the shade and corners
+ * VulkanMod gives a non-emitter, every other field as VulkanMod computed it.
  */
 final class EmitterOcclusionTest {
     /** Glowstone as VulkanMod words it: full, opaque, block light 15, ao 1 and no corners. */

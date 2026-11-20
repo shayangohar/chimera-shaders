@@ -21,13 +21,9 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
- * One pipeline's whole descriptor set: its uniform blocks, storage buffers, image descriptors and push
- * constants. Chimera owns it, so pack plans and Chimera's own pipeline configs never name a host renderer type.
- * HostPipelineLayout builds one host descriptor per entry, and the shaders are checked against
- * {@link #descriptorBindings()}.
+ * One pipeline's whole descriptor set, in Chimera's own types so plans never name a host renderer type.
  *
- * @param pushConstants the push-constant block, or null when the pipeline declares none; a config that lists
- *                      an empty "PushConstants" array still has a block with no fields
+ * @param pushConstants null when the pipeline declares none; an empty "PushConstants" array still makes a block
  */
 public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<StorageBuffer> storageBuffers,
                                    List<ImageSlot> images, UniformBlock pushConstants) {
@@ -73,10 +69,7 @@ public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<Storag
         STORAGE
     }
 
-    /**
-     * An image descriptor: binding, GLSL type such as sampler2D or image3D, name, texture slot and access.
-     * {@code viewFormat} is the Vulkan format a storage image is read through when not its own, else 0.
-     */
+    /** An image descriptor; {@code viewFormat} is a storage image's view format when not its own, else 0. */
     public record ImageSlot(int binding, String type, String name, int textureSlot, ImageAccess access,
                             int viewFormat) {
         /** A sampled image in the shader-read layout. */
@@ -104,9 +97,8 @@ public record PackDescriptorLayout(List<UniformBlock> uniformBlocks, List<Storag
     }
 
     /**
-     * Every descriptor as the shader and binding checks see it: its Vulkan type, stages and the identity of the
-     * resource it carries, which is a uniform block's binding, a storage buffer's index, or the texture slot an
-     * image named Sampler&lt;slot&gt; reads.
+     * Every descriptor as the shader and binding checks see it. A resource's identity is a block's binding, a
+     * buffer's index, or the texture slot an image named Sampler&lt;slot&gt; reads.
      */
     public List<PackAdvancedResourcePlan.DescriptorBinding> descriptorBindings() {
         List<PackAdvancedResourcePlan.DescriptorBinding> bindings = new ArrayList<>();

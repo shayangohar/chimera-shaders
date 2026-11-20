@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Lossless tree check, run per pack by CorpusChecks: every prepared stage of the corpus packs parses
- * and prints back byte for byte. So does each converted shader, which adds the Vulkan forms (uniform
- * blocks, binding layouts) the prepared sources rarely use.
+ * Lossless tree check, run per pack by CorpusChecks: every prepared stage and converted shader of the
+ * corpus packs parses and prints back byte for byte.
  */
 final class GlslTreeCorpusTest {
     private GlslTreeCorpusTest() {}

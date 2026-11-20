@@ -9,37 +9,27 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * What a world program's stages between the vertex and fragment stages share, its tessellation
- * stages (TessellationStageBridge) and its geometry stage (GeometryStageBridge.convertWorld)
- * alike: the legacy built-ins and samplers they read, served as the vertex stage serves them; the
- * preamble declaring the host blocks and pack uniforms they read; and, for a hand program, the
- * values the entity vertex bridge adds to the vertex stage's outputs for the fragment stage, which
- * they pass on ({@link PassedOn}).
+ * What a world program's tessellation and geometry stages share, served as its vertex stage is
+ * served. A hand program's entity bridge values pass through them ({@link PassedOn}).
  */
 final class WorldBetweenStages {
     private WorldBetweenStages() {}
 
     /**
-     * A stage's legacy built-ins served once its interface is located: a {@code hand} stage reads its
-     * draw's own matrices (GlslVertexPreambles.handMatrixBuiltins), a terrain stage the host's in GL's
-     * clip range; then the texture matrix, the pack's samplers and its texture calls.
+     * A stage's legacy built-ins, once its interface is located: a {@code hand} stage reads its draw's
+     * own matrices, a terrain stage the host's in GL's clip range.
      */
     static String builtins(String converted, UniformRegistry.ProgramInterface plan, boolean hand) {
         String result = GlslTokenRewriter.replaceIdentifiers(converted, hand ? GlslVertexPreambles.handMatrixBuiltins()
                 : WorldClipRange.GL.builtins(GlslVertexPreambles.terrainMatrixBuiltins()));
-        // Iris gives the hand the draw's texture matrix (iris_TextureMat), as its vertex stage reads it
+        // the hand reads its draw's texture matrix, as in Iris (iris_TextureMat)
         result = LegacyGlslConverter.replaceLightmapTextureMatrices(result)
                 .replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*0\\s*\\]", hand ? "TextureMat" : "mat4(1.0)");
         result = TerrainVertexBridge.rewriteModernTerrainSamplers(result, plan, false);
         return LegacyGlslConverter.convertTextureCalls(result);
     }
 
-    /**
-     * What a {@code converted} stage needs above it: its version, the render-stage defines, the host
-     * blocks it reads matrices from and the pack's uniforms. A terrain stage declares the terrain
-     * view block where it reads MVP, and the terrain uniform block; a {@code hand} stage the host's
-     * transform and projection blocks and the entity family's block, each where it reads them.
-     */
+    /** What a {@code converted} stage needs above it, each host matrix block only where the stage reads it. */
     static String preamble(String converted, UniformRegistry.ProgramInterface plan, boolean hand) {
         String host = hand ? handHostBlocks(converted)
                 : GlslTokenRewriter.containsIdentifier(converted, "MVP") ? GlslVertexPreambles.TERRAIN_VIEW_BLOCK : "";
@@ -49,7 +39,7 @@ final class WorldBetweenStages {
         return "#version 460\n" + FragmentConverter.SHADOW_RENDER_STAGE_DEFINES + host + uniforms;
     }
 
-    /** The host's transform and projection blocks a hand stage reads its draw's matrices from, each where read. */
+    /** The host blocks a hand stage reads its draw's matrices from, each only where read. */
     private static String handHostBlocks(String converted) {
         String blocks = GlslTokenRewriter.containsIdentifier(converted, "ModelViewMat")
                 || GlslTokenRewriter.containsIdentifier(converted, "TextureMat")
@@ -69,12 +59,9 @@ final class WorldBetweenStages {
     }
 
     /**
-     * The values the entity vertex bridge adds to the vertex stage's outputs for the fragment stage,
-     * each with its type and qualifier, which a hand's tessellation or geometry stages pass on. The
-     * control stage copies each per vertex. The evaluation stage writes a smooth float as the pack's
-     * own values are, at the evaluated point. It writes any other value as the patch's first
-     * vertex's, as Iris reads iris_entityInfo[0]; a geometry stage writes each as the primitive's
-     * first vertex's.
+     * The entity vertex bridge's extra outputs, which a hand's tessellation or geometry stages pass on.
+     * The evaluation stage interpolates a smooth float value and takes any other from the patch's first
+     * vertex, as Iris reads iris_entityInfo[0]; a geometry stage takes each from the first vertex.
      */
     record PassedOn(Map<String, String> types, Map<String, String> qualifiers) {
         static final PassedOn NONE = new PassedOn(Map.of(), Map.of());
@@ -97,10 +84,7 @@ final class WorldBetweenStages {
             return new PassedOn(types, qualifiers);
         }
 
-        /**
-         * The fragment stage's inputs located from the last stage's {@code producer} outputs, then
-         * each value after the producer's own slots, under the vertex stage's name.
-         */
+        /** The fragment stage's inputs located from {@code producer}'s outputs, each value after its own slots. */
         LegacyGlslConverter.TerrainVaryingLayout outputLayout(String producer, String fragment) {
             String reads = LegacyGlslConverter.expandModernVaryingLists(
                     TerrainVertexBridge.normalizedFragment(fragment, false));

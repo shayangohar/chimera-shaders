@@ -13,18 +13,13 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * A vanilla render type drawn by a pack family lane. It keeps the vanilla type's state and ordering flags,
- * writes the lane's widened format, and draws inside the lane's draw window: its setupRenderState opens the
- * draw once vanilla's state, and with it the shader, is set, in the Iris rendering phase of the context that
- * wrote it.
- *
- * {@link FamilyBufferSource} keeps one instance per lane, phase and type.
+ * A vanilla render type drawn by a pack family lane in the lane's widened format. Its setupRenderState opens the
+ * lane's draw once vanilla has set the shader, in the Iris phase that wrote the batch.
  */
 public final class FamilyRenderType extends RenderType {
     private final Family family;
     private final PackRenderingPhase phase;
     private final RenderType host;
-    /** The host type's transparency, which orders the batch's draw as Iris orders its batches. */
     private final IrisTransparency transparency;
     /** The FamilyBufferSource flush that last drew this type. */
     private long lastDrawn;
@@ -71,9 +66,8 @@ public final class FamilyRenderType extends RenderType {
     }
 
     /**
-     * RenderType.draw has no finally, so a draw that throws between setup and clear would leave the family
-     * draw open and every later ShaderInstance draw would get this family's pipeline. The shadow pass catches
-     * its casters' failures and carries on, so the draw closes here whatever happens.
+     * RenderType.draw has no finally, and the shadow pass carries on after a caster throws, so an open family
+     * draw would leak its pipeline to every later draw.
      */
     @Override
     public void draw(MeshData mesh) {

@@ -67,11 +67,8 @@ import static org.lwjgl.vulkan.VK10.vkDestroyShaderModule;
 import static org.lwjgl.vulkan.VK10.vkUpdateDescriptorSets;
 
 /**
- * One compute pipeline and what it binds for each frame in flight: a descriptor set and a host-visible uniform
- * block. Values are written while a frame records, so a block shared across frames in flight could change under
- * an earlier frame's dispatch.
- *
- * Binding i has {@code descriptorTypes[i]}; the uniform block, when there is one, takes the binding after them.
+ * One compute pipeline with a descriptor set and uniform block per frame in flight, since values written while
+ * a frame records could change under an earlier frame's dispatch. The uniform block takes the last binding.
  */
 final class ComputeKernel implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -122,9 +119,8 @@ final class ComputeKernel implements AutoCloseable {
     }
 
     /**
-     * Slots for every frame VulkanMod can have in flight. The kernel lives for the pack session, and the player
-     * can raise the frame queue size within it; slots sized to the count at build would then hand one slot to two
-     * frames still in flight, rewriting a set and block the other uses.
+     * Slots for the most frames VulkanMod can have in flight, since the player can raise the frame queue size
+     * while the kernel lives.
      */
     static int slotCount(int framesInFlight) {
         return Math.max(Math.max(1, framesInFlight), Config.MAX_FRAME_QUEUE_SIZE);
@@ -166,7 +162,7 @@ final class ComputeKernel implements AutoCloseable {
         }
     }
 
-    /** Points one storage-buffer binding of a frame slot's set at a whole buffer. */
+    /** Points one buffer binding of a frame slot's set, with its declared type, at a buffer from offset 0. */
     void writeBuffer(FrameSlot frame, int binding, long buffer, long range) {
         writeBuffer(frame, binding, descriptorTypes[binding], buffer, range);
     }

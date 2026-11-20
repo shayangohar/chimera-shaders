@@ -25,10 +25,7 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * What terrain programs read: legacy host vertex semantics, mid-block inputs, shading directives
- * and output targets, and which list a section's block entities join.
- */
+/** What terrain programs read, and which list a section's block entities join. */
 final class TerrainInputsTest {
     private static final String COMPILE_RESULT = "net/vulkanmod/render/chunk/build/task/CompileResult";
 
@@ -129,10 +126,8 @@ final class TerrainInputsTest {
     }
 
     /**
-     * Iris hands packs at_midBlock as four unnormalised signed bytes: the offset to the block's
-     * centre in 1/64 blocks, then its light emission. Solas voxelises each block at
-     * gl_Vertex + at_midBlock / 64.0, so an offset already divided by 64 would put blocks on voxel
-     * boundaries, where neighbours race into one voxel.
+     * Iris hands packs at_midBlock as four unnormalised signed bytes, the offset to the block's centre in 1/64
+     * blocks then its light emission; packs divide by 64 themselves.
      */
     @Test
     void midBlockInputs(@TempDir Path root) throws IOException {
@@ -176,10 +171,8 @@ final class TerrainInputsTest {
     }
 
     /**
-     * Iris reads oldLighting and separateAo, both off by default. Without oldLighting it meshes
-     * terrain and fluids unshaded: ClientLevel.getShade sees shaded = false. With separateAo it keeps
-     * the tint in RGB and carries the light pipeline's brightness in alpha, so a pack that applies
-     * that AO itself does not darken corners twice.
+     * Iris's oldLighting and separateAo, both off by default: without oldLighting terrain meshes unshaded, and
+     * separateAo carries the AO brightness in alpha so a pack that applies it does not darken corners twice.
      */
     @Test
     void terrainShadingDirectives() {
@@ -212,11 +205,7 @@ final class TerrainInputsTest {
                 "unexpected values keep Iris's defaults and are reported: " + malformed);
     }
 
-    /**
-     * Iris scales every block's shade brightness by the pack's ambientOcclusionLevel, as
-     * 1 - level * (1 - original) in BlockStateBase.getShadeBrightness. Spring and Alpha Piscium set
-     * level 0, Ebin 0.65.
-     */
+    /** Iris scales every block's shade brightness by ambientOcclusionLevel, as 1 - level * (1 - original). */
     @Test
     void ambientOcclusionLevel(@TempDir Path root) throws IOException {
         assertEquals(0.2F, TerrainShadingDirectives.VANILLA.shadeBrightness(0.2F), 1.0E-6F, "no pack keeps the shade");
@@ -290,9 +279,8 @@ final class TerrainInputsTest {
     }
 
     /**
-     * ChimeraGlobalBlockEntityMixin keeps an off-screen block entity out of its section's list. The
-     * add it wraps is the first after handleBlockEntity reads CompileResult.blockEntities, which must be
-     * that list's own add: the global list's field is not read in between.
+     * ChimeraGlobalBlockEntityMixin wraps the first add after handleBlockEntity reads
+     * CompileResult.blockEntities, which must be that list's own add.
      */
     @Test
     void theWrappedAddIsTheSectionListsOwn() throws IOException {

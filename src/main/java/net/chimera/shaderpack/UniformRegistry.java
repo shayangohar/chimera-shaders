@@ -14,23 +14,15 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * What a pack uniform is and which ones Chimera serves: the shared interface model for pack shader
- * declarations (stages, declarations, sampler bindings, descriptors, a program's interface), the
- * uniform catalog and its lookup, and the selector slot tables. InterfacePlanner plans a program's
- * interface against it.
- *
- * The probe, converter and pipeline builder all resolve pack names here, so their descriptor bindings and
- * compatibility decisions agree.
+ * What a pack uniform is and which ones Chimera serves, with the shared interface model and the selector slot
+ * tables. Every step from probe to pipeline builder resolves pack names here, so their bindings agree.
  */
 public final class UniformRegistry {
     /** Per-draw entity alpha-test reference, Chimera's counterpart of iris_currentAlphaTest. */
     public static final String ENTITY_ALPHA_REFERENCE = "chimeraAlphaTestRef";
     /** Vanilla Globals.GlintAlpha (glint strength), declared into glint programs before planning. */
     public static final String GLINT_ALPHA = "chimeraGlintAlpha";
-    /**
-     * Per-draw entityId of a host-layout lane, Chimera's counterpart of Iris's fallback entityId
-     * uniform: declared into host-layout programs in place of entityId before planning.
-     */
+    /** Per-draw entityId of a host-layout lane, declared in place of entityId before planning. */
     public static final String HOST_ENTITY_ID = "chimeraHostEntityId";
 
     // bindings of the transform blocks (DynamicTransforms, Projection) the converted preambles declare;
@@ -48,11 +40,7 @@ public final class UniformRegistry {
         GEOMETRY,
         /** Shadow programs on terrain inputs, without samplers that read the shadow map being drawn. */
         SHADOW,
-        /**
-         * shadow_entities on the shadow pass's entity lane: the shadow interface on the
-         * extended entity inputs, with entityId and blockEntityId per vertex (Iris
-         * SHADOW_ENTITIES_CUTOUT, EntityPatcher).
-         */
+        /** shadow_entities: the shadow interface on the entity inputs, with entity ids per vertex. */
         SHADOW_ENTITY,
         /** gbuffers_water on the host translucent terrain layer. */
         TRANSLUCENT,
@@ -267,8 +255,7 @@ public final class UniformRegistry {
             Map.entry("colortex3", 3),
             Map.entry("colortex8", SelectorNamespace.COLORTEX8_SLOT),
             Map.entry("shadowtex0", 5),
-            // shadowtex1 is its own image, the casters before translucent terrain, so every stage reads it
-            // on its own selector
+            // shadowtex1 is its own image, so every stage reads it on its own selector
             Map.entry("shadowtex1", SelectorNamespace.SHADOW_TEX1_SLOT),
             Map.entry("shadowcolor0", SelectorNamespace.SHADOW_COLOR0_SLOT),
             Map.entry("shadowcolor1", SelectorNamespace.SHADOW_COLOR1_SLOT),
@@ -414,11 +401,7 @@ public final class UniformRegistry {
         return unset != null || descriptor(name) == null ? unset : disabledDescriptor(name, glslType);
     }
 
-    /**
-     * The names the host answers for. A pack may not author a value under one of these, since it would
-     * replace a value the host owns. Every other name is the pack's own, VulkanMod's host names included,
-     * since Iris does not have them.
-     */
+    /** Whether the host owns {@code name}, so a pack may not author its value; HOST_ONLY names are the pack's. */
     public static boolean isEngineInput(String name) {
         return name != null && UNIFORM_SPECS.containsKey(name) && !HOST_ONLY.contains(name);
     }
@@ -433,23 +416,15 @@ public final class UniformRegistry {
             "ColorModulator", "LineWidth", "ChunkOffset", "EndPortalLayers", "screenSize");
 
     /**
-     * Names Iris 1.21.1 serves that Chimera does not. A program reading one must not run on a zero Iris
-     * would never give it.
-     *
-     * A world program's alphaTestRef becomes its alpha-test reference before planning (PackAlphaTestPlan).
-     * A post program reads whatever the last world draw left in CapturedRenderingState, which has no
-     * equivalent here. The core-profile matrices and chunkOffset are absent on purpose: IrisCoreProfile
-     * serves them in the stages whose Iris transformer names them, and Iris sets them nowhere else.
+     * Names Iris serves that Chimera does not, so a program reading one must not run on a zero. A world program's
+     * alphaTestRef is rewritten before planning. The core-profile matrices and chunkOffset are left out on purpose:
+     * Iris sets them only where its transformers name them.
      */
     private static final Set<String> IRIS_UNSERVED = Set.of("alphaTestRef");
 
     /**
-     * Live values a fullscreen pass or compute dispatch cannot read.
-     *
-     * A pass's gtextureSize is the size of whatever texture the previous pass or world draw left on unit 0
-     * when Program.use updates the uniforms, before the pass binds its own samplers; nothing names that
-     * texture. fogMode, fogShape and blendFunc are served into a pass as constants
-     * (ServedUniforms.servePostValues, serveFogOff) and are refused only where that could not run.
+     * Live values a fullscreen pass or compute cannot read: gtextureSize names no texture there, and the rest are
+     * served as constants (ServedUniforms) where that can run.
      */
     private static final Set<String> POST_UNSERVED = Set.of("gtextureSize", "blendFunc", "fogMode", "fogShape");
 
@@ -476,10 +451,8 @@ public final class UniformRegistry {
     }
 
     /**
-     * A declared uniform Iris does not provide stays unset, so GL reads zero and the program still runs
-     * (Solas's {@code vxRenderDistance}, a Voxy value). Chimera serves the same zero: the source key names
-     * no value, so the frame state cannot answer for the name. A name Iris serves gets no descriptor here,
-     * so one Chimera lacks stays unsupported.
+     * A zero for a declared uniform Iris does not provide, as GL leaves it unset. A name Iris serves gets none, so
+     * one Chimera lacks stays unsupported.
      */
     static UniformDescriptor unsetDescriptor(String name, String glslType) {
         if (name == null || irisServes(name) || !SUPPORTED_TYPES.contains(glslType)) {
@@ -488,20 +461,15 @@ public final class UniformRegistry {
         return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "unset:" + name);
     }
 
-    /**
-     * A value Iris serves, declared with another type. Iris's {@code ProgramUniforms} logs "Wrong uniform
-     * type" and disables it, so the program runs and reads zero (Insanity's {@code uniform float
-     * worldTime}). The source key names no value, so the zero default is what is written.
-     */
+    /** A zero for a uniform declared with a type other than Iris's, which Iris disables ("Wrong uniform type"). */
     static UniformDescriptor disabledDescriptor(String name, String glslType) {
         if (name == null || !SUPPORTED_TYPES.contains(glslType)) return null;
         return new UniformDescriptor(name, List.of(glslType), Availability.DEFAULTED, "disabled:" + name);
     }
 
     /**
-     * The engine vectors and matrices the host serves to custom-value expressions component by
-     * component, so {@code eyeBrightness.y} or {@code gbufferModelViewInverse.2.1} resolves to
-     * something the host reads. A component of any other name is a declaration error, not a zero.
+     * Engine vectors and matrices whose components custom-value expressions may read, as {@code eyeBrightness.y};
+     * a component of any other name is a declaration error, not a zero.
      */
     private static final Set<String> COMPONENT_INPUTS = Set.of(
             "eyeBrightness", "eyeBrightnessSmooth", "atlasSize",
@@ -611,10 +579,8 @@ public final class UniformRegistry {
     }
 
     /**
-     * Pack colour targets a world program may sample (Iris binds them in every gbuffers stage), on the
-     * selectors post uses, so one target keeps one selector across the pack and PackSettingsPlan already
-     * reserves them. colortex0 to 3 would land on the host atlas, overlay, lightmap and shadowcolor0
-     * selectors, so they stay unmapped.
+     * Pack colour targets a world program may sample, on the selectors post uses, so one target keeps one selector
+     * across the pack. colortex0 to 3 would land on host selectors, so they stay unmapped.
      */
     static Integer gbufferColorInputSlot(String name) {
         Integer target = PackResourcePlan.targetIndex(name);
@@ -787,11 +753,7 @@ public final class UniformRegistry {
         addLive(specs, "renderStage", "int");
     }
 
-    /**
-     * The host's core-shader uniforms (MVP, the Fog block, ScreenSize and the rest), then Iris's fog
-     * uniforms and their iris_ forms, cloudTime, gtextureSize, blendFunc, the selected block's id and
-     * position, and screenSize.
-     */
+    /** The host's core-shader uniforms, then the Iris uniforms that read host draw state. */
     private static void addHostShaderUniforms(Map<String, UniformDescriptor> specs) {
         addLive(specs, "MVP", "mat4");
         addLive(specs, "ModelViewMat", "mat4");

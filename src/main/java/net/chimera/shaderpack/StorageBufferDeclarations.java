@@ -127,11 +127,7 @@ final class StorageBufferDeclarations {
                 relative ? scaleX : 0f, relative ? scaleY : 0f, status(deviations), deviations);
     }
 
-    /**
-     * A size below 1 switches the buffer off, as in Iris. Any larger byte count binds, since Iris's buffers
-     * take any size the driver does; the device's storage range and the allocation bound it
-     * (PackStorageBufferOwner), and the buffer is filled whole (VK_WHOLE_SIZE).
-     */
+    /** A size below 1 switches the buffer off, as in Iris; any larger size is left for the device to bound. */
     private static void checkSize(int index, long size, List<String> deviations) {
         if (size < 1L) deviations.add(DISABLED + index);
     }
@@ -156,8 +152,7 @@ final class StorageBufferDeclarations {
             List<StorageBlock> blocks = programBlocks(program, deviations);
             if (blocks.isEmpty()) continue;
             dependentPrograms.add(program.name());
-            // a structurally valid block makes the program a candidate before its final storage bindings exist
-            // final eligibility is decided after descriptor construction and shader conversion
+            // a valid block makes the program a candidate; final eligibility is decided after conversion
             eligiblePrograms.add(program.name());
             ProgramBlocks merged = ProgramBlocks.merge(blocks);
             int bindingBase = bindingBases.getOrDefault(program.name(), 0);
@@ -263,9 +258,8 @@ final class StorageBufferDeclarations {
     record BlockMatch(PackAdvancedResourcePlan.BufferSpec spec, boolean bindable, List<String> deviations) {}
 
     /**
-     * How a program's or pass compute's block meets the pack's bufferObject declarations: it binds
-     * when it names exactly one supported declaration and nothing in its own deviations
-     * (UNBINDABLE_PREFIXES) stops it.
+     * How a program's or pass compute's block meets the bufferObject declarations: it binds when it names exactly
+     * one supported declaration and no deviation of its own stops it.
      */
     static BlockMatch match(String program, StorageBlock block, Set<String> duplicateBlocks,
                             Map<Integer, PackAdvancedResourcePlan.BufferSpec> specs) {
@@ -277,7 +271,7 @@ final class StorageBufferDeclarations {
         return new BlockMatch(spec, bindable, local);
     }
 
-    /** A block's own deviations: its layout, a duplicate declaration, and how it matched a declaration. */
+    /** A block's own deviations. */
     private static List<String> blockDeviations(String program, StorageBlock block, Set<String> duplicateBlocks,
                                                 List<PackAdvancedResourcePlan.BufferSpec> matches) {
         List<String> local = new ArrayList<>();

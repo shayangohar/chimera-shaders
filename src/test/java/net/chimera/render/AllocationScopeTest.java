@@ -10,10 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * The hooks inside VulkanMod's image, view and pipeline allocation read an AllocationScope to tell
- * the allocation this thread opened from every other one, so its value lasts exactly one call.
- */
+/** VulkanMod's allocation hooks read AllocationScope to tell this thread's call apart, so it lasts one call. */
 final class AllocationScopeTest {
     @Test
     void aValueLastsOneCallOnOneThread() throws Exception {

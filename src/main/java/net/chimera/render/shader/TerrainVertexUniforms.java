@@ -7,19 +7,11 @@ import net.vulkanmod.vulkan.shader.Uniforms;
 import net.vulkanmod.vulkan.util.MappedBuffer;
 
 /**
- * The view-block values Chimera's terrain and shadow vertex shaders read beside MVP, served by name as the
- * host serves its own (chimera_terrain.json, chimera_shadow.json).
- *
- * {@value #CAMERA_FRACTION} is the fractional part of the camera position a terrain layer draws from.
- * VulkanMod rounds each chunk area's camera-relative origin (the ChunkOffset push constant) to float on its
- * own, so a corner two areas share would land a float step apart in each, leaving pixels along the seam with
- * no fragment. With this fraction the shaders recover each area's whole-block offset exactly and subtract the
- * one fraction last (GlslVertexPreambles.chimeraWorldPosition).
- *
- * {@value #TEXCOORD_SHRINK} is how far the shaders take back the step toward the quad's centre that
- * ChimeraExtVertexBuilder.encodeTexture adds, per axis of the block atlas: one 1/32768 step less one
- * rasteriser sub-texel, as Iris's u_TexCoordShrink. Every terrain coordinate then lands one sub-texel inside
- * its sprite, off the edge where a lookup could read the neighbouring sprite.
+ * Values Chimera's terrain and shadow vertex shaders read beside MVP. VulkanMod rounds each chunk area's ChunkOffset
+ * to float on its own, so a shared corner lands a float step apart in each and leaves seam pixels unfilled; with
+ * {@value #CAMERA_FRACTION} the shaders recover whole-block offsets exactly and subtract the fraction last.
+ * {@value #TEXCOORD_SHRINK} takes back encodeTexture's inward step less one sub-texel, as Iris's u_TexCoordShrink,
+ * so a lookup stays off the neighbouring sprite.
  */
 public final class TerrainVertexUniforms {
     public static final String CAMERA_FRACTION = "ChimeraCameraFraction";
@@ -31,14 +23,14 @@ public final class TerrainVertexUniforms {
 
     private TerrainVertexUniforms() {}
 
-    /** Serves both fields by name, before any pipeline that declares them is built. */
+    /** Must run before any pipeline that declares them is built. */
     public static void register() {
         subTexelBits = DeviceManager.deviceProperties.limits().subTexelPrecisionBits();
         Uniforms.vec4f_uniformMap.put(CAMERA_FRACTION, () -> FRACTION);
         Uniforms.vec4f_uniformMap.put(TEXCOORD_SHRINK, () -> SHRINK);
     }
 
-    /** Records the camera of the layer renderSectionLayer is about to draw, before it uploads the layer's UBOs. */
+    /** Called before renderSectionLayer uploads the layer's UBOs. */
     public static void update(double cameraX, double cameraY, double cameraZ) {
         FRACTION.putFloat(0, fraction(cameraX));
         FRACTION.putFloat(4, fraction(cameraY));
@@ -52,7 +44,7 @@ public final class TerrainVertexUniforms {
         return (float) (coordinate - Math.floor(coordinate));
     }
 
-    /** One coordinate step less one sub-texel of an atlas {@code size} texels across; a whole step for no atlas. */
+    /** A whole step for no atlas. */
     public static float texcoordShrink(int size, int subTexelBits) {
         return size <= 0 ? TEXCOORD_STEP : (float) (TEXCOORD_STEP - 1.0 / size / (1 << subTexelBits));
     }

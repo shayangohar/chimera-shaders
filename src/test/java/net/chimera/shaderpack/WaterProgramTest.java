@@ -21,12 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * gbuffers_water plans on the terrain contract: its uniforms come from the live catalog, it samples the
- * opaque depth and the pack colour targets Iris gives it, and it carries the pack alpha test.
- *
- * Deferred passes run before translucents, where depthtex0 is the opaque depth, and a world program's
- * depth reads reach the depth graph. Complementary's and BSL's gbuffers_water plan executable, compile
- * and build a complete descriptor manifest.
+ * gbuffers_water plans on the terrain contract, with the uniforms, opaque depth and pack colour targets Iris
+ * gives it. Deferred passes run before translucents, where depthtex0 is the opaque depth.
  */
 final class WaterProgramTest {
     private static final String WATER_FRAGMENT = """
@@ -152,9 +148,8 @@ final class WaterProgramTest {
     }
 
     /**
-     * Iris runs every deferred pass between opaque and translucent geometry,
-     * after beginHand has copied depthtex2. A deferred pass reading depthtex0
-     * or depthtex2 still belongs there; only composites move late.
+     * Iris runs every deferred pass between opaque and translucent geometry, after beginHand has copied
+     * depthtex2, so one reading depthtex0 or depthtex2 still belongs there; only composites move late.
      */
     @Test
     void deferredSchedule() {
@@ -245,11 +240,7 @@ final class WaterProgramTest {
                 .map(PackFrameSchedulePlan.PostStage::name).toList());
     }
 
-    /**
-     * Pack textures sample as their .mcmeta says (BSL's noise.png: blur=true).
-     * BSL differences neighbouring noise texels for water normals, so nearest
-     * sampling would make the surface blocky.
-     */
+    /** Pack textures sample as their .mcmeta says, or BSL's blurred noise would make its water normals blocky. */
     @Test
     void textureMcmeta(@TempDir Path dir) throws Exception {
         Path noise = dir.resolve("noise.png");
@@ -265,10 +256,8 @@ final class WaterProgramTest {
     }
 
     /**
-     * Water shading keys off the block id. BSL writes each id's block list on a
-     * backslash continuation line inside {@code #if MC_VERSION} tables, so the
-     * reader must join lines and evaluate the branches with the standard
-     * macros, or water resolves to -1 and renders as a plain translucent.
+     * Water shading keys off the block id, so block.properties continuation lines must join and branches
+     * evaluate with the standard macros, or water resolves to -1.
      */
     private static void verifyWaterMaterial(Path pack, PackProbe.Analysis analysis, String name) {
         int expected = name.equals("bsl") ? 20000 : 32000;
@@ -289,9 +278,8 @@ final class WaterProgramTest {
     }
 
     /**
-     * A locked override written as true/false, as Iris writes toggles. false must leave the macro
-     * undefined even though the source defines it; true must define a toggle the source leaves
-     * commented out. Declared options are edited into the sources instead (PackOptionStagingTest).
+     * A locked toggle override written as true or false, as Iris writes toggles: false undefines a macro the
+     * source defines and true defines one it leaves commented out.
      */
     @Test
     void lockedToggleOverrides() {
@@ -322,8 +310,7 @@ final class WaterProgramTest {
     }
 
     /**
-     * Iris blend directives: blend.<program> sets every buffer, and
-     * blend.<program>.<buffer> (colortexN or its alias) sets one. Buffers
+     * Iris blend directives: blend.<program> sets every buffer and blend.<program>.<buffer> sets one. Buffers
      * without a directive keep the host draw's blend (a null mode).
      */
     @Test
@@ -362,11 +349,8 @@ final class WaterProgramTest {
     }
 
     /**
-     * Complementary writes normals (colortex4) and reflection data
-     * (colortex8) from water with blending off; they must not be mixed with
-     * the opaque values underneath. Its program-wide water blend sits under
-     * DISTANT_HORIZONS, so the other buffers keep the host translucent blend.
-     * BSL declares no water blend.
+     * Complementary writes water normals and reflection data unblended, while its other buffers keep the host
+     * translucent blend; BSL declares no water blend.
      */
     private static void verifyRealPackBlend(PackProgramPlan water, String name) {
         List<Integer> targets = water.geometryOutputPlan().targetSlots();
@@ -387,10 +371,8 @@ final class WaterProgramTest {
     }
 
     /**
-     * Iris's shadowtex1 holds only the casters drawn before translucent
-     * terrain, so every program that reads it must bind its own image on its
-     * own selector, never shadowtex0's. Packs tint light through
-     * shadowcolor exactly where the two maps differ.
+     * Iris's shadowtex1 holds only the casters drawn before translucent terrain, so a program reading it binds
+     * its own image, never shadowtex0's.
      */
     private static void verifyShadowDepthSplit(PackProbe.Analysis analysis, String name) {
         int checked = 0;

@@ -13,12 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * gbufferModelView and gbufferModelViewInverse are the pack's uniforms in every world lane, as in
- * Iris. Ebin rebuilds positions through them, and an enchanted item in a frame draws its glint
- * with depth test EQUAL over the item: the two lanes must place each vertex bit for bit, so neither
- * computes its own inverse of ModelViewMat on the GPU. The same expression must also evaluate the
- * same in both programs, which GLSL promises only for an invariant position. A stage that projects
- * with the pack's gbufferProjection writes GL's clip range.
+ * gbufferModelView and its inverse are the pack's uniforms in every world lane, as in Iris: a glint drawn with
+ * depth test EQUAL over its item needs both lanes to place each vertex bit for bit, so neither inverts
+ * ModelViewMat on the GPU. A stage that projects with gbufferProjection writes GL's clip range.
  */
 final class WorldMatrixLaneTest {
     private static final String CONVERSION = "gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);";
@@ -62,9 +59,8 @@ final class WorldMatrixLaneTest {
             """;
 
     /**
-     * An item and its glint both write ftransform() on the same inputs, which NVIDIA can still place
-     * one ulp apart, speckling the glint. Every lane an item or its glint draws on declares its
-     * position invariant ahead of any use, the hand's glint included.
+     * NVIDIA can place an item and its glint one ulp apart even from the same ftransform(), so every lane an
+     * item or its glint draws on declares its position invariant, the hand's glint included.
      */
     @Test
     void itemAndGlintPositionsAreInvariant(@TempDir Path root) throws IOException {
@@ -103,10 +99,8 @@ final class WorldMatrixLaneTest {
     }
 
     /**
-     * A world stage that projects with the pack's gbufferProjection (Ebin's and Glimmer's
-     * gbuffers_main) writes GL's clip range and converts it once, after its authored entry point,
-     * with the host built-ins it reads taken into GL's range too. A stage that projects with
-     * ftransform() and reads no pack projection keeps the host's matrices and depth.
+     * A world stage that projects with gbufferProjection writes GL's clip range and converts it once, after its
+     * entry point, with the host built-ins it reads in GL's range too; one using only ftransform() keeps the host's.
      */
     @Test
     void packProjectionStages(@TempDir Path root) throws IOException {
@@ -180,10 +174,7 @@ final class WorldMatrixLaneTest {
         return count;
     }
 
-    /**
-     * RenderPearl's terrain clamps gl_ProjectionMatrix * view to the frustum and unprojects it with
-     * gbufferProjectionInverse alone: reading the inverse takes the stage into GL's range too.
-     */
+    /** Reading only gbufferProjectionInverse also takes a stage into GL's range. */
     @Test
     void anInverseProjectionStageRunsInGlRange(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -205,10 +196,9 @@ final class WorldMatrixLaneTest {
     }
 
     /**
-     * I Like Vanilla's isometric projection scales the view position by constants and reads no
-     * projection at all: its clip depth is GL's, as under Iris, and converts once, held glint too. A
-     * stage whose only projection is one host clip built-in keeps the host's range, a core-profile
-     * one too: IrisCoreProfile names its projectionMatrix gl_ProjectionMatrix before the range is read.
+     * A stage that projects itself without reading any projection writes GL's clip depth, as under Iris, and
+     * converts once. One whose only projection is a host clip built-in, core-profile names included, keeps
+     * the host's range.
      */
     @Test
     void aStageThatProjectsItselfRunsInGlRange(@TempDir Path root) throws IOException {

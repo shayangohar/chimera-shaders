@@ -10,14 +10,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The colour output locations a fragment module writes.
- *
- * A pack program can declare an output and, under the options in use, never write it: its RENDERTARGETS
- * names the buffer while the write sits in an inactive branch, or a shadow program writes shadowcolor0
- * alone. A Vulkan attachment the shader leaves unwritten receives undefined values. GL drivers leave such a
- * draw buffer as it was, and packs rely on that, so Chimera masks the colour writes of every attachment whose
- * location the module never stores to (GraphicsPipelineMrtMixin). An output array counts as written at every
- * location it spans.
+ * The colour output locations a fragment module writes. A Vulkan attachment the shader leaves unwritten receives
+ * undefined values, where GL leaves the draw buffer as it was and packs rely on that, so Chimera masks the colour
+ * writes of every location the module never stores to. An output array counts at every location it spans.
  */
 public final class SpirvOutputWrites {
     /** The answer when a module cannot be read: every location counts as written. */
@@ -60,7 +55,7 @@ public final class SpirvOutputWrites {
         return module.writtenMask();
     }
 
-    /** What one pass over a module learns: locations, output variables, the pointers into them, their writes. */
+    /** What one pass over a module learns about its outputs and their writes. */
     private static final class Module {
         private final Map<Integer, Integer> locations = new HashMap<>();
         private final Map<Integer, Integer> pointees = new HashMap<>();

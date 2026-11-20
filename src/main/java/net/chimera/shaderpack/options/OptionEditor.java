@@ -5,12 +5,8 @@ package net.chimera.shaderpack.options;
 import java.util.Map;
 
 /**
- * The option values the settings screen shows for a loaded pack, and the edits it makes.
- *
- * The screen works from the sources' defaults, the applied values the pack was built with, and the
- * pending view: the applied values with {@link PendingOptions} on top. Every edit goes to the queue,
- * and nothing reaches the pack before its next load. An option is modified while its pending value
- * differs from its applied one.
+ * The option values the settings screen shows for a loaded pack, and the edits it makes. Edits queue in
+ * {@link PendingOptions} and reach the pack only at its next load.
  */
 public final class OptionEditor {
     private final ShaderPackOptions pack;
@@ -41,10 +37,7 @@ public final class OptionEditor {
         pending.apply(PendingOptions.view());
     }
 
-    /**
-     * Whether the queue would change this option at the next load. A choice compares what its cell
-     * shows, so a pending value off the list, which shows the applied one, is not marked.
-     */
+    /** Whether the queue changes this option at the next load; an off-list pending choice is not marked. */
     public boolean modified(String name) {
         OptionSet.Declared<ShaderOption.Choice> choice = pack.options().choices().get(name);
         if (choice != null) return !applied.choiceOrDefault(name).equals(shownChoice(choice.option()));
@@ -78,10 +71,7 @@ public final class OptionEditor {
         return choice.values().indexOf(pending.choiceOrDefault(choice.name()));
     }
 
-    /**
-     * The value {@code step} places away from the pending one, wrapping around the list. An
-     * off-list value counts from the first entry.
-     */
+    /** The value {@code step} places from the pending one, wrapping; an off-list value counts from the first. */
     public String cycle(ShaderOption.Choice choice, int step) {
         int index = Math.max(0, choiceIndex(choice));
         return choice.values().get(Math.floorMod(index + step, choice.values().size()));
@@ -98,10 +88,7 @@ public final class OptionEditor {
         refresh();
     }
 
-    /**
-     * Replaces the settings with an imported file's: every option the pack runs away from its
-     * default goes back to it, then the file's values go on top. The result is pending.
-     */
+    /** Queues every changed option's default, then an imported file's values on top. */
     public void importValues(Map<String, String> file) {
         PendingOptions.clear();
         for (String name : applied.changes().keySet()) {

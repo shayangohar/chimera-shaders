@@ -10,22 +10,16 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Per-thread state GraphicsPipelineMrtMixin reads while VulkanMod creates a pipeline variant. VulkanMod
- * creates variants lazily inside a bound pass, so the pass's attachment formats and per-attachment pack
- * blends, and the output locations the fragment stage writes, must be in scope at that call.
+ * Per-thread state GraphicsPipelineMrtMixin reads while VulkanMod creates a pipeline variant. VulkanMod creates
+ * variants lazily inside a bound pass, so the pass's formats and blends must be in scope at that call.
  */
 public final class MrtPipelineContext {
     public static final int LOGICAL_LIMIT = 8;
 
-    /** Attachment formats plus per-attachment pack blend modes; a null mode keeps the host blend. */
+    /** A null blend mode keeps the host blend. */
     record Contract(int[] formats, PackBlendPlan.Mode[] blends) {}
 
-    /**
-     * This thread's contracts: the pass's ({@link #begin}), and, while VulkanMod creates one of a pipeline's
-     * variants ({@link #beginPipeline}), that pipeline's side. The side holds its registered contract, which
-     * stands in for the pass's during the creation, the output locations its fragment stage writes and its
-     * blends for VulkanMod's own render passes.
-     */
+    /** A pipeline's registered contract stands in for the pass's while its variant is created. */
     private record Scope(Contract pass, PipelineSide pipeline) {
         static final Scope EMPTY = new Scope(null, null);
 
@@ -46,52 +40,39 @@ public final class MrtPipelineContext {
         begin(formats, deviceMaxColorAttachments, null);
     }
 
-    /** Begins a pass's contract; {@code blends} may be null when every attachment keeps the host blend. */
+    /** {@code blends} may be null when every attachment keeps the host blend. */
     public static void begin(int[] formats, int deviceMaxColorAttachments, PackBlendPlan.Mode[] blends) {
         validate(formats, Math.min(LOGICAL_LIMIT, Math.max(0, deviceMaxColorAttachments)));
         SCOPE.set(new Scope(contract(formats, blends), SCOPE.get().pipeline()));
     }
 
-    /**
-     * Ends the contract and any pipeline-creation scope with it, so nothing outlives the pass.
-     * GraphicsPipelineMrtMixin closes each creation's scope in a finally, so a creation that throws restores
-     * the pass's contract before its next variant.
-     */
+    /** Ends any pipeline-creation scope too, so nothing outlives the pass. */
     public static void end() {
         SCOPE.remove();
     }
 
-    /** Keeps a pipeline's own attachment formats for the variants VulkanMod creates later. */
     public static void register(GraphicsPipeline pipeline, int[] formats) {
         register(pipeline, formats, null);
     }
 
-    /** Keeps a pipeline's own attachment formats and per-attachment pack blends for its later variants. */
+    /** Keeps a pipeline's own formats and blends for the variants VulkanMod creates later. */
     public static void register(GraphicsPipeline pipeline, int[] formats, PackBlendPlan.Mode[] blends) {
         if (pipeline == null) throw new IllegalArgumentException("pipeline is required");
         validate(formats, LOGICAL_LIMIT);
         PipelineSide.of(pipeline).contract = contract(formats, blends);
     }
 
-    /** Records the output locations {@code pipeline}'s fragment stage writes (SpirvOutputWrites). */
     public static void recordWrittenOutputs(GraphicsPipeline pipeline, int locations) {
         if (pipeline != null) PipelineSide.of(pipeline).writtenOutputs = locations;
     }
 
-    /**
-     * Keeps the pack blend modes for {@code pipeline}'s variants in VulkanMod's own render passes, one per
-     * attachment there; a null mode keeps the host blend, and all-null modes register nothing.
-     */
+    /** Blends for the pipeline's variants in VulkanMod's own render passes; all-null modes register nothing. */
     public static void registerHostPassBlends(GraphicsPipeline pipeline, PackBlendPlan.Mode[] blends) {
         if (pipeline == null || blends == null || Arrays.stream(blends).allMatch(Objects::isNull)) return;
         PipelineSide.of(pipeline).hostPassBlends = blends.clone();
     }
 
-    /**
-     * Opens the creation scope of one of {@code pipeline}'s variants at
-     * GraphicsPipeline.createGraphicsPipeline. The caller ends it with {@link #endPipeline} however the
-     * creation ends.
-     */
+    /** The caller ends it with {@link #endPipeline} however the creation ends. */
     public static void beginPipeline(GraphicsPipeline pipeline) {
         beginPipeline(pipeline == null ? null : PipelineSide.of(pipeline));
     }
@@ -100,7 +81,6 @@ public final class MrtPipelineContext {
         SCOPE.set(new Scope(SCOPE.get().pass(), side));
     }
 
-    /** Closes the creation scope, so the pass's contract applies again. */
     public static void endPipeline() {
         Contract pass = SCOPE.get().pass();
         if (pass == null) SCOPE.remove();
@@ -112,22 +92,18 @@ public final class MrtPipelineContext {
         return contract == null ? null : contract.formats().clone();
     }
 
-    /** Per-attachment pack blend modes, or null when every attachment keeps the host blend. */
+    /** Null when every attachment keeps the host blend. */
     public static PackBlendPlan.Mode[] attachmentBlends() {
         Contract contract = SCOPE.get().contract();
         return contract == null || contract.blends() == null ? null : contract.blends().clone();
     }
 
-    /** The pack blend modes for the pipeline being created in a VulkanMod render pass, or null. */
     public static PackBlendPlan.Mode[] hostPassBlends() {
         PipelineSide side = SCOPE.get().pipeline();
         return side == null || side.hostPassBlends == null ? null : side.hostPassBlends.clone();
     }
 
-    /**
-     * A bit per output location the pipeline being created writes, or SpirvOutputWrites.ALL when that is not
-     * recorded (Chimera's own pipelines and VulkanMod's).
-     */
+    /** A bit per written output location; SpirvOutputWrites.ALL when unrecorded, as for non-pack pipelines. */
     public static int writtenOutputs() {
         PipelineSide side = SCOPE.get().pipeline();
         return side == null ? SpirvOutputWrites.ALL : side.writtenOutputs;

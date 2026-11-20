@@ -16,9 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PackFamilyWindowsTest {
     /**
-     * A run holds the targets its programs store to as colorimgN in the general layout until it ends,
-     * so a batch that samples one as colortexN must not share it; binding a held target throws
-     * "Unexpected value:1". Batches split on their stored targets as well as on their outputs.
+     * A run holds its colorimgN store targets in the general layout until it ends, so a batch sampling
+     * one as colortexN must not share it; binding a held target throws "Unexpected value:1".
      */
     @Test
     void aStoringBatchNeverSharesARunWithOneThatDoesNot() throws IOException {

@@ -11,13 +11,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Iris's const directives, as ConstDirectiveParser reads them: a line that starts, after indentation, with
- * {@code const <type> <name> = <value>;}. The value is the text up to the line's first semicolon, trimmed;
- * whoever reads the directive parses it.
- *
- * Iris reads them from the fragment sources of the programs ProgramSet.locateDirectives visits, in its order:
- * the shadowcomp, begin and prepare passes, every ProgramId (shadow, gbuffers, dh and final), then the deferred
- * and composite passes. A later program's directive replaces an earlier one's.
+ * Iris's const directives, as ConstDirectiveParser reads them: a line starting
+ * {@code const <type> <name> = <value>;}, its value the text up to the first semicolon. Iris reads fragment
+ * sources in ProgramSet.locateDirectives order, and a later program's directive replaces an earlier one's.
  */
 final class IrisConstDirectives {
     /** A directive as written, with its value unparsed. */
@@ -66,9 +62,8 @@ final class IrisConstDirectives {
     }
 
     /**
-     * The programs whose fragment sources Iris reads directives from, in its order. Programs Iris never loads
-     * are left out, and so are those the pack switches off with {@code program.<path>.enabled} or a profile's
-     * {@code !program}, since Iris reads no source for them.
+     * The programs whose fragment sources Iris reads directives from, in its order; a program Iris never loads
+     * or the pack switches off is left out.
      */
     static List<PackProgram> programs(List<PackProgram> programs, PackSettingsPlan settings) {
         return programs.stream()

@@ -9,17 +9,9 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 
 /**
- * Iris's device macros, as StandardMacros defines them: one MC_GL_VENDOR_* from the GL driver's GL_VENDOR and
- * one MC_GL_RENDERER_* from its GL_RENDERER, each matched by prefix, and MC_ before each extension the driver
- * lists.
- *
- * Chimera has no GL driver, so it names them from the PackDevice as that vendor's GL driver reports them:
- * NVIDIA's "NVIDIA Corporation", AMD's own driver "ATI Technologies Inc.", Mesa's "AMD" and "Intel". The
- * renderer is the device name, which Mesa's Intel driver prefixes with "Mesa". An extension is listed only
- * when that driver offers it and the device runs what its directive compiles to.
- *
- * Packs choose vendor paths by these macros: RenderPearl and Noble take NVIDIA's half floats on
- * MC_GL_VENDOR_NVIDIA alone, Alpha Piscium and Photon on MC_GL_NV_gpu_shader5 or MC_GL_AMD_gpu_shader_half_float.
+ * Iris's device macros, as StandardMacros defines them from the GL driver's strings. Chimera has no GL driver,
+ * so it names them as the device vendor's GL driver would, listing an extension only when that driver offers it
+ * and the device runs what its directive compiles to. Packs choose vendor paths, such as half floats, by these.
  */
 public final class PackDeviceMacros {
     /** A GL extension a driver lists, and when the device runs what its directive compiles to. */

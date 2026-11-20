@@ -11,9 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Reforged draws an immediate mesh through its immediate VertexBuffer, so the immediate and
- * vertex-buffer seams both reach PackHostDraws for one mesh. The program, window and sky or lane draw
- * the outer call opened serve the mesh; the inner call runs it as it is.
+ * Reforged draws an immediate mesh through its immediate VertexBuffer, so both seams reach PackHostDraws
+ * for one mesh: what the outer call opened serves it, and the inner call runs it as it is.
  */
 final class PackHostDrawsTest {
     @Test

@@ -9,13 +9,8 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * A choice the pack lists under {@code sliders}. At rest it looks like a choice with a small handle in its
- * value box; hovered or focused it becomes a track with the value centred and the name in a tooltip.
- * Dragging splits the track into one equal bucket per value.
- *
- * A drag follows the pointer and commits on the mouse release, or as soon as the pointer leaves the cell,
- * after taking the last position. After Enter the arrow keys edit the value. Enter again, losing focus, a
- * page change, Apply or Done commits that edit, where Iris often drops it; Cancel ends it without a commit.
+ * A choice the pack lists under {@code sliders}. A drag commits on release or when the pointer leaves the cell.
+ * A keyboard edit commits however it ends except on Cancel; Iris often drops it.
  */
 final class SliderCell extends ChoiceCell {
     private boolean dragging;

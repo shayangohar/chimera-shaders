@@ -2,10 +2,7 @@
 
 package net.chimera.render.shader;
 
-/**
- * Iris's constantMood (CommonUniforms): the cave-sound moodiness the biome ambience handler steps each mood
- * tick, kept in [0, 1]. Unlike the vanilla value playerMood reads, it is not reset when the mood sound plays.
- */
+/** Iris's constantMood: cave-sound moodiness in [0, 1], which unlike playerMood is not reset when the sound plays. */
 public interface AmbientMoodAccess {
     float chimera$constantMood();
 }

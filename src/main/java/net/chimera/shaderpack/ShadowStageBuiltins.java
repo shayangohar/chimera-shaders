@@ -5,10 +5,9 @@ package net.chimera.shaderpack;
 import java.util.Map;
 
 /**
- * What a shadow program's stages before the rasterizer share: the legacy built-ins they read as the shadow
- * draw's own (TerrainVertexBridge, GeometryStageBridge), and the vertex stage's conversion of GL's clip
- * depth, [-w, w], to Vulkan's [0, w]. A geometry stage converts what it emits instead
- * (GeometryStageBridge.emitClipRange).
+ * What a shadow program's stages before the rasteriser share: the legacy built-ins they read as the shadow draw's
+ * own, and the vertex stage's conversion of GL's clip depth, [-w, w], to Vulkan's [0, w]. A geometry stage
+ * converts what it emits instead.
  */
 final class ShadowStageBuiltins {
     /** The pack's own shadow {@code main}, renamed once the wrapper claims {@code main}. */

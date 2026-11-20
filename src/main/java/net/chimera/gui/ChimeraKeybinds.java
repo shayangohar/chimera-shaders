@@ -18,12 +18,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
 
-/**
- * Iris's key bindings: R reloads the pack, K turns shaders off and back on, O opens the pack selector.
- *
- * One binding acts per tick, in that order. Reload and toggle report in chat as Iris does, and take effect
- * at the next frame boundary.
- */
+/** Iris's shader key bindings; at most one acts per tick, in the order below. */
 public final class ChimeraKeybinds {
     private static final String CATEGORY = "key.category.chimera.keybinds";
     private static final KeyMapping reload = new KeyMapping(

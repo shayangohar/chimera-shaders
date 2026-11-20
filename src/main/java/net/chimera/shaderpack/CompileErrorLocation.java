@@ -14,29 +14,20 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Where a compile error sits, for a failure notice's Copy Info.
- *
- * shaderc names a line of the translated stage, such as {@code pack_final.fsh:518}, which no pack author has.
- * The notice quotes that line and, when only a few authored lines read the same, names them as well. The
- * translation keeps no line map, so a line Chimera rewrote names no file.
+ * Where a compile error sits, for a failure notice's Copy Info. shaderc names a line of the translated stage, so
+ * the notice quotes it and names the few authored lines that read the same; there is no line map.
  */
 public final class CompileErrorLocation {
-    /** shaderc's report of an error: {@code <unit>:<line>: error: <message>}. */
     private static final Pattern ERROR = Pattern.compile("(?m)^(\\S+?):(\\d+): error: (.*)$");
     private static final List<String> SOURCE_EXTENSIONS = List.of(".glsl", ".fsh", ".vsh", ".gsh", ".csh",
             ".tcs", ".tes", ".inc", ".h");
-    /** A translated line shorter than this matches too many authored ones to name any. */
+    /** A shorter line matches too many authored ones to name any. */
     private static final int SHORTEST_MATCHED_LINE = 12;
-    /** Past this many authored lines reading the same, naming them says nothing. */
     static final int MOST_MATCHES = 3;
     private static final int MOST_FILES = 4000;
 
     private CompileErrorLocation() {}
 
-    /**
-     * Copy Info lines for shaderc's error on {@code source}: the message, the translated line it names, and
-     * the authored lines under {@code shadersDir} that read the same, when a few do.
-     */
     public static String describe(String compilerMessage, String source, Path shadersDir) {
         String message = compilerMessage == null ? "" : compilerMessage.strip();
         StringBuilder text = new StringBuilder(message);
@@ -51,21 +42,18 @@ public final class CompileErrorLocation {
         return text.toString();
     }
 
-    /** Line {@code number}, counted from 1, of {@code source}; null past its end. */
+    /** Counted from 1; null past the end. */
     static String line(String source, int number) {
         if (number < 1) return null;
         return source.lines().skip(number - 1L).findFirst().orElse(null);
     }
 
-    /**
-     * Authored lines under {@code shadersDir} that read as {@code translated} does, as {@code relative/path:line}
-     * joined by "or". Null when none or more than {@link #MOST_MATCHES} match, or the line is too short to tell.
-     */
+    /** Null when none or more than {@link #MOST_MATCHES} match, or the line is too short to tell. */
     static String authoredLine(String translated, Path shadersDir) {
         return authoredLine(translated, shadersDir, MOST_FILES);
     }
 
-    /** As {@link #authoredLine(String, Path)}, reading the first {@code mostFiles} sources in path order. */
+    /** Reads the first {@code mostFiles} sources in path order. */
     static String authoredLine(String translated, Path shadersDir, int mostFiles) {
         String wanted = translated.strip();
         if (wanted.length() < SHORTEST_MATCHED_LINE || shadersDir == null || !Files.isDirectory(shadersDir)) {

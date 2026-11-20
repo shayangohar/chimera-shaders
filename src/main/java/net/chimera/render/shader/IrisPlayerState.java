@@ -20,15 +20,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Iris's player, HUD, clock and Distant Horizons uniforms, captured once per frame.
- *
- * Each value follows the Iris 1.21.1 supplier it is named after ({@code CommonUniforms},
- * {@code IrisExclusiveUniforms}, {@code IrisTimeUniforms}, {@code DHCompat}), including the -1 Iris reports
- * for player stats outside survival. Chimera does not support Distant Horizons, so the {@code dh*} values are
- * the ones Iris serves without it.
+ * Iris's player, HUD, clock and Distant Horizons uniforms, captured once per frame. The {@code dh*} values are
+ * the ones Iris serves without Distant Horizons.
  */
 final class IrisPlayerState implements FrameValueSource {
-    /** Scalar and vector names only; matrices stay with the frame state. */
+    /** Matrices stay with the frame state. */
     static final Set<String> NAMES = Set.of(
             "hideGUI", "isRightHanded", "firstPersonCamera", "isSpectator",
             "currentPlayerHealth", "maxPlayerHealth", "currentPlayerHunger", "maxPlayerHunger",
@@ -40,7 +36,7 @@ final class IrisPlayerState implements FrameValueSource {
             "is_burning", "is_hurt", "is_invisible", "is_on_ground", "is_sneaking", "is_sprinting");
 
 
-    /** DHCompat's near and far planes when Distant Horizons is absent. */
+    /** DHCompat's planes without Distant Horizons. */
     static final float DH_ABSENT_PLANE = 0.01f;
 
     private boolean hideGui;
@@ -76,7 +72,7 @@ final class IrisPlayerState implements FrameValueSource {
         captureClock();
     }
 
-    /** Iris's constantMood: the biome ambience handler's, 0 for a player without one. */
+    /** The biome ambience handler's mood, 0 without one. */
     private static float constantMood(LocalPlayer player) {
         for (AmbientSoundHandler handler : ((ChimeraLocalPlayerAccessor) player).chimera$ambientSoundHandlers()) {
             if (handler instanceof AmbientMoodAccess ambience) {
@@ -111,7 +107,6 @@ final class IrisPlayerState implements FrameValueSource {
         capturePlayerFlags(player);
     }
 
-    /** CommonUniforms' player flags; all false without a player. */
     private void capturePlayerFlags(LocalPlayer player) {
         this.playerFlags.clear();
         if (player == null) return;
@@ -123,7 +118,6 @@ final class IrisPlayerState implements FrameValueSource {
         this.playerFlags.put("is_sprinting", player.isSprinting());
     }
 
-    /** The local date and time, and the seconds gone and left in the year. */
     private void captureClock() {
         LocalDateTime now = LocalDateTime.now();
         this.date[0] = now.getYear();
@@ -152,7 +146,7 @@ final class IrisPlayerState implements FrameValueSource {
             case "isSpectator" -> flag(this.spectator);
             case "pi" -> (float) Math.PI;
             case "lastFrameTime" -> this.lastFrameTime;
-            // IrisExclusiveUniforms: the Color Space setting, which a supportsColorCorrection pack converts to
+            // a supportsColorCorrection pack converts to it
             case "currentColorSpace" -> this.colorSpace;
             case "playerBodyVector" -> c < 3 ? this.bodyVector[c] : Double.NaN;
             case "currentDate" -> c < 3 ? this.date[c] : Double.NaN;
@@ -160,17 +154,13 @@ final class IrisPlayerState implements FrameValueSource {
             case "currentYearTime" -> c < 2 ? this.yearTime[c] : Double.NaN;
             case "dhNearPlane", "dhFarPlane" -> DH_ABSENT_PLANE;
             case "dhRenderDistance" -> this.renderDistance;
-            // CommonUniforms serves blockEntityId and currentRenderedItemId as the constant -1, and entityId
-            // as the entity being drawn, which Iris resets to 0 after each entity (MixinEntityRenderDispatcher)
-            // entity-layout programs read all three per vertex instead (EntityDeclarations), as Iris's
-            // EntityPatcher does
+            // Iris's values between draws; entity-layout programs read these per vertex (EntityDeclarations)
             case "blockEntityId", "currentRenderedItemId" -> -1;
             case "entityId" -> 0;
             default -> playerStat(name);
         };
     }
 
-    /** CommonUniforms' survival stats (-1 outside survival) and moods; a player flag for other names. */
     private double playerStat(String name) {
         return switch (name) {
             case "currentPlayerHealth" -> this.health;
@@ -187,12 +177,10 @@ final class IrisPlayerState implements FrameValueSource {
         };
     }
 
-    /** CommonUniforms' player flags such as {@code is_hurt}; NaN for other names. */
     private double playerFlag(String name) {
         return NAMES.contains(name) ? flag(this.playerFlags.getOrDefault(name, false)) : Double.NaN;
     }
 
-    /** Integer and bool types are written as ints, the rest as floats. */
     @Override
     public void write(String name, String type, MappedBuffer target) {
         int count = componentCount(type);

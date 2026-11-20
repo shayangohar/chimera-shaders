@@ -59,13 +59,8 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * The celestial frame is one derivation: the pack-facing angles and positions, the up direction
-     * and the shadow light vector all come from the same host sample, or a shadow caster and a shadow
-     * receiver disagree about where the light is.
-     *
-     * The angles are the host's own sky attribute plus the quarter turn the sky places a body with, so
-     * an instance that moves the sky moves the shadows with it. The eye-space positions are that same
-     * frame carried by the model view, so as world directions they do not change with yaw or pitch.
+     * The celestial frame comes from one host sample, or a shadow caster and receiver disagree about
+     * where the light is. The angles follow the host's sky attribute, so moving the sky moves the shadows.
      */
     @Test
     void celestialAngles() {
@@ -276,11 +271,8 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * The pack expression language at the values packs depend on. Complementary's
-     * {@code eyeBrightnessM} smooths the raw sky brightness over its full 0 to 240 range and its cave
-     * factor clamps against the result, so a brightness scaled to 15 would put that clamp outside its
-     * domain. BSL's {@code timeBrightness} is a half-rectified sine of the raw world time and its
-     * {@code timeAngle} is the raw time over the day.
+     * The pack expression language at the values packs depend on. Sky brightness stays raw, 0 to 240,
+     * since Complementary's cave factor clamps against its smoothed {@code eyeBrightnessM}.
      */
     @Test
     void derivedLanguage() {
@@ -355,9 +347,9 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * Iris's six smooth overloads, resolved as its ExpressionResolver resolves them: a number-literal
-     * first argument is the id where an id form fits, one fade time serves both directions, and a
-     * missing half life is 1. superDuperVanilla calls {@code smooth(eyeBrightness.y / 240, 15)}.
+     * Iris's six smooth overloads, resolved as its ExpressionResolver does: a number-literal first
+     * argument is the id where an id form fits; one fade time serves both directions, and a missing
+     * half life is 1.
      */
     @Test
     void smoothOverloads() {
@@ -407,9 +399,8 @@ final class WorldStateUniformTest {
     }
 
     /**
-     * Previous-frame matrices track the previous presented world frame. The first frame seeds previous
-     * from current, later frames shift current into previous, a stationary camera converges, and a new
-     * session restarts the sequence without the old matrices.
+     * Previous-frame matrices track the previous presented world frame: the first frame seeds them from
+     * current, and a new session restarts without the old matrices.
      */
     @Test
     void previousMatrixRotation() {

@@ -25,22 +25,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * PostTargetSides against Iris, frame by frame. An Iris model keeps main and alt per target and
- * takes each pass's, the world's and final's flipped set from the plan; PostTargetSides runs the
- * same frames with Chimera's images, the HDR image standing in for colortex0's world side. Every
- * image holds a content token, and every draw composes onto what its image held, so a read of the
- * wrong side, a draw over the wrong base, a missed write-back or copy-back all show as a token the
- * two disagree on.
+ * PostTargetSides against an Iris model, frame by frame. Every image holds a content token and every
+ * draw composes onto it, so a wrong side, base, write-back or copy-back shows as a token the two
+ * disagree on.
  */
 final class FlipSidesTest {
     private static final List<PackFrameSchedulePlan.PostWindow> GROUPS = List.of(
             PackFrameSchedulePlan.PostWindow.BEGIN, PackFrameSchedulePlan.PostWindow.PREPARE,
             PackFrameSchedulePlan.PostWindow.EARLY, PackFrameSchedulePlan.PostWindow.LATE);
 
-    /**
-     * What a frame does beyond the plan: steps Chimera does not run, the targets the world draws
-     * into, and per pass the targets it stores to through colorimgN or builds mips of.
-     */
+    /** What a frame does beyond the plan; {@code stores} are per-pass colorimgN stores. */
     record Frame(Set<String> skipped, Set<Integer> world, Map<String, Set<Integer>> stores,
                  Map<String, Set<Integer>> mips) {
         static Frame plain(Set<Integer> world) {
@@ -143,8 +137,8 @@ final class FlipSidesTest {
         }
 
         /**
-         * One pass group, then the world it hands over to. Chimera opens a group as PackPostChain
-         * does: one with passes or pre-flips (windowDue), and always composite's.
+         * One pass group, then the world it hands over to. Chimera opens a group with passes or
+         * pre-flips, and always composite's, as PackPostChain does (windowDue).
          */
         private void group(PackFrameSchedulePlan.PostWindow window, Frame what) {
             List<PackFlipPlan.Step> steps = plan.steps().stream().filter(step -> step.window() == window).toList();
@@ -169,9 +163,8 @@ final class FlipSidesTest {
         }
 
         /**
-         * Iris draws its horizon after the begin group, ahead of the shadow and prepare passes,
-         * through the gbuffer framebuffers, which write flippedAfterPrepare's sides from the frame's
-         * start. Chimera draws it into the HDR image, which must stand in for that colortex0 side.
+         * Iris draws its horizon before the shadow and prepare passes, onto flippedAfterPrepare's
+         * sides; Chimera draws it into the HDR image, which must stand in for that colortex0 side.
          */
         private void horizon(Set<Integer> targets) {
             if (!targets.contains(0) || !allocated(0)) return;
@@ -258,10 +251,8 @@ final class FlipSidesTest {
         }
 
         /**
-         * A screen change between frames: the world attachments are made anew, the HDR image undefined.
-         * What the retired image alone held is lost, the trade-off Chimera accepts there: the Iris
-         * model's side it stood in for falls back to that side's graph image, so the frames after
-         * still compare exactly.
+         * A screen change between frames, leaving the HDR image undefined. Chimera accepts losing what
+         * the old image alone held, so the Iris model's side falls back to its graph image.
          */
         void replaceHdr() {
             PostTargetSides.Image hdr = new PostTargetSides.Image(0, PostTargetSides.HDR);
@@ -284,10 +275,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Glimmer's prepare2 names colortex0 and writes nothing. With colortex0 cleared, Iris's flip there
-     * lands on alt, which holds the frame-start clear and the horizon, and the world draws into it.
-     * Glimmer's deferred sky adds that side under the sky, so last frame's final image there would sum
-     * the horizon to a glow.
+     * Glimmer's prepare2 flips colortex0 without writing it, so the world draws on alt over the clear
+     * and the horizon; last frame's image there would sum the horizon to a glow.
      */
     @Test
     void anUnwrittenColortex0InPrepareHandsTheWorldItsClearedSide(@TempDir Path root) throws Exception {
@@ -301,10 +290,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Glimmer as it ships, with colortex0Clear=false. Iris draws its horizon before prepare2, onto
-     * the alt side the world draws on after prepare2's flip, so every frame's horizon covers the
-     * last one's there. A horizon drawn on main would leave alt without it, and the horizon would sum
-     * frame on frame to a glow.
+     * Glimmer with colortex0Clear=false: the horizon goes onto the alt side prepare2's flip hands the
+     * world, covering last frame's; drawn on main it would sum frame on frame to a glow.
      */
     @Test
     void theHorizonLandsOnTheSideAPrepareFlipHandsACarriedWorld(@TempDir Path root) throws Exception {
@@ -319,9 +306,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Every way a carried colortex0 can end a frame when a prepare flip puts the world on alt: final
-     * on alt with the HDR image standing in for it, final on main, final on alt with the HDR image on
-     * main, and then a new HDR image from a screen change. Each next frame must open as Iris's does.
+     * Every way a carried colortex0 can end a frame when a prepare flip puts the world on alt, then a
+     * screen change; each next frame must open as Iris's does.
      */
     @Test
     void aCarriedColortex0OpensOnAltWhereverTheLastFrameEnded(@TempDir Path root) throws Exception {
@@ -358,9 +344,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Bloop's composite names colortex13 and writes it only with Distant Horizons; the flip still
-     * makes alt current, which holds what the frame started with, and the copy-back at frame end makes
-     * main that again: the refraction the water draws into main never outlives its frame.
+     * Bloop's composite flips colortex13 but writes it only with Distant Horizons, so the copy-back
+     * keeps the water's refraction from outliving its frame.
      */
     @Test
     void anUnwrittenDrawBufferHandsBackWhatTheFrameStartedWith(@TempDir Path root) throws Exception {
@@ -379,9 +364,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Photon's flip.composite1.colortex6: deferred3 reads its AO history, writes this frame's to alt,
-     * composite writes fog transmittance to main for composite1, and the flip after composite1
-     * makes the AO current again; the copy-back hands it to the next frame's deferred3.
+     * Photon's flip.composite1.colortex6 makes deferred3's AO current again after composite's fog uses
+     * main, and the copy-back hands it to the next frame's deferred3.
      */
     @Test
     void anExplicitFlipHandsTheNextFrameItsHistory(@TempDir Path root) throws Exception {
@@ -398,9 +382,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Shrimple's bloom: flip.composite21.colortex0 points composite38's blend at the scene composite21
-     * read, not at colortex0's other side, last frame's final image. flip.deferred_pre.colortex0 does
-     * the same for deferred14's AO, which blends onto the opaque world the HDR image holds.
+     * Shrimple's flip.composite21.colortex0 points composite38's bloom at the scene composite21 read,
+     * not last frame's image; flip.deferred_pre.colortex0 does the same for deferred14's AO.
      */
     @Test
     void blendsAfterColortex0FlipsLandOnTheScene(@TempDir Path root) throws Exception {
@@ -418,9 +401,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Shrimple keeps its opaque and translucent deferred data apart with flip.deferred1.colortex1, a
-     * target only the world writes, and flip.composite_pre.colortex1 hands composite the opaque side
-     * again. Without these flips the world loses its shadows.
+     * Shrimple keeps opaque and translucent deferred data apart with flip.deferred1.colortex1, and
+     * flip.composite_pre.colortex1 hands composite the opaque side; without them the world loses its shadows.
      */
     @Test
     void aFlipOfAWorldOnlyTargetSplitsOpaqueFromTranslucent(@TempDir Path root) throws Exception {
@@ -434,10 +416,7 @@ final class FlipSidesTest {
                 "composite must read the opaque data alone");
     }
 
-    /**
-     * A step Chimera cannot run passes its input through, so later passes still read the sides Iris's
-     * read and colortex0 keeps the last write, such as Glimmer's water when a later pass falls back.
-     */
+    /** A step Chimera cannot run passes its input through, so later passes still read the sides Iris's read. */
     @Test
     void aSkippedStepPassesItsInputThrough(@TempDir Path root) throws Exception {
         Harness harness = harness(root, Map.of(
@@ -469,10 +448,7 @@ final class FlipSidesTest {
         assertTrue(harness.mismatches.isEmpty(), String.join("\n", harness.mismatches));
     }
 
-    /**
-     * colortex0Clear=false keeps colortex0 across frames, as Iris does: main holds the final state's
-     * side when the frame starts, and the world draws over it.
-     */
+    /** colortex0Clear=false keeps colortex0 across frames, as in Iris: the world draws over main. */
     @Test
     void anUnclearedColortex0CarriesTheFinalImageIntoTheNextFrame(@TempDir Path root) throws Exception {
         Harness harness = harness(root, Map.of(
@@ -488,9 +464,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Every screen opened or closed makes a new HDR image between frames, without touching the pack
-     * targets. The frame that follows must take colortex0 from the graph sides; written back as the
-     * side the old image stood in for, the new image's undefined content would land on colortex0's alt.
+     * A screen change makes a new HDR image between frames, so the next frame takes colortex0 from the
+     * graph sides instead of writing the new image's undefined content back.
      */
     @Test
     void aNewHdrImageFromAScreenChangeIsNeverWrittenBack(@TempDir Path root) throws Exception {
@@ -505,10 +480,7 @@ final class FlipSidesTest {
         assertTrue(!harness.anyImageHolds("undefined"), "a new HDR image's content reached a target");
     }
 
-    /**
-     * Alpha Piscium, Ebin and RenderPearl keep colortex0 and no pass writes it: the HDR image already
-     * holds main when the frame ends, so carrying it over copies nothing, and the world draws on.
-     */
+    /** A kept colortex0 no pass writes: the HDR image already holds main, so carrying it over copies nothing. */
     @Test
     void aColortex0NoPassWritesCarriesOverWithoutACopy(@TempDir Path root) throws Exception {
         Harness harness = harness(root, Map.of(
@@ -522,9 +494,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * Kappa's composite2 samples its reflection capture colortex12, whose only writer composite1 is off
-     * by default. Iris creates the sampled target and clears it on its first frame (clearPassesFull),
-     * so composite2 reads the clear colour, never undefined memory.
+     * A target sampled but never written, as Kappa's colortex12 by default, reads the clear colour, since
+     * Iris clears it on its first frame (clearPassesFull).
      */
     @Test
     void aTargetNoPassWritesReadsItsFirstFrameClear(@TempDir Path root) throws Exception {
@@ -539,9 +510,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * A prepare group with no pass and a flip.prepare_pre entry still opens, as Iris builds every
-     * group: the opaque world draws colortex0 and colortex3 on alt, and the HDR image
-     * moves to colortex0's alt side. A pre-flip set back to false opens nothing.
+     * A prepare group with no pass but a flip.prepare_pre entry still opens, as Iris builds every group;
+     * a pre-flip set back to false opens nothing.
      */
     @Test
     void aGroupWhoseOnlyWorkIsAPreFlipStillOpens(@TempDir Path root) throws Exception {
@@ -574,10 +544,8 @@ final class FlipSidesTest {
     }
 
     /**
-     * One corpus pack (CorpusChecks, through FlipSidesCorpus), over several frames: as planned, with
-     * every third step skipped, and with every step storing to and mipping colortex0 and mipping its
-     * draw buffers, so the HDR image's write-backs run everywhere. Chimera's sides must match Iris's
-     * on every read, base and frame. Returns the pack's planned steps.
+     * One corpus pack over several frames, also with steps skipped and with stores and mips everywhere
+     * so the HDR image's write-backs run; returns the pack's planned steps.
      */
     static int checkCorpusPack(Path pack, PackProbe.Analysis analysis, List<String> failures) {
         PackTargetGraphPlan graph = PackTargetGraphPlan.build(analysis.plan().activePrograms(), analysis.config(),

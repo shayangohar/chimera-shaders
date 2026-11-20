@@ -8,12 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Iris's colorimgN: colour target N as a storage image, the texture the program samples as colortexN
- * (IrisImages.addRenderTargetImages, with the flip state before the pass).
- *
- * Chimera binds it in the prepare, deferred and composite passes, as pass computes bind it
- * (PassComputePlan), and in the hand programs, whose own lane runs (PackFamilyWindows) hold the target for
- * them. Iris also gives it to the other gbuffers programs and to final, where Chimera refuses it.
+ * Iris's colorimgN: colour target N as a storage image, the texture the program samples as colortexN. Chimera
+ * serves it in post passes and hand programs only; Iris also gives it to other gbuffers programs and to final.
  */
 public final class TargetImages {
     private static final Pattern SYMBOL = Pattern.compile("colorimg(1[0-5]|[0-9])");
@@ -38,18 +34,12 @@ public final class TargetImages {
                 || FamilyAdapterRegistry.isHandFamily(program);
     }
 
-    /**
-     * Whether {@code program} draws the world, where its colorimgN binds the image world programs
-     * read (PackPostTargets.worldStorageImage), not the post chain's source.
-     */
+    /** Whether {@code program} draws the world, where colorimgN binds the image world programs read. */
     public static boolean world(String program) {
         return !PostTargetPlan.isPostProgramName(program);
     }
 
-    /**
-     * The targets a program names as colorimgN in a declaration its stage references, ascending,
-     * which it reads as its samplers read their targets (PackTargetGraphPlan.readTargets).
-     */
+    /** The targets a program's stages declare and use as colorimgN, ascending. */
     static Set<Integer> referenced(PackProgramPlan program) {
         Set<Integer> targets = new TreeSet<>();
         if (program == null || !servedIn(program.name())) return targets;

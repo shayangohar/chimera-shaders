@@ -13,20 +13,13 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
- * The threads a pack load shares its independent work among, such as planning each program or compiling each
- * shader stage.
- *
- * There is one worker fewer than the machine has processors, at most {@link #MAX_WORKERS}, so the render thread,
- * the integrated server and the chunk builders keep one. With one or two processors the work stays on the calling
- * thread. The pool starts on first use; its threads are daemons and idle between loads.
+ * The threads a pack load shares its independent work among: one fewer than the processors, at most
+ * {@link #MAX_WORKERS}, so the render thread keeps one.
  */
 public final class PackWorkers {
     /** Past eight a load gains little: a few large programs set its length, and each worker holds parse trees. */
     static final int MAX_WORKERS = 8;
-    /**
-     * From the processors in game. Each forked test JVM gets its share from the build through
-     * {@code chimera.packWorkers}, so the forks together do not oversubscribe the machine.
-     */
+    /** Test forks set {@code chimera.packWorkers} so together they don't oversubscribe the machine. */
     private static final int WORKERS = Integer.getInteger("chimera.packWorkers",
             workersFor(Runtime.getRuntime().availableProcessors()));
     private static volatile ForkJoinPool pool;
@@ -39,9 +32,8 @@ public final class PackWorkers {
     }
 
     /**
-     * Applies {@code work} to each input, in parallel when there are workers to share it, and
-     * returns the results in the inputs' order. Every input is worked; when any fails, the first
-     * failure in input order is rethrown, as a loop over the inputs would throw it.
+     * Applies {@code work} to each input, possibly in parallel, and returns the results in input order. Every input
+     * runs; the first failure in input order is rethrown.
      */
     public static <T, R> List<R> map(List<T> inputs, Function<? super T, ? extends R> work) {
         return map(inputs, work, WORKERS);

@@ -19,10 +19,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Iris's voxelizeLightBlocks in VulkanMod's chunk build. A light block has no model, so under the pack's
- * directive each one gets a zero-area quad in the cutout-mipped mesh, before the block's fluid or model, as
- * Iris's MixinChunkMeshBuildTask adds one to Sodium's. A pack that voxelises terrain in its shadow pass reads
- * the block's id and emission from it.
+ * Iris's voxelizeLightBlocks: a light block has no model, so it gets a zero-area quad in the cutout-mipped
+ * mesh, from which a pack voxelising terrain in its shadow pass reads the id and emission.
  */
 @Mixin(value = BuildTask.class, remap = false)
 public abstract class ChimeraBuildTaskMixin {

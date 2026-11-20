@@ -17,10 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * The loaded pack's settings, laid out as Iris's: a header row with the page title and its buttons, then the
- * page's elements in rows of its column count. The whole list scrolls, header included.
- */
+/** The loaded pack's settings, laid out as Iris's; the header row scrolls with the list. */
 public final class OptionList extends ContainerObjectSelectionList<OptionList.Row> {
     private static final int ROW_HEIGHT = 24;
     private static final int MIN_CELL_WIDTH = 20;
@@ -41,8 +38,8 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
     }
 
     /**
-     * Shows the open page from the top; a page the pack never defined shows the main page's elements. A
-     * slider still in keyboard edit commits its value first, since its cell is about to go.
+     * Shows the open page from the top; a page the pack never defined shows the main page's elements. Slider
+     * edits commit first, since their cells are about to go.
      */
     void rebuild() {
         context.sliders().finishEdits(true);
@@ -52,9 +49,7 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
         OptionMenu.Screen screen = sub.orElse(menu.main());
         addEntry(new HeaderRow(sub.isPresent() ? page : null));
         List<OptionMenu.Element> elements = screen.elements();
-        // Iris fills rows up to the column count, so 0 or less gives one cell per row
-        // a count too wide for the row stops at the narrowest cell; a huge screen.columns would otherwise
-        // hang the screen padding the row, or draw cells of negative width
+        // 0 or less gives one cell per row, as in Iris; the cap stops a huge screen.columns hanging the screen
         int columns = Math.clamp(screen.columnCount(), 1, maxColumns());
         for (int start = 0; start < elements.size(); start += columns) {
             List<OptionCell> cells = new ArrayList<>();
@@ -116,7 +111,6 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
         }
     }
 
-    /** The page title between Back and the utility buttons, over a thin line. */
     private final class HeaderRow extends Row {
         private final String page;
         private final HeaderButton back;
@@ -170,10 +164,7 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
         }
     }
 
-    /**
-     * A row of equal cells with 2 px gaps. The mouse is over the cell whose share of the row's width it is in,
-     * gaps included.
-     */
+    /** A row of equal cells; hit-testing splits the full row width evenly, gaps included. */
     private final class CellRow extends Row {
         private final List<OptionCell> cells;
 
@@ -181,7 +172,6 @@ public final class OptionList extends ContainerObjectSelectionList<OptionList.Ro
             this.cells = cells;
         }
 
-        /** Rows render at the list's row left and width, so the columns follow from those. */
         private int column(double mouseX) {
             int columns = cells.size();
             int width = getRowWidth();

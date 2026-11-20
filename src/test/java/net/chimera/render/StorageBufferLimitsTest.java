@@ -17,9 +17,8 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
- * Device limits are unsigned counts. The AMD Radeon iGPU reports maxPerStageDescriptorStorageBuffers as
- * 0xFFFFFFFF, no limit; read as a signed int it is -1, which would refuse RenderPearl's world programs
- * with STORAGE_BUFFER_STAGE_LIMIT.
+ * Device limits are unsigned counts: AMD reports maxPerStageDescriptorStorageBuffers as 0xFFFFFFFF, which
+ * a signed read would take as -1.
  */
 final class StorageBufferLimitsTest {
     private static PackAdvancedResourcePlan.StorageBufferBinding buffer(int index, int stages) {

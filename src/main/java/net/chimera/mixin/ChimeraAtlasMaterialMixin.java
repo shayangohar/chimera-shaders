@@ -23,15 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reports each stitched atlas: its layout to the material map owner, its size to {@link AtlasSizes} for the
- * {@code atlasSize} uniform, and a restitched block atlas to {@link PackAtlasMipmaps}.
- *
- * At {@code TextureAtlas.upload}'s return the atlas is fully uploaded, so this only queues metadata with the
- * owner: atlas location, image, sprite coordinates and padding. Sprite origins are padded slot origins while
- * content sizes are logical, so the padding is recovered from the UV edge in atlas texels. Only square
- * padding is supported; a sprite whose X and Y padding differ is skipped with a warning. Decoding and GPU
- * allocation happen later, when the owner's builds are pumped. A failure here warns and leaves vanilla
- * rendering alone.
+ * Reports each stitched atlas to the material map owner and the atlas trackers ({@link AtlasSizes},
+ * {@link PackAtlasMipmaps}).
+ * Sprite origins are padded slot origins, so the padding is recovered from the UV edge; only square padding
+ * is supported. A failure warns and leaves vanilla rendering alone.
  */
 @Mixin(TextureAtlas.class)
 public abstract class ChimeraAtlasMaterialMixin {
@@ -80,10 +75,7 @@ public abstract class ChimeraAtlasMaterialMixin {
         }
     }
 
-    /**
-     * Advances animated material maps with this atlas, where the game ticks every sprite animation once per
-     * client tick. Only metadata changes here; the pump writes the changed slots.
-     */
+    /** Advances animated material maps on the atlas's animation tick; the pump writes the changed slots. */
     @Inject(method = "cycleAnimationFrames", at = @At("RETURN"), require = 1)
     private void chimera$tickMaterialAnimations(CallbackInfo info) {
         try {

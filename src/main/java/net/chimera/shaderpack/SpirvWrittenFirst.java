@@ -13,17 +13,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The variables a module writes whole before anything can read them, so their starting value is never seen:
- * a store of the whole variable dominates every other instruction naming it. A local is judged in its own
- * function. A private global or output is judged in the module's only entry point, where a call counts as a
- * read when another function names the variable, and a return or an emit reads every output. A geometry
- * stage's outputs are undefined after an emit, and GeometryStageBridge's wrapper stores them back; this only
- * decides which start from zero.
- *
- * A GLSL initializer is such a store. glslang writes it where the variable is declared, a global's at the
- * top of main, and the optimizer may then turn a global into a local and leave its store after a branch.
- * BSL's world programs store their light-colour and offset tables after the short-circuit test of an earlier
- * initializer.
+ * The variables a module writes whole before anything can read them: a store of the whole variable dominates
+ * every other instruction naming it, as the optimiser may leave an initialiser's store after a branch. A local is
+ * judged in its own function; a private global or output in the module's only entry point, where a call reads
+ * what other functions name and a return or an emit reads every output.
  */
 final class SpirvWrittenFirst {
     private static final int OP_FUNCTION = 54;

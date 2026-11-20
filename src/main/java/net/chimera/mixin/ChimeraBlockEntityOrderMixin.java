@@ -19,15 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Renders the level's block entities in vanilla's order: the visible sections' first, then the global ones
- * that render off-screen, such as beacons and end gateways. Sodium under Iris keeps that order. Reforged
- * renders the sections' block entities itself, just before the block-entity stage's closing checkPoseStack
- * and so after vanilla's global loop; this holds each global render and runs it after that checkPoseStack.
- *
- * The order batches are written in decides their draw order: Iris draws a kind's unrelated batches in
- * reverse first-use order (IrisBatchOrder). With the beacon written first, its beam would draw after the
- * chest behind it, and a pack that keeps block entities in their own target, as Escheridia does with
- * colortex15, would show the chest over the beam.
+ * Renders global block entities such as beacons after the visible sections' ones, as vanilla and Sodium do;
+ * Reforged renders the sections' at the stage's closing checkPoseStack, after vanilla's global loop. Write
+ * order sets batch draw order (IrisBatchOrder), so otherwise a pack with its own block-entity target shows a
+ * chest over a beacon beam.
  */
 @Mixin(LevelRenderer.class)
 public abstract class ChimeraBlockEntityOrderMixin {

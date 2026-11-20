@@ -15,11 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Iris PackShadowDirectives' sampling settings: each shadow target's format, clear and filtering, such
- * as Kappa's RGBA16, Spring's RGBA16F and BSL's grey clear. The pack's shadow resolution, distance and
- * depth range are read as Iris reads them.
- */
+/** Iris PackShadowDirectives' per-target format, clear and filtering, and the shadow settings as Iris reads them. */
 final class ShadowTargetDirectivesTest {
     @Test
     void irisDefaultsAreRgbaClearedToWhiteLinearWithoutMips() {
@@ -102,9 +98,8 @@ final class ShadowTargetDirectivesTest {
     }
 
     /**
-     * With HIGHER_SHADOWCOLOR the pass renders every shadowcolor target up to the highest a
-     * program reads or a shadow program writes; without it, two, and Iris leaves shadowcolor2-7
-     * unbound: a pass reads unit 0 (colortex0) and a world program cannot run.
+     * With HIGHER_SHADOWCOLOR the pass renders every shadowcolor target up to the highest one used; without
+     * it, two, and Iris leaves shadowcolor2-7 unbound, so they read unit 0.
      */
     @Test
     void higherShadowColorAddsTheTargetsProgramsUse(@TempDir Path root) throws IOException {
@@ -133,11 +128,7 @@ final class ShadowTargetDirectivesTest {
                 terrain.deviations().toString());
     }
 
-    /**
-     * A shadow program naming a target the pass does not have draws to {0, 1} instead, as Iris's
-     * ShadowRenderTargets.createColorFramebuffer does: its first two outputs write shadowcolor0
-     * and shadowcolor1, and the rest are discarded.
-     */
+    /** A shadow program naming a target the pass lacks draws to {0, 1}, as Iris's createColorFramebuffer does. */
     @Test
     void aShadowTargetPastThePassDrawsToTheFirstTwo(@TempDir Path root) throws IOException {
         writeHigherShadowColorPack(root, "iris.features.required=HIGHER_SHADOWCOLOR\n");
@@ -158,11 +149,7 @@ final class ShadowTargetDirectivesTest {
                 && !shadow.convertedFragment().contains("chimeraShadowColor4"), shadow.convertedFragment());
     }
 
-    /**
-     * A shadow program with no target directive draws to {0, 1}, as Iris's shadow framebuffers do
-     * when the draw buffers are unknown. Kappa writes its material ids to shadowcolor1 that way for
-     * its shadowcomp to read; routing that output to nothing would leave shadowcolor1 at its clear colour.
-     */
+    /** A shadow program with no target directive draws to {0, 1}, as Iris's shadow framebuffers do. */
     @Test
     void aShadowProgramWithoutADirectiveDrawsToTheFirstTwo(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));

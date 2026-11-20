@@ -20,10 +20,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * The first-person hand around Chimera's frame. A hand the pack's schedule already drew
- * (ChimeraHandRenderer) is not drawn again. Vanilla clears depth before the hand with RenderSystem.clear,
- * which VulkanMod records into the bound framebuffer; when Chimera's world resolve left none bound the clear
- * would be lost, so the output reopens with a depth-clearing pass instead.
+ * The first-person hand around Chimera's frame. Vanilla's depth clear before the hand records into the bound
+ * framebuffer, so when the world resolve left none bound the output reopens with a depth-clearing pass.
  */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererDepthMixin {

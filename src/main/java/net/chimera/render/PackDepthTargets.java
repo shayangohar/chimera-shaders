@@ -62,7 +62,7 @@ public final class PackDepthTargets {
             this.images[index] = VulkanImage.builder(Math.max(1, width), Math.max(1, height))
                     .setFormat(this.plan.format())
                     .setUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
-                    // Iris's depthtex0/1/2 are point-sampled; depths never filter into each other
+                    // point-sampled, as Iris's depthtex0/1/2 are
                     .setLinearFiltering(false)
                     .setClamp(true)
                     .createVulkanImage();
@@ -76,11 +76,7 @@ public final class PackDepthTargets {
         return !required(0) || convert(commandBuffer, rawDepth, 0, false);
     }
 
-    /**
-     * Captures depthtex0 as the world drawn so far, for programs that run while the world still draws, such
-     * as deferred passes before translucents, and gives the depth back to the world pass. The level-end
-     * capture replaces it for composite.
-     */
+    /** Captures depthtex0 mid-world and gives the depth back to the world pass; the level-end capture replaces it. */
     public boolean captureDrawnScene(VkCommandBuffer commandBuffer, VulkanImage rawDepth) {
         return configured && rawDepth != null && required(0)
                 && convert(commandBuffer, rawDepth, 0, true);
@@ -98,10 +94,7 @@ public final class PackDepthTargets {
                 && convert(commandBuffer, rawDepth, 2, true);
     }
 
-    /**
-     * Starts a new world frame, keeping the last frame's capture state as the previous one. A target never
-     * captured is cleared to the far plane first, so a draw that samples it reads defined depth.
-     */
+    /** Starts a world frame; a never-captured target is cleared to the far plane so it reads defined depth. */
     public void beginFrame(VkCommandBuffer commandBuffer) {
         System.arraycopy(this.valid, 0, this.previousValid, 0, this.valid.length);
         Arrays.fill(this.valid, false);
@@ -136,8 +129,7 @@ public final class PackDepthTargets {
             return false;
         }
         VulkanImage previousDepthBinding = VTextureSelector.getImage(6);
-        // the copy must overwrite: under an inherited blend, such as a glint's SRC_COLOR/ONE, every captured
-        // depth would come out squared
+        // the copy must overwrite; an inherited blend such as a glint's would square every captured depth
         HostPipelineState previousState = HostPipelineState.capture();
         HostPipelineState.prepareFullscreen();
         boolean renderingActive = false;
@@ -203,11 +195,7 @@ public final class PackDepthTargets {
         }
     }
 
-    /**
-     * A snapshot records its own fullscreen rendering, which cannot nest inside the pack geometry context: the
-     * RenderPass mixin redirects dynamic rendering there. Such a capture is refused and the host depth path
-     * kept.
-     */
+    /** A snapshot cannot record inside the pack geometry context, where the RenderPass mixin redirects rendering. */
     private boolean canRecordConversion(VkCommandBuffer commandBuffer, VulkanImage rawDepth, int index) {
         return !PackGeometryContext.active()
                 && commandBuffer != null
@@ -250,9 +238,8 @@ public final class PackDepthTargets {
     }
 
     /**
-     * The image a draw samples as a depth texture: this frame's capture, or before it the last one, as Iris's
-     * depth textures persist between their copies. NeoForge draws solid particles before translucent terrain,
-     * ahead of the depthtex1 capture.
+     * The image a draw samples: this frame's capture, else the last, as Iris's depth textures persist between
+     * copies. NeoForge's solid particles draw before the depthtex1 capture.
      */
     public VulkanImage sampledImage(String name) {
         int index = switch (name) {
@@ -288,8 +275,7 @@ public final class PackDepthTargets {
     public void cleanUp() {
         for (VulkanImage image : images) if (image != null) image.free();
         if (conversionPipeline != null) conversionPipeline.cleanUp();
-        // VulkanMod defers VulkanImage.free(); this view is Chimera's own raw handle, which HandleRetirement
-        // destroys once no frame can sample it
+        // Chimera's own raw handle; HandleRetirement destroys it once no frame can sample it
         this.depthSampleView.destroy();
         Arrays.fill(images, null);
         Arrays.fill(valid, false);

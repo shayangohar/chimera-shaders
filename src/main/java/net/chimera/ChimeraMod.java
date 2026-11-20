@@ -36,7 +36,7 @@ public final class ChimeraMod {
                 event -> ChimeraCommands.register(event.getDispatcher()));
         // a pack failure found before the player is in a world waits for one, as Iris's notice does
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> PackFailureNotices.flush());
-        // F3 lines as Iris places them: version, pack and profile on the right, shadow map on the left
+        // F3 lines on the sides Iris uses
         NeoForge.EVENT_BUS.addListener(CustomizeGuiOverlayEvent.DebugText.class, event -> {
             event.getLeft().addAll(ChimeraRenderer.shadowDebugLines());
             event.getRight().addAll(ChimeraRenderer.debugLines());

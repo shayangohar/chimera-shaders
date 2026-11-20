@@ -18,9 +18,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * While a pack renders the world, draws end portals and end gateways as {@link EndPortalCube}: an entitySolid
- * cube with the end portal texture that the pack's block-entity programs can shade, in the main pass and the
- * shadow pass alike. The gateway draws its beam itself and then calls this method, so its beam stays vanilla.
+ * While a pack renders, draws end portals and gateways as an entitySolid {@link EndPortalCube} the pack's
+ * programs can shade; the gateway's beam stays vanilla.
  */
 @Mixin(TheEndPortalRenderer.class)
 public abstract class ChimeraEndPortalRendererMixin {

@@ -9,11 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A lossless parse of one GLSL source over {@link GlslLexer} tokens. Every node names a range of token indices,
- * so comments and whitespace stay in the token list and an unedited region prints exactly as written.
- *
- * The tree reaches statements: a function body holds blocks, control statements and local declarations, which
- * is enough to resolve a name through its scopes. Expressions stay token ranges. Pure Java, with no host types.
+ * A lossless parse of one GLSL source over {@link GlslLexer} tokens: every node names a range of token indices,
+ * so an unedited region prints exactly as written. The tree reaches statements, enough to resolve names;
+ * expressions stay token ranges.
  */
 final class GlslTree {
     /** Token indices {@code [start, end)}; a node's range starts and ends on a significant token. */
@@ -33,7 +31,7 @@ final class GlslTree {
     /** What a function body holds. */
     sealed interface Statement extends Node permits Directive, Declaration, Block, Control, Simple {}
 
-    /** A preprocessor line that reaches the compiler: {@code #version}, {@code #extension}, {@code #line}. */
+    /** A preprocessor line that reaches the compiler, such as {@code #version} or {@code #extension}. */
     record Directive(Range range) implements External, Statement {}
 
     /** One qualifier keyword, or {@code layout(...)} with its parenthesized list. */
@@ -110,10 +108,7 @@ final class GlslTree {
         return source;
     }
 
-    /**
-     * The eight most recently used trees. A program's conversion steps each parse the source they are handed,
-     * and many hand on the same text unchanged.
-     */
+    /** The eight most recent trees; a program's conversion steps often parse the same text. */
     private static final Map<String, GlslTree> RECENT = new LinkedHashMap<>(16, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, GlslTree> eldest) {
@@ -231,10 +226,8 @@ final class GlslTree {
     }
 
     /**
-     * The declaration the identifier at {@code token} names, as GLSL scopes resolve it: the innermost block
-     * first, then a for loop's init, the function's parameters, and file scope. A variable is visible from its
-     * name on, or after its initializer when it has one. Null for a field access ({@code value.name}) and for a
-     * name the source does not declare, such as a built-in.
+     * The declaration the identifier at {@code token} names, as GLSL scopes resolve it. Null for a field access
+     * and for a name the source does not declare, such as a built-in.
      */
     Binding resolve(int token) {
         GlslLexer.Token target = tokens.get(token);

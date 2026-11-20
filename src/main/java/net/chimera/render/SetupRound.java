@@ -9,10 +9,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * One round of Iris's setup computes, which run once the pipeline is built and after each resize
- * (IrisRenderingPipeline), each once and in order. A compute that skips a frame, such as one that runs before
- * a depth snapshot exists, holds the rest of the round to a later frame. After {@link #TRIES} frames the round
- * goes on without it, and the next round tries it again.
+ * One round of Iris's setup computes, run in order after each pipeline build or resize. A compute that skips
+ * a frame holds the rest of the round, for at most {@link #TRIES} frames.
  */
 final class SetupRound {
     static final int TRIES = 8;

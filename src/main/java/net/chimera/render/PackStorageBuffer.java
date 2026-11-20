@@ -10,9 +10,8 @@ import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 import static org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 /**
- * Device memory for one pack storage buffer. VulkanMod binds a pipeline's buffer descriptors from
- * uniform buffers, so this is one, created with storage usage instead. Its contents belong to the
- * pack, so it never grows: VulkanMod's capacity check would replace it with an empty buffer.
+ * One pack storage buffer: a uniform buffer with storage usage, since VulkanMod binds buffer descriptors from
+ * those. It never grows, as VulkanMod's capacity check would replace it with an empty one.
  */
 public final class PackStorageBuffer extends UniformBuffer {
     public PackStorageBuffer(int size) {
@@ -31,12 +30,8 @@ public final class PackStorageBuffer extends UniformBuffer {
     public void checkCapacity(int size) {}
 
     /**
-     * Replaces the device buffer with an empty one of {@code size} bytes.
-     *
-     * The new one is allocated first, so a failed allocation throws with the old buffer still held. Freeing
-     * first, as VulkanMod resizes its uniform buffers, would leave the queued old handle here to be freed
-     * twice. The old buffer is freed once the frames using it finish, and every descriptor attached to this
-     * object binds the new one from its next draw.
+     * Replaces the device buffer with an empty one. The new one is allocated first, so a failure keeps the old
+     * one; freeing first, as VulkanMod does, would free the old handle twice.
      */
     public void recreate(int size) {
         PackStorageBuffer replacement = new PackStorageBuffer(size);

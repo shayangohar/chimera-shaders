@@ -26,11 +26,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Moves view bobbing, hurt shake and nausea from the projection into the model view while a pack renders the
- * world, as Iris's MixinModelViewBobbing and OptiFine do. Packs assume gbufferProjection is a plain
- * perspective: Photon's project() reads only its diagonal and last column, so a bobbing projection breaks
- * its screen-space reconstruction while the player walks, and its GTAO normals and sky light flicker. The
- * raster transform is unchanged, since projection * (bob * rotation) equals (projection * bob) * rotation.
+ * Moves the bob and nausea warp from the projection into the model view while a pack renders, as Iris and
+ * OptiFine do, since packs assume gbufferProjection is a plain perspective. The raster transform is unchanged.
  */
 @Mixin(GameRenderer.class)
 public abstract class ChimeraModelViewBobbingMixin {

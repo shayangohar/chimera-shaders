@@ -11,11 +11,7 @@ import net.minecraft.client.gui.navigation.CommonInputs;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/**
- * A small button in the settings header: Back on a sub-page, then Import, Export and Reset on every page.
- * Reset acts only with Shift held, and greys out until Shift is down or it has focus. Import, Export and
- * Reset show their tooltip at once while hovered or focused, above the top-right corner.
- */
+/** A small button in the settings header; Reset acts only with Shift held. */
 final class HeaderButton extends AbstractWidget {
     static final int HEIGHT = 16;
     static final int ICON_WIDTH = 15;
@@ -98,10 +94,7 @@ final class HeaderButton extends AbstractWidget {
         graphics.drawString(context.font(), label, getX() + (getWidth() - width) / 2, getY() + 4, OptionLook.WHITE);
     }
 
-    /**
-     * A 7 by 8 pixel tray with an arrow leaving it for export or entering it for import. White with a shadow;
-     * a warm gradient for export or a cool one for import while hovered or focused.
-     */
+    /** A 7 by 8 pixel tray with an arrow leaving it for export or entering it for import. */
     private void drawIcon(GuiGraphics graphics, int x, int y) {
         int[][] rows = kind == Kind.EXPORT ? EXPORT_GLYPH : IMPORT_GLYPH;
         int[] gradient = kind == Kind.EXPORT ? EXPORT_GRADIENT : IMPORT_GRADIENT;

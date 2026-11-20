@@ -16,16 +16,10 @@ import java.util.Map;
 import static org.lwjgl.vulkan.KHRDynamicRendering.vkCmdEndRenderingKHR;
 
 /**
- * The render pass VulkanMod sees while one of Chimera's dynamic-rendering windows is open. Pack targets, depth
- * snapshots and pack geometry render with vkCmdBeginRenderingKHR, and their attachment sets have no VulkanMod
- * framebuffer.
- *
- * VulkanMod keys each pipeline's variants by the bound render pass and creates a variant against it. Binding
- * one of these makes the variant a dynamic-rendering pipeline for {@link #colorFormats()} and
- * {@link #depthFormat()} (GraphicsPipelineMrtMixin), rasterising in GL row order when {@link #glOriented()}
- * (ChimeraRasterOrientation), and keeps it apart from the same pipeline's variants in VulkanMod's own render
- * passes. One instance serves each set of formats and orientation, so the variant caches stay small.
- * VulkanMod's constructor also creates a Vulkan render pass for it, which is never begun.
+ * The render pass VulkanMod sees while one of Chimera's dynamic-rendering windows is open. VulkanMod keys
+ * pipeline variants by render pass, so binding one makes the variant a dynamic-rendering pipeline for its
+ * formats; one instance serves each set of formats and orientation, keeping the caches small. VulkanMod also
+ * creates a Vulkan render pass for it, which is never begun.
  */
 public final class ChimeraRenderingPass extends RenderPass {
     private static final Map<Key, ChimeraRenderingPass> PASSES = new HashMap<>();

@@ -29,18 +29,10 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * Render-thread state of the pack geometry families: which pack program draws which host draw.
- *
- * There are two kinds of lane. A family lane (entities, block entities and their text, moving blocks, the
- * crumbling overlay, beacon beams, the hand and shadow casters) widens the host vertex format with Iris's
- * attributes, so its geometry is batched apart from the host's in a {@link FamilyRenderType} as it is
- * written. The lane is chosen from the render type and the context drawing it (EntityRenderDispatcher,
- * BlockEntityRenderDispatcher, the hand, the shadow casters); the crumbling overlay and beacon beams take
- * their lane from the render type alone, wherever they are written (worldTypeFamily). A host-layout lane
- * (particles and the {@link HostLayoutLane}s) keeps the host mesh and is chosen by shader name when it draws.
- *
- * Either way the draw is open here while it runs, and ChimeraShaderPipelineMixin hands Reforged the open
- * draw's pack pipeline.
+ * Render-thread state of the pack geometry families: which pack program draws which host draw. A family lane
+ * widens the host vertex format with Iris's attributes, so its geometry is batched apart in a
+ * {@link FamilyRenderType} as it is written; a host-layout lane keeps the host mesh and is chosen by shader
+ * name when it draws. ChimeraShaderPipelineMixin hands Reforged the open draw's pack pipeline.
  */
 public final class ChimeraEntityBridge {
     public enum Family {
@@ -48,15 +40,9 @@ public final class ChimeraEntityBridge {
         ENTITY_TRANSLUCENT,
         SPIDER_EYES,
         BLOCK,
-        /**
-         * A block entity's translucent models (Iris BE_TRANSLUCENT) and text (TEXT_BE), drawn with
-         * gbuffers_block_translucent.
-         */
+        /** A block entity's translucent models and text (Iris BE_TRANSLUCENT, TEXT_BE). */
         BLOCK_TRANSLUCENT,
-        /**
-         * Falling blocks and moving pistons: chunk render types drawn by an entity or a block entity,
-         * with gbuffers_block on the block layout (Iris MOVING_BLOCK).
-         */
+        /** Falling blocks and moving pistons, with gbuffers_block on the block layout (Iris MOVING_BLOCK). */
         MOVING_BLOCK,
         DAMAGED_BLOCK,
         HAND,
@@ -69,10 +55,7 @@ public final class ChimeraEntityBridge {
         /** First-person glint: the glint program under the hand projection. */
         HAND_GLINT,
         LIGHTNING,
-        /**
-         * Beacon and end gateway beams, on the block layout widened as Iris widens it to TERRAIN,
-         * drawn with gbuffers_beaconbeam (Iris BEACON).
-         */
+        /** Beacon and end gateway beams on the widened block layout (Iris BEACON). */
         BEACON_BEAM,
         LEASH,
         /** Text and name-tag backgrounds (Iris TEXT_BG), drawn with gbuffers_entities_translucent. */
@@ -81,10 +64,7 @@ public final class ChimeraEntityBridge {
         TEXTURED,
         /** World position_tex_color draws (Iris TEXTURED_COLOR), with gbuffers_textured's chain. */
         TEXTURED_COLOR,
-        /**
-         * The shadow pass's entity-format casters (Iris SHADOW_ENTITIES_CUTOUT), and on the block
-         * layout its moving blocks.
-         */
+        /** The shadow pass's entity casters (Iris SHADOW_ENTITIES_CUTOUT), and its moving blocks. */
         SHADOW_ENTITIES,
         /** A block entity's models in the shadow pass, drawn with shadow_block (Iris SHADOW_BLOCK). */
         SHADOW_BLOCK,
@@ -135,13 +115,7 @@ public final class ChimeraEntityBridge {
 
     private ChimeraEntityBridge() {}
 
-    /**
-     * Installs a session's lanes whole, in place of any installed before. Iris draws TEXT with
-     * gbuffers_entities_translucent, a block entity's BE_TRANSLUCENT and TEXT_BE with
-     * gbuffers_block_translucent, and MOVING_BLOCK with gbuffers_block. Without shadow_entities no
-     * entity casts a pack shadow; without shadow_block block entities cast theirs with
-     * shadow_entities. A host-layout lane without a pipeline keeps its host draw.
-     */
+    /** Installs a session's lanes whole, replacing any before; a lane without a pipeline keeps its host draw. */
     public static void install(InstalledLanes next) {
         disable();
         lanes = next == null ? InstalledLanes.NONE : next;
@@ -162,10 +136,7 @@ public final class ChimeraEntityBridge {
                 status(lanes.shadowEntities()), status(lanes.shadowMovingBlock()), status(lanes.shadowBlock()));
     }
 
-    /**
-     * Switches the lanes on or off. Turning them off drops what the level sources hold, since a pack that
-     * falls back mid-frame leaves batches held for a boundary its lanes will not reach.
-     */
+    /** Switches the lanes on or off; off drops held level batches, which a mid-frame fallback would strand. */
     public static void setEnabled(boolean value) {
         enabled = value && isInstalled();
         if (!enabled) {
@@ -205,8 +176,7 @@ public final class ChimeraEntityBridge {
 
     /** Opens the world window at LevelRenderer.renderLevel's head; world buffers route families inside it. */
     public static void beginWorldWindow() {
-        // RenderType.draw and ItemRenderer.render have no finally; a draw, bolt draw or item that threw
-        // must not carry into the frame
+        // RenderType.draw and ItemRenderer.render have no finally, so a throw can leave their state open
         closeOpenDraw();
         RenderedItemIds.unwind();
         worldWindow = enabled;
@@ -226,11 +196,7 @@ public final class ChimeraEntityBridge {
         currentBlockEntityId = 0;
     }
 
-    /**
-     * Iris's ImmediateState.isRenderingLevel: from LevelRenderer.renderLevel's head to its return. Both hand
-     * halves fall inside it, since Iris draws the translucent one at a shifted return
-     * (MixinLevelRenderer.iris$endLevelRender), ahead of the plain RETURN injection that clears the flag.
-     */
+    /** Iris's ImmediateState.isRenderingLevel; both hand halves fall inside it, as in Iris. */
     public static boolean renderingLevel() {
         return worldWindow;
     }
@@ -240,11 +206,7 @@ public final class ChimeraEntityBridge {
         return enabled && worldWindow && !drawActive;
     }
 
-    /**
-     * Opens the shadow pass's caster window around its entity and block entity drawing (Iris's
-     * ShadowRenderer.ACTIVE). Every caster batch draws with its shadow family (IrisShaderKeys.shadowFamily),
-     * every host-layout draw with its shadow lane, and anything else stays out of the shadow map.
-     */
+    /** Opens the shadow pass's caster window (Iris's ShadowRenderer.ACTIVE); a draw with no shadow lane stays out. */
     public static boolean beginShadowCasters() {
         lightningBoltDraw = false;
         shadowCasterPass = enabled && !drawActive && lanes.shadowEntities() != null;
@@ -270,35 +232,24 @@ public final class ChimeraEntityBridge {
         particleWindow = false;
     }
 
-    /**
-     * Picks the particle program for a ParticleEngine.render call that draws the sheets
-     * {@code sheets} accepts, as Iris's NeoForge MixinParticleEngine sets one shader per call.
-     */
+    /** Picks the particle program for one ParticleEngine.render call, as Iris's NeoForge MixinParticleEngine does. */
     public static void beginParticleCall(Predicate<ParticleRenderType> sheets) {
         particleTranslucent = translucentParticleCall(sheets);
     }
 
     /**
-     * Whether a particle call draws every sheet with gbuffers_particles_translucent: only when it leaves the
-     * opaque sheet out, as NeoForge's late call does under MIXED. Under BEFORE and AFTER every sheet draws with
-     * gbuffers_particles, each with its own blend. A sheet's own isTranslucent() cannot decide it, since
-     * NeoForge makes that true for the terrain and custom sheets.
+     * Whether a particle call draws with gbuffers_particles_translucent: only when it leaves the opaque sheet
+     * out, as NeoForge's late MIXED call does. A sheet's isTranslucent() cannot decide it, since NeoForge makes
+     * that true for the terrain and custom sheets.
      */
     static boolean translucentParticleCall(Predicate<ParticleRenderType> sheets) {
         return !sheets.test(ParticleRenderType.PARTICLE_SHEET_OPAQUE);
     }
 
     /**
-     * The Iris rendering phase a world host-layout lane's batch written now draws in. Iris answers renderStage
-     * for such a draw from the wrapper around the render type it was asked for in (OuterWrappedRenderType):
-     * BLOCK_ENTITIES inside a block entity's render, ENTITIES inside an entity's. So a hitbox or a fishing line
-     * reports ENTITIES and a structure block's box BLOCK_ENTITIES. Outside every wrapper the batch draws in
-     * NONE, the phase Iris holds between its phase windows.
-     *
-     * The block outline reports NONE too. Iris's source wraps it in its outline state
-     * (MixinLevelRenderer.iris$beginBlockOutline), but Iris 1.8.14 on Fabric with Sodium reads renderStage 0
-     * at the outline's draw. With OUTLINE, Glimmer's outline turns transparent and Mellow's opaque black, where
-     * Iris shows vanilla's translucent outline.
+     * The Iris rendering phase a world host-layout batch written now draws in: that of the wrapper its render
+     * type was asked for in (OuterWrappedRenderType), else NONE. The block outline reports NONE too: Iris's
+     * source wraps it in OUTLINE, but running Iris reads renderStage 0 there.
      */
     public static PackRenderingPhase hostLaneWritePhase() {
         return wrapperPhase(context());
@@ -333,10 +284,7 @@ public final class ChimeraEntityBridge {
         push(Family.ENTITY, lanes.entityIds().resolveName(name), 0);
     }
 
-    /**
-     * Opens a block entity's context. As in Iris's MixinBlockEntityRenderDispatcher, the block state's
-     * block.properties id becomes blockEntityId for everything the block entity draws.
-     */
+    /** Opens a block entity's context; its block.properties id is blockEntityId for all it draws, as in Iris. */
     public static void beginBlockEntity(int blockEntityId) {
         push(Family.BLOCK, 0, blockEntityId);
     }
@@ -361,10 +309,7 @@ public final class ChimeraEntityBridge {
         currentBlockEntityId = blockEntityId;
     }
 
-    /**
-     * The context drawing now: BLOCK anywhere inside a block entity, as Iris's block-entity wrapper
-     * wins over an entity's (a spawner's mob draws as the block entity's), else the innermost one.
-     */
+    /** The context drawing now: BLOCK anywhere inside a block entity, as Iris's wrapper wins, else the innermost. */
     private static Family context() {
         int depth = Math.min(contextDepth, contexts.length);
         for (int index = 0; index < depth; index++) {
@@ -400,11 +345,7 @@ public final class ChimeraEntityBridge {
         lightningBoltDraw = drawing;
     }
 
-    /**
-     * entityId as a host-layout lane reads it (Iris's fallback entityId uniform): the pack's
-     * lightning_bolt id while a bolt draws, otherwise 0, the entity Iris has reset by the time a
-     * host-layout batch draws.
-     */
+    /** entityId as a host-layout lane reads it: lightning_bolt's id while a bolt draws, else 0, as in Iris. */
     public static int hostLayoutEntityId() {
         return enabled && lightningBoltDraw ? lightningBoltEntityId : 0;
     }
@@ -415,9 +356,8 @@ public final class ChimeraEntityBridge {
     }
 
     /**
-     * The family lane that batches {@code type} where it is being written, or null when the host
-     * draws it. A lane is chosen only when its pipeline is installed, so a widened batch always has
-     * a program to draw it.
+     * The family lane that batches {@code type} as it is written, or null for the host. A lane is chosen only
+     * with its pipeline installed, so a widened batch always has a program.
      */
     public static Family familyFor(RenderType type) {
         if (!enabled || drawActive || type == null) return null;
@@ -466,9 +406,8 @@ public final class ChimeraEntityBridge {
     }
 
     /**
-     * The family a render type written in the world window batches with: the crumbling overlay and
-     * beacon beams wherever they are written (IrisShaderKeys.blockLayoutFamily), and otherwise the
-     * entity or block entity drawing it (IrisShaderKeys.worldFamily).
+     * The family a render type written in the world window batches with: by type alone for the crumbling
+     * overlay and beacon beams, else by the entity or block entity drawing it.
      */
     public static Family worldTypeFamily(String shader, VertexFormat format) {
         Family keyed = IrisShaderKeys.blockLayoutFamily(shader, format);
@@ -500,10 +439,7 @@ public final class ChimeraEntityBridge {
         return pass == HostLayoutLane.Pass.WORLD ? worldHostLane(shader, format) : null;
     }
 
-    /**
-     * Whether a world host-layout lane draws {@code type}: the level's buffer source holds such a
-     * batch with the entities' (FamilyBufferSource), as Iris's batched source holds every batch.
-     */
+    /** Whether a world host-layout lane draws {@code type}, so the level's buffer source holds it, as Iris's does. */
     public static boolean worldLaneDraws(RenderType type) {
         return currentPass() == HostLayoutLane.Pass.WORLD && hostLaneFor(shaderOf(type), type.format()) != null;
     }
@@ -519,10 +455,7 @@ public final class ChimeraEntityBridge {
         return weatherWindow ? HostLayoutLane.Pass.WEATHER : HostLayoutLane.Pass.WORLD;
     }
 
-    /**
-     * A world draw's particle lane, the family outside the host-layout table drawn on its host mesh.
-     * The crumbling overlay is a family batch on the widened block layout (familyFor).
-     */
+    /** A world draw's particle lane, the one host-mesh family outside the host-layout table. */
     private static Family worldHostLane(String shader, VertexFormat format) {
         if (!particleWindow || !shader.equals("particle") || format != DefaultVertexFormat.PARTICLE) return null;
         // the call's program draws every sheet in it (beginParticleCall), each with its host blend
@@ -530,22 +463,14 @@ public final class ChimeraEntityBridge {
         return lanes.particle() != null ? Family.PARTICLE : null;
     }
 
-    /**
-     * True for a shadow-pass draw no shadow lane serves. Iris draws every shadow-pass draw with a
-     * shadow program; this one stays out of the shadow map rather than writing colour and depth
-     * with its host shader.
-     */
+    /** True for a shadow-pass draw no shadow lane serves; it stays out of the map rather than use its host shader. */
     public static boolean dropsHostDraw(String shader) {
         if (!isShadowCasterPass() || drawActive) return false;
         noteShadowDropped(shader);
         return true;
     }
 
-    /**
-     * Opens a draw of {@code family} on {@code format} with the host shader {@code shader}; false
-     * when the lane has no pipeline for that format. A host-layout lane draws a held batch in the
-     * phase it was written in, and any other draw in its own.
-     */
+    /** Opens a draw of {@code family} on {@code format}; false when the lane has no pipeline for that format. */
     public static boolean beginDraw(Family family, VertexFormat format, String shader) {
         HostLayoutLane lane = HostLayoutLane.of(family);
         return beginDraw(family, format, shader, lane == null ? phase(family) : lanePhase(lane));
@@ -612,11 +537,7 @@ public final class ChimeraEntityBridge {
         return activeFamily != null && whiteLightmap(activeFamily);
     }
 
-    /**
-     * Whether Iris's ExtendedShader binds a white lightmap for the family's key: a host-layout lane's format
-     * without UV2, or a FULLBRIGHT key. Those are ENTITIES_EYES and ENTITIES_EYES_TRANS (the spider-eyes family
-     * outside block entities), BEACON and CRUMBLING.
-     */
+    /** Whether Iris's ExtendedShader binds a white lightmap for the family's key: no UV2, or a FULLBRIGHT key. */
     public static boolean whiteLightmap(Family family) {
         HostLayoutLane lane = HostLayoutLane.of(family);
         if (lane != null) return lane.whiteLightmap();
@@ -668,10 +589,8 @@ public final class ChimeraEntityBridge {
 
     /**
      * The Iris rendering phase a family batch written now draws in: BLOCK_ENTITIES for whatever a block entity
-     * draws, as Iris wraps a block entity's render types in BlockEntityRenderStateShard in either pass, and
-     * otherwise the family's own. A block entity's crumbling overlay is written from the crumbling source,
-     * outside that wrapper, and draws in NONE: vanilla ends the crumbling batch after every block entity's
-     * wrapper has closed, and Iris never sets DESTROY.
+     * draws, as Iris wraps its render types, else the family's own. The crumbling overlay draws outside that
+     * wrapper in NONE, as Iris never sets DESTROY.
      */
     public static PackRenderingPhase writePhase(Family family) {
         return family != Family.DAMAGED_BLOCK && context() == Family.BLOCK
@@ -704,8 +623,7 @@ public final class ChimeraEntityBridge {
         return value == null ? "fallback" : "installed";
     }
 
-    // logged once per pack session, so a log shows which path each lane took:
-    // each lane's first draw, its first refused batch, and each host shader the shadow pass leaves out
+    // logged once per pack session, so a log shows which path each lane took
     private static final EnumSet<Family> drawnLanes = EnumSet.noneOf(Family.class);
     private static final EnumSet<Family> refusedLanes = EnumSet.noneOf(Family.class);
     private static final Set<String> droppedShaders = new HashSet<>();

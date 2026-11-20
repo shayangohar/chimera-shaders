@@ -38,9 +38,8 @@ import java.util.TreeSet;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * Runs the pack's post programs in each frame window: the target graph's deferred and composite steps, the
- * computes of passes with no program, and final before the hand. A step that cannot run becomes an identity
- * boundary, so the frame still presents.
+ * Runs the pack's post programs in each frame window, final before the hand. A step that cannot run becomes an
+ * identity boundary, so the frame still presents.
  */
 final class PackPostChain {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -91,19 +90,14 @@ final class PackPostChain {
     }
 
     /**
-     * A pass group opens when it has passes, or when its {@code flip.<group>_pre} entries change the
-     * state. Iris builds every group, passes or none, so such a pre-flip still applies, and the world
-     * after the group reads and writes through it.
+     * A pass group opens when it has passes or its {@code flip.<group>_pre} entries change the state, as Iris
+     * applies a pre-flip even to an empty group.
      */
     static boolean windowDue(boolean hasPasses, PackFlipPlan flips, PackFrameSchedulePlan.PostWindow window) {
         return hasPasses || flips != null && flips.preFlips(window);
     }
 
-    /**
-     * Runs the setup computes when due, then the BEGIN window, over the freshly cleared world
-     * target, then reopens it. Iris runs the begin passes after the clear passes, before the shadow
-     * pass and the sky.
-     */
+    /** Runs any due setup computes, then the BEGIN window, after the clear and before the shadow pass, as Iris does. */
     void runOpeningWindows(VkCommandBuffer commandBuffer) {
         runOverWorldTarget(commandBuffer, true, PackFrameSchedulePlan.PostWindow.BEGIN);
     }
@@ -138,10 +132,7 @@ final class PackPostChain {
         pass.rebindMainTarget();
     }
 
-    /**
-     * Runs the world's post windows at level end, EARLY unless the pre-translucent seam already
-     * ran it and then LATE, and commits the frame's target state.
-     */
+    /** At level end, runs EARLY unless it ran before translucents, then LATE, and commits the frame's targets. */
     void runWorldPostWindows(VkCommandBuffer commandBuffer, VulkanImage hdrColor) {
         if (!pass.packEarlyPostCompleted && windowDue(PackFrameSchedulePlan.PostWindow.EARLY)) {
             runPackPostWindow(commandBuffer, hdrColor, PackFrameSchedulePlan.PostWindow.EARLY);
@@ -230,10 +221,7 @@ final class PackPostChain {
         return true;
     }
 
-    /**
-     * Runs a pass that has computes and no program: its computes over the images the chain holds
-     * now, then the barrier Iris's renderAll records after them, and nothing drawn or flipped.
-     */
+    /** Runs a pass with computes and no program, then Iris's barrier; nothing is drawn or flipped. */
     private void runComputeOnlyStage(VkCommandBuffer commandBuffer, VulkanImage hdrColor, PackPostExecution stage) {
         try {
             pass.packPostTargets.beginStep(commandBuffer, stage.name());
@@ -271,11 +259,8 @@ final class PackPostChain {
     }
 
     /**
-     * Draws one post stage into its graph targets.
-     *
-     * A stage that throws aborts its own step, which passes through as one that did not run, and stays
-     * identity for the rest of the session while the chain goes on. A device-level failure, or the failure
-     * that makes too many (PostStageFailures), is rethrown and turns the pack off.
+     * Draws one post stage into its graph targets. A stage that throws stays identity for the session while
+     * the chain goes on; a device-level failure, or one too many, turns the pack off.
      */
     private void runPostStage(VkCommandBuffer commandBuffer, VulkanImage hdrColor, PackPostExecution stage) {
         PackPipelines.PackPost post = stage.post();
@@ -416,8 +401,7 @@ final class PackPostChain {
     /** Draws the final program into its own image and returns that image, readable by the resolve. */
     private VulkanImage renderPackFinal(VkCommandBuffer commandBuffer) {
         pass.prepareProgramImages(pass.pipelines.finalPost.pipeline());
-        // final reads the pack targets in GL row order and renders a GL-ordered image; the caller's resolve
-        // turns it into the host-ordered output
+        // final renders in GL row order; the caller's resolve turns it into host order
         Renderer.getInstance().endRenderPass(commandBuffer);
         pass.packPostTargets.generateMipmaps(commandBuffer, pass.pipelines.finalPost.name());
         Renderer.getInstance().beginRendering(pass.targets.packFinalRenderPass, pass.targets.packFinalFramebuffer);
@@ -614,9 +598,8 @@ final class PackPostChain {
     }
 
     /**
-     * Whether this frame holds every depth snapshot and shadow image in {@code frameInputs}, which leaves
-     * out a depth name a stage texture serves. depthtex0 also counts while the world depth can still be
-     * captured, since the pass's prepare captures it.
+     * Whether this frame holds every depth snapshot and shadow image in {@code frameInputs}; depthtex0 counts
+     * while it can still be captured.
      */
     boolean packDepthInputsAvailable(List<String> frameInputs) {
         if (frameInputs == null) return true;
@@ -646,10 +629,7 @@ final class PackPostChain {
         return "unavailable inputs " + missing;
     }
 
-    /**
-     * The targets pass computes and post passes store to (colorimgN), each with the formats they
-     * bind it in: their images are created for storage, with a view in any other format.
-     */
+    /** The targets computes and post passes store to as colorimgN, with the formats each is bound in. */
     private Map<Integer, Set<Integer>> storageTargets() {
         Map<Integer, Set<Integer>> targets = new TreeMap<>();
         if (pass.packPassComputes != null) {
@@ -710,11 +690,7 @@ final class PackPostChain {
         }
     }
 
-    /**
-     * Whether the post chain runs: the graph has a post program's step, or {@code computes} run in
-     * the chain. Iris runs a pass with computes and no program (CompositeRenderer.ComputeOnlyPass)
-     * and, with no final program, shows colortex0; RenderPearl's passes are all such.
-     */
+    /** Whether the post chain runs: the graph has a step, or computes run in it, as Iris runs compute-only passes. */
     static boolean runsChain(PackTargetGraphPlan graph, boolean computes) {
         return !graph.steps().isEmpty() || computes;
     }
@@ -747,11 +723,7 @@ final class PackPostChain {
         return computeDepthReads().keySet();
     }
 
-    /**
-     * The images a pass's computes read now: the chain's colour sources, the images they write
-     * (colortex0 moved out of the HDR image first), the depth snapshots, and the shadow images as
-     * programs sample them (PackImageBindings, PackShadowPass.shadowSamplerFor).
-     */
+    /** The images a pass's computes read now, with shadow images sampled as programs sample them. */
     PackPassComputes.ImageSources computeSources(VkCommandBuffer commandBuffer) {
         return new PackPassComputes.ImageSources() {
             @Override
@@ -766,8 +738,7 @@ final class PackPostChain {
 
             @Override
             public VulkanImage depth(String name) {
-                // a snapshot, this frame's or the last; the live world depth is depth-stencil, and only
-                // a program's draw binds a depth-only view of it (PackDepthTargets)
+                // a snapshot; only a program's draw binds a depth-only view of the live depth-stencil
                 return pass.packDepthTargets.sampledImage(name);
             }
 
@@ -785,10 +756,7 @@ final class PackPostChain {
         };
     }
 
-    /**
-     * Whether a pass runs only its computes: it has some, and runs alone (PassComputePlan.runsAlone),
-     * as the report shows it. A program Chimera could not install counts as a fallback instead.
-     */
+    /** Whether a pass runs only its computes; a program Chimera could not install counts as a fallback instead. */
     private boolean computeOnly(String name) {
         return computePasses().contains(name) && PassComputePlan.runsAlone(pass.packPlan, name);
     }

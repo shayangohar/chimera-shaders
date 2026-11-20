@@ -35,12 +35,8 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Sweeps the options the settings screen offers, one change at a time over each pack's defaults.
- *
- * Every toggle is flipped, every choice that can change which code runs is set to each of its values (only
- * the two ends of a long numeric list), and every profile is applied. Each variant's sources are edited as
- * Iris edits them, then analysed and compiled as PackCompileTest does. Programs newly rejected, with the
- * report's reasons, and newly failing compiles go to {@code build/option-sweep/<pack>.json} and summary.md.
+ * Sweeps the options the settings screen offers, one change at a time over each pack's defaults, and writes
+ * newly rejected programs and failing compiles to {@code build/option-sweep/<pack>.json} and summary.md.
  *
  * Run with {@code gradlew optionSweep -Pchimera.pack.complementary=<zip> -Pchimera.pack.bsl=<zip>}, adding
  * {@code -Pchimera.pack.extra=<pack>;<pack>} for more packs; {@code -Pchimera.sweep.packs=<name>;<name>}
@@ -85,9 +81,8 @@ final class OptionSweepTest {
     }
 
     /**
-     * Explains named variants in full: {@code -Pchimera.sweep.explain=<pack word>:<OPTION=value or profile
-     * name>;...} writes to explain.md the report deviations of each program the variant rejects and the
-     * defaults run, the full compile errors, and any value that did not reach the pack.
+     * Explains named variants in full in explain.md: {@code -Pchimera.sweep.explain=<pack word>:<OPTION=value
+     * or profile name>;...}.
      */
     @Test
     void explain() throws Exception {
@@ -191,10 +186,7 @@ final class OptionSweepTest {
 
     /**
      * Each toggle flipped, each structural choice at each other value (only the ends of a long list), and
-     * each profile.
-     *
-     * A define the settings screen never shows, such as a program's own GBUFFERS_TERRAIN or INCLUDE_SKY
-     * guard, is no setting a player can change, so it is skipped. A pack with no screen layout sweeps all.
+     * each profile. Defines the settings screen never shows are skipped, unless the pack lays out no screen.
      */
     static List<Variant> variants(ShaderPackOptions options, Set<String> structural) {
         Set<String> shown = shownOptions(options.menu());

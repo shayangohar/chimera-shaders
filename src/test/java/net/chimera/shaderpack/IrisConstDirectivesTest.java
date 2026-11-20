@@ -13,11 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Iris's const directives (ConstDirectiveParser, ProgramSet.locateDirectives), read from the
- * fragment stages of the programs Iris loads, in Iris's order, whatever follows the semicolon.
- * The pack-wide directives come from programs the pack keeps.
- */
+/** Iris's const directives (ConstDirectiveParser), read from the fragment stages Iris loads, in Iris's order. */
 final class IrisConstDirectivesTest {
     @Test
     void aLineDeclaresOneDirectiveUpToItsFirstSemicolon() {
@@ -33,10 +29,7 @@ final class IrisConstDirectivesTest {
                         """));
     }
 
-    /**
-     * Iris reads shadowcomp, begin and prepare, then every ProgramId (gbuffers, shadow, dh and
-     * final), then deferred and composite; a later directive replaces an earlier one.
-     */
+    /** Iris reads shadowcomp, begin, prepare, every ProgramId, deferred then composite; later directives win. */
     @Test
     void laterProgramsInIrisOrderReplaceEarlierDirectives(@TempDir Path shaders) {
         List<PackProgram> programs = List.of(
@@ -78,10 +71,7 @@ final class IrisConstDirectivesTest {
         assertEquals(97, config.colortexFormats().get(1), "RGBA16F with a comment after the semicolon");
     }
 
-    /**
-     * Iris's pack-wide directives (PackDirectives.acceptDirectivesFrom): drynessHalflife writes the
-     * wetness half-life, and the dryness half-life keeps its default.
-     */
+    /** As in Iris's PackDirectives, drynessHalflife writes the wetness half-life; the dryness one keeps its default. */
     @Test
     void drynessHalflifeWritesTheWetnessHalfLifeAsIrisDoes() {
         PackDirectives directives = PackDirectives.read(IrisConstDirectives.find("""

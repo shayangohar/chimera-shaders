@@ -11,11 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.EnumMap;
 import java.util.Map;
 
-/**
- * The pipelines that resolve the world into the output target: the plain resolve, and one per display colour
- * space of the Color Space setting that also converts to it, built the first time the setting asks for it.
- * They are cleaned up with the main pass's other pipelines.
- */
+/** The pipelines that resolve the world into the output target: a plain one, and one per colour space on first use. */
 final class OutputResolvePipelines {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final Map<ColorSpace, GraphicsPipeline> conversions = new EnumMap<>(ColorSpace.class);
@@ -24,9 +20,8 @@ final class OutputResolvePipelines {
     private boolean conversionFailed;
 
     /**
-     * The colour space the output is converted to: the setting while a pack runs that does not convert itself,
-     * as Iris converts after final (finalizeGameRendering) unless the pack sets supportsColorCorrection;
-     * otherwise sRGB, which converts nothing.
+     * The output colour space: the setting while a pack runs that does not convert itself (Iris skips the
+     * conversion when a pack sets supportsColorCorrection), otherwise sRGB.
      */
     static ColorSpace outputSpace(boolean packRuns, boolean packConvertsItself, ColorSpace setting) {
         return packRuns && !packConvertsItself ? setting : ColorSpace.SRGB;

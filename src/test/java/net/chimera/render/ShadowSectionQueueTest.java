@@ -17,11 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Which chunk sections the shadow pass draws. */
 final class ShadowSectionQueueTest {
     /**
-     * Iris tests no projection volume when it culls shadow casters (ShadowRenderer
-     * .createShadowFrustum), and BSL's shadow vertex stage scales clip depth by 0.2, so a section far
-     * past the ortho's far plane (156 blocks) or near plane (-100.05) still lands in its map. With
-     * the sun overhead, a village 180 blocks below and a ridge 120 blocks above must both cast. Only
-     * the host's own shadow keeps the light-volume bound.
+     * Iris culls shadow casters without the projection volume (ShadowRenderer.createShadowFrustum), and
+     * a pack may scale clip depth, so sections past the ortho's depth planes still cast. Only the host's
+     * own shadow keeps the light-volume bound.
      */
     @Test
     void aPackShadowKeepsCastersPastTheOrthoDepthPlanes() {
@@ -42,9 +40,8 @@ final class ShadowSectionQueueTest {
     }
 
     /**
-     * Iris's renderPlayerEntity (shadowPlayer without shadowEntities, Solas at its defaults): the
-     * passengers, the vehicle, then the player, an invisible one too; nothing for a spectator or a
-     * player outside the frustum.
+     * Iris's renderPlayerEntity, for shadowPlayer without shadowEntities: passengers, vehicle, then the
+     * player, even an invisible one; nothing for a spectator or a player outside the frustum.
      */
     @Test
     void thePlayerOnlyPathDrawsAsIrisDoes() {

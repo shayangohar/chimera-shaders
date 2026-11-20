@@ -60,10 +60,7 @@ public final class PackResourceOwner implements AutoCloseable {
         return owner;
     }
 
-    /**
-     * Makes the binding's image unless it is not this owner's to make or a try already made or failed
-     * it. A game texture is only named here; {@link #image(String)} looks it up at each bind.
-     */
+    /** Makes the binding's image once, if this owner makes it; a game texture is only named here. */
     private void loadOnce(PackResourceBinding binding) {
         String key = binding.resourceKey();
         if (!closed && binding.status() == PackResourceStatus.GAME_RESOURCE && !gameTextures.containsKey(key)) {
@@ -92,20 +89,13 @@ public final class PackResourceOwner implements AutoCloseable {
         }
     }
 
-    /**
-     * The image of a binding no program planned, such as a pass compute's texture: made on first
-     * use and owned with the rest. Null when it cannot be made; {@link #failure} says why.
-     */
+    /** The image of a binding no program planned, such as a pass compute's, made on first use; null if it cannot be. */
     public VulkanImage image(PackResourceBinding binding) {
         loadOnce(binding);
         return image(binding.resourceKey());
     }
 
-    /**
-     * Whether the binding has an image to bind: a loaded pack image, or a game texture, which is only
-     * looked up at bind time (Iris's TextureWrapper), so a pack loaded before the game's textures
-     * exist still counts it. Loads the binding as {@link #image(PackResourceBinding)} does.
-     */
+    /** Whether the binding has an image to bind; a game texture counts before it exists, as binds look it up. */
     public boolean available(PackResourceBinding binding) {
         loadOnce(binding);
         return gameTextures.containsKey(binding.resourceKey()) || image(binding.resourceKey()) != null;

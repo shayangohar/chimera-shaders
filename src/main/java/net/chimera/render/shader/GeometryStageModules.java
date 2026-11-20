@@ -20,14 +20,11 @@ import static org.lwjgl.vulkan.VK10.vkCreateShaderModule;
 import static org.lwjgl.vulkan.VK10.vkDestroyShaderModule;
 
 /**
- * Pack geometry stages (.gsh), which VulkanMod's GraphicsShaderStages has no slot for. A pipeline built with
- * one gets its module while it is constructed. Every variant it creates, at once or lazily at a later draw,
- * runs the module between its last vertex-processing stage and its fragment stage
- * (GraphicsPipelineGeometryStageMixin). The pipeline's side holds the module (PipelineSide), which goes with
- * the pipeline's cleanUp.
+ * Pack geometry stages (.gsh), which VulkanMod's GraphicsShaderStages has no slot for. Every variant of the
+ * pipeline, including lazy ones, gets the module inserted (GraphicsPipelineGeometryStageMixin).
  */
 public final class GeometryStageModules {
-    /** The geometry SPIR-V of the pipeline this thread is constructing, and what was made from it. */
+    /** The geometry SPIR-V of the pipeline this thread is constructing. */
     private static final class Pending {
         private final ByteBuffer spirv;
         private GraphicsPipeline pipeline;
@@ -42,7 +39,6 @@ public final class GeometryStageModules {
 
     private GeometryStageModules() {}
 
-    /** Constructs a pipeline with {@code create}, giving it {@code spirv} as its geometry stage. */
     public static GraphicsPipeline construct(ByteBuffer spirv, Supplier<GraphicsPipeline> create) {
         Pending pending = new Pending(spirv);
         boolean constructed = false;
@@ -58,7 +54,7 @@ public final class GeometryStageModules {
         }
     }
 
-    /** At construction: makes the geometry module of the pipeline this thread is constructing, if it has one. */
+    /** Called from pipeline construction. */
     public static void attach(GraphicsPipeline pipeline) {
         Pending pending = PENDING.current();
         if (pending == null || pending.module != 0L) return;
@@ -67,17 +63,13 @@ public final class GeometryStageModules {
         PipelineSide.of(pipeline).geometryModule = pending.module;
     }
 
-    /** The stages one variant of {@code pipeline} is created with: its geometry stage added, when it has one. */
     public static VkPipelineShaderStageCreateInfo.Buffer withGeometry(GraphicsPipeline pipeline,
                                                                      VkPipelineShaderStageCreateInfo.Buffer stages) {
         long module = PipelineSide.of(pipeline).geometryModule;
         return module == 0L ? stages : insert(stages, module, MemoryStack.stackGet());
     }
 
-    /**
-     * {@code stages} with a geometry stage running {@code module} placed before the fragment stage,
-     * on {@code stack}, entering at the same entry point as the stage it precedes.
-     */
+    /** Places the geometry stage before the fragment stage, with the same entry point. */
     static VkPipelineShaderStageCreateInfo.Buffer insert(VkPipelineShaderStageCreateInfo.Buffer stages, long module,
                                                        MemoryStack stack) {
         int count = stages.remaining();
@@ -94,7 +86,7 @@ public final class GeometryStageModules {
         return out;
     }
 
-    /** At cleanUp: destroys the pipeline's geometry module. */
+    /** Called from the pipeline's cleanUp. */
     public static void release(GraphicsPipeline pipeline) {
         PipelineSide side = PipelineSide.of(pipeline);
         long module = side.geometryModule;

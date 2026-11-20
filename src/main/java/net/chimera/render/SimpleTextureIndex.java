@@ -13,12 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The live {@code TextureManager}'s simple textures, so draw-observed albedo images can be matched to their
- * resources by Vulkan image identity.
- *
- * Only resource-backed {@code SimpleTexture}s qualify: atlases, dynamic textures, lightmaps, overlays and
- * textures without a Vulkan image never match, so no material maps are made up for them. Read-only, so safe
- * to call while material map builds are pumped.
+ * The live TextureManager's resource-backed SimpleTextures, so draw-observed albedo images can be matched to their
+ * resources by Vulkan image identity. Read-only, so safe while material map builds are pumped.
  */
 public final class SimpleTextureIndex {
     private SimpleTextureIndex() {}
@@ -40,9 +36,8 @@ public final class SimpleTextureIndex {
     }
 
     /**
-     * The atlas-style sprite path ({@code entity/creeper}) that material sibling lookup works on, from a simple
-     * texture's full file path ({@code textures/entity/creeper.png}): the leading {@code textures/} and the file
-     * extension come off. A path outside {@code textures/} keeps its prefix for the CIT rule.
+     * {@code textures/entity/creeper.png} to {@code entity/creeper}; a path outside {@code textures/} keeps its
+     * prefix for the CIT rule.
      */
     static String relativeSpritePath(String resourcePath) {
         String path = resourcePath.startsWith("textures/")

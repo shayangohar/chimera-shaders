@@ -12,12 +12,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * A slider that keeps its tooltip while greyed out, as Iris's locked Max Shadow Distance does.
- *
- * VulkanMod's OptionWidget treats an inactive widget as never under the mouse, so the screen finds no hovered
- * widget and draws no tooltip; this one counts as hovered while inactive. Clicks still need it active
- * (OptionWidget.mouseClicked). renderHovering checks isActive(), which option widgets leave true, so the
- * hover highlight is drawn only while active.
+ * A slider that keeps its tooltip while greyed out, as Iris's locked Max Shadow Distance does. VulkanMod's
+ * OptionWidget never counts an inactive widget as hovered; clicks still need it active. The highlight checks
+ * {@code active} because option widgets leave isActive() true.
  */
 final class LockableRangeOption extends RangeOption {
     LockableRangeOption(Component name, int min, int max, int step, Function<Integer, Component> translator,

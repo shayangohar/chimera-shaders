@@ -17,15 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A pack load shares its programs among PackWorkers. The results must be what a loop over the
- * programs returns, on any processor count: in input order, with the first failure in input order
- * rethrown, and on one or two processors without leaving the calling thread.
+ * PackWorkers must return what a loop over the programs would on any processor count, in input order with the
+ * first failure rethrown, and on one or two processors without leaving the calling thread.
  */
 final class PackWorkersTest {
-    /**
-     * A worker's own work may map again, as a program's planning does inside the pack's: the inner
-     * map runs on the same pool, in input order, and nothing waits on itself.
-     */
+    /** A worker may map again, as program planning does; the inner map shares the pool and nothing waits on itself. */
     @Test
     void aWorkerMayMapAgain() {
         List<List<Integer>> results = assertTimeoutPreemptively(Duration.ofSeconds(30), () -> PackWorkers.map(

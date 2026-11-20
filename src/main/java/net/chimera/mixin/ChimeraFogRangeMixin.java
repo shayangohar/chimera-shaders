@@ -9,11 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Passes each fog range RenderSystem takes to the pack draws that follow, as Iris's fogStart and fogEnd
- * track these setters. That covers the sky's, the terrain's, a boss's or water's fog, and the
- * Float.MAX_VALUE start FogRenderer.setupNoFog leaves for the hand.
- */
+/** Iris's fogStart and fogEnd, tracked through RenderSystem's fog setters. */
 @Mixin(RenderSystem.class)
 public abstract class ChimeraFogRangeMixin {
     @Inject(method = "setShaderFogStart", at = @At("RETURN"), require = 1)

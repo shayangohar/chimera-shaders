@@ -11,12 +11,11 @@ import java.util.Map;
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
 /**
- * Iris's per-vertex entity identities (EntityPatcher): entityId, blockEntityId and currentRenderedItemId,
- * each one component of the EntityIds input. A converted vertex stage copies each identity it or a later
- * stage reads into a flat varying, and the later stages read the identity back through it.
+ * Iris's per-vertex entity identities (EntityPatcher), carried from the EntityIds input to later stages in flat
+ * varyings.
  */
 final class EntityIdRewrites {
-    /** In component order: EntityIds, Iris's iris_Entity, holds them as x, y and z. */
+    /** In component order, as Iris's iris_Entity holds them. */
     static final List<String> ENTITY_ID_NAMES = List.of("entityId", "blockEntityId", "currentRenderedItemId");
 
     static final String ENTITY_ID_VARYING = "chimeraEntityId";
@@ -39,7 +38,6 @@ final class EntityIdRewrites {
         };
     }
 
-    /** The entity identity types either stage declares, in {@code ENTITY_ID_NAMES} order. */
     static Map<String, String> entityIdTypes(String strippedVertex, String fragmentSource) {
         Map<String, String> types = new LinkedHashMap<>();
         for (String name : ENTITY_ID_NAMES) {
@@ -49,7 +47,6 @@ final class EntityIdRewrites {
         return types;
     }
 
-    /** Copies each named identity from the EntityIds input into its flat varying at the start of main. */
     static String injectEntityIdPrologues(String source, Collection<String> names) {
         String result = source;
         for (String name : names) {
@@ -59,7 +56,6 @@ final class EntityIdRewrites {
         return result;
     }
 
-    /** The flat output declaration of each named identity's varying, at its layout location. */
     static String entityIdOutputDeclarations(Collection<String> names,
                                              LegacyGlslConverter.TerrainVaryingLayout layout) {
         StringBuilder declarations = new StringBuilder();
@@ -71,9 +67,8 @@ final class EntityIdRewrites {
     }
 
     /**
-     * Applies a vertex stage's input {@code replacements}: a built-in everywhere, an entity identity only
-     * where it names the global (GlslScopedReferences). A pack may give a parameter or local an identity's
-     * name, as Shrimple's {@code GetSceneEntityLightColor(const in int entityId)} does.
+     * An entity identity is replaced only where it names the global, since a pack may give a parameter or local
+     * an identity's name.
      */
     static String replaceInputs(String source, Map<String, String> replacements) {
         Map<String, String> others = new HashMap<>(replacements);
@@ -85,7 +80,6 @@ final class EntityIdRewrites {
         return GlslScopedReferences.replace(GlslTokenRewriter.replaceIdentifiers(source, others), identities);
     }
 
-    /** Each named identity read through its flat varying. */
     static Map<String, String> entityIdReplacements(Collection<String> names,
                                                     LegacyGlslConverter.TerrainVaryingLayout layout) {
         Map<String, String> replacements = new LinkedHashMap<>();
@@ -112,7 +106,7 @@ final class EntityIdRewrites {
         return entityIdExpression(layout, name, "");
     }
 
-    /** The identity read through its varying's {@code element}: "[0]" for a geometry stage's first vertex. */
+    /** {@code element} is "[0]" for a geometry stage's first vertex. */
     static String entityIdExpression(LegacyGlslConverter.TerrainVaryingLayout layout, String name, String element) {
         String varying = entityIdVarying(name);
         if (layout != null && layout.locations().containsKey(varying)) {

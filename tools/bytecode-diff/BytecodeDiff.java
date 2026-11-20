@@ -18,28 +18,22 @@ import java.util.stream.Stream;
 
 /**
  * Compares two compiled class trees method by method after mapping moved code, to show that a
- * refactor which only moves code changes no behaviour.
+ * move-only refactor changes no behaviour.
  *
  * Usage: BytecodeDiff <beforeDir> <afterDir> [rulesFile|-] [reportFile]
- * From Gradle: on the base commit, gradlew bytecodeBaseline saves build/classes/java/main and test
- * to build/bytecode-diff/before; on the refactor, gradlew bytecodeDiff -Prules=<file> compares
- * both against it and writes build/bytecode-diff/report-main.txt and report-test.txt.
+ * From Gradle: gradlew bytecodeBaseline on the base commit, then gradlew bytecodeDiff -Prules=<file> on
+ * the refactor; both work under build/bytecode-diff/.
  *
  * Rules (internal names with slashes, one per line, # comments):
  *   class OLD NEW            OLD's type and members now live in NEW (a host or a nested class)
  *   member OWNER NAME NEW    OWNER's members called NAME (and their lambdas) moved to NEW
  *   rename OWNER NAME NEW    OWNER's member NAME is now called NEW (OWNER is the original owner)
- *   normalize REGEX => TEXT  rewrites every printed body on both sides; \n stands for a line
- *                            break (for example, to read pass.targets.x as this.x after a merge)
+ *   normalize REGEX => TEXT  rewrites every printed body on both sides; \n stands for a line break
  *
  * Still checked by hand: the constructors of merged classes, collapsed duplicates, access
  * changes, class literals of moved types, and anything reached by reflection, resources or
- * stack-trace text. Static initializers are compared field by field, so a static may move.
- *
- * The before tree is mapped forward into the after tree's names. Debug info, frames and
- * constant-pool layout are ignored; labels are numbered per method; lambda bodies are compared
- * as a multiset per enclosing method; enum switches are compared by constant name, not by the
- * synthetic switch-map index.
+ * stack-trace text. Debug info, frames and constant-pool layout are ignored; lambdas and enum
+ * switches compare by content, not by synthetic names or indices.
  */
 public class BytecodeDiff {
     static final Map<String, String> classRules = new LinkedHashMap<>();
@@ -498,7 +492,6 @@ public class BytecodeDiff {
                 case "rename" -> renameRules.put(p[1] + "." + p[2], p[3]);
                 case "normalize" -> {
                     String[] parts = raw.trim().substring("normalize".length()).trim().split(" => ", 2);
-                    // in a rule, \n stands for a line break in the printed body
                     normalizeRules.add(new String[] {parts[0].replace("\\n", "\n"),
                             parts.length > 1 ? parts[1].replace("\\n", "\n") : ""});
                 }

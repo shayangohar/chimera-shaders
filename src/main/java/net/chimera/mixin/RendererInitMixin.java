@@ -10,11 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Chimera's hooks into VulkanMod's Renderer lifecycle. It takes over the main pass once the Renderer is fully
- * built, with its swapchain, default main pass and sync objects; applies pending pack work before a frame
- * records; and cleans up its own pass at final teardown when the host pass is the installed one.
- */
+/** Chimera's hooks into VulkanMod's Renderer lifecycle. */
 @Mixin(value = Renderer.class, remap = false)
 public abstract class RendererInitMixin {
 
@@ -32,10 +28,7 @@ public abstract class RendererInitMixin {
         ChimeraRenderer.beforeHostCleanup();
     }
 
-    /**
-     * Runs after Renderer.beginFrame has waited on the frame slot's fence and before command recording
-     * starts, the point where pack-owned Vulkan resources can be replaced, as on a dimension change.
-     */
+    /** After beginFrame waits on the frame's fence and before recording: where pack resources can be replaced. */
     @Inject(method = "beginRenderPass(Lorg/lwjgl/system/MemoryStack;)V", at = @At("HEAD"))
     private void chimera$beforeMainCommandBuffer(MemoryStack stack, CallbackInfo ci) {
         ChimeraRenderer.beforeMainCommandBuffer();

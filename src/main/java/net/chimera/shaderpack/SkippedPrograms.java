@@ -7,23 +7,19 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Which skipped programs change what renders. A chat line names those and the log warns of them. Skipping a
- * program the pack switched off, one Iris would not run here either, or one only another mod's renderer runs
- * changes nothing, so the skip is expected and stays in debug.log.
+ * Which skipped programs change what renders. An expected skip, of a program Iris would not draw here either,
+ * stays in debug.log.
  */
 public final class SkippedPrograms {
     /** The report labels that say a skip changes nothing Iris would draw here. */
     private static final List<String> EXPECTED = List.of(
             "PROGRAM_DISABLED:",             // the pack switched the program off
-            "IRIS_PROGRAM_UNUSED:",          // another mod's, like Colorwheel or Physics Mod; Iris never runs it
+            "IRIS_PROGRAM_UNUSED:",          // another mod's program; Iris never runs it
             "IRIS_FALLBACK_SOURCE_ONLY",     // Iris reads it only as another program's fallback source
             "TERRAIN_LAYER_MERGED_BY_HOST:", // the host draws the layer with gbuffers_terrain
             "MISSING_FRAGMENT_SOURCE",       // no fragment stage, so Iris builds no program from it
             PackProgramPlan.CLOUD_AUTHORED_NO_OUTPUT); // a cloud program that draws nothing, in Iris too
-    /**
-     * The words of a deviation that says why a program could not run, the most telling first: a
-     * failure, then a limit it met, then what Chimera cannot do.
-     */
+    /** Words of a deviation that says why a program could not run, the most telling first. */
     private static final List<String> REFUSALS = List.of("FAILED", "CONFLICT", "LIMIT", "UNAVAILABLE",
             "MALFORMED", "UNSUPPORTED", "INELIGIBLE", "BOUNDARY");
 

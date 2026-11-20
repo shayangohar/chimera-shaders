@@ -23,10 +23,7 @@ import static org.lwjgl.opengl.GL11.GL_NEAREST;
 import static org.lwjgl.opengl.GL11.GL_NEAREST_MIPMAP_NEAREST;
 import static org.lwjgl.opengl.GL11.GL_REPEAT;
 
-/**
- * Draw-time material-map resolution: which companion a draw binds, the sampler it samples with, and
- * the binding transaction that rolls back when one resolution fails.
- */
+/** Draw-time material-map resolution, and the binding transaction that rolls back when one fails. */
 final class MaterialMapDrawTest {
     @Test
     void resolveDrawMaterial() throws Exception {
@@ -131,8 +128,7 @@ final class MaterialMapDrawTest {
             assertEquals(0x7777L, normals.samplerOverride(), "normals left the albedo sampler");
             assertTrue(samplers.requests.isEmpty(), "normals allocated a sampler");
 
-            // atlas labPBR specular reads the nearest texel of the nearest level, as Iris sets it
-            // (GL_NEAREST_MIPMAP_NEAREST), with the source's ceiling
+            // atlas labPBR specular samples GL_NEAREST_MIPMAP_NEAREST, as Iris sets it, with the source's ceiling
             var specular4 = owner.resolveDrawMaterial(lod4, "specular");
             var specular8 = owner.resolveDrawMaterial(lod8, "specular");
             assertEquals(2, samplers.requests.size(), "max-LOD variants aliased in the cache");
@@ -205,11 +201,7 @@ final class MaterialMapDrawTest {
         }
     }
 
-    /**
-     * An entity draw that marks slot 0 with its own sampler does not reach the first terrain draw:
-     * terrain resolves from its captured context and never reads slot state again, so it binds its maps
-     * with the chunk profile.
-     */
+    /** An entity draw's slot-0 sampler never reaches terrain, which resolves from its captured context. */
     @Test
     void firstTerrainDrawWins() throws Exception {
         Map<String, byte[]> files = fixtureFiles();

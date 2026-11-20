@@ -6,11 +6,8 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoubleUnaryOperator;
 
 /**
- * The functions a {@link PackExpression} may call: Iris's IrisFunctions set, with the arity and argument shape
- * each accepts.
- *
- * A math function carries its operation on one argument, on two, or both; PackExpression evaluates the rest
- * itself. Iris's {@code round} entry is commented out, so an expression calling it is refused as Iris refuses it.
+ * The functions a {@link PackExpression} may call: Iris's IrisFunctions set, with each one's arity and argument
+ * shape. Iris's {@code round} entry is commented out, so a call to it is refused as in Iris.
  */
 enum PackFunction {
     ABS(1, 1, Shape.LANES, Math::abs),
@@ -57,10 +54,7 @@ enum PackFunction {
     /** Iris's explicit casts (IrisFunctions.addExplicitCast); float to int truncates. */
     TOFLOAT(1, 1, Shape.SCALAR, value -> value),
     TOINT(1, 1, Shape.SCALAR, value -> (int) value),
-    /**
-     * Iris's {@code max} and {@code min} with three or more arguments read the second argument again for each
-     * further one, so only the first two count.
-     */
+    /** Iris's {@code max} and {@code min} reread the second argument for each further one, so only two count. */
     MAX(2, Integer.MAX_VALUE, Shape.LANES, null, Math::max),
     MIN(2, Integer.MAX_VALUE, Shape.LANES, null, Math::min),
     CLAMP(3, 3, Shape.LANES, null),

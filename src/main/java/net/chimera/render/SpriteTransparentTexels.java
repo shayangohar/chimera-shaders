@@ -5,19 +5,12 @@ package net.chimera.render;
 import com.mojang.blaze3d.platform.NativeImage;
 
 /**
- * The colour Iris setups load an atlas sprite's fully transparent texels with. Sodium, which Iris requires,
- * recolours each to the sprite's mean colour as the sprite loads: the alpha-weighted mean of its texels,
- * decoded from sRGB and encoded back. Vanilla and VulkanMod keep the image's own colour.
- *
- * No draw shows it without a pack, since those texels are discarded or blend to nothing, and on a mipmapped
- * atlas VulkanMod's mip generator recolours them again. A pack can read it: Pegasus colours particle light
- * (PARTICLES_LPV) from the particle atlas's first texel, which is transparent, so with black there its
- * particles light nothing.
+ * Recolours a sprite's alpha-0 texels to its alpha-weighted mean colour, as Sodium does under Iris. Packs can
+ * read them: Pegasus colours particle light from the particle atlas's transparent first texel.
  */
 public final class SpriteTransparentTexels {
     private SpriteTransparentTexels() {}
 
-    /** Recolours {@code image}'s alpha-0 texels in place, as {@link #fill(int[])} does. */
     public static void fill(NativeImage image) {
         if (image.format() != NativeImage.Format.RGBA) return;
         int width = image.getWidth();
@@ -31,10 +24,7 @@ public final class SpriteTransparentTexels {
         }
     }
 
-    /**
-     * Sets each alpha-0 texel of {@code abgr} to the mean colour, alpha kept 0. A sprite with no
-     * such texel, or with nothing visible to average, keeps its own; returns whether it changed.
-     */
+    /** Alpha stays 0; returns whether anything changed. */
     static boolean fill(int[] abgr) {
         double red = 0, green = 0, blue = 0, weight = 0;
         boolean transparent = false;

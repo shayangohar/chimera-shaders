@@ -18,11 +18,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * The settings half of the shader pack screen, for the loaded pack: its option list and pages, the header
- * buttons, and the comment and tooltip overlay. The screen keeps the bottom buttons and Apply; every edit
- * here only queues values for the next load.
- */
+/** The settings half of the shader pack screen; edits here only queue values for the next load. */
 public final class OptionsView implements OptionContext.Actions {
     private final ChimeraRenderer.LoadedPack loaded;
     private final OptionContext context;
@@ -33,10 +29,8 @@ public final class OptionsView implements OptionContext.Actions {
     private OptionList list;
 
     /**
-     * @param apply    the screen's Apply, which reloads the pack when values are pending
-     * @param notifier shows a line under the screen title
-     * @param importer imports a chosen file into whichever view the screen shows when the dialog
-     *                 closes, since a reload may have replaced this one
+     * @param importer imports into whichever view the screen shows when the dialog closes, since a reload may
+     *                 have replaced this one
      */
     public OptionsView(ChimeraRenderer.LoadedPack loaded, Font font, Runnable apply, Consumer<Component> notifier,
                        Consumer<Path> importer) {
@@ -82,7 +76,7 @@ public final class OptionsView implements OptionContext.Actions {
         context.overlay().tick();
     }
 
-    /** Ends a keyboard slider edit: queued before Apply, Done or a mode switch, dropped for Cancel. */
+    /** Ends a keyboard slider edit, queueing its value or dropping it for Cancel. */
     public void finishEdits(boolean commit) {
         context.sliders().finishEdits(commit);
     }

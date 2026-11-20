@@ -15,22 +15,10 @@ import static net.chimera.shaderpack.WorldBetweenStages.arraySuffix;
 import static net.chimera.shaderpack.WorldBetweenStages.qualified;
 
 /**
- * A program's tessellation stages (.tcs and .tes), which Iris runs between the vertex and fragment stages
- * when the pack lists TESSELLATION_SHADERS; Shrimple uses them for terrain, water and the hand.
- *
- * The control stage's per-vertex inputs pair with the vertex stage's outputs, its per-vertex outputs with
- * the evaluation stage's inputs, and the evaluation stage's outputs with the fragment stage's inputs, each
- * pair by name at one shared location. Both stages read the program's uniforms through the block the other
- * stages declare, bind their samplers as those do, and read the legacy matrices as the vertex stage does
- * (GlslVertexPreambles.terrainMatrixBuiltins, handMatrixBuiltins).
- *
- * Positions stay in GL's clip range: the vertex stage hands the control stage GL's clip position, as under
- * Iris, and the evaluation stage, the last before the rasterizer, converts the depth it emits once
- * (WorldClipRange).
- *
- * Under Vulkan's default upper-left domain origin the tessellator orders a generated triangle's vertices
- * opposite to GL, which has a lower-left origin. The evaluation stage's winding is swapped, so a triangle GL
- * keeps front-facing stays front-facing.
+ * A program's tessellation stages, which Iris runs between the vertex and fragment stages when the pack lists
+ * TESSELLATION_SHADERS. Each stage pair matches by name at one shared location. Positions stay in GL's clip
+ * range until the evaluation stage, which converts the depth it emits; its winding is swapped, since Vulkan's
+ * upper-left domain origin orders a generated triangle's vertices opposite to GL.
  */
 final class TessellationStageBridge {
     private TessellationStageBridge() {}
@@ -43,11 +31,7 @@ final class TessellationStageBridge {
     /** The converted stages, and the locations of the evaluation stage's outputs, which the fragment stage reads. */
     record Conversion(String control, String evaluation, LegacyGlslConverter.TerrainVaryingLayout outputLayout) {}
 
-    /**
-     * Both converted stages, or null when either failed. BetweenStages refuses a control stage without its
-     * evaluation stage, and a half pair would throw from every report that reads the program, failing the
-     * whole pack where only this program should fall back.
-     */
+    /** Both converted stages, or null when either failed; a half pair would fail the whole pack's reports. */
     static Conversion paired(String control, String evaluation,
                              LegacyGlslConverter.TerrainVaryingLayout outputLayout) {
         return control == null || evaluation == null ? null : new Conversion(control, evaluation, outputLayout);
@@ -64,12 +48,10 @@ final class TessellationStageBridge {
     }
 
     /**
-     * Converts both stages of a terrain or water program. {@code inputLayout} holds the vertex
-     * stage's output locations. A stage that reads the host's matrices declares the terrain view
-     * block the vertex stage reads them from.
+     * Converts both stages of a terrain or water program; {@code inputLayout} holds the vertex stage's output
+     * locations.
      *
-     * @throws IllegalArgumentException when a stage reads an input nothing writes, a storage buffer
-     *         the plan did not admit, or an unplanned value uniform
+     * @throws IllegalArgumentException when a stage reads an input nothing writes, or a resource the plan left out
      */
     static Conversion convertTerrain(String control, String evaluation,
                                      LegacyGlslConverter.TerrainVaryingLayout inputLayout, String fragment,
@@ -91,14 +73,9 @@ final class TessellationStageBridge {
     }
 
     /**
-     * Converts both stages of a hand program (gbuffers_hand, gbuffers_hand_water), drawn by the entity
-     * vertex bridge.
-     *
-     * A stage reads the legacy matrices as the hand's vertex stage does, from the host's own blocks, with the
-     * projection in GL's clip range (GlslVertexPreambles.handMatrixBuiltins); Shrimple's DISPLACE_TESSELATION
-     * projects in the evaluation stage. The entity identities and forwarded host values that bridge adds to
-     * the vertex stage's outputs pass on through both stages to the fragment stage ({@link PassedOn}). A
-     * stage that reads the pack's uniforms declares the entity family's block, as the vertex stage does.
+     * Converts both stages of a hand program, drawn by the entity vertex bridge. The stages read the legacy
+     * matrices as the hand's vertex stage does, with the projection in GL's clip range, and pass the bridge's
+     * entity identities and host values on to the fragment stage ({@link PassedOn}).
      *
      * @throws IllegalArgumentException as {@link #convertTerrain}, and when the domain is not triangles
      */
@@ -134,7 +111,7 @@ final class TessellationStageBridge {
                 + convertedEvaluation, outputLayout);
     }
 
-    /** One stage's normalized source, its kind and its projection of the program's interface. */
+    /** One stage's normalised source, its kind and its projection of the program's interface. */
     private record Stage(String source, GlslInterfaceScanner.Stage kind, UniformRegistry.ProgramInterface plan) {}
 
     private static String normalized(String source) {
@@ -231,9 +208,8 @@ final class TessellationStageBridge {
     }
 
     /**
-     * The evaluation stage with its triangle winding reversed: GL's default ccw becomes cw. Every input
-     * layout outside comments that names a vertex order has it swapped, including one in a second layout
-     * statement such as {@code layout(ccw) in;}. When none names one, the first layout takes cw.
+     * The evaluation stage with its triangle winding reversed: every vertex order in an input layout is swapped,
+     * and with none the first layout takes cw, as GL's default is ccw.
      */
     static String swappedWinding(String evaluation) {
         // layouts and orders come from the comment-masked source, whose offsets match the source as written

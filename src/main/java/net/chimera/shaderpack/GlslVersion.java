@@ -8,13 +8,9 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * A stage's {@code #version} directive, with the one rule every converter applies to it.
- *
- * Chimera compiles every stage as GLSL 460 for Vulkan, so the authored number only tells a converter which
- * syntax to expect. Every desktop version from 110 to 460 is accepted, in the compatibility or core profile.
- * What a program may use is decided by its features, such as geometry and tessellation stages, compute, image
- * load/store and storage buffers, never by the number. GLSL ES is not a desktop profile and is refused.
- * {@code 120e} reads as 120.
+ * A stage's {@code #version} directive. Every stage compiles as GLSL 460 for Vulkan, so the authored number
+ * only says which syntax to expect: any desktop version from 110 to 460 is accepted, in either profile, and
+ * GLSL ES is refused. {@code 120e} reads as 120.
  */
 public record GlslVersion(int number, String profile) {
     /** The rule, as converters name it in a refusal. */

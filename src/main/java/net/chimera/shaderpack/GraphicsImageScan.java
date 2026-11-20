@@ -14,9 +14,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Scans every program's prepared stages for the pack images they use: the programs that depend on an advanced
- * resource, the images each stage writes through a storage image declaration or reads through its sampler, and
- * the programs guarded by the custom-image feature.
+ * Scans every program's prepared stages for the pack images each writes or reads, and the programs that depend
+ * on them.
  */
 final class GraphicsImageScan {
     static final Pattern GRAPHICS_IMAGE_DECLARATION = Pattern.compile(
@@ -75,7 +74,7 @@ final class GraphicsImageScan {
     }
 
     private void scanProgram(PackProgramPlan program) {
-        // Photon's scattering and worley volumes are raw 3D textures, not images shadowcomp produces
+        // a raw 3D texture is not an image shadowcomp produces
         Map<String, PackResourceDeclaration> declarations = plan.settings().resourceDeclarations();
         Predicate<String> packVolume = sampler ->
                 PackResourcePlan.rawTextureServes(program.name(), sampler, "sampler3D", declarations);
@@ -99,19 +98,13 @@ final class GraphicsImageScan {
     private void scanStage(String program, String stage, String source) {
         GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(source, imageSamplerNames);
         deviations.addAll(usage.deviations());
-        // Vulkan GLSL needs a binding for every opaque declaration, even one nothing reads: Solas declares
-        // voxelSampler in terrain, but only the shadow pass writes voxel_img
-        // PackPlanBuilder.withoutInactiveImages has already dropped image declarations nothing reachable reads,
-        // with the dead code that read them; samplers stay
-        // so every declared pack image and every declared or referenced image sampler gets a descriptor, while
-        // whether the program runs still follows the live uses in usesAdvancedResource
-        // the pattern opens with optional parts and is tried at every character, so skip the many stages
-        // that cannot match
+        // Vulkan needs a binding for every opaque declaration, read or not, so each declared image and image
+        // sampler gets a descriptor; whether the program runs follows the live uses (usesAdvancedResource)
+        // the pattern is tried at every character, so skip stages that cannot match
         Matcher image = GRAPHICS_IMAGE_DECLARATION.matcher(source.contains("image") ? source : "");
         while (image.find()) {
             String symbol = image.group(3);
-            // a match the parser does not see as a declaration declares nothing: Shrimple's composite18
-            // keeps `//layout(r32f) uniform readonly image2D imgDepthNear;` in a comment
+            // a match the parser does not see as a declaration, such as one in a comment, declares nothing
             if (usage.successful() && !usage.declaredImages().contains(symbol)) continue;
             String format = AdvancedImageDeclarations.declaredFormat(image.group(1));
             addWriter(program, stage, new Declared(image.group(2), symbol, format),
@@ -164,13 +157,8 @@ final class GraphicsImageScan {
 
     /**
      * colorimgN in a post pass or a hand program: target N as a storage image at the slot the program would
-     * sample it through, in the target's format or a same-size view the declaration names, as for a pass
-     * compute (StorageForm).
-     *
-     * The program is refused when the declared format has another size, when it also samples the target, which
-     * would read one image in two layouts, or when a world program also draws to the target, which would hold
-     * it as an attachment and a storage image at once. colortex0 counts as drawn, since the HDR image world
-     * programs render into stands in for it.
+     * sample it through. Refused on a format of another size, or when the program also samples or draws to the
+     * target, which would hold one image in two layouts; colortex0 counts as drawn.
      */
     private void addTargetWriter(String program, String stage, Declared declared, int target) {
         String symbol = declared.symbol();
@@ -223,11 +211,8 @@ final class GraphicsImageScan {
     }
 
     /**
-     * A sampler of a pack image, bound to its selector as the image's storage type. As for a storage
-     * declaration, an unreferenced sampler of an image Chimera does not create is skipped without refusing the
-     * program. So is a sampler no live path reads that got no slot: Glimmer's header declares
-     * multipleScatteringLUTTex in every program, and only its compute passes read it. The planner strips that
-     * declaration (InterfacePlanner.bindSamplers).
+     * A sampler of a pack image, bound to its selector as the image's storage type. An unreferenced sampler of
+     * an image Chimera does not create is skipped, as is one no live path reads that got no slot.
      */
     private void addReader(String program, String stage, String sampler, boolean referenced, boolean live) {
         PackAdvancedResourcePlan.ImageSpec spec = PackAdvancedResourcePlan.imageBySampler(images, sampler);

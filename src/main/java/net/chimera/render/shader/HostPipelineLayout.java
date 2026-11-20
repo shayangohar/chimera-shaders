@@ -40,28 +40,22 @@ import java.util.function.UnaryOperator;
 import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_GENERAL;
 
 /**
- * Builds host pipelines from a Chimera {@link PackDescriptorLayout}; the one place a pipeline layout meets
- * VulkanMod's pipeline builder. Each layout entry becomes one host descriptor at the same binding, so the host
- * binds what the shaders were checked against.
- *
- * A uniform field the host knows by name (its global uniform maps: ModelViewMat, FogColor and so on) keeps
- * the host's value. Every other field takes its value from the pipeline's {@link UniformSource}, and a field
- * neither supplies fails the build, as in VulkanMod's own builder.
+ * Builds host pipelines from a {@link PackDescriptorLayout}, one host descriptor per entry at the same binding.
+ * A uniform field the host knows by name keeps the host's value; any other comes from the {@link UniformSource},
+ * and a field neither supplies fails the build.
  */
 public final class HostPipelineLayout {
     private HostPipelineLayout() {}
 
-    /** Values for the uniform fields the host does not supply. */
     @FunctionalInterface
     public interface UniformSource {
-        /** The value buffer for field {@code name} of type {@code type}, or null when this source has none. */
+        /** Null when this source has no value for the field. */
         Supplier<MappedBuffer> supplier(String name, String type);
 
-        /** A source with no values: every field must be the host's. */
         UniformSource HOST_ONLY = (name, type) -> null;
     }
 
-    /** A stage that did not compile, with the translated GLSL its message's line numbers refer to. */
+    /** Carries the translated GLSL its message's line numbers refer to. */
     public static final class ShaderCompilationFailure extends RuntimeException {
         private final transient String source;
 
@@ -75,7 +69,7 @@ public final class HostPipelineLayout {
         }
     }
 
-    /** A layout the host cannot bind: a binding gap, or a uniform field nothing supplies. */
+    /** A layout the host cannot bind. */
     public static final class LayoutFailure extends RuntimeException {
         LayoutFailure(String message) {
             super(message);
@@ -83,14 +77,8 @@ public final class HostPipelineLayout {
     }
 
     /**
-     * Compiles the two stages and creates a pipeline named {@code name} with {@code layout}.
-     *
-     * Pack modules get zero-initialised locals and GL-order trigonometric arithmetic (SpirvLocalInitializer,
-     * SpirvTrigPrecision); Chimera's own shaders keep their bytes. A pack pipeline records the output
-     * locations its fragment stage writes (SpirvOutputWrites).
-     *
-     * @throws LayoutFailure when the host cannot bind the layout
-     * @throws ShaderCompilationFailure when a stage does not compile
+     * Pack modules get zero-initialised locals and GL-order trigonometry (SpirvLocalInitializer,
+     * SpirvTrigPrecision); Chimera's own shaders keep their bytes.
      */
     public static GraphicsPipeline create(String name, VertexFormat format, PackDescriptorLayout layout,
                                           String vertexSource, String fragmentSource, UniformSource uniforms,
@@ -99,12 +87,9 @@ public final class HostPipelineLayout {
     }
 
     /**
-     * As {@link #create(String, VertexFormat, PackDescriptorLayout, String, String, UniformSource, boolean)},
-     * with the stages {@code between} the vertex and fragment stages: VulkanMod's tessellation stages, drawn
-     * as patches of BetweenStages.PATCH_VERTICES, and a geometry stage (GeometryStageModules).
+     * Also adds tessellation stages, drawn as patches of BetweenStages.PATCH_VERTICES, and a geometry stage.
      *
-     * @throws LayoutFailure when the host cannot bind the layout, or the device lacks a stage's feature
-     * @throws ShaderCompilationFailure when a stage does not compile
+     * @throws LayoutFailure also when the device lacks a stage's feature
      */
     public static GraphicsPipeline create(String name, VertexFormat format, PackDescriptorLayout layout,
                                           String vertexSource, BetweenStages between, String fragmentSource,
@@ -117,7 +102,7 @@ public final class HostPipelineLayout {
         stages.add(new Stage(name + ".vsh", vertexSource, Shaderc.shaderc_glsl_vertex_shader));
         between.present().forEach(stage -> stages.add(betweenStage(name, stage)));
         stages.add(new Stage(name + ".fsh", fragmentSource, Shaderc.shaderc_glsl_fragment_shader));
-        // stages compile on the pack workers; the pipeline is created on the calling thread
+        // stages compile on the pack workers, the pipeline on the calling thread
         List<SPIRVUtils.SPIRV> compiled = PackWorkers.map(stages, stage -> compile(stage, packModules));
         SPIRVUtils.SPIRV fragment = compiled.get(compiled.size() - 1);
         builder.setSPIRVs(compiled.get(0), fragment);
@@ -133,7 +118,7 @@ public final class HostPipelineLayout {
         return pipeline;
     }
 
-    /** One pipeline stage; {@code name} is the file name shaderc's messages report. */
+    /** {@code name} is the file name shaderc's messages report. */
     private record Stage(String name, String source, int kind) {}
 
     private static Stage betweenStage(String name, BetweenStages.Stage stage) {
@@ -145,7 +130,6 @@ public final class HostPipelineLayout {
         };
     }
 
-    /** Fails when the device lacks the geometryShader or tessellationShader feature {@code between} needs. */
     private static void requireDeviceStages(String name, BetweenStages between) {
         if (between.geometry() != null && !ChimeraDevice.geometryShader()) {
             throw new LayoutFailure("the device has no geometryShader for " + name + ".gsh");
@@ -155,17 +139,12 @@ public final class HostPipelineLayout {
         }
     }
 
-    /**
-     * Builds one of Chimera's own pipelines from a config in assets/chimera/shaders, which gives the layout
-     * and shader paths. The vertex source passes through {@code vertexSource}; every uniform field is the
-     * host's.
-     */
+    /** Builds one of Chimera's own pipelines from its JSON config; every uniform field is the host's. */
     public static GraphicsPipeline create(String name, String configName, VertexFormat format,
                                           UnaryOperator<String> vertexSource) {
         return create(name, configName, format, vertexSource, UnaryOperator.identity());
     }
 
-    /** As {@link #create(String, String, VertexFormat, UnaryOperator)}, also passing the fragment source through. */
     public static GraphicsPipeline create(String name, String configName, VertexFormat format,
                                           UnaryOperator<String> vertexSource, UnaryOperator<String> fragmentSource) {
         JsonObject json = ChimeraShaderLoader.loadJson(configName + ".json");
@@ -176,9 +155,8 @@ public final class HostPipelineLayout {
     }
 
     /**
-     * The host buffer descriptors of a layout: its uniform blocks, then its storage buffers. The host sizes a
-     * descriptor set by its descriptor count and places each at its binding, so the bindings must run from 0
-     * without a gap.
+     * Uniform blocks, then storage buffers. The host sizes a descriptor set by its count, so bindings must run
+     * from 0 without a gap.
      */
     public static List<UBO> uniformBuffers(PackDescriptorLayout layout, UniformSource uniforms) {
         requireDenseBindings(layout);
@@ -203,11 +181,7 @@ public final class HostPipelineLayout {
         return buffers;
     }
 
-    /**
-     * The image descriptors of a layout. Chimera binds a pack program's images (PackImageDescriptor) except
-     * the albedo and lightmap, which VulkanMod binds from the game's units; Chimera's own shaders read the
-     * host's units.
-     */
+    /** VulkanMod binds the albedo and lightmap from the game's units; Chimera binds a pack's other images. */
     static List<ImageDescriptor> images(PackDescriptorLayout layout, boolean packModules) {
         List<ImageDescriptor> images = new ArrayList<>();
         for (PackDescriptorLayout.ImageSlot slot : layout.images()) {
@@ -221,7 +195,7 @@ public final class HostPipelineLayout {
             } else {
                 image = new ImageDescriptor(slot.binding(), slot.type(), slot.name(), slot.textureSlot(), storage);
             }
-            // images a stage may also write, such as pack storage images, stay in the general layout
+            // images a stage may also write stay in the general layout
             if (slot.access() == PackDescriptorLayout.ImageAccess.SAMPLED_GENERAL) {
                 image.setLayout(VK_IMAGE_LAYOUT_GENERAL);
             }
@@ -230,7 +204,7 @@ public final class HostPipelineLayout {
         return images;
     }
 
-    /** The push-constant block, or null when the layout has none or it holds no field. */
+    /** Null when the layout has none or it holds no field. */
     private static PushConstants pushConstants(PackDescriptorLayout layout, UniformSource uniforms) {
         PackDescriptorLayout.UniformBlock block = layout.pushConstants();
         if (block == null || block.fields().isEmpty()) return null;
@@ -255,7 +229,6 @@ public final class HostPipelineLayout {
         }
     }
 
-    /** Whether one of the host's global uniform maps serves this field by name. */
     private static boolean hostSupplies(PackDescriptorLayout.Field field) {
         return switch (field.type()) {
             case "mat4" -> Uniforms.mat4f_uniformMap.containsKey(field.name());
@@ -268,10 +241,7 @@ public final class HostPipelineLayout {
         };
     }
 
-    /**
-     * The host layout type of a field. The host lays out vectors as floats; an integer vector has the same
-     * std140 size and alignment and its value is copied as bytes, so it takes the float vector's layout.
-     */
+    /** The host lays out only float vectors; an integer vector has the same std140 layout and copies as bytes. */
     static String hostType(String type) {
         return switch (type) {
             case "ivec2" -> "vec2";
@@ -293,10 +263,7 @@ public final class HostPipelineLayout {
         }
     }
 
-    /**
-     * The stage's module in a garbage-collected direct buffer, so a pipeline whose other stage fails leaves
-     * nothing to release. A source already compiled in this load is reused (CompiledStages).
-     */
+    /** In a garbage-collected buffer, so a pipeline whose other stage fails leaves nothing to release. */
     private static SPIRVUtils.SPIRV compile(Stage stage, boolean packModule) {
         byte[] module = CompiledStages.module(stage.kind(), packModule, stage.source(),
                 () -> compileModule(stage, packModule));

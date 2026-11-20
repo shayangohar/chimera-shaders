@@ -27,12 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The pack list on {@link ShaderPackScreen}: a shaders on/off row, the packs in the shaderpacks folder and a
- * hint about dropping files. It only records the choice, the picked pack and the toggle; the screen applies
- * them. The folder is watched, and a change seen while the list is drawn rescans it.
- *
- * The picked pack is whatever pack row vanilla's selection last landed on, by click, arrow keys or a call
- * from the screen. Moving the selection to any other row leaves it alone.
+ * The pack list on {@link ShaderPackScreen}. It only records the choice, which the screen applies; the picked
+ * pack is the pack row vanilla's selection last landed on.
  */
 public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPackSelectionList.Row> {
     private static final int ROW_HEIGHT = 20;
@@ -83,7 +79,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         scan();
     }
 
-    /** The pack shown as running: it is drawn yellow, with its failure label, while shaders are on. */
+    /** The pack shown as running while shaders are on. */
     void setApplied(@Nullable String name) {
         applied = name;
     }
@@ -124,9 +120,8 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
     }
 
     /**
-     * Rebuilds the rows from the folder and selects the picked pack, or the applied one when nothing is picked.
-     * A picked pack that has gone leaves nothing picked. An unreadable folder shows only an error and keeps
-     * the pick.
+     * Rebuilds the rows and reselects the picked pack, else the applied one; a vanished pick leaves nothing
+     * picked. An unreadable folder shows only an error and keeps the pick.
      */
     private void scan() {
         String preferred = picked != null ? picked : applied;
@@ -148,7 +143,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         PackRow found = packRow(rows, preferred);
         picked = null;
         showRows(rows, found);
-        // brings the row's bottom up to the list's bottom edge; a row on the first page leaves the list at the top
+        // scrolls the row to the bottom edge; a row on the first page leaves the list at the top
         if (found != null) setScrollAmount(getScrollAmount() + getRowBottom(rows.indexOf(found)) - getBottom());
     }
 
@@ -210,7 +205,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         return font.plainSubstrByWidth(text, rowWidth - 8) + "...";
     }
 
-    /** A row of text centred on the list; a click or Enter, Space or keypad Enter on it calls activate(). */
+    /** A row of text centred on the list. */
     abstract class Row extends ObjectSelectionList.Entry<Row> {
         /** What the row says, and what the narrator reads. */
         abstract Component label();
@@ -241,7 +236,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         }
     }
 
-    /** A row framed as a button, lit while the pointer is over it, inset when it cannot be used. */
+    /** A row framed as a button. */
     private abstract class ButtonRow extends Row {
         boolean usable() {
             return true;
@@ -286,7 +281,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         }
     }
 
-    /** Offers the shader page on Modrinth when the folder is empty; the link screen returns to this screen. */
+    /** Offers the shader page on Modrinth when the folder is empty. */
     private final class DownloadRow extends ButtonRow {
         @Override
         Component label() {
@@ -301,10 +296,7 @@ public final class ShaderPackSelectionList extends ObjectSelectionList<ShaderPac
         }
     }
 
-    /**
-     * One pack, framed and bold only under the pointer. The running pack is yellow, with its failure label,
-     * while shaders are on; with shaders off every pack is grey until hovered.
-     */
+    /** One pack; the running one shows its failure label while shaders are on. */
     private final class PackRow extends Row {
         private final String name;
 

@@ -26,8 +26,8 @@ final class SpirvDeviceRequirementsTest {
             """;
 
     /**
-     * RenderPearl's deferred1 calls min3; its setup requires the extension and calls nothing from it.
-     * On AMD's device, which serves the extension, the directive stays.
+     * A min3 call needs its Vulkan extension and an unused directive nothing; on a device that serves the
+     * extension, the directive stays.
      */
     @Test
     void aTrinaryCallNeedsItsVulkanExtensionAndAnUnusedDirectiveNothing() {
@@ -47,11 +47,7 @@ final class SpirvDeviceRequirementsTest {
                 SpirvDeviceRequirements.instructionSet("NonSemantic.DebugPrintf"));
     }
 
-    /**
-     * These KHR extensions carry a shader_ prefix in Vulkan. Named by the plain rule, a device created
-     * with the extension would still refuse the program, and the refusal would name an extension that
-     * does not exist.
-     */
+    /** These KHR extensions carry a shader_ prefix in Vulkan, which the plain naming rule would miss. */
     @Test
     void theShaderPrefixedKhrExtensionsMapToTheirVulkanNames() {
         for (String name : new String[] {"subgroup_uniform_control_flow", "integer_dot_product", "expect_assume",

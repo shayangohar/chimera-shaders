@@ -14,12 +14,8 @@ import net.vulkanmod.vulkan.util.MappedBuffer;
 import java.util.Set;
 
 /**
- * Iris's selected-block uniforms (IrisExclusiveUniforms), captured once per frame.
- *
- * While the game draws the block outline and the crosshair is on a block, currentSelectedBlockId is that
- * block state's block.properties id, -1 when unmapped as in Iris's BlockMaterialMapping, and
- * currentSelectedBlockPos is the block's centre relative to the camera. Otherwise they are 0 and
- * (-256, -256, -256). The id is 0 for air and outside the world border.
+ * Iris's selected-block uniforms (IrisExclusiveUniforms), set only when the block outline shows. The id is -1
+ * when unmapped, and 0 for air or outside the world border.
  */
 final class SelectedBlockState implements FrameValueSource {
     static final Set<String> NAMES = Set.of("currentSelectedBlockId", "currentSelectedBlockPos");

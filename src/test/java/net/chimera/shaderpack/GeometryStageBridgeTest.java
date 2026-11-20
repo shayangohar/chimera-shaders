@@ -16,11 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A pack geometry stage between the vertex and fragment stages: Alpha Piscium's shadow
- * stage reads unsized per-vertex arrays and Rethinking Voxels' sized ones; both emit what their
- * fragment stage reads.
- */
+/** A pack geometry stage between the vertex and fragment stages, reading sized or unsized per-vertex arrays. */
 final class GeometryStageBridgeTest {
     private static final String GEOMETRY = """
             #version 460 compatibility
@@ -110,11 +106,9 @@ final class GeometryStageBridgeTest {
     }
 
     /**
-     * GLSL leaves outputs undefined after EmitVertex; NVIDIA's GL driver keeps them, its Vulkan
-     * driver does not. Spring's terrain stage writes textureResolution once, before its emit loop, so
-     * each emit keeps every output and the unconverted position, and writes them back after
-     * EmitVertex. An output may be declared below a function, as Rethinking Voxels' are, so the emit
-     * is defined last.
+     * GLSL leaves outputs undefined after EmitVertex; NVIDIA's GL driver keeps them, its Vulkan driver
+     * does not. So each emit keeps every output and the unconverted position and writes them back, and
+     * is defined last, since an output may be declared below a function.
      */
     @Test
     void anOutputWrittenBeforeTheEmitLoopKeepsItsValue() {
@@ -252,10 +246,8 @@ final class GeometryStageBridgeTest {
     }
 
     /**
-     * Shrimple's Nether and End shadow pass only voxelizes: shadow.vsh writes no gl_Position there,
-     * and shadow.gsh emits nothing. GL runs a vertex stage that leaves the position to the stage after
-     * it, as under Iris, so the converted vertex stage writes a zero position for the geometry stage's
-     * gl_in.
+     * GL runs a vertex stage that leaves the position to the stage after it, so the converted vertex
+     * stage writes a zero position for the geometry stage's gl_in.
      */
     @Test
     void aShadowVertexStageMayLeaveThePositionToItsGeometryStage(@TempDir Path root) throws IOException {
@@ -281,10 +273,8 @@ final class GeometryStageBridgeTest {
     }
 
     /**
-     * Spring's gbuffers_terrain passes each triangle through a geometry stage that writes flat
-     * per-triangle values from atlasSize. The vertex stage feeds the geometry stage GL's clip
-     * position, and the geometry stage converts what it emits. A geometry stage that reads the host's
-     * matrices declares the view block, and the layout serves it there.
+     * A terrain geometry stage gets GL's clip position from the vertex stage and converts what it
+     * emits. One that reads the host's matrices declares the view block, and the layout serves it there.
      */
     @Test
     void aTerrainGeometryStageRuns(@TempDir Path root) throws IOException {
@@ -355,10 +345,8 @@ final class GeometryStageBridgeTest {
     }
 
     /**
-     * Spring's gbuffers_hand runs the same kind of pass-through geometry stage, after the entity
-     * vertex bridge. The values that bridge adds for the fragment stage (here the held item's id)
-     * pass on from each primitive's first vertex, as Iris passes iris_entityInfo[0]. A stage that
-     * reads the draw's matrices declares the host's blocks, and the layout serves them there.
+     * A hand geometry stage passes the entity bridge's values on from each primitive's first vertex, as
+     * Iris passes iris_entityInfo[0]. One that reads the draw's matrices declares the host's blocks.
      */
     @Test
     void aHandGeometryStageRuns(@TempDir Path root) throws IOException {

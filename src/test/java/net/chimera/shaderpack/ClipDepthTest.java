@@ -32,9 +32,8 @@ final class ClipDepthTest {
     }
 
     /**
-     * A post pass's authored vertex works in GL's range: DrDestens' {@code gl_Vertex * 2 - 1} puts
-     * its quad at z = -1, GL's near plane, which Vulkan clips unless converted. Its main mirrors y,
-     * then converts the depth once.
+     * A post pass's authored vertex works in GL's range, so a quad at GL's near plane z = -1 is clipped
+     * by Vulkan unless converted. Its main mirrors y, then converts the depth once.
      */
     @Test
     void anAuthoredPostVertexConvertsAfterTheMirror() {
@@ -54,12 +53,8 @@ final class ClipDepthTest {
     }
 
     /**
-     * Every program of a corpus pack (CorpusChecks): its stages before the rasterizer, as converted:
-     * at most one conversion, in the last of them, and exactly one where they work in GL's range: a
-     * shadow program, the hand and sky draws (their preamble's chimeraHandProjection or
-     * chimeraSkyProjection), any stage that takes the host's clip position into GL's range
-     * (chimeraGlClip), and a post pass's authored vertex. A glint drawn in the hand converts once
-     * too. Returns the paths it checked.
+     * Every program of a corpus pack: at most one conversion, in the last stage before the rasteriser,
+     * and exactly one where the stages work in GL's range. Returns the paths it checked.
      */
     static int checkPack(Path pack, PackProbe.Analysis analysis, List<String> failures) {
         int paths = 0;

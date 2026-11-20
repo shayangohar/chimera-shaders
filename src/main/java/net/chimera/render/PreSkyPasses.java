@@ -11,14 +11,9 @@ import net.vulkanmod.render.chunk.WorldRenderer;
 import net.vulkanmod.vulkan.Renderer;
 
 /**
- * What Iris draws just before the sky (MixinLevelRenderer.iris$renderTerrainShadows,
- * IrisRenderingPipeline.renderShadows): the shadow pass, then the prepare passes. A prepare pass so reads this
- * frame's shadow map, and Escheridia's prepare.csh reads the voxels its shadow pass wrote into a map cleared at
- * frame start.
- *
- * VulkanMod's per-frame section setup (WorldRenderer.setupRenderer) resets the frame's indirect draw buffers,
- * and the shadow pass records indirect draws. LevelRenderer.setupRender runs that setup after the sky, so a
- * frame that draws shadows here runs it first and skips the later call (WorldRendererMixin).
+ * What Iris draws just before the sky: the shadow pass, then the prepare passes, which read this frame's
+ * shadow map. VulkanMod's section setup resets the indirect draws the shadow pass records, so a frame that
+ * draws shadows here runs that setup first and skips the later call (WorldRendererMixin).
  */
 public final class PreSkyPasses {
     // render thread only
@@ -32,12 +27,8 @@ public final class PreSkyPasses {
     }
 
     /**
-     * Runs the shadow pass when the frame armed it, then the prepare window.
-     *
-     * renderSky draws its disc with the shader current as it starts, which vanilla sets just before this call.
-     * The shadow casters leave their own shader current, so the host shader is put back, as Iris sets the
-     * position shader again after its shadow pass (MixinLevelRenderer.iris$beginSky). Otherwise a pack without
-     * gbuffers_skybasic could draw the disc with a particle shader, from attributes the disc does not have.
+     * Runs the shadow pass when the frame armed it, then the prepare window. The host shader is put back after,
+     * as Iris does, or renderSky could draw its disc with a shadow caster's shader.
      */
     public static void render(ChimeraMainPass pass, Camera camera, Frustum frustum, boolean capturedFrustum,
                               boolean spectator) {

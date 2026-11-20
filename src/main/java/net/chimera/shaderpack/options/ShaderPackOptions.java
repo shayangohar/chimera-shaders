@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Everything a pack offers the player to configure, with the values currently applied: the
- * discovered options, the menu shaders.properties lays out, the profiles, and the pack's
- * translations. Loading it never fails a pack; what cannot be read is listed in {@link #problems}.
+ * Everything a pack offers the player to configure, with the values applied. Loading never fails a pack;
+ * what cannot be read goes to {@link #problems}.
  */
 public final class ShaderPackOptions {
     private final OptionDiscovery discovery;
@@ -30,10 +29,7 @@ public final class ShaderPackOptions {
         this.problems = List.copyOf(problems);
     }
 
-    /**
-     * Discovers the options under {@code shadersRoot} and applies {@code stored}, the option file's
-     * text values; entries for names the pack does not declare, or at their default, are dropped.
-     */
+    /** Discovers the options and applies {@code stored}, dropping undeclared names and default values. */
     public static ShaderPackOptions load(Path shadersRoot, Map<String, String> stored) {
         OptionDiscovery discovery = OptionDiscovery.discover(shadersRoot);
         OptionValues values = OptionValues.of(discovery.options(), stored);
@@ -91,10 +87,7 @@ public final class ShaderPackOptions {
         return profiles.match(values);
     }
 
-    /**
-     * Programs the profile {@code current} matches switches off ({@code !program.NAME}), as paths
-     * without the extension: {@code composite1}, or {@code world0/composite1} in a dimension folder.
-     */
+    /** Programs the matched profile switches off, as extensionless paths like {@code world0/composite1}. */
     public List<String> profileDisabledPrograms(OptionValues current) {
         return profiles.match(current).current().map(PackProfiles.Profile::disabledPrograms).orElse(List.of());
     }

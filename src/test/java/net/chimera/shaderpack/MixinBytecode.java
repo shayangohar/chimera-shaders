@@ -34,9 +34,8 @@ public final class MixinBytecode {
     }
 
     /**
-     * The instructions of {@code method} in bytecode order, with each call to another method of the
-     * same class followed by that method's own instructions. A check on what a method calls then
-     * still holds when the method is split into helpers of its class.
+     * The instructions of {@code method}, each call to a method of the same class followed by its own
+     * instructions, so a check still holds after the method is split into helpers.
      */
     public static List<AbstractInsnNode> instructionsThrough(ClassNode owner, String method) {
         var root = owner.methods.stream().filter(candidate -> candidate.name.equals(method)).findFirst()

@@ -11,9 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A family draw opens in FamilyRenderType.setupRenderState and closes in clearRenderState, but
- * RenderType.draw has no finally. The shadow pass catches a caster draw that throws and carries on,
- * so a draw left open would keep handing its pipeline to every later ShaderInstance draw.
+ * RenderType.draw has no finally and the shadow pass carries on past a caster draw that throws, so a
+ * family draw left open would hand its pipeline to every later ShaderInstance draw.
  */
 final class EntityDrawWindowTest {
     @Test

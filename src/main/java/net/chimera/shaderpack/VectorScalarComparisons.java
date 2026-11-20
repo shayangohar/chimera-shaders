@@ -9,16 +9,11 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * A vector compared with a number: Body Camera's old lighting tests {@code mc_Entity==1.} on a vec3,
- * which a terrain program reads as {@code vec3(chimeraMcEntityValue(), 0.0)==1.}.
- *
- * NVIDIA's GL compiler widens the number to the vector and compares whole values, one bool that is
- * true only when every component equals the number ((1,2,0) is false, (1,1,1) true), so Iris loads
- * that option; glslang refuses it ("'==' : wrong operand types"). The number is written as that
- * vector, {@code mc_Entity==vec3(1.)}, only when one side is a vector variable's name or a vector
- * constructor and the other a number, each the comparison's whole operand, so every source that
- * already compiles stays as written. An integer vector takes only an integer: NVIDIA compares
- * {@code ivec2(0) == 0.5} as floats (false), where {@code ivec2(0.5)} would truncate.
+ * A vector compared with a number, such as {@code mc_Entity==1.} on a vec3. NVIDIA's GL compiler widens
+ * the number and compares whole values, so Iris loads it; glslang refuses it. The number is written as
+ * that vector only when each side is the comparison's whole operand, so source that already compiles
+ * stays as written. An integer vector takes only an integer: NVIDIA compares {@code ivec2(0) == 0.5}
+ * as floats, where {@code ivec2(0.5)} would truncate.
  */
 final class VectorScalarComparisons {
     private VectorScalarComparisons() {}
@@ -27,9 +22,8 @@ final class VectorScalarComparisons {
     private static final Pattern INT_LITERAL = Pattern.compile("0[xX][0-9a-fA-F]+|\\d+");
     private static final Pattern UINT_LITERAL = Pattern.compile("(?:0[xX][0-9a-fA-F]+|\\d+)[uU]?");
     /**
-     * The tokens that can stand before a comparison's left operand, or after its right one, without
-     * joining it: == and != bind looser than arithmetic, shifts and relations, tighter than these
-     * operators. GlslLexer reads ^^ as two ^ tokens, and &=, |= and ^= each as the operator and =.
+     * Tokens that bound a comparison's operand, since == and != bind tighter than these. GlslLexer
+     * reads ^^ as two ^ tokens, and &=, |= and ^= as the operator then =.
      */
     private static final Set<String> BEFORE = Set.of("(", ",", "=", "?", ":", "&", "^", "|", "&&", "||", ";", "{",
             "}", "return");
@@ -44,7 +38,7 @@ final class VectorScalarComparisons {
         try {
             return widenAll(GlslTree.parse(source));
         } catch (RuntimeException unreadable) {
-            // every stage passes here; one the parser cannot follow goes to the compiler as written
+            // source the parser cannot follow goes to the compiler as written
             return source;
         }
     }
@@ -80,10 +74,7 @@ final class VectorScalarComparisons {
         return new GlslTree.Edit(range, vector + "(" + tree.text(range) + ")");
     }
 
-    /**
-     * Whether a literal widens to the vector without changing its value: an integer vector takes an
-     * integer (a uvec also an unsigned one), and only a dvec a double.
-     */
+    /** Whether the literal widens unchanged: ivec takes an integer, uvec also unsigned, only dvec a double. */
     private static boolean fits(String vector, String literal) {
         return switch (vector.charAt(0)) {
             case 'i' -> INT_LITERAL.matcher(literal).matches();

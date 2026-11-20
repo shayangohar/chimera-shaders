@@ -14,29 +14,24 @@ import java.util.List;
 import java.util.function.LongConsumer;
 
 /**
- * Compiles Chimera's GLSL to SPIR-V for Vulkan 1.2, the host's target. The source reaches shaderc
- * from the heap: shaderc's CharSequence overloads encode it on LWJGL's thread stack, which VulkanMod
- * Reforged leaves at its 64 KB default, and a pack's stage outgrows that.
+ * Compiles GLSL to SPIR-V for Vulkan 1.2. The source goes to shaderc from the heap, since its CharSequence
+ * overloads use LWJGL's 64 KB thread stack, which a pack's stage outgrows.
  */
 public final class GlslCompiler {
     private GlslCompiler() {}
 
-    /** Optimizes for performance, as the host compiles its own shaders. */
+    /** As the host compiles its own shaders. */
     public static void optimize(long options) {
         Shaderc.shaderc_compile_options_set_optimization_level(options,
                 Shaderc.shaderc_optimization_level_performance);
     }
 
     /**
-     * Compiles {@code source}, a {@code kind} shader (a {@code shaderc_glsl_*_shader} constant)
-     * named {@code name}, with the options {@code configure} sets. A GL vendor extension the device
-     * serves compiles as its Vulkan equivalent (GlslVendorExtensions). A module that needs what the
-     * device was created without fails here, as the stage would on a GL driver without it, and never
-     * reaches the driver (PackDevice.missing). Returns the module in memory the caller frees with
+     * {@code kind} is a {@code shaderc_glsl_*_shader} constant. A module needing a feature the device lacks
+     * fails here, as on a GL driver without it, and never reaches the driver. The caller frees the result with
      * {@link MemoryUtil#memFree}.
      *
-     * @throws IllegalStateException with shaderc's report when the source does not compile, or what
-     *         the device lacks
+     * @throws IllegalStateException with shaderc's report, or what the device lacks
      */
     public static ByteBuffer compile(String name, String source, int kind, LongConsumer configure) {
         PackDevice device = PackDevice.current();
@@ -72,7 +67,6 @@ public final class GlslCompiler {
         }
     }
 
-    /** The PackDevice stage bit of a shaderc kind. */
     private static int stage(int kind) {
         return switch (kind) {
             case Shaderc.shaderc_glsl_vertex_shader -> PackDevice.STAGE_VERTEX;

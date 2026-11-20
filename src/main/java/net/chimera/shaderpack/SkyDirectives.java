@@ -7,13 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The shaders.properties switches for the parts of Minecraft's sky, read as Iris's ShaderProperties reads
- * them. All default to on, as in PackDirectives.
- *
- * Iris applies them in LevelRenderer.renderSky (MixinLevelRenderer_SunMoonToggle). With {@code sun} or
- * {@code moon} off, that textured quad is dropped. With {@code stars} off, the star brightness reads below
- * zero, so the star buffer never draws. With {@code sky} off, the sky disc, the sunrise fan, the dark disc
- * below the horizon and the horizon Iris draws ahead of the sky are all dropped.
+ * The shaders.properties switches for the parts of Minecraft's sky, read as Iris's ShaderProperties reads them;
+ * all default to on (Iris: MixinLevelRenderer_SunMoonToggle). With {@code sky} off, the horizon Iris draws ahead
+ * of the sky goes too.
  */
 public record SkyDirectives(boolean sun, boolean moon, boolean stars, boolean sky, List<String> deviations) {
     public static final SkyDirectives DEFAULTS = new SkyDirectives(true, true, true, true, List.of());

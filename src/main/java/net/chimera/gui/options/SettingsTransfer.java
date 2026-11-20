@@ -18,11 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-/**
- * The native file dialogs behind Import and Export. They open one at a time on their own thread,
- * as Iris runs them, starting at the pack's own option file and offering {@code .txt} files; a
- * click while one is open does nothing.
- */
+/** The native file dialogs behind Import and Export, one at a time on their own thread, as Iris runs them. */
 final class SettingsTransfer {
     private static final String FILTER = "*.txt";
     private static final String FILTER_LABEL = "options.chimera.settingsFile.filter";
@@ -51,9 +47,8 @@ final class SettingsTransfer {
     }
 
     /**
-     * Asks where to export and writes the pack's applied settings there: what its option file holds now, so
-     * changes not yet applied stay out. An all-default pack exports an empty file. An option file that cannot
-     * be parsed exports nothing, so the dialog's default target, that same file, is never emptied.
+     * Exports the pack's applied settings, as its option file holds them. An unparseable option file exports
+     * nothing, so the dialog's default target, that same file, is never emptied.
      */
     static void export(Path packPath) {
         String title = I18n.get("options.chimera.exportSettings.dialog");

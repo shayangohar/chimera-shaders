@@ -26,12 +26,7 @@ import static net.chimera.shaderpack.PackSettingsPlan.isStageContextMacro;
 import static net.chimera.shaderpack.PackSettingsPlan.stageIndependentDefaults;
 import static net.chimera.shaderpack.PackSettingsPlan.valuesFrom;
 
-/**
- * Reads shaders.properties as Iris's ShaderProperties does. Lines join across continuations, conditional
- * blocks evaluate with the option macros, and each entry goes into PackSettingsPlan's maps: option defines,
- * profiles, features, custom values, program switches and resource declarations. Other properties files go
- * through PropertiesPreprocessor.
- */
+/** Reads shaders.properties as Iris's ShaderProperties does, into PackSettingsPlan's maps. */
 final class ShadersPropertiesReader {
     private static final Pattern PROFILE = Pattern.compile(
             "^profile\\.([A-Za-z_]\\w*)\\s*=\\s*(.*)$");
@@ -142,11 +137,7 @@ final class ShadersPropertiesReader {
             }
         }
 
-        /**
-         * Whether a line adds nothing to the settings. That is a {@code #} line inside a block comment, which
-         * JCPP reads as comment text and Properties as a comment; a conditional, which this applies; a line of
-         * an inactive branch; or the line an #ifdef with no name takes.
-         */
+        /** Whether a line adds nothing to the settings: a conditional, which this applies, or a line JCPP drops. */
         private boolean skips(PropertiesPreprocessor.Line next) {
             if (takeNextLine) {
                 // the first line Iris's line pass leaves text on is taken; the emptied ones go anyway
@@ -190,7 +181,6 @@ final class ShadersPropertiesReader {
                 return;
             }
             // Iris runs the file through a C preprocessor, so a resource's value reads the macros defined so far
-            // Alpha Piscium sizes its restir textures with RESTIR_REUSE_TEX_WIDTH
             // switches and option lists keep their names, since Chimera evaluates those itself
             if (RESOURCE_PREFIXES.stream().anyMatch(key::startsWith)) {
                 value = PackConditionals.expandMacros(value, conditions.macros()).trim();
@@ -256,7 +246,7 @@ final class ShadersPropertiesReader {
             }
             Matcher custom = CUSTOM_VALUE.matcher(line);
             if (custom.matches()) {
-                // option values expand as macros, as in Iris; Reverie's betaRfact reads RAYLEIGH_DENSITY_VARIANCE
+                // option values expand as macros, as in Iris
                 customValues.add(PackRuntimeSettings.declaration(
                         custom.group(1).equals("uniform"), custom.group(2),
                         custom.group(3), PackConditionals.expandMacros(custom.group(4), conditions.macros()).trim()));
@@ -266,10 +256,7 @@ final class ShadersPropertiesReader {
             if (unread != null) deviations.add(unread + ":" + key);
         }
 
-        /**
-         * The deviation for a key no other reading took, or null for a property Chimera reads elsewhere
-         * (PackPropertyKeys). AdvancedImageDeclarations reports an {@code image.*} it cannot serve.
-         */
+        /** The deviation for a key nothing else took, or null for a property Chimera reads elsewhere. */
         private static String unreadKey(String key) {
             // recorded only; the storage buffer plan checks for a matching std430 block and a supported schedule
             if (key.startsWith("bufferObject.")) return "STORAGE_BUFFER_DECLARED";
@@ -277,11 +264,7 @@ final class ShadersPropertiesReader {
             return PackPropertyKeys.unread(key);
         }
 
-        /**
-         * The program a {@code program.<name>.<anything>} key switches, or null for any other key. Iris takes
-         * the name up to the first dot after {@code program.}, with any suffix; Solas writes
-         * {@code program.world0/deferred..enabled}.
-         */
+        /** The program a {@code program.<name>.<anything>} key switches, or null; Iris accepts any suffix. */
         private static String switchedProgram(String key) {
             int end = key.indexOf('.', PROGRAM_PREFIX.length());
             return key.startsWith(PROGRAM_PREFIX) && end > PROGRAM_PREFIX.length()
@@ -306,18 +289,11 @@ final class ShadersPropertiesReader {
     }
 
     /**
-     * Joins shaders.properties' backslash continuations as Iris's PropertiesPreprocessor and Properties loader
-     * do.
+     * Joins shaders.properties' backslash continuations as Iris's PropertiesPreprocessor and Properties loader do.
+     * A blank line does not end a continuation, since Iris drops blank lines first, but a {@code #} line does,
+     * since it becomes an empty line. The id maps differ ({@link IdMapProperties}).
      *
-     * Iris drops blank lines before preprocessing, so a blank line does not end a continuation. Every
-     * {@code #} line becomes an empty line, a comment at once and a directive once JCPP has read it, and an
-     * empty line ends a continuation in Properties.load. Photon closes a multi-line
-     * {@code moon_phase_brightness} with {@code ") \"} right before its {@code #else}, and Bliss's
-     * {@code screen} list ends at the commented-out one under it. The id maps differ: IdMap rejoins across
-     * those lines ({@link IdMapProperties}).
-     *
-     * Callers evaluate conditions on the lines JCPP sees (PropertiesPreprocessor.commentLines), end an open
-     * continuation at each {@code #} line, and feed only the other active lines to {@link #accept}.
+     * Callers end an open continuation at each {@code #} line and feed only active lines to {@link #accept}.
      */
     static final class PropertyLineJoiner {
         private final StringBuilder pending = new StringBuilder();
@@ -332,9 +308,8 @@ final class ShadersPropertiesReader {
         }
 
         /**
-         * The completed logical line, or null while a continuation is open or the line is dropped.
-         * Leading whitespace goes, as Properties.load skips it: Photon indents its
-         * {@code program.<world>/composite17.enabled} switches inside {@code #ifdef}.
+         * The completed logical line, or null while a continuation is open or the line is dropped. Leading
+         * whitespace goes, as Properties.load skips it.
          */
         String accept(String raw) {
             String trimmed = raw.strip();
@@ -359,9 +334,8 @@ final class ShadersPropertiesReader {
     }
 
     /**
-     * Keys whose values name pack resources, read after macro expansion as Iris reads them. {@code image.}
-     * values resolve their size tokens themselves (AdvancedImageDeclarations), keeping the option each size
-     * came from.
+     * Keys whose values name pack resources, read after macro expansion as Iris reads them. {@code image.} values
+     * resolve their own size tokens, keeping the option each size came from.
      */
     private static final List<String> RESOURCE_PREFIXES = List.of(
             "customTexture.", "texture.", "bufferObject.", "indirect.");

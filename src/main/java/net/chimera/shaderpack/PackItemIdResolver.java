@@ -11,11 +11,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * The pack's item.properties ids, read as Iris's IdMap.parseItemIdMap reads them ({@link IdMapProperties}).
- *
- * Each {@code item.<n>} key lists item names, in {@code minecraft} when no namespace is given. A later line for
- * the same key replaces an earlier one, as in java.util.Properties. Names with a state selector are skipped, and
- * an unlisted item resolves to -1.
+ * The pack's item.properties ids, read as Iris's IdMap.parseItemIdMap reads them. A later line for the same key
+ * replaces an earlier one, and names with a state selector are skipped.
  */
 public final class PackItemIdResolver {
     /** Iris's id-map default for an unlisted item. */

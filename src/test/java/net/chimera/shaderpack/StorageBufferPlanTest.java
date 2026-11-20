@@ -249,10 +249,7 @@ final class StorageBufferPlanTest {
         assertTrue(failures.isEmpty(), "Shadow regressions failed: " + String.join("; ", failures));
     }
 
-    /**
-     * GL lets each stage name a bufferObject's block its own way. Both blocks share the buffer's binding, and
-     * the planned layout holds one descriptor there; one per name would make the layout check refuse the program.
-     */
+    /** Each stage may name a bufferObject's block its own way, but the layout holds one descriptor at its binding. */
     @Test
     void aBufferObjectNamedPerStageIsOneDescriptor(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -428,9 +425,7 @@ final class StorageBufferPlanTest {
 
     /** Asserts no program has skyColor defaulted, and counts the programs that declare it. */
     private static long countSkyColourDeclarations(String label, ConformanceReport report) {
-        // both packs colour their atmosphere from skyColor, which a program handed the zero default cannot do
-        // the rows are per program, so scan them rather than the aggregate
-        // counting the declarations keeps the check from passing on nothing
+        // both packs colour their atmosphere from skyColor; the count keeps the check from passing on nothing
         List<String> skyColourDefaulted = report.programs().stream()
                 .filter(program -> program.deviations().contains("UNIFORM_DEFAULTED:skyColor"))
                 .map(program -> program.name()).toList();
@@ -918,9 +913,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * A storage block with no packing binds, as Shrimple's do: GL lays it out shared, the same in every
-     * program, and glslang lays it out std430 for Vulkan, the same in every stage. std140 binds as
-     * spelled; an explicit shared or packed has no Vulkan layout.
+     * A storage block with no packing binds, as glslang lays it out std430 in every stage; std140 binds as
+     * spelled, and an explicit shared or packed has no Vulkan layout.
      */
     @Test
     void storageBlocksWithoutAPackingBind() {
@@ -960,10 +954,8 @@ final class StorageBufferPlanTest {
     }
 
     /**
-     * Iris's ShaderProperties reads "size [name]", or "size relative scaleX scaleY" from the first
-     * four values. A relative buffer holds size bytes for each pixel of its truncated share of the
-     * screen, as in Iris's ShaderStorageBuffer.resizeIfRelative. Alpha Piscium declares
-     * bufferObject.1=4 true 1.0 1.0.
+     * Iris reads "size [name]" or "size relative scaleX scaleY"; a relative buffer holds size bytes for each
+     * pixel of its truncated share of the screen.
      */
     @Test
     void relativeBuffersFollowTheScreen(@TempDir Path root) throws IOException {

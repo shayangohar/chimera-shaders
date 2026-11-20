@@ -19,13 +19,9 @@ public final class PackEngineDefines {
     public static final String CUSTOM_IMAGES = "IRIS_FEATURE_CUSTOM_IMAGES";
 
     /**
-     * Iris's fixed standard environment, as StandardMacros defines it in Iris 1.8.14 on Minecraft 1.21.1, the one
-     * version Chimera targets. Packs branch on these everywhere, {@code MC_VERSION} above all: undefined, it
-     * reads as 0 and selects a pack's pre-1.13 paths.
-     *
-     * {@link #standard()} adds the device's macros (PackDeviceMacros) and MC_MIPMAP_LEVEL; texture-format macros
-     * are not defined. IRIS_TAG_SUPPORT promises block.properties tags (PackMaterialResolver). Iris's biome,
-     * category and precipitation symbols from IrisDefines are macros too.
+     * Iris 1.8.14's standard environment on Minecraft 1.21.1, as StandardMacros defines it. Packs branch on these
+     * everywhere: an undefined {@code MC_VERSION} reads as 0 and selects a pack's pre-1.13 paths.
+     * IRIS_TAG_SUPPORT promises block.properties tags; texture-format macros are not defined.
      */
     private static final Map<String, String> STANDARD = standardMacros();
     /** Minecraft's default mipmap levels, until a pack load reads the game's option. */
@@ -63,10 +59,7 @@ public final class PackEngineDefines {
         return "MC_OS_UNKNOWN";
     }
 
-    /**
-     * The engine's standard macros with the device's and the mipmap level, alone, for sources
-     * preprocessed outside a program.
-     */
+    /** The standard macros with the device's and the mipmap level, for sources preprocessed outside a program. */
     public static Map<String, String> standard() {
         TreeMap<String, String> result = new TreeMap<>(STANDARD);
         result.put("MC_MIPMAP_LEVEL", Integer.toString(mipmapLevel));

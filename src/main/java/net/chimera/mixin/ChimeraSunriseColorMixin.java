@@ -13,13 +13,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * No sunrise or sunset colour while a pack renders the world with the camera in a fluid or under blindness
- * or darkness, as Iris's MixinDimensionSpecialEffects drops it in high fog. Both readers lose it.
- * renderSky's sunrise fan would draw only in water, as the sky is skipped in the other cases.
- * FogRenderer.setupColor tints the fog colour toward the sun under blindness or darkness, and the pack's
- * fogColor reads that; in a fluid the fog takes its own colour. The overworld's effects inherit this method;
- * the End's return no colour of their own. Iris does this with or without a pack; without one, Chimera
- * leaves Minecraft's sky alone.
+ * No sunrise colour while a pack renders with the camera in a fluid or under blindness or darkness, as Iris's
+ * MixinDimensionSpecialEffects drops it in high fog; the sky fan and the fog colour both lose it. Iris does
+ * this without a pack too.
  */
 @Mixin(DimensionSpecialEffects.class)
 public abstract class ChimeraSunriseColorMixin {

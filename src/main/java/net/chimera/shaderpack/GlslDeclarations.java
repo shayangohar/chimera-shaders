@@ -13,11 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * The file-scope variable declarations of a {@link GlslTree}, and text edits on them. The converters'
- * declaration rewrites go through the tree, so a comment, a declarator list or the qualifier order never
- * decides whether a declaration is seen.
- */
+/** The file-scope variable declarations of a {@link GlslTree}, and text edits on them. */
 final class GlslDeclarations {
     private GlslDeclarations() {}
 
@@ -65,9 +61,8 @@ final class GlslDeclarations {
     record TextEdit(int from, int to, String text) {}
 
     /**
-     * The tree of {@code source}, or null when it does not parse. A reader that only gathers declarations,
-     * such as target directives or outputs, treats such a source as declaring none: it compiles nowhere, and
-     * the converters refuse it with the parse failure.
+     * The tree of {@code source}, or null when it does not parse. A declaration reader treats such a source as
+     * declaring none, since the converters refuse it anyway.
      */
     static GlslTree parseOrNull(String source) {
         try {
@@ -84,10 +79,7 @@ final class GlslDeclarations {
         return start == 0 || source.charAt(start - 1) == '\n' || source.charAt(start - 1) == '\r' ? start : -1;
     }
 
-    /**
-     * A statement of qualifiers alone, such as {@code layout(early_fragment_tests) in;}: it sets a
-     * default and declares nothing, so its layout is no interface variable's.
-     */
+    /** A statement of qualifiers alone, such as {@code layout(early_fragment_tests) in;}, which declares nothing. */
     static boolean qualifiersOnly(GlslTree.External external) {
         return external instanceof GlslTree.Declaration declaration && declaration.type() == null
                 && declaration.declarators().isEmpty();
@@ -126,10 +118,7 @@ final class GlslDeclarations {
         return alone ? new TextEdit(lineStart, lineEnd, "") : new TextEdit(from, to, "");
     }
 
-    /**
-     * Edits that remove these variables, one per declaration: a declaration keeps its other names, or goes
-     * whole when it names no other. {@code in vec3 vaNormal, vaPosition;} declares two core inputs at once.
-     */
+    /** Edits that remove these variables, one per declaration; a declaration keeps its other names or goes whole. */
     static List<TextEdit> removeVariables(GlslTree tree, List<Variable> variables) {
         Map<GlslTree.Declaration, Set<String>> names = new LinkedHashMap<>();
         for (Variable variable : variables) {
@@ -152,10 +141,7 @@ final class GlslDeclarations {
         return edits;
     }
 
-    /**
-     * The arguments of a {@code layout(...)} qualifier, name to value, {@code ""} for a bare name:
-     * {@code layout(location = 2, index = 0)} gives location 2 and index 0.
-     */
+    /** The arguments of a {@code layout(...)} qualifier, name to value, {@code ""} for a bare name. */
     static Map<String, String> layoutArguments(GlslTree tree, GlslTree.Qualifier qualifier) {
         Map<String, String> arguments = new LinkedHashMap<>();
         String text = tree.text(qualifier.range());
@@ -170,8 +156,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * Where a declaration's span ends: the end of {@code tail}, its trailing spaces or line breaks compiled
-     * MULTILINE, matched from just after the declaration. -1 when the tail does not match there.
+     * Where a declaration's span ends: the end of {@code tail}, a MULTILINE pattern matched from just after the
+     * declaration; -1 when it does not match there.
      */
     static int tailEnd(String source, int from, Pattern tail) {
         Matcher matcher = tail.matcher(source);
@@ -209,8 +195,8 @@ final class GlslDeclarations {
     }
 
     /**
-     * {@link #lineStartBefore(String, int)} for spans taken one after another: a span never starts before
-     * {@code minimum}, the previous span's end, however many blank lines that span's tail took.
+     * {@link #lineStartBefore(String, int)} for consecutive spans: a span never starts before {@code minimum},
+     * the previous span's end.
      */
     static int lineStartBefore(String source, int offset, int minimum) {
         int text = offset;

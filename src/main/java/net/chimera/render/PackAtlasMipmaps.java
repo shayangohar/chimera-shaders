@@ -13,14 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Gives the block atlas the mip levels an Iris setup builds (AtlasMipBlend) while a shader pack's terrain
- * directives are installed, and VulkanMod's own levels when none are. Each sprite keeps its levels in
- * SpriteContents.byMipLevel, which its animation uploads from, so the levels are rewritten there and the
- * atlas uploaded again; VulkanMod's levels are kept to put back. A resource reload stitches new sprites with
- * VulkanMod's levels.
- *
- * Pack lifecycle points only record the wanted state and the frame boundary reconciles it, so an option change
- * uploads the atlas at most once. Render thread only.
+ * Gives the block atlas Iris's mip levels (AtlasMipBlend) while a pack is installed, and VulkanMod's otherwise.
+ * Levels are rewritten in SpriteContents.byMipLevel, since animations upload from there. Pack lifecycle only
+ * records the wanted state and the frame boundary applies it, so the atlas uploads at most once. Render thread
+ * only.
  */
 public final class PackAtlasMipmaps {
     private static final Logger LOGGER = LoggerFactory.getLogger(PackAtlasMipmaps.class);
@@ -44,10 +40,7 @@ public final class PackAtlasMipmaps {
         LEVELS.reset();
     }
 
-    /**
-     * At the frame boundary, gives the block atlas the levels the pack state wants. Never throws: a failed
-     * swap is logged once and runs again at the next pack load or unload.
-     */
+    /** Applies the wanted levels at the frame boundary. Never throws; a failed swap retries at the next pack change. */
     public static void reconcile() {
         if (atlas == null || !LEVELS.due(wanted)) return;
         long start = System.nanoTime();
@@ -97,9 +90,8 @@ public final class PackAtlasMipmaps {
     }
 
     /**
-     * Uploads every sprite's first frame at each level in one recording (TextureUploadBatch), as
-     * TextureAtlas.upload does. VulkanMod uploads sprites only on a frame's last client tick (MSpriteContents,
-     * SpriteUtil.shouldUpload), so its upload flag is forced on for this upload alone.
+     * Uploads every sprite's first frame in one recording. VulkanMod uploads sprites only on a frame's last
+     * client tick (SpriteUtil.shouldUpload), so its flag is forced on here.
      */
     private static void upload() {
         VulkanImage image = ChimeraTextures.image(atlas);

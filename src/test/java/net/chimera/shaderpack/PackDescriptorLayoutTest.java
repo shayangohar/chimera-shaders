@@ -63,10 +63,8 @@ final class PackDescriptorLayoutTest {
     }
 
     /**
-     * A program's samplers take the bindings of its descriptor layout, whatever their type. Alpha
-     * Piscium's shadow fragment reads its PBR tables through usampler1D custom textures; at the
-     * converter's provisional binding, usam_pbrLUT1 would share binding 5 with the GlobalData storage
-     * buffer and fail the layout check (DESCRIPTOR_LAYOUT_MISMATCH).
+     * A program's samplers take its descriptor layout's bindings, whatever their type; at the converter's
+     * provisional binding, Alpha Piscium's usampler1D would clash with a storage buffer.
      */
     @Test
     void aOneDimensionalIntegerSamplerTakesItsLayoutBinding() {

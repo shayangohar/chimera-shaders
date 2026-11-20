@@ -44,9 +44,8 @@ final class NonCullingFrustumTest {
     }
 
     /**
-     * Vanilla's setupRender still runs under VulkanMod and offsets a copy of the culling frustum
-     * every time the section graph updates (LevelRenderer.offsetFrustum). A camera off the 8-block grid on
-     * this frustum's identity planes would make that loop endless, so preparing it keeps no camera.
+     * Vanilla's LevelRenderer.offsetFrustum still runs under VulkanMod, and on identity planes a camera
+     * off the 8-block grid would loop it forever, so preparing the frustum keeps no camera.
      */
     @Test
     void vanillasFrustumOffsetEndsAfterAPrepare() {

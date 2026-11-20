@@ -33,11 +33,8 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.vkCmdSetScissor;
 
 /**
- * The pack's shadowcomp passes, run after the shadow map is drawn as Iris's ShadowCompositeRenderer runs
- * them: a pass's computes first, then its program as an unblended fullscreen draw at the map's size, into
- * the other side of each shadowcolor target it draws. The pass then flips those targets, so the next pass
- * and every later program sample what it wrote (ChimeraShadowMap.shadowColor). Kappa's shadowcomp, for
- * example, turns the shadow pass's albedo into the light transmittance its lighting reads.
+ * The pack's shadowcomp passes, run after the shadow map as Iris's ShadowCompositeRenderer runs them: computes
+ * first, then an unblended fullscreen draw into the other side of each shadowcolor target, which then flips.
  */
 final class PackShadowComposites {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -52,10 +49,7 @@ final class PackShadowComposites {
         this.pass = pass;
     }
 
-    /**
-     * Starts a pack session: its first failed pass is logged again, and the last session's framebuffer,
-     * which wraps a freed shadow target, is dropped. This object outlives every session.
-     */
+    /** Starts a pack session, dropping the last session's framebuffer, which wraps a freed shadow target. */
     void resetSession() {
         this.failureLogged = false;
         this.boundFramebuffer = null;

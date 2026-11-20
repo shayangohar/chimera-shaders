@@ -8,11 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A program drawn on the host line layout that does not widen its own line, as Iris widens it: the pack's
- * code runs once from the far point and once from the vertex's own, reading the widened built-ins wherever
- * it reads them.
- */
+/** Iris's widening of a line program that doesn't widen its own: the pack's code runs at both segment ends. */
 final class LineWideningTest {
     private static final String VERTEX = """
             #version 120

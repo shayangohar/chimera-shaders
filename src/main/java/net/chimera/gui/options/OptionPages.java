@@ -6,11 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * Which settings page is open, with the pages before it. One history lives per loaded pack and
- * outlasts the screen, so Apply, a reload or a resize keeps the page; a different pack starts over
- * at its main page.
- */
+/** The open settings page and its history, kept per pack across screens so Apply or a resize keeps the page. */
 final class OptionPages {
     private static OptionPages current;
 

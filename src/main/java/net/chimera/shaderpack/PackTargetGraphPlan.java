@@ -12,10 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-/**
- * The pack's colour targets and depth snapshots, planned at load: each target's size, format and clear policy,
- * what each post program reads and writes at which extent, and which side of each target every pass uses.
- */
+/** The pack's colour targets and depth snapshots, planned at load, and what each post pass reads and writes. */
 public final class PackTargetGraphPlan {
     public static final int MAX_TARGET = PostTargetPlan.MAX_TARGET;
     public static final int LOGICAL_ATTACHMENT_LIMIT = 8;
@@ -68,10 +65,7 @@ public final class PackTargetGraphPlan {
                 deviceMaxColorAttachments, deviceMaxImageDimension);
     }
 
-    /**
-     * Builds the graph against the resolved resource plan: a sampler reads the target the plan resolves it to, and
-     * one a pack texture overrides allocates no target.
-     */
+    /** Builds against the resolved resource plan; a sampler a pack texture overrides allocates no target. */
     public static PackTargetGraphPlan build(
             List<PackProgramPlan> programs,
             PackConfig.PackConfigData config,
@@ -85,24 +79,18 @@ public final class PackTargetGraphPlan {
                 deviceMaxImageDimension), ComputeUse.NONE);
     }
 
-    /** The window's size and the device's attachment and image-dimension limits. */
     public record Limits(int windowWidth, int windowHeight, int deviceMaxColorAttachments,
                          int deviceMaxImageDimension) {}
 
-    /**
-     * What the session's pass computes bind: the colour targets they read or write and the depth snapshots they
-     * read. Iris's IrisImages creates any target a compute names, and its CompositeRenderer gives computes the
-     * composite depth samplers.
-     */
+    /** Targets and depth snapshots the pass computes use; Iris allocates any target a compute names (IrisImages). */
     public record ComputeUse(Set<Integer> targets, Set<String> depthReads) {
         public static final ComputeUse NONE = new ComputeUse(Set.of(), Set.of());
     }
 
-    /** The graph for these programs and the targets and depth snapshots the session's computes use. */
     public static PackTargetGraphPlan build(List<PackProgramPlan> programs, PackConfig.PackConfigData config,
                                             PackResourcePlan resources, Limits limits, ComputeUse computes) {
         int deviceMaxColorAttachments = limits.deviceMaxColorAttachments();
-        // shadowcomp passes use the shadowcolor targets (PackShadowComposites), so they stay out of this graph
+        // shadowcomp passes use the shadowcolor targets, so they stay out of this graph
         GraphInputs inputs = new GraphInputs(
                 programs == null ? List.of() : programs.stream()
                         .filter(value -> value != null && !PassComputePlan.isShadowcomp(value.name())).toList(),
@@ -133,7 +121,7 @@ public final class PackTargetGraphPlan {
                 deviations, Math.max(1, deviceMaxColorAttachments), geometryReads, flips);
     }
 
-    /** The pass groups' {@code flip.<group>_pre} keys. A flip.final_pre has no renderer in Iris and flips nothing. */
+    /** The {@code flip.<group>_pre} keys; Iris has no renderer for final_pre, so it flips nothing. */
     private static final List<String> PRE_FLIP_KEYS = List.of("begin_pre", "prepare_pre", "deferred_pre",
             "composite_pre");
 
@@ -153,7 +141,6 @@ public final class PackTargetGraphPlan {
         return flips;
     }
 
-    /** What every phase of the graph build reads. */
     private record GraphInputs(
             List<PackProgramPlan> programs,
             PackConfig.PackConfigData config,
@@ -182,10 +169,7 @@ public final class PackTargetGraphPlan {
         }
     }
 
-    /**
-     * Every target an executable post or world program or a pass compute writes or reads, in range.
-     * The targets a world program reads are also collected into {@code geometryReads}.
-     */
+    /** Every in-range target an executable program or compute uses; world reads also fill {@code geometryReads}. */
     private static Set<Integer> usedTargets(GraphInputs inputs, Set<Integer> geometryReads) {
         Set<Integer> used = new TreeSet<>();
         used.add(0);
@@ -217,10 +201,7 @@ public final class PackTargetGraphPlan {
         return used;
     }
 
-    /**
-     * The allocatable targets a world program reads: those its samplers read, and a hand program's
-     * colorimgN, the image world programs read as colortexN (TargetImages).
-     */
+    /** Allocatable targets a world program reads, by sampler or as a hand program's colorimgN (TargetImages). */
     private static Set<Integer> geometryReadTargets(GraphInputs inputs, PackProgramPlan program) {
         Set<Integer> reads = new TreeSet<>(TargetImages.referenced(program));
         for (String sampler : geometrySamplerNames(program)) {
@@ -262,10 +243,7 @@ public final class PackTargetGraphPlan {
         return preliminary;
     }
 
-    /**
-     * One post program's step: what it reads and writes, and at which extent. The flip plan decides which side of
-     * each target it uses.
-     */
+    /** What one post program reads and writes, and at which extent; the flip plan picks each target's side. */
     private static TargetStep step(
             GraphInputs inputs,
             PackProgramPlan program,
@@ -306,10 +284,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The targets a post program's directive names but its shader never writes. Iris's CompositeRenderer flips
-     * every draw buffer of a composite pass, written or not, so the pass leaves such a target with its other side's
-     * content. Bloop's composite names colortex13 but writes it only with Distant Horizons, and that flip drops
-     * the frame's water refraction.
+     * Targets a post program's directive names but its shader never writes. Iris flips every draw buffer of a
+     * composite pass, written or not, so such a target keeps its other side's content.
      */
     private static List<Integer> unwrittenTargets(PostTargetPlan post, List<Integer> writes,
                                                   List<String> stepDeviations) {
@@ -322,10 +298,7 @@ public final class PackTargetGraphPlan {
         return unwritten;
     }
 
-    /**
-     * The colour targets a post program samples or binds as colorimgN, ascending; Iris binds colorimgN to the
-     * image the pass samples.
-     */
+    /** Targets a post program samples or binds as colorimgN, ascending; Iris binds colorimgN to the sampled image. */
     private static List<Integer> readTargets(GraphInputs inputs, PackProgramPlan program) {
         List<Integer> reads = new ArrayList<>(TargetImages.referenced(program));
         for (String sampler : samplerNames(program)) {
@@ -394,9 +367,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The allocated targets with their schedule flags. A target persists across frames only when the pack sets
-     * {@code colortexNClear=false}, and every target is cleared on the first frame (PostTargetSides). A target has
-     * an alt side when the flip plan flips or writes it.
+     * The allocated targets with their schedule flags. A target persists only with {@code colortexNClear=false},
+     * and has an alt side when the flip plan flips or writes it.
      */
     private static List<TargetSpec> finalTargets(
             Map<Integer, TargetSpec> preliminary,
@@ -416,9 +388,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The depth snapshots executable programs read. A world program that reads depth needs the
-     * same snapshot a post pass would: gbuffers_water reads opaque depth as depthtex1. A depth name
-     * a stage texture serves reads no snapshot.
+     * The depth snapshots executable programs read, world programs included (gbuffers_water reads depthtex1).
+     * A depth name a stage texture serves reads no snapshot.
      */
     private static DepthGraphPlan depthGraph(GraphInputs inputs, List<PackProgramPlan> postPrograms) {
         Set<String> depthReads = new TreeSet<>(inputs.computes().depthReads());
@@ -497,10 +468,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * The targets a post program's shader writes. One that certainly writes nothing leaves all its directive
-     * targets unwritten, so they flip with no content change, as in Iris, where clearing both sides makes the flip
-     * neutral. Rethinking Voxels' prepare1 and prepare2 name colortex3 and only discard; counting them as writers
-     * would hand prepare3 last frame's colour there.
+     * The targets a post program's shader writes. One that certainly writes nothing leaves its directive targets
+     * unwritten, so they flip unchanged as in Iris; counting it as a writer would serve last frame's colour.
      */
     private static List<Integer> outputTargets(PostTargetPlan plan) {
         if (plan.writesNoOutput() && !plan.isFinal() && !plan.targetSlots().isEmpty()) return List.of();
@@ -550,9 +519,8 @@ public final class PackTargetGraphPlan {
     }
 
     /**
-     * One size.buffer dimension: an absolute size, or a relative one as Iris's TextureScaleOverride
-     * makes it, {@code (int) (window * factor)} with the factor a float. A factor past 16 is refused,
-     * a guard Iris lacks.
+     * One size.buffer dimension: absolute, or relative as {@code (int) (window * factor)} (Iris:
+     * TextureScaleOverride). A factor past 16 is refused, a guard Iris lacks.
      */
     static int parseDimension(String token, int window) {
         if (token.contains(".")) {
@@ -579,10 +547,7 @@ public final class PackTargetGraphPlan {
         return targets.stream().filter(value -> value.index() == index).findFirst().orElse(null);
     }
 
-    /**
-     * Targets a world program reads: those it samples, and those a hand program stores to as
-     * colorimgN, which bind the image world programs read (TargetImages). Iris reads both unordered.
-     */
+    /** Targets a world program samples or a hand program stores to as colorimgN; Iris reads both unordered. */
     public Set<Integer> geometryReads() {
         return geometryReads;
     }

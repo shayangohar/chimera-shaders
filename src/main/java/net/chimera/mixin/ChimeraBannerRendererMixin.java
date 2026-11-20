@@ -17,9 +17,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Makes one banner's patterns a batch group, as Iris's MixinBannerRenderer does, unless an entity's render
- * already holds one. The base then draws before the patterns layered on it, which the level's batch order
- * (IrisBatchOrder) would otherwise put first.
+ * Makes one banner's patterns a batch group, as Iris's MixinBannerRenderer does, so the base draws before the
+ * patterns that the level's batch order would otherwise put first.
  */
 @Mixin(BannerRenderer.class)
 public abstract class ChimeraBannerRendererMixin {

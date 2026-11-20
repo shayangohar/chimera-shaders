@@ -24,13 +24,9 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
- * The pack's program sources and everything they {@code #include}, as the option scan sees them.
- *
- * The scan starts from every file named like a program in the shaders root and in each dimension
- * folder, and follows every {@code #include} line whatever condition surrounds it, since includes
- * are resolved before the preprocessor runs. Paths are pack-relative with a leading slash; a target
- * starting with a slash resolves from the shaders root, any other from the including file's folder.
- * An include that cannot be read is recorded and skipped, so one bad path does not hide every option.
+ * The pack's program sources and everything they {@code #include}, as the option scan sees them. Includes
+ * are followed whatever condition surrounds them, since they resolve before the preprocessor runs. A target
+ * with a leading slash resolves from the shaders root, any other from the including file's folder.
  */
 final class SourceGraph {
     private final Map<String, AnnotatedSource> files;
@@ -76,9 +72,8 @@ final class SourceGraph {
     }
 
     /**
-     * The files in the order Iris walks them when it merges their options: a {@code java.util.HashMap}
-     * keyed by pack path, filled in the order the scan reads the files. A conflict drops a name and a
-     * later declaration starts it over, so the order decides which names survive.
+     * The files in the order Iris merges their options: a {@code HashMap} keyed by pack path, filled in scan
+     * order. The order decides which conflicting names survive.
      */
     List<String> irisOrder() {
         return irisOrder;
@@ -167,10 +162,8 @@ final class SourceGraph {
         }
 
         /**
-         * The folders dimension.properties names, in file order, read through Iris's
-         * preprocessing (DimensionProperties); without that file, the world folders that exist. As
-         * in Iris, a dimension.properties that loads any property at all turns the world-folder
-         * fallback off.
+         * The folders dimension.properties names, else the world folders that exist. As in Iris, a
+         * dimension.properties that loads any property at all turns that fallback off.
          */
         private static List<String> dimensionFolders(Path shadersRoot) {
             Optional<List<String>> named = DimensionProperties.folderNames(shadersRoot);

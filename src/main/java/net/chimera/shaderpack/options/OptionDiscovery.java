@@ -10,13 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-/**
- * A pack's discovered options and the source files that declare them.
- *
- * A toggle candidate counts only when some file in the pack tests it with {@code #ifdef} or
- * {@code #ifndef}. Values are applied the way OptiFine and Iris apply them, by editing the declaring
- * lines, so a define and a const change exactly where the pack wrote them.
- */
+/** A pack's discovered options and the source files that declare them. */
 public final class OptionDiscovery {
     private final SourceGraph graph;
     private final OptionSet options;
@@ -34,10 +28,8 @@ public final class OptionDiscovery {
     }
 
     /**
-     * Reads every program source under {@code shadersRoot} and what it includes, as Iris does: an
-     * {@code #ifdef} anywhere in the pack confirms a toggle (Iris treats the whole include graph as
-     * one group), each file's options are merged within the file first, and the files are then
-     * merged in Iris's order, which decides the names a conflict drops.
+     * Reads every program source and its includes, as Iris does: an {@code #ifdef} anywhere in the pack
+     * confirms a toggle, and files merge in Iris's order, which decides the names a conflict drops.
      */
     public static OptionDiscovery discover(Path shadersRoot) {
         SourceGraph graph = SourceGraph.read(shadersRoot);
@@ -70,11 +62,7 @@ public final class OptionDiscovery {
         return graph.failures();
     }
 
-    /**
-     * The source files {@code values} changes, by pack-relative path, with the new text. Every line
-     * that declares a changed name is edited, as in Iris. A file is written back with {@code \n} line
-     * ends, as the pack loader joins edited lines.
-     */
+    /** The files {@code values} changes, by pack-relative path, joined with {@code \n} as the pack loader does. */
     public Map<String, String> editedFiles(OptionValues values) {
         Map<String, String> edited = new TreeMap<>();
         graph.files().forEach((path, source) -> {

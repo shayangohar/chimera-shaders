@@ -7,10 +7,8 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Which post stages threw while recording this session, and whether the chain may go on without them.
- * A stage that throws is skipped from then on as an identity stage, and the rest of the chain and the
- * gbuffers keep running. A device-level failure, or a third failing stage, still turns the pack off: the
- * first means the device is in trouble, the second that the failures are not one optional pass's.
+ * Which post stages threw this session; each then runs as identity while the chain goes on. A device-level
+ * failure, or a third failing stage, turns the pack off.
  */
 final class PostStageFailures {
     /** The distinct failing stages at which the session stops isolating and falls back to vanilla. */
@@ -25,10 +23,7 @@ final class PostStageFailures {
         return this.skipped.contains(stage);
     }
 
-    /**
-     * Records {@code stage}'s failure. True when the chain may go on without it; false when the
-     * session falls back to vanilla.
-     */
+    /** Records {@code stage}'s failure; false when the session must fall back to vanilla. */
     boolean isolate(String stage, Throwable failure) {
         if (deviceLevel(failure)) return false;
         this.skipped.add(stage);
@@ -44,9 +39,8 @@ final class PostStageFailures {
     }
 
     /**
-     * True when the failure, or one of its causes, is the device's rather than one pass's: Java's
-     * out of memory, or a Vulkan result of out of host or device memory or device lost. VulkanMod
-     * names the result (VkResult.decode); Chimera's own checks end the message with its code.
+     * True when the failure or a cause is the device's: out of memory, or device lost. VulkanMod names the
+     * result in the message; Chimera's own checks end it with the code.
      */
     static boolean deviceLevel(Throwable failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {

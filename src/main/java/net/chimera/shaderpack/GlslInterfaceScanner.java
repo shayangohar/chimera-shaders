@@ -18,16 +18,8 @@ import java.util.function.Function;
 
 /**
  * Reads a stage's cross-stage interface from the tree: every file-scope {@code in}, {@code out} and
- * {@code varying} declaration, of any type GLSL allows there.
- *
- * A declaration may be a scalar, vector or matrix of 32-bit components, a {@code struct} defined in the same
- * source, or a sized array of either, and one statement may declare several names. Each declaration knows how
- * many locations it occupies (GLSL 4.60 section 4.4.1: one per scalar or vector, one per matrix column, the sum
- * of a struct's members, times an array's length). Locations are packed in name order, so both stages of a
- * program agree on them without sharing a declaration order.
- *
- * {@link #rewrite} re-emits every declaration through one caller-supplied function, which is how converters
- * give each name its explicit location.
+ * {@code varying} declaration, with the locations each occupies (GLSL 4.60, 4.4.1). Locations are packed in
+ * name order, so both stages agree without sharing a declaration order.
  */
 public final class GlslInterfaceScanner {
     /** Locations one value of each built-in interface type occupies. */
@@ -36,16 +28,9 @@ public final class GlslInterfaceScanner {
     private GlslInterfaceScanner() {}
 
     /**
-     * The stage whose interface a source declares.
-     *
-     * A geometry stage's inputs are arrays with one element per vertex of its primitive
-     * ({@code in vec2 texcoord[]}). The scan reads each as the value one vertex passes, so it pairs with the
-     * vertex stage's output of that type. Tessellation inputs are per-vertex arrays too, and so are the control
-     * stage's outputs, one element per vertex of its output patch.
-     *
-     * A {@code patch in} or {@code patch out} variable is refused, array or not, with
-     * {@code PROGRAM_INTERFACE_DECLARATION_UNSUPPORTED}: per-patch varyings are not carried between the
-     * stages, and read per vertex an array one would take the wrong shape.
+     * The stage whose interface a source declares. Geometry and tessellation inputs, and the control stage's
+     * outputs, are per-vertex arrays, read as one vertex's value. A {@code patch} variable is refused, since
+     * per-patch varyings are not carried between stages.
      */
     public enum Stage {
         VERTEX, TESS_CONTROL, TESS_EVALUATION, GEOMETRY, FRAGMENT;
@@ -78,9 +63,8 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * One declared name. {@code arraySize} is 0 for a non-array; {@code slots} counts the locations the whole
-     * variable occupies. A {@code perVertex} variable (see {@link Stage}) leaves its outer, per-vertex dimension
-     * out of its type and size.
+     * One declared name. {@code arraySize} is 0 for a non-array; {@code slots} counts the whole variable's
+     * locations. A {@code perVertex} variable leaves its per-vertex dimension out of its type and size.
      */
     public record Declaration(
             String name,
@@ -210,9 +194,8 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * Pairs each fragment input with the vertex output of the same name. CrossStageRepair has already added
-     * every output Iris's repair adds, so a read input still unmatched, or matched to an output of another
-     * type, fails Iris's link too.
+     * Pairs each fragment input with the vertex output of the same name. CrossStageRepair has already run, so a
+     * read input left unmatched, or of another type, fails Iris's link too.
      */
     public static ProgramMatch match(StageInterface vertex, StageInterface fragment) {
         List<String> deviations = new ArrayList<>();
@@ -242,10 +225,7 @@ public final class GlslInterfaceScanner {
         return match(Arrays.asList(vertex, geometry, fragment));
     }
 
-    /**
-     * Pairs each stage of {@code chain}, vertex first and fragment last, with the stage after it, as Iris links
-     * every stage a program runs. The locations are the fragment stage's inputs'.
-     */
+    /** Pairs each stage of {@code chain} with the next, as Iris links them; the locations are the fragment's. */
     public static ProgramMatch match(List<StageInterface> chain) {
         List<String> deviations = new ArrayList<>();
         ProgramMatch last = null;
@@ -257,12 +237,9 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * Re-emits every interface statement of {@code source}, replacing each declared name with what {@code emit}
-     * returns for it; an empty string drops it. The rest of the source is untouched.
-     *
-     * A statement that declares several names becomes one declaration per name. When {@code emit} returns null
-     * for every name of a statement, the statement stays as written; a null name beside others keeps a
-     * declaration of its own.
+     * Re-emits every interface statement, replacing each declared name with what {@code emit} returns; an empty
+     * string drops it. A statement whose names all get null stays as written; otherwise each name becomes its
+     * own declaration.
      *
      * @throws IllegalArgumentException when the interface itself cannot be parsed
      */
@@ -286,8 +263,7 @@ public final class GlslInterfaceScanner {
             if (emitted.stream().allMatch(Objects::isNull)) {
                 result.append(GlslLexer.render(tokens.subList(statement.start(), statement.end())));
             } else {
-                // a name emit leaves alone gets the statement's qualifiers and type before its declarator,
-                // so `out vec2 a, b;` keeps b when only a changes
+                // a name emit leaves alone keeps the statement's qualifiers and type
                 String prefix = GlslLexer.render(tokens.subList(statement.start(), statement.typeEnd()));
                 for (int index = 0; index < emitted.size(); index++) {
                     GlslTree.Range declarator = statement.declarators().get(index);
@@ -317,7 +293,7 @@ public final class GlslInterfaceScanner {
     }
 
 
-    /** Interface statements in source order; a source the tree cannot parse reports {@code DECLARATION_UNSUPPORTED}. */
+    /** Interface statements in source order; an unparsable source reports {@code DECLARATION_UNSUPPORTED}. */
     private static Parse parse(String source, Stage stage) {
         GlslTree tree;
         try {
@@ -345,10 +321,9 @@ public final class GlslInterfaceScanner {
     private static final String DECLARATION_UNSUPPORTED = "PROGRAM_INTERFACE_DECLARATION_UNSUPPORTED";
 
     /**
-     * Qualifier indices of where a declaration's interface statement starts and where its {@code in},
-     * {@code out} or {@code varying} sits: the first {@code [layout(...)] [interpolation] storage} run. A
-     * qualifier before the run, such as {@code invariant}, stays outside the statement. Null without a storage
-     * qualifier.
+     * Qualifier indices where the interface statement starts and where its storage keyword sits: the first
+     * {@code [layout(...)] [interpolation] storage} run. A qualifier before it, such as {@code invariant}, stays
+     * outside the statement. Null without one.
      */
     private static int[] storageQualifier(GlslTree tree, List<GlslTree.Qualifier> qualifiers) {
         for (int start = 0; start < qualifiers.size(); start++) {
@@ -365,11 +340,8 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * The declaration of a variable whose interface this can read, or null with any deviation added.
-     *
-     * Only precision may follow the storage qualifier; another qualifier there, or an interface block, is
-     * reported as an unsupported type. A default-qualifier statement, such as Alpha Piscium's
-     * {@code layout(early_fragment_tests) in;}, declares no variable and stays as written.
+     * The declaration of a variable whose interface this can read, or null with any deviation added. Only
+     * precision may follow the storage qualifier; a default-qualifier statement declares nothing and stays.
      */
     private static GlslTree.Declaration variableDeclaration(GlslTree tree, GlslTree.External external,
             List<GlslTree.Qualifier> qualifiers, int[] storage, List<String> deviations) {
@@ -418,8 +390,8 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * What a statement's declarators share, or null for a {@code patch} variable (see {@link Stage}) or a
-     * {@code varying} in a geometry or tessellation stage, which GL does not have.
+     * What a statement's declarators share, or null for a {@code patch} variable or a {@code varying} in a
+     * geometry or tessellation stage, which GL does not have.
      */
     private static InterfaceType interfaceType(GlslTree tree, List<GlslTree.Qualifier> qualifiers, int[] storage,
                                                Stage stage, String type, int typeSlots) {
@@ -450,13 +422,10 @@ public final class GlslInterfaceScanner {
                                  boolean perVertex) {}
 
     /**
-     * The variables one interface statement declares, each with any array size, or null when a declarator has
-     * an initializer, a size this cannot read, or a size besides the type's. The size may sit on the type, as
-     * in Noble's {@code flat in vec3[9] skyIlluminanceCoefficients}.
-     *
-     * A per-vertex declarator starts with its per-vertex dimension, sized or not ({@code texcoord[]},
-     * {@code texCoordV[3]}); the size is what follows it. An unreadable size refuses the statement before the
-     * max with the type's size, which would turn its -1 into a sizeless type's 0 and drop the dimension.
+     * The variables one interface statement declares, or null when a declarator has an initializer or a size
+     * this cannot read or that clashes with the type's. A per-vertex declarator's first dimension is the
+     * per-vertex one. An unreadable size refuses the statement before the max with the type's size, which would
+     * turn its -1 into 0.
      */
     private static List<Declaration> declarators(GlslTree tree, GlslTree.Declaration declaration, int start, int end,
                                                  InterfaceType kind, Map<String, Integer> constants) {
@@ -481,9 +450,8 @@ public final class GlslInterfaceScanner {
     }
 
     /**
-     * The length of a type's or a declarator's arrays: 0 without one, the positive value of one {@code [N]}
-     * whose N is a {@link GlslIntConstant} expression over {@code constants}, or -1 for anything else, such as
-     * another name, an unsized array or a second dimension.
+     * The length of a type's or declarator's arrays: 0 without one, the positive value of a single {@code [N]}
+     * over {@code constants}, or -1 for anything else.
      */
     private static int arrayLength(GlslTree tree, List<GlslTree.Range> arrays, Map<String, Integer> constants) {
         if (arrays.isEmpty()) return 0;
@@ -496,9 +464,8 @@ public final class GlslInterfaceScanner {
     private static final Set<String> CONSTANT_INT_TYPES = Set.of("int", "uint");
 
     /**
-     * The value of each file-scope {@code const int} or {@code const uint}, its initializer read as a constant
-     * expression over literals and the constants before it. GL sizes an array with one: I Like Vanilla declares
-     * {@code const int lidarSampleCount = 24} and then the varying {@code lidarSampleCoords[lidarSampleCount]}.
+     * The value of each file-scope {@code const int} or {@code const uint}, read over the constants before it;
+     * GL sizes an array with one.
      */
     private static Map<String, Integer> constants(GlslTree tree) {
         Map<String, Integer> values = new HashMap<>();

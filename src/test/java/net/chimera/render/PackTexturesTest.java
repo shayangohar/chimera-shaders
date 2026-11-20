@@ -28,10 +28,7 @@ import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8_UNORM;
 
 /** Pack textures: the device's image limits, raw texture data, and game texture locations. */
 final class PackTexturesTest {
-    /**
-     * Alpha Piscium's 4096x2048 star map fits a 16384 limit: only the device's image limit refuses
-     * a pack texture, not its encoded size or pixel count.
-     */
+    /** Only the device's image limit refuses a pack texture, not its encoded size or pixel count. */
     @Test
     void anImageWithinTheDeviceLimitIsMade() {
         assertNull(PackImageLimits.failure("texture", 2, new int[] {4096, 2048}, 16384));
@@ -80,10 +77,7 @@ final class PackTexturesTest {
                 texels(new byte[] {1, 2, 3, 4, 5, 6}, halves), "half-float 1.0 is 0x3C00");
     }
 
-    /**
-     * Pixel Perfect's colour LUT (RGB16F from FLOAT): each 32-bit float is halved as glTexImage
-     * converts it, rounding to the nearest half, and alpha 1 is added.
-     */
+    /** RGB16F from FLOAT data: each float rounds to the nearest half, as glTexImage converts it, and gains alpha 1. */
     @Test
     void floatsHalveIntoASixteenBitFloatFormat() {
         RawTextureSpec lut = RawTextureSpec.parse("lut.dat TEXTURE_2D RGB16F 1 2 RGB FLOAT");
@@ -127,9 +121,8 @@ final class PackTexturesTest {
     }
 
     /**
-     * Iris reads both lightmap names as the game's light texture (CustomTextureData.LightmapMarker).
-     * Pixel Perfect binds minecraft:dynamic/lightmap_1, which 1.21.1 never registers; the game's
-     * lightmap is dynamic/light_map_1. Another namespace keeps its own location.
+     * Iris reads both lightmap names as the game's light texture (CustomTextureData.LightmapMarker), since
+     * 1.21.1 registers only dynamic/light_map_1. Another namespace keeps its own location.
      */
     @Test
     void eitherLightmapNameReadsTheGameLightmap() {

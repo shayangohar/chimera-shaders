@@ -97,10 +97,7 @@ public final class ChimeraCommands {
         return reportRequest(context, result, "Shaders off.", "Shaders are already off.");
     }
 
-    /**
-     * Saves a pack from the shaderpacks folder as the selection, as the selector screen does. The config
-     * names only packs in that folder, so a pack loaded from elsewhere leaves the saved selection alone.
-     */
+    /** Saves the selection only for a pack in the shaderpacks folder, since the config names only those. */
     private static void rememberSelection(Path pack, boolean enabled) {
         Path root = shaderpacksRoot();
         try {
@@ -109,7 +106,7 @@ public final class ChimeraCommands {
                 ChimeraConfig.get().setSelection(pack.getFileName().toString(), enabled);
             }
         } catch (IOException failure) {
-            // an unresolvable path is not in the shaderpacks folder; nothing to remember
+            // an unresolvable path is not in the shaderpacks folder
         }
     }
 

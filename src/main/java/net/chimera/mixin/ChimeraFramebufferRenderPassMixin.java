@@ -16,10 +16,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * While a pack geometry window is pending (PackGeometryContext), the render pass VulkanMod opens on a
- * framebuffer opens the window instead: dynamic rendering into the pack's attachments, in the row order of
- * the pass it replaces. The window ends where VulkanMod ends its render pass
- * (ChimeraRenderingPass.endRenderPass).
+ * While a pack geometry window is pending, VulkanMod's render pass opens it instead: dynamic rendering into
+ * the pack's attachments, in the replaced pass's row order. It ends where VulkanMod ends its render pass.
  */
 @Mixin(value = Framebuffer.class, remap = false)
 public abstract class ChimeraFramebufferRenderPassMixin {

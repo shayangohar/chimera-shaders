@@ -35,20 +35,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.function.Predicate;
 
 /**
- * The sky and clouds under a pack, phased as Iris's MixinLevelRenderer phases them.
- *
- * renderSky opens the sky window in the CUSTOM_SKY phase, so a sky a mod draws in its place is still the
- * pack's sky; each part of the vanilla sky then sets its phase at the call that starts it. As in Iris, the
- * sky draws even in thick fog, such as a boss's or a foggy dimension's, so the pack's sky programs always
- * write the sky the composite passes read. The pack horizon draws before all of it, right after the world
- * clear (ChimeraLevelRendererMixin). The celestial plane turns by the pack's sunPathRotation after vanilla's
- * -90 degree Y turn.
- *
- * The pack's sun, moon, stars and sky switches drop those parts as Iris's MixinLevelRenderer_SunMoonToggle
- * does. In high fog the void plane and the sunrise colour go as Iris's sky mixins drop them
- * (ChimeraVoidPlaneMixin, ChimeraSunriseColorMixin). renderClouds draws in the CLOUDS phase, and not at all
- * when the pack's cloud program draws nothing. Unless the dimension draws its own clouds, the pack's cloud
- * program draws over Sodium's cloud mesh (ChimeraCloudRenderer), which Iris runs it on for 1.21.1.
+ * The sky and clouds under a pack, phased as Iris's MixinLevelRenderer phases them; renderSky opens in
+ * CUSTOM_SKY so a mod's replacement sky is still the pack's. As in Iris, the sky draws even in thick fog, and
+ * the pack's cloud program draws over Sodium's cloud mesh.
  */
 @Mixin(LevelRenderer.class)
 public abstract class ChimeraSkyRendererMixin {

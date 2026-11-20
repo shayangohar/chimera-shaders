@@ -9,33 +9,26 @@ import org.lwjgl.system.MemoryUtil;
 import java.util.List;
 
 /**
- * Fills the elements a family format adds to its host prefix (EntityIds, MidTexCoord, Tangent and the glyph
- * format's Normal) for one host BufferBuilder, which no VertexConsumer call can reach. Every vertex gets the
- * current entity ids and neutral defaults as it starts. Each finished quad or triangle then gets its mean UV
- * as the mid-texture coordinate, a tangent from the positions and UVs its caller wrote and, while the level
- * renders, its face normal, as Iris's extended formats carry them.
- *
- * ChimeraBufferBuilderMixin drives it from the builder's hooks. Polygons are grouped from the builder's first
- * vertex; a partial polygon left at build keeps its defaults. Corners are kept as offsets from the arena's
- * base, since the arena moves when it grows.
+ * Fills the elements a family format adds to its host prefix, which no VertexConsumer call can reach, as Iris's
+ * extended formats carry them. Polygons are grouped from the builder's first vertex; a partial polygon keeps its
+ * defaults. Corners are offsets from the arena's base, since the arena moves when it grows.
  */
 public final class FamilyVertexWriter {
     private static final List<String> REQUIRED_ELEMENTS =
             List.of("Position", "UV0", "EntityIds", "MidTexCoord", "Tangent");
-    /** The appended normal a vertex keeps unless its caller or its quad's face normal replaces it: +Y. */
     private static final int DEFAULT_APPENDED_NORMAL = ChimeraEntityVertexData.pack(0.0f, 1.0f, 0.0f, 0.0f);
 
     private final VertexFormat format;
     private final int position;
     private final int uv;
-    /** The Normal offset, or -1 on a particle layout, which has none. */
+    /** -1 on a particle layout. */
     private final int normal;
     private final int entityIds;
     private final int midTexCoord;
     private final int tangent;
     private final boolean appendsNormal;
     private final int ownElements;
-    /** Corners per polygon: 4 in QUADS mode, 3 in TRIANGLES mode, 0 in modes with no polygons to fill. */
+    /** 0 in modes with no polygons to fill. */
     private final int polygonSize;
 
     private final long[] corners = new long[4];
@@ -65,10 +58,7 @@ public final class FamilyVertexWriter {
         };
     }
 
-    /**
-     * The writer for a new builder of {@code format}, or null for a builder Chimera leaves alone: any format
-     * other than a family format (compared by identity) with the elements this writer fills.
-     */
+    /** Null unless {@code format} is a family format (by identity). */
     public static FamilyVertexWriter forBuilder(VertexFormat format, VertexFormat.Mode mode) {
         if (!ChimeraVertexFormats.isFamilyFormat(format)
                 || !format.getElementAttributeNames().containsAll(REQUIRED_ELEMENTS)) {
@@ -78,17 +68,16 @@ public final class FamilyVertexWriter {
     }
 
     /**
-     * The mask bits of the elements this writer fills, which the builder must not wait for. They must be
-     * cleared just before the builder checks a vertex, since it resets its pending set after the vertex starts.
+     * Mask bits the builder must not wait for. Clear them just before it checks a vertex, since it resets its
+     * pending set after the vertex starts.
      */
     public int ownElements() {
         return ownElements;
     }
 
     /**
-     * Writes the defaults of the vertex the builder just reserved at {@code vertex}, whose bytes are stale, and
-     * records it as a corner. The ids are the renderer's at this moment. Call {@link #fillCompletePolygon}
-     * first, so a vertex never joins a polygon that is already complete.
+     * The reserved bytes are stale, so this writes defaults. Call {@link #fillCompletePolygon} first, so a vertex
+     * never joins a complete polygon.
      */
     public void startVertex(long base, long vertex, int entityId, int blockEntityId, int itemId) {
         long ids = vertex + entityIds;
@@ -102,10 +91,7 @@ public final class FamilyVertexWriter {
         if (polygonSize > 0) corners[cornerCount++] = vertex - base;
     }
 
-    /**
-     * Fills the pending polygon if all its corners have been written, reading them back from the arena at
-     * {@code base}; otherwise does nothing. {@code renderingLevel} decides whether a quad takes its face normal.
-     */
+    /** Waits for every corner; {@code renderingLevel} decides whether a quad takes its face normal. */
     public void fillCompletePolygon(long base, boolean renderingLevel) {
         if (polygonSize == 0 || cornerCount < polygonSize) return;
         cornerCount = 0;
@@ -131,10 +117,7 @@ public final class FamilyVertexWriter {
         }
     }
 
-    /**
-     * A quad with area: one tangent from its full-precision face normal for every corner and, on a format that
-     * takes it while the level renders, the face normal itself. A particle quad gets the tangent only.
-     */
+    /** One tangent from the full-precision face normal for every corner. */
     private void fillFlatQuad(long base, float midU, float midV, boolean renderingLevel) {
         int frame = cornerTangent(faceNormal[0], faceNormal[1], faceNormal[2], false);
         boolean replacesNormal = normal >= 0 && ChimeraVertexFormats.takesFaceNormal(format, renderingLevel);
@@ -146,11 +129,7 @@ public final class FamilyVertexWriter {
         }
     }
 
-    /**
-     * A triangle, or a quad with no area: each corner's tangent follows that corner's own normal as written,
-     * over the polygon's first three corners, with the positions flattened as smooth shading wants. A
-     * particle layout has no normal, so its corners keep the flat tangent.
-     */
+    /** For a triangle or a zero-area quad, each corner's tangent follows its own written normal. */
     private void fillPerCorner(long base, float midU, float midV) {
         for (int corner = 0; corner < polygonSize; corner++) {
             long at = base + corners[corner];

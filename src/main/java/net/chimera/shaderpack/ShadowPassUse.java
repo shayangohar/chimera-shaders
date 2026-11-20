@@ -10,21 +10,14 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Who observes the pack's shadow pass, and so whether it runs.
+ * Who observes the pack's shadow pass, and so whether it runs. Iris builds its ShadowRenderer only when
+ * {@code shadow.enabled} is true or a program outside the shadow pass samples a shadow target, and turns vanilla
+ * entity shadows off with it.
  *
- * Iris builds its ShadowRenderer only when {@code shadow.enabled} is true or a program outside the shadow
- * pass samples a shadow target, and turns vanilla entity shadows off with it
- * (shouldDisableVanillaEntityShadows). IrisRenderingPipeline decides after the gbuffer programs and the
- * composite renderers have created the shadow targets they sample.
+ * Iris skips a shadow pass whose programs only write pack images; Chimera runs it.
  *
- * Iris skips a shadow pass whose programs only write pack images, so a pack that voxelizes its lights there,
- * such as Mellow with COLORED_LIGHTS, gets none; Bloop forces {@code shadow.enabled} under LPV_ENABLED to
- * avoid this. Chimera runs that pass.
- *
- * @param enabled the pack's {@code shadow.enabled}, read as Iris reads it
  * @param readers the programs and pass computes outside the shadow pass that read a shadow target
- * @param writers the shadow-pass programs and shadowcomp computes that write a pack image, a colour
- *                target or a storage buffer
+ * @param writers the shadow-pass programs and shadowcomp computes that write beyond the shadow targets
  */
 public record ShadowPassUse(Enabled enabled, List<String> readers, List<String> writers, List<String> deviations) {
     /** A session without a plan: the pass runs. */

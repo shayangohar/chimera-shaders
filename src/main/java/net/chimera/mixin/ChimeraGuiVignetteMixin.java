@@ -11,11 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Skips Minecraft's HUD vignette while a pack renders the world without {@code vignette=true}, as Iris's
- * MixinGui does. The vignette darkens the screen edges by the player's light level, so in dark places it
- * would dim the pack's finished image a second time.
- */
+/** Skips the HUD vignette while a pack renders without {@code vignette=true}, as Iris's MixinGui does. */
 @Mixin(Gui.class)
 public abstract class ChimeraGuiVignetteMixin {
     @Inject(method = "renderVignette", at = @At("HEAD"), cancellable = true)

@@ -9,10 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** size.buffer target sizes, as Iris's TextureScaleOverride makes them. */
 final class PackTargetSizeTest {
-    /**
-     * Iris truncates window * factor in float. Bloop's colortex6 and Mellow's gaux2 are 0.25 of
-     * the window: 213 wide at 854, where rounding would make 214.
-     */
+    /** Iris truncates window * factor in float: 0.25 of 854 is 213, where rounding would make 214. */
     @Test
     void aRelativeSizeTruncatesAsIrisDoes() {
         assertEquals(213, PackTargetGraphPlan.parseDimension("0.25", 854));

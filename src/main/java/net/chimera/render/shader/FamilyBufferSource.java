@@ -25,51 +25,28 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * A buffer source that batches the pack family lanes apart from the host's. A render type that a family lane
- * draws where it is written ({@link ChimeraEntityBridge#familyFor}) goes to its own {@link FamilyRenderType}
- * buffer here; every other type goes to the host source unchanged.
- *
- * Family batches stay buffered until {@link #endFamilyBatches} (or a full {@link #endBatch}) draws them in
- * Iris's batch order (by {@link IrisTransparency}, opaque kinds first), each run of lanes with one set of pack
- * outputs inside one pack window. Vanilla's shared buffer would draw every entity's batch as soon as the next
- * render type starts, opening a pack window per switch.
- *
- * The level's entity and crumbling sources stand in for Iris's batched entity source. They hold every family
- * batch, vanilla's own flushes included, until Iris's translucent boundary before the hand
- * ({@link #endLevelBatchesAtBoundary}). They also hold batches a world host-layout lane draws (a lead, a name
- * tag's background, the block outline), which the lane still takes when it draws, in the phase of the Iris
- * wrapper the batch was written in ({@link HeldLaneRenderType}). With the pack's separateEntityDraws only the
- * opaque, opaque-decal and water-mask kinds draw at the boundary and the rest right after the deferred passes
- * ({@link #endHeldLevelBatches}), as Iris's batchedentityrendering MixinLevelRenderer does.
- *
- * Held batches draw in Iris's order ({@link IrisBatchOrder}). A lead writes only gbuffers_basic's targets, so
- * if it drew ahead of the chest or sign in front of it, the chest's outputs would leave it showing through.
- * Types no lane takes flush where vanilla flushes them.
- *
- * Each family type keeps its own buffer. Vanilla memoises most entity render types but builds energy swirl
- * and breeze wind anew each frame, as some mods do with theirs. Past {@link #MAX_FAMILY_TYPES}, types that
- * hold no batch and that no flush has drawn for {@link #IDLE_FLUSHES} flushes are freed with their buffers.
+ * Batches the pack family lanes apart from the host's and draws them in Iris's batch order, one pack window per
+ * run of equal outputs; vanilla would flush, and open a window, on every render type switch. The level's entity
+ * and crumbling sources stand in for Iris's batched entity source: they hold batches until Iris's translucent
+ * boundary, or with separateEntityDraws the non-opaque kinds until after the deferred passes.
  */
 public final class FamilyBufferSource extends MultiBufferSource.BufferSource implements AutoCloseable {
     private static final List<FamilyBufferSource> LIVE = new ArrayList<>();
     private static final int MAX_FAMILY_TYPES = 256;
     /** About half a second: the world source flushes two or three times a frame. */
     private static final long IDLE_FLUSHES = 64;
-    /** Whether this frame's level has reached Iris's translucent boundary, before which level sources hold. */
     private static boolean pastBoundary;
-    /** Whether this frame's level has run its deferred passes, after which a level source holds nothing. */
     private static boolean pastDeferred;
-    /** The order of the batches the level sources hold this frame. */
     private static final IrisBatchOrder<RenderType> LEVEL_ORDER = new IrisBatchOrder<>();
 
     private final MultiBufferSource.BufferSource host;
-    /** True for the level's entity and crumbling sources, which hold their batches for Iris's boundary. */
+    /** True for the level's entity and crumbling sources. */
     private final boolean level;
     private final SequencedMap<RenderType, ByteBufferBuilder> familyBuffers;
     private final Map<TypeKey, FamilyRenderType> familyTypes = new HashMap<>();
-    /** The types a level source holds world host-lane batches under, one per host type and phase. */
+    /** World host-lane batches a level source holds, one type per host type and phase. */
     private final Map<LaneKey, HeldLaneRenderType> laneTypes = new HashMap<>();
-    /** Each held type's earlier batches of connected primitives, closed and waiting to draw. */
+    /** Earlier closed batches of connected primitives, waiting to draw. */
     private final Map<RenderType, List<MeshData>> closedBatches = new HashMap<>();
     private long flushes;
 
@@ -82,7 +59,6 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         this(host, false);
     }
 
-    /** A source; {@code level} for the level's entity and crumbling sources. */
     public FamilyBufferSource(MultiBufferSource.BufferSource host, boolean level) {
         this(host, level, new LinkedHashMap<>());
     }
@@ -110,9 +86,8 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
     }
 
     /**
-     * Closes and holds a started batch of connected primitives (a lead's strip) where vanilla would draw it
-     * before the next batch of its type starts, since one strip cannot take another's vertices. Iris's
-     * segmented buffers keep each strip the same way.
+     * Closes and holds a started strip (a lead's) before the next batch of its type, since one strip cannot take
+     * another's vertices; Iris's segmented buffers do the same.
      */
     private void closeConnectedBatch(RenderType type) {
         if (type.canConsolidateConsecutiveGeometry()) return;
@@ -121,11 +96,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         if (mesh != null) closedBatches.computeIfAbsent(type, unused -> new ArrayList<>()).add(mesh);
     }
 
-    /**
-     * The type this source holds a batch of {@code type} under: its family lane's type or, in a level source
-     * when a world host-layout lane draws it, a held type in the phase it is written in. Null for the host to
-     * draw.
-     */
+    /** The family or held-lane type this source holds {@code type} under, or null for the host to draw. */
     private RenderType heldType(RenderType type) {
         Family family = ChimeraEntityBridge.familyFor(type);
         if (family == null) {
@@ -138,7 +109,6 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
                 key -> new FamilyRenderType(family, phase, type));
     }
 
-    /** A held batch's kind, as Iris batches it. */
     private static IrisTransparency kind(RenderType type) {
         if (type instanceof FamilyRenderType family) return family.transparency();
         return type instanceof HeldLaneRenderType held ? held.transparency() : IrisTransparency.of(type);
@@ -164,22 +134,17 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         }
     }
 
-    /** Draws every started family batch. */
     public void endFamilyBatches() {
         endFamilyBatches(type -> true);
     }
 
-    /** Called at the head of each level render, before the boundary and the deferred passes. */
     public static void beginLevel() {
         pastBoundary = false;
         pastDeferred = false;
         LEVEL_ORDER.reset();
     }
 
-    /**
-     * Opens one of Iris's batch groups, around one entity's render or one banner's patterns, unless one is
-     * open. True when this call opened it, in which case the caller closes it with {@link #endLevelGroup}.
-     */
+    /** Opens an Iris batch group unless one is open; true when this call opened it and must close it. */
     public static boolean startLevelGroup() {
         return LEVEL_ORDER.startGroup();
     }
@@ -189,9 +154,8 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
     }
 
     /**
-     * Iris's translucent boundary, before the hand and the deferred passes. Draws the level's batches due
-     * there, all of them or with separateEntityDraws the opaque kinds, as batchedentityrendering's
-     * MixinLevelRenderer draws them ahead of Iris's beginTranslucents. The shadow pass has its own boundary.
+     * Iris's translucent boundary, before the hand and the deferred passes (batchedentityrendering's
+     * MixinLevelRenderer). The shadow pass has its own.
      */
     public static void endLevelBatchesAtBoundary(ChimeraMainPass pass) {
         if (pass == null || ChimeraRenderer.shadowPassActive()) return;
@@ -199,10 +163,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         endLevelBatches(pass, levelDue());
     }
 
-    /**
-     * Draws every batch the level still holds: right after the deferred passes, before translucent terrain,
-     * and at the end of the level for any started later.
-     */
+    /** Runs after the deferred passes, and at the end of the level for any batch started later. */
     public static void endHeldLevelBatches(ChimeraMainPass pass) {
         if (ChimeraRenderer.shadowPassActive()) return;
         pastBoundary = true;
@@ -210,7 +171,6 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         endLevelBatches(pass, type -> true);
     }
 
-    /** The batches this source draws now: a level source holds them for Iris's boundary. */
     private Predicate<RenderType> due() {
         return level ? levelDue() : type -> true;
     }
@@ -220,40 +180,26 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         return type -> levelDraws(kind(type), pastBoundary, pastDeferred, separates);
     }
 
-    /**
-     * Whether a level source draws a batch of this kind now. Iris buffers the level's batches whole
-     * (FullyBufferedMultiBufferSource ignores vanilla's endBatch(type)) until its translucent boundary; with
-     * separateEntityDraws only the opaque kinds draw there and the rest after the deferred passes.
-     */
+    /** Iris's FullyBufferedMultiBufferSource ignores vanilla's endBatch(type) until its translucent boundary. */
     static boolean levelDraws(IrisTransparency kind, boolean pastBoundary, boolean pastDeferred,
                               boolean separates) {
         if (!pastBoundary) return false;
         return pastDeferred || !separates || kind.drawsBeforeDeferred();
     }
 
-    /**
-     * The level's entity and crumbling sources, found here because RenderBuffers hands them out only while
-     * the bridge routes the world's buffers.
-     */
+    /** Found here because RenderBuffers hands them out only while the bridge routes the world's buffers. */
     static List<FamilyBufferSource> levelSources() {
         return LIVE.stream().filter(source -> source.level).toList();
     }
 
-    /**
-     * Drops every batch the level sources hold, unseen, once the family bridge is switched off by a pack
-     * falling back mid-frame or at a frame boundary. No lane would draw them, and RenderBuffers stops handing
-     * the sources out, so nothing else would flush them.
-     */
+    /** Drops held level batches unseen when the family bridge switches off, since nothing else would flush them. */
     public static void discardLevelBatches() {
         for (FamilyBufferSource source : levelSources()) {
             List.copyOf(source.familyBuffers.keySet()).forEach(source::discard);
         }
     }
 
-    /**
-     * Draws both level sources' started batches as one, in Iris's order, on the main target. Iris buffers
-     * crumbling with the entities, so its decals land between their translucent kinds.
-     */
+    /** Draws both level sources as one, since Iris buffers crumbling with the entities. */
     private static void endLevelBatches(ChimeraMainPass pass, Predicate<RenderType> drawn) {
         Map<RenderType, FamilyBufferSource> owners = new HashMap<>();
         List<RenderType> started = new ArrayList<>();
@@ -280,8 +226,8 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
     }
 
     /**
-     * Iris's order for the level's batches ({@link IrisBatchOrder}). A source of a renderer's own batches sorts
-     * by kind alone and keeps, within a kind, the order its types were first buffered.
+     * Iris's order ({@link IrisBatchOrder}); a lead drawn ahead of the chest in front of it would show through the
+     * chest's outputs.
      */
     private static Comparator<RenderType> levelOrder() {
         Map<RenderType, Integer> ranks = LEVEL_ORDER.ranks();
@@ -289,7 +235,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
                 .thenComparingInt(type -> ranks.getOrDefault(type, Integer.MAX_VALUE));
     }
 
-    /** This source's started batches that {@code drawn} takes, in first-use order. */
+    /** In first-use order. */
     private List<RenderType> startedTypes(Predicate<RenderType> drawn) {
         List<RenderType> started = new ArrayList<>();
         if (startedBuilders.isEmpty() && closedBatches.isEmpty()) return started;
@@ -299,12 +245,10 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         return started;
     }
 
-    /** Whether this source holds a batch of {@code type}, started or closed. */
     private boolean holds(RenderType type) {
         return startedBuilders.containsKey(type) || closedBatches.containsKey(type);
     }
 
-    /** Counts a flush that draws {@code drawn}. */
     private void noteFlush(List<RenderType> drawn) {
         if (drawn.isEmpty()) return;
         flushes++;
@@ -314,7 +258,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         }
     }
 
-    /** Draws started batches in {@code order}, one pack window per run of family batches with equal outputs. */
+    /** One pack window per run of family batches with equal outputs. */
     private static void draw(List<RenderType> started, Comparator<RenderType> order, Consumer<RenderType> draw,
                              Consumer<RenderType> discard) {
         started.sort(order);
@@ -326,7 +270,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         }
     }
 
-    /** Draws the type's closed batches in the order they were written, then its started one. */
+    /** Closed batches first, in write order. */
     private void drawStarted(RenderType type) {
         List<MeshData> closed = closedBatches.remove(type);
         if (closed != null) closed.forEach(type::draw);
@@ -338,9 +282,8 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
     }
 
     /**
-     * Frees every idle held type with its buffer, a family lane's or a host-layout lane's. Vanilla memoises
-     * its render types, but a mod may build a lines or leash type anew each frame; held for a host-layout
-     * lane, each such type would otherwise keep its buffer until the lanes change.
+     * Vanilla builds energy swirl and breeze wind types anew each frame, as some mods do, so idle held types
+     * are freed with their buffers.
      */
     private void freeIdleTypes() {
         familyBuffers.entrySet().removeIf(entry -> {
@@ -361,15 +304,12 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         });
     }
 
-    /**
-     * Whether a held type may be freed: it holds no batch, started or closed ({@code held}), which a level
-     * source may keep for the deferred passes, and no flush has drawn it for {@link #IDLE_FLUSHES} flushes.
-     */
+    /** A type holding a batch may be waiting for the deferred passes, so it is never idle. */
     static boolean idle(boolean held, long flushes, long lastDrawn) {
         return !held && flushes - lastDrawn > IDLE_FLUSHES;
     }
 
-    /** Drops a type's held batches unseen, when its lane's pack outputs could not open this frame. */
+    /** Drops held batches unseen, when the lane's pack outputs could not open this frame. */
     private void discard(RenderType type) {
         List<MeshData> closed = closedBatches.remove(type);
         if (closed != null) closed.forEach(MeshData::close);
@@ -378,7 +318,6 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         if (mesh != null) mesh.close();
     }
 
-    /** Frees the family buffers and forgets their types, before the installed lanes change. */
     private void release() {
         familyBuffers.keySet().forEach(this::discard);
         familyBuffers.values().forEach(ByteBufferBuilder::close);
@@ -387,7 +326,7 @@ public final class FamilyBufferSource extends MultiBufferSource.BufferSource imp
         laneTypes.clear();
     }
 
-    /** Frees every live source's family buffers, before the installed lanes change. */
+    /** Called before the installed lanes change. */
     static void releaseAll() {
         LIVE.forEach(FamilyBufferSource::release);
     }

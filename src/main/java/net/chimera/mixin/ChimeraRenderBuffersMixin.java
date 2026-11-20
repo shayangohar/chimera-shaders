@@ -16,11 +16,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * While the pack renders the world, the level's buffer sources batch the family lanes apart from the host's
- * (FamilyBufferSource). The outline source wraps the same family source, so a glowing entity keeps its pack
- * program and its outline. The crumbling source gets a family source of its own, since vanilla ends its
- * batch separately (LevelRenderer.renderLevel) and that must not flush the level's. Both are level sources,
- * which keep their batches for Iris's translucent boundary.
+ * While the pack renders, the level's buffer sources batch the family lanes apart from the host's. The
+ * outline source wraps the same family source, so a glowing entity keeps its pack program; crumbling gets its
+ * own, since vanilla ends its batch separately and that must not flush the level's.
  */
 @Mixin(RenderBuffers.class)
 public abstract class ChimeraRenderBuffersMixin {

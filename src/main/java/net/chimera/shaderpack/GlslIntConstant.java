@@ -8,14 +8,9 @@ import java.util.OptionalInt;
 import java.util.function.LongBinaryOperator;
 
 /**
- * Reads an integral constant expression as GL reads an array size: decimal, octal and hexadecimal integer
- * literals with or without {@code u}, parentheses, unary {@code + - ~} and binary {@code * / % + - << >> & ^ |}
- * with C's precedence. Photon's histogram varying {@code vec4[HISTOGRAM_BINS / 4]} reaches translation as
- * {@code vec4[32 / 4]}.
- *
- * A name reads only as one of the constants the caller passes, such as a file-scope {@code const int}. Any
- * other name, a float, a comparison, or a value GL leaves undefined (division by zero, a shift outside 0..31,
- * a result outside {@code int}) is not read.
+ * Reads an integral constant expression as GL reads an array size, with C's integer operators and precedence.
+ * A name reads only as one of the caller's constants. Floats and comparisons are not read, nor values GL
+ * leaves undefined (division by zero, a shift outside 0..31, a result outside {@code int}).
  */
 final class GlslIntConstant {
     /** Binary operators, binding tighter as the level rises; each level is left-associative. */

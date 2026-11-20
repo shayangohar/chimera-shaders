@@ -11,12 +11,8 @@ import org.slf4j.LoggerFactory;
 import java.util.function.Supplier;
 
 /**
- * Starts a new material map generation on each resource reload.
- *
- * Registered through RegisterClientReloadListenersEvent, so it applies after vanilla's listeners, textures
- * included, and atlas uploads seen during the reload already belong to the incoming packs. {@code apply} only
- * bumps the owner's generation (MaterialMapOwner.bumpGeneration), which retires the simple-texture maps; they
- * close at the next pump. It does no file or GPU work, and nothing while Chimera has no pass.
+ * Starts a new material map generation on each resource reload. It applies after vanilla's listeners, so atlas
+ * uploads seen during the reload already belong to the incoming packs.
  */
 public final class ChimeraMaterialReloadListener extends SimplePreparableReloadListener<Integer> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChimeraMaterialReloadListener.class);

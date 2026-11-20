@@ -111,11 +111,7 @@ final class PackStorageImage extends VulkanImage {
         this.initialized = false;
     }
 
-    /**
-     * The image {@code spec} declares at {@code extent} (width, height, depth), of its own dimensions.
-     * A program reading it through another format of its size needs it mutable, with a storage view
-     * in each of {@code viewFormats}; a format the device cannot store refuses the image.
-     */
+    /** The image {@code spec} declares at {@code extent}, with a storage view in each of {@code viewFormats}. */
     static PackStorageImage create(PackAdvancedResourcePlan.ImageSpec spec, int[] extent, Set<Integer> viewFormats) {
         int format = spec.format().vkFormat();
         boolean integer = IrisColorFormats.integer(format);
@@ -221,10 +217,7 @@ final class PackStorageImage extends VulkanImage {
         }
     }
 
-    /**
-     * Why a format with these optimal-tiling features cannot back the image, or null. The image is sampled,
-     * stored to and cleared with vkCmdClearColorImage, and it is created for transfers both ways.
-     */
+    /** Why a format with these optimal-tiling features cannot back the image, or null. */
     static String formatFailure(int features, String name, int format) {
         int required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT
                 | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
@@ -234,10 +227,7 @@ final class PackStorageImage extends VulkanImage {
 
     int depth() { return depth; }
 
-    /**
-     * Whether the image was seeded since allocation, which must happen before any stage reads it. Separate
-     * from the pack's per-frame clear.
-     */
+    /** Whether the image was cleared since allocation, which must happen before any stage reads it. */
     boolean initialized() { return initialized; }
 
     void markInitialized() { this.initialized = true; }
@@ -254,10 +244,8 @@ final class PackStorageImage extends VulkanImage {
         VkImageSubresourceRange.Buffer range = VkImageSubresourceRange.calloc(1, stack);
         range.get(0).aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 .baseMipLevel(0).levelCount(1).baseArrayLayer(0).layerCount(1);
-        // storage images stay in GENERAL, the layout both imageStore and sampled reads use, which keeps
-        // VulkanMod's read-only transition helper off them
-        // the clear is a transfer write: it waits for the image's last access, and the next shader access
-        // waits for the clear
+        // storage images stay in GENERAL, away from VulkanMod's read-only transition helper; the clear waits
+        // for the image's last access, and the next shader access waits for the clear
         int oldLayout = getCurrentLayout();
         Access last = lastAccess(oldLayout);
         barrier(stack, commandBuffer, oldLayout, VK_IMAGE_LAYOUT_GENERAL, last,
@@ -269,10 +257,7 @@ final class PackStorageImage extends VulkanImage {
                 lastAccess(VK_IMAGE_LAYOUT_GENERAL));
     }
 
-    /**
-     * Moves the image to GENERAL with its own barrier: VulkanMod's helper does not accept GENERAL as a source
-     * layout, and storage images sit in GENERAL between graphics and compute work.
-     */
+    /** Moves the image to GENERAL with its own barrier, since VulkanMod's helper rejects GENERAL as a source. */
     void transitionToGeneral(MemoryStack stack, VkCommandBuffer commandBuffer) {
         int oldLayout = getCurrentLayout();
         if (commandBuffer == null || oldLayout == VK_IMAGE_LAYOUT_GENERAL) return;
@@ -284,10 +269,7 @@ final class PackStorageImage extends VulkanImage {
     /** A pipeline stage and the accesses it makes to the image there. */
     private record Access(int stage, int mask) {}
 
-    /**
-     * What a barrier out of {@code layout} waits for: the image's last use in it. A GENERAL image
-     * is last used by shaders; a clear in GENERAL hands it back to them with a barrier of its own.
-     */
+    /** What a barrier out of {@code layout} waits for; a GENERAL image is last used by shaders. */
     private static Access lastAccess(int layout) {
         return switch (layout) {
             case VK_IMAGE_LAYOUT_UNDEFINED -> new Access(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0);
@@ -331,7 +313,7 @@ final class PackStorageImage extends VulkanImage {
         return views.getOrDefault(format, view);
     }
 
-    /** The image's own sampler: nearest for integer formats, linear otherwise, clamped to the edge, on one level. */
+    /** The image's own sampler: nearest for integer formats, else linear. */
     @Override
     public long getSampler() { return sampler; }
 

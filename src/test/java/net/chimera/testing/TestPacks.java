@@ -14,10 +14,8 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * The packs the tests read: fixture packs and baselines checked into {@code testpacks}, and the
- * locked shader packs outside the repository. Gradle passes every {@code chimera.*} project
- * property through as a system property, so {@code -Pchimera.pack.complementary=<zip>} reaches
- * {@link #complementary()}.
+ * The packs the tests read: fixtures checked into {@code testpacks}, and locked shader packs outside the
+ * repository, named by {@code -Pchimera.pack.*} project properties, which Gradle passes as system properties.
  */
 public final class TestPacks {
     private TestPacks() {}
@@ -60,9 +58,8 @@ public final class TestPacks {
     }
 
     /**
-     * The packs shard {@code shard} of {@code shards} takes: largest first, each to the shard with
-     * the fewest bytes so far, so the shards' work is about even and a pack always lands in the same
-     * shard. Every pack lands in exactly one shard.
+     * The packs shard {@code shard} of {@code shards} takes: largest first, each to the shard with the fewest
+     * bytes so far, so the split is even and stable.
      */
     public static List<Path> shard(List<Path> packs, int shard, int shards) {
         List<Path> sorted = new ArrayList<>(packs);
@@ -80,9 +77,8 @@ public final class TestPacks {
     }
 
     /**
-     * A copy of {@code pack} in {@code folder} with no {@code <pack>.txt} beside it, so it loads at the
-     * pack's defaults. A zip is copied as a file; a folder pack is copied whole, following linked
-     * folders as loading it in place would. An older copy is replaced, not merged into.
+     * A copy of {@code pack} in {@code folder} with no {@code <pack>.txt} beside it, so it loads at its
+     * defaults. A folder pack is copied whole through linked folders, replacing any older copy.
      */
     public static Path copyWithoutOptions(Path pack, Path folder) throws IOException {
         Path copy = folder.resolve(pack.getFileName().toString());

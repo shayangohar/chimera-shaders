@@ -39,9 +39,8 @@ final class PostVertexBridge {
     }
 
     /**
-     * Drops each input's {@code layout(...)} and the space after it, since post inputs get Chimera's varying
-     * locations. Outputs keep theirs for PostTargetPlan.modernOutputs, and an input's interpolation and storage
-     * qualifiers stay.
+     * Drops each input's {@code layout(...)}, since post inputs get Chimera's varying locations; outputs keep
+     * theirs for PostTargetPlan.modernOutputs.
      */
     private static String withoutInputLayouts(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -147,7 +146,6 @@ final class PostVertexBridge {
             converted = GlslInterfaceScanner.rewrite(LegacyGlslConverter.withoutVersionLines(converted),
                     true,
                     declaration -> {
-                        // an unread input is dropped; I Like Vanilla's composites declare mc_Entity in a header
                         if (declaration.input() && !declaration.referenced()) return "";
                         Integer location = locations.get(declaration.name());
                         if (declaration.input() || location == null) {
@@ -164,11 +162,8 @@ final class PostVertexBridge {
             converted = converted.replaceAll("\\bgl_TextureMatrix\\s*\\[\\s*[0-7]\\s*\\]", "mat4(1.0)");
             converted = converted.replaceAll("\\bftransform\\s*\\(\\s*\\)", "chimeraFullscreenPosition()");
             requireServedBuiltins(converted);
-            // GL clip space puts NDC y = -1 at image row 0, but post passes keep VulkanMod's negative-height
-            // viewport, which maps it to the last row, so the authored position is mirrored once here
-            // a partial quad addressed by gl_FragCoord needs this, such as Bliss's exposure texel
-            // depth moves into Vulkan's range too: a pass has no depth attachment, but Vulkan clips below z = 0
-            // DrDestens' gl_Vertex * 2 - 1 and Pixel Perfect's vec4(vaPosition * 2 - 1, 1) put the quad at z = -1
+            // post passes keep VulkanMod's negative-height viewport, so y is mirrored to put NDC y = -1 at row 0
+            // depth moves into Vulkan's range too, since Vulkan clips below z = 0 and some packs put the quad at z = -1
             converted = GlslDeclarations.renameMain(converted, "chimeraPostMain");
             converted += "\nvoid main() { chimeraPostMain(); gl_Position.y = -gl_Position.y; "
                     + ClipDepth.TO_VULKAN + " }\n";
@@ -320,9 +315,8 @@ final class PostVertexBridge {
     }
 
     /**
-     * The inputs a post source declares as {@code [interpolation] in|varying type names;} at the
-     * start of a line. A declaration's span starts at the first line start after the text before
-     * it, so the blank lines and indentation before it go with it when it is replaced.
+     * The inputs a post source declares as {@code [interpolation] in|varying type names;}. Each span includes the
+     * blank lines and indentation before it, so they go when it is replaced.
      */
     static List<PostVaryingDeclaration> postVaryingDeclarations(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -408,9 +402,8 @@ final class PostVertexBridge {
     }
 
     /**
-     * Whether a fragment input is neither written by the vertex stage nor read, such as Bliss's Flashing outside
-     * the program that sets it. GL links such a declaration as dead and Iris accepts it, so it can be dropped. One
-     * that is read stays an error, as it is a link error in GL.
+     * Whether a fragment input is neither written by the vertex stage nor read; GL links it as dead, so it can be
+     * dropped. One that is read stays an error, as in GL.
      */
     static boolean unproducedAndUnread(String source, int start, int end, String name,
                                                LegacyGlslConverter.TerrainVaryingLayout layout) {

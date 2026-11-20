@@ -8,10 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Optional;
 
-/**
- * A button that opens one of the pack's sub-pages, named by {@code screen.ID}, with an arrow on the right.
- * Iris draws the arrow almost transparent; here it is white.
- */
+/** A button that opens one of the pack's sub-pages, named by {@code screen.ID}. */
 final class LinkCell extends OptionCell {
     private final String page;
 

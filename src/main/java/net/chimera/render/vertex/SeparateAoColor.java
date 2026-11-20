@@ -4,18 +4,11 @@ package net.chimera.render.vertex;
 
 import net.vulkanmod.vulkan.util.ColorUtil;
 
-/**
- * Iris's separateAo terrain vertex colour (XHFPTerrainVertex): the tint stays unshaded in RGB, and the light
- * pipeline's per-vertex brightness, ambient occlusion times face shade, goes into alpha.
- */
+/** Iris's separateAo vertex colour (XHFPTerrainVertex): unshaded tint in RGB, AO times face shade in alpha. */
 public final class SeparateAoColor {
     private SeparateAoColor() {}
 
-    /**
-     * VulkanMod's packed vertex colour (RGBA, red in the low byte) with the brightness in alpha. The
-     * brightness is clamped first: VulkanMod masks each channel to eight bits, so a value just above 1 would
-     * wrap to black.
-     */
+    /** Clamped, since VulkanMod masks each channel to eight bits and a value just above 1 would wrap to black. */
     public static int rgba(float red, float green, float blue, float brightness) {
         return ColorUtil.RGBA.pack(red, green, blue, Math.max(0.0F, Math.min(1.0F, brightness)));
     }

@@ -16,9 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * shaders.properties keys as the report names them: a key Iris 1.21.1's ShaderProperties reads
- * and Chimera does not apply is SETTING_NOT_APPLIED; one Chimera applies, or one Iris does not
- * read either, is not reported. Keys inside a branch the pack's conditionals skip are not read.
+ * shaders.properties keys as the report names them: a key Iris reads and Chimera does not apply is
+ * SETTING_NOT_APPLIED. Keys in a skipped branch are not read.
  */
 final class PropertyKeyReportTest {
     @Test
@@ -43,10 +42,8 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * PropertiesPreprocessor leaves a comment line empty, and an empty line ends a backslash
-     * continuation in Properties.load; a blank line is dropped first and ends nothing. A '#' with a
-     * space before the directive's name is a comment. Bliss's screen list ends at the commented-out
-     * one under it.
+     * A comment line left empty by PropertiesPreprocessor ends a backslash continuation, while a blank line is
+     * dropped first; a '#' with a space before the directive's name is a comment.
      */
     @Test
     void aCommentEndsAContinuationAndASpacedDirectiveIsAComment(@TempDir Path root) throws Exception {
@@ -75,11 +72,8 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * JCPP lexes shaders.properties as a whole, so a block comment runs across lines:
-     * a directive inside one is comment text, in a skipped branch too, and a directive line that
-     * leaves one open takes the lines up to its close and goes on after it (#if 0 || 1). A comment's
-     * other lines stay properties, as JCPP keeps them and Properties.load reads them. The custom
-     * values read are JCPP's for this file.
+     * JCPP lexes shaders.properties as a whole, so a block comment runs across lines, in a skipped branch too;
+     * its other lines stay properties for Properties.load.
      */
     @Test
     void aBlockCommentRunsAcrossShadersPropertiesLines(@TempDir Path root) throws Exception {
@@ -129,10 +123,8 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * JCPP reports a malformed conditional and reads on, in shaders.properties and dimension.properties
-     * alike. {@code #if F(1)} with no F reads false, as JCPP reads the name as 0 and skips the rest, and a
-     * stray #else turns the rest off. A condition Chimera cannot evaluate, such as a function-like macro,
-     * also reads false and is reported.
+     * JCPP reports a malformed conditional and reads on: {@code #if F(1)} with no F reads false, and a stray
+     * #else turns the rest off. A condition Chimera cannot evaluate also reads false and is reported.
      */
     @Test
     void aMalformedConditionalIsSkippedAndTheFileReadsOn(@TempDir Path root) throws Exception {
@@ -222,9 +214,8 @@ final class PropertyKeyReportTest {
     }
 
     /**
-     * With supportsColorCorrection true or 1, Iris adds COLOR_SPACE_SRGB=0 through
-     * COLOR_SPACE_ADOBE_RGB=4 to the shader defines (ShaderPack, ColorSpace), after it has
-     * preprocessed shaders.properties. Kappa's ACES output switches on currentColorSpace with them.
+     * With supportsColorCorrection, Iris adds the COLOR_SPACE_* defines to shader sources after it has
+     * preprocessed shaders.properties.
      */
     @Test
     void colorCorrectionDefinesTheColorSpaces(@TempDir Path root) throws Exception {

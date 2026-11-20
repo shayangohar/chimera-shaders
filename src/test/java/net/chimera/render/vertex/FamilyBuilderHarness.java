@@ -12,9 +12,7 @@ import java.lang.reflect.Field;
 
 /**
  * A vanilla BufferBuilder with ChimeraBufferBuilderMixin's hooks applied by hand, since tests run without
- * mixins: around each vertex and at build it calls a {@link FamilyVertexWriter} as the hooks do, reading the
- * builder's vertex pointer, pending elements and arena base by reflection. The arena starts filled with
- * {@link #STALE}, so a byte nothing wrote shows.
+ * mixins. The arena starts filled with {@link #STALE}, so a byte nothing wrote shows.
  */
 final class FamilyBuilderHarness implements AutoCloseable {
     static final int STALE = 0xAB;

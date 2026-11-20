@@ -12,12 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Images in an entity-family vertex stage. Iris binds images in every stage: Pegasus 0.8.1 with
- * PARTICLES_LPV=1 stores particle light into cimage3_colored_light from gbuffers_particles' vertex.
- * The bridge keeps the declaration of an image the plan binds; the program's image binding
- * (PackDescriptorContracts.bindStorageImages) then gives it its descriptor.
- */
+/** Iris binds images in every stage, so an entity-family vertex stage keeps an image the plan binds. */
 final class VertexStageImageTest {
     private static final String VERTEX = """
             #version 430 compatibility

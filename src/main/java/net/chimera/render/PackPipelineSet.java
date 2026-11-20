@@ -15,10 +15,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-/**
- * The pipelines one pack session installed, by family, and the routes in use. A null family has
- * no pack pipeline and keeps its host draw.
- */
+/** The pipelines one pack session installed, by family; a null family keeps its host draw. */
 final class PackPipelineSet {
     PackPipelines.PackTerrain terrainRoute;
     PackPipelines.PackTerrain waterRoute;
@@ -191,7 +188,7 @@ final class PackPipelineSet {
         };
     }
 
-    /** The lanes these pipelines give the family bridge, each field into its namesake. */
+    /** The lanes these pipelines give the family bridge. */
     InstalledLanes lanes(PackEntityIdResolver entityIds) {
         EnumMap<ChimeraEntityBridge.Family, GraphicsPipeline> hostLayoutPipelines =
                 new EnumMap<>(ChimeraEntityBridge.Family.class);

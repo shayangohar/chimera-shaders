@@ -24,10 +24,7 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
-/**
- * The descriptor contract of a pack pipeline: which bindings its ordinary samplers, storage buffers,
- * storage images and advanced samplers take, and the check that the built pipeline matches it.
- */
+/** A pack pipeline's descriptor bindings, and the check that the built pipeline matches them. */
 final class PackDescriptorContracts {
     /** Stages whose layout comes from a pipeline JSON; every other stage takes a family layout. */
     private static final Set<UniformRegistry.Stage> PIPELINE_JSON_STAGES = Set.of(UniformRegistry.Stage.SHADOW,
@@ -75,19 +72,15 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The stages between vertex and fragment that every host block of a pipeline JSON layout reaches. A
-     * tessellated program's tessellation stages get them, since its evaluation stage reads the host's view
-     * block, and so does a geometry stage that declares that block.
+     * The stages between vertex and fragment that a pipeline JSON layout's host blocks reach: tessellation, whose
+     * evaluation stage reads the view block, and a geometry stage that declares it.
      */
     private static int hostBlockStages(PackProgramPlan plan) {
         return (plan.betweenStages().tessellated() ? TESSELLATION_STAGES : 0)
                 | declaring(plan.convertedGeometry(), "uniform ViewUBO", VK_SHADER_STAGE_GEOMETRY_BIT);
     }
 
-    /**
-     * A shadow, terrain, water or post layout: the host pipeline JSON's blocks, none for post, then the pack's
-     * uniforms and samplers. Every host block also reaches {@code betweenStages}.
-     */
+    /** A pipeline JSON layout: the host's blocks, none for post, then the pack's uniforms and samplers. */
     private static PackDescriptorLayout pipelineJsonLayout(UniformRegistry.Stage stage,
                                                            UniformRegistry.ProgramInterface iface, int[] slots,
                                                            int betweenStages) {
@@ -110,8 +103,8 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The pack's uniform block at {@code binding}, empty when the program has no uniforms. A GLSL
-     * bool occupies an int word in std140, and the host's layout builder accepts int, not bool.
+     * The pack's uniform block at {@code binding}, empty without uniforms. A bool is declared as int, its std140
+     * word, since the host's layout builder rejects bool.
      */
     static List<PackDescriptorLayout.UniformBlock> packUniformBlock(UniformRegistry.ProgramInterface iface,
                                                                     int binding, int stages) {
@@ -131,10 +124,8 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * The centre-depth slot holds iris_centerDepthSmooth, a storage image PackCenterDepth's compute kernel keeps
-     * in the general layout, so it is sampled there as the pack's own images are. A shader-read descriptor would
-     * make VulkanMod transition it from GENERAL, which its helper rejects with "Unexpected value:1", turning the
-     * pack off on the first depth-of-field frame.
+     * The centre-depth slot is a storage image kept in the general layout, so it is sampled there. A shader-read
+     * descriptor would make VulkanMod transition it from GENERAL, which its helper rejects ("Unexpected value:1").
      */
     static PackDescriptorLayout.ImageAccess samplerAccess(int slot) {
         return slot == SelectorNamespace.CENTER_DEPTH_SLOT
@@ -157,9 +148,8 @@ final class PackDescriptorContracts {
                         List.of(new PackDescriptorLayout.Field("mat4", "ProjMat")))));
         boolean sky = stage == UniformRegistry.Stage.SKY || stage == UniformRegistry.Stage.CLOUD;
         if (!iface.executableUniforms().isEmpty()) {
-            // vertex, tessellation and geometry stages may declare the pack uniform block the fragment uses,
-            // as a shadow stage does for its shadow matrices
-            // the buffer is shared, so the binding reaches every stage whose converted source declares it
+            // other stages may declare the fragment's pack uniform block, as a shadow stage does for its
+            // matrices, so the shared binding reaches every stage whose converted source declares it
             blocks.addAll(packUniformBlock(iface, 2, VK_SHADER_STAGE_FRAGMENT_BIT
                     | declaringStage(plan.convertedVertex(), VK_SHADER_STAGE_VERTEX_BIT)
                     | declaringStage(plan.convertedTessControl(), VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT)
@@ -254,10 +244,8 @@ final class PackDescriptorContracts {
     }
 
     /**
-     * A program's whole descriptor set: its ordinary layout, then the storage buffers, storage
-     * images and advanced samplers its binding layout places. An advanced sampler reads a pack
-     * storage image, which stays in the general layout because a graphics or compute stage may
-     * also write it.
+     * A program's whole descriptor set: its ordinary layout, then what its binding layout places. An advanced
+     * sampler reads a pack storage image, which stays in the general layout since a stage may also write it.
      */
     static PackDescriptorLayout withAdvancedDescriptors(PackDescriptorLayout ordinary, String program,
                                                         PackAdvancedResourcePlan advancedResources) {

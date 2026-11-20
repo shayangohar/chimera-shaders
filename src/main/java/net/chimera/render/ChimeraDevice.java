@@ -24,12 +24,8 @@ import static org.lwjgl.vulkan.VK10.vkEnumerateDeviceExtensionProperties;
 import static org.lwjgl.vulkan.VK11.vkGetPhysicalDeviceProperties2;
 
 /**
- * What Chimera enables on VulkanMod's logical device (ChimeraDeviceFeaturesMixin).
- *
- * Chimera's windows render with VK_KHR_dynamic_rendering, which VulkanMod leaves off; without it no pack can
- * run and Chimera keeps VulkanMod's own rendering. independentBlend lets a window's attachments blend and mask
- * writes differently. Pack GLSL compiles for the device's features and extensions as {@link #describe} gives
- * them.
+ * What Chimera enables on VulkanMod's logical device. Without VK_KHR_dynamic_rendering, which VulkanMod leaves
+ * off, no pack can run and Chimera keeps VulkanMod's own rendering.
  */
 public final class ChimeraDevice {
     /** A feature flag in a Vulkan features struct: its member name, read and written. */

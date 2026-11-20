@@ -17,15 +17,9 @@ public record FamilyAdapterPlan(
         TERRAIN,
         WATER,
         SHADOW,
-        /**
-         * shadow_entities: entities and block entities in the shadow pass (Iris SHADOW_ENTITIES_CUTOUT,
-         * ProgramId.ShadowEntities, falling back to shadow).
-         */
+        /** shadow_entities: entities and block entities in the shadow pass (Iris ProgramId.ShadowEntities). */
         SHADOW_ENTITIES,
-        /**
-         * shadow_block: block entities' models in the shadow pass (Iris SHADOW_BLOCK,
-         * ProgramId.ShadowBlock, falling back to shadow), on the entity layout.
-         */
+        /** shadow_block: block entities' models in the shadow pass, on the entity layout (Iris SHADOW_BLOCK). */
         SHADOW_BLOCK,
         /** shadow_lines: line draws in the shadow pass (Iris SHADOW_LINES, ProgramId.Shadow). */
         SHADOW_LINES,
@@ -47,10 +41,7 @@ public record FamilyAdapterPlan(
         ENTITY_TRANSLUCENT,
         SPIDER_EYES,
         BLOCK,
-        /**
-         * gbuffers_block_translucent: block entities' translucent models (Iris BE_TRANSLUCENT) and
-         * text, such as signs (TEXT_BE), both ProgramId.BlockTrans.
-         */
+        /** gbuffers_block_translucent: block entities' translucent models and text (Iris ProgramId.BlockTrans). */
         BLOCK_TRANSLUCENT,
         DAMAGED_BLOCK,
         HAND,
@@ -70,20 +61,11 @@ public record FamilyAdapterPlan(
         BEACON_BEAM,
         /** gbuffers_basic: leads (Iris ShaderKey.LEASH, ProgramId.Basic). */
         BASIC,
-        /**
-         * text_bg: text and name-tag backgrounds (Iris ShaderKey.TEXT_BG), drawn with
-         * gbuffers_entities_translucent on the host POSITION_COLOR_LIGHTMAP quads.
-         */
+        /** text_bg: text backgrounds, drawn with gbuffers_entities_translucent (Iris ShaderKey.TEXT_BG). */
         TEXT_BG,
-        /**
-         * gbuffers_textured: world draws with Minecraft's position_tex shader, the world border
-         * among them (Iris ShaderKey.TEXTURED, ProgramId.Textured).
-         */
+        /** gbuffers_textured: world draws with position_tex, such as the world border (Iris ShaderKey.TEXTURED). */
         TEXTURED,
-        /**
-         * textured_color: world draws with position_tex_color (Iris ShaderKey.TEXTURED_COLOR), drawn
-         * with gbuffers_textured's chain.
-         */
+        /** textured_color: position_tex_color world draws on gbuffers_textured's chain (Iris TEXTURED_COLOR). */
         TEXTURED_COLOR,
         SPECIAL,
         POST,
@@ -124,11 +106,7 @@ public record FamilyAdapterPlan(
         FULLSCREEN,
         HOST_FALLBACK;
 
-        /**
-         * Lanes whose program runs on a host vertex layout Iris also draws natively (VanillaTransformer), the
-         * beam's widened as Iris widens BLOCK. HostLayoutVertexBridge converts them, with
-         * convertHostLayoutVertexChecked in the main pass and convertShadowLaneVertexChecked in the shadow pass.
-         */
+        /** Lanes on a host vertex layout Iris also draws natively; HostLayoutVertexBridge converts them. */
         public boolean hostLayout() {
             return switch (this) {
                 case HOST_LINE, HOST_GLINT, HOST_LIGHTNING, HOST_BEACON, HOST_LEASH,

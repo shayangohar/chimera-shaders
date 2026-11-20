@@ -24,16 +24,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Chimera's frame around VulkanMod's section layers.
- *
- * Every layer call runs in its Iris rendering phase, and only the layers VulkanMod draws ({@link TerrainLayers})
- * open Chimera's windows. Before translucent terrain, depth is captured and the deferred passes run ahead of the
- * pack window, whose guarded attachments must not intercept them; the entity batches a pack's
- * separateEntityDraws held back draw right after (FamilyBufferSource). A pack window spans each layer's
- * draws.
- *
- * Every layer opens on the main target (ChimeraMainPass.rebindMainTarget), which opens the shadow pass or a
- * pending pack geometry window, since Reforged's renderSectionLayer draws into whatever is bound.
+ * Chimera's frame around VulkanMod's section layers, each in its Iris rendering phase. Before translucent
+ * terrain the deferred passes run ahead of the pack window, whose guarded attachments must not intercept
+ * them. Every layer rebinds the main target, since Reforged's renderSectionLayer draws into whatever is bound.
  */
 @Mixin(value = WorldRenderer.class, remap = false)
 public abstract class WorldRendererMixin {
@@ -90,10 +83,8 @@ public abstract class WorldRendererMixin {
     }
 
     /**
-     * Keeps back faces culled on every layer under Chimera, as vanilla and upstream VulkanMod do.
-     *
-     * Reforged draws translucent terrain unculled. A water surface's reversed copy then passes the depth test
-     * and overwrites it lit from below, and every far face of glass draws.
+     * Keeps back faces culled on every layer, as vanilla and upstream VulkanMod do; Reforged draws translucent
+     * terrain unculled, so water's reversed copy overwrites the surface lit from below.
      */
     @WrapWithCondition(method = "renderSectionLayer", at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/systems/RenderSystem;disableCull()V"), require = 1)

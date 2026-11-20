@@ -18,13 +18,7 @@ import static net.chimera.render.MaterialMapFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Material maps from the checked-in mini resource pack: pixel policies, layout and padding, sibling
- * names, labPBR detection, per-sprite failure isolation, simple entity textures and reload generations.
- *
- * Nothing needs natives or a GPU; PNGs decode through ImageIO and companions land in a recording fake
- * factory.
- */
+/** Material maps from the checked-in mini resource pack, with no natives or GPU: companions land in a fake factory. */
 final class MaterialMapsTest {
     @Test
     void labPbrReduction() throws Exception {
@@ -170,8 +164,7 @@ final class MaterialMapsTest {
             assertEquals(pack(255, 0, 0, 0), n0[8 * 64 + 24], "edge normals interior");
             assertEquals(FALLBACK_NORMALS, n0[8 * 64 + 40], "plain normals fallback");
             assertEquals(FALLBACK_NORMALS, n0[2 * 64 + 48], "lab normals fallback");
-            // with zero padding each sprite owns exactly its logical rect
-            // nothing replicates into gaps, rows below or neighbouring rects
+            // with zero padding each sprite owns exactly its logical rect, and nothing replicates outside it
             assertEquals(pack(255, 195, 115, 245), n0[5 * 64 + 15], "brick rect keeps its edge");
             // (16,5) is the edge sprite's own white border, untouched by brick
             assertEquals(pack(255, 255, 255, 255), n0[5 * 64 + 16], "edge rect keeps its border");

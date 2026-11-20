@@ -11,11 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Skips Minecraft's underwater texture overlay while a pack renders the world without
- * {@code underwaterOverlay=true}, as Iris's MixinScreenEffectRenderer does; packs draw their
- * own underwater look.
- */
+/** Skips the underwater overlay while a pack renders without {@code underwaterOverlay=true}, as in Iris. */
 @Mixin(ScreenEffectRenderer.class)
 public abstract class ChimeraScreenEffectWaterMixin {
     @Inject(method = "renderWater", at = @At("HEAD"), cancellable = true)

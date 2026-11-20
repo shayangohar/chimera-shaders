@@ -33,9 +33,8 @@ import static org.lwjgl.util.vma.Vma.vmaDestroyImage;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * A pack raw texture, as Iris's GlTexture over CustomTextureData.RawData*: a 1D, 2D or 3D image of the file's
- * pixels. 32-bit floats are halved for a 16-bit float format, as glTexImage converts them, and three channels
- * widen to four with alpha 1. It uploads through VulkanMod's image upload commands, as pack PNG textures do.
+ * A pack raw texture, a 1D, 2D or 3D image of the file's texels as in Iris's GlTexture. Floats are halved for a
+ * 16-bit float format, as glTexImage converts them, and three channels widen to four with alpha 1.
  */
 final class PackRawTexture extends VulkanImage implements PackResourceOwner.LoadedTexture {
     /** Vulkan formats by kind and bits, for one, two and four channels. */
@@ -72,11 +71,7 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
         setCurrentLayout(VK_IMAGE_LAYOUT_UNDEFINED);
     }
 
-    /**
-     * Reads, creates and queues the upload of one raw texture; filter and wrap are the plan's. Iris
-     * reads the whole file, so only the device's image limits (PackImageLimits) and the one upload
-     * buffer the texels pass through bound it.
-     */
+    /** Reads one raw texture and queues its upload; as in Iris, only device limits and the upload buffer bound it. */
     static PackRawTexture load(Path file, RawTextureSpec spec, String name, String filter, String wrap)
             throws IOException {
         if (spec.unsupportedReason() != null) throw new IOException("raw texture " + spec.unsupportedReason());
@@ -111,10 +106,7 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
         }
     }
 
-    /**
-     * The file's rows without GL's 4-byte row padding, 32-bit floats halved for a 16-bit float
-     * format (round to nearest even), three channels widened to four.
-     */
+    /** The file's rows without GL's 4-byte row padding, converted for upload; halving rounds to nearest even. */
     static ByteBuffer texels(byte[] bytes, RawTextureSpec spec, RawTextureSpec.Storage storage) {
         int texelBytes = storage.uploadedChannels() * storage.bits() / 8;
         int sourceTexel = storage.channels() * spec.fileChannelBytes();
@@ -193,10 +185,7 @@ final class PackRawTexture extends VulkanImage implements PackResourceOwner.Load
         }
     }
 
-    /**
-     * Records the copy as VulkanMod records its texture uploads: into the graphics queue's upload
-     * commands, which run before the next frame draws. The staging buffer grows to fit.
-     */
+    /** Records the copy into the graphics queue's upload commands, as VulkanMod's texture uploads are. */
     private void upload(ByteBuffer pixels, RawTextureSpec spec, int texelBytes) {
         StagingBuffer staging = Vulkan.getStagingBuffer();
         staging.align(texelBytes);

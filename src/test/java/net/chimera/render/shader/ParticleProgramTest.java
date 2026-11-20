@@ -13,9 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's NeoForge MixinParticleEngine sets one particle shader per ParticleEngine.render call, the
- * translucent program only when the call leaves the opaque sheet out. NeoForge marks the terrain and
- * custom sheets translucent too, so a choice per sheet would draw them with gbuffers_particles_translucent.
+ * Iris sets one particle program per ParticleEngine.render call (NeoForge MixinParticleEngine), not per
+ * sheet, since NeoForge marks the terrain and custom sheets translucent too.
  */
 final class ParticleProgramTest {
     @Test

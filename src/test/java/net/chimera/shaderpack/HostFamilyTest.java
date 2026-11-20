@@ -38,10 +38,7 @@ import static org.lwjgl.vulkan.VK10.VK_FORMAT_R32G32_SFLOAT;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_SNORM;
 import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_UNORM;
 
-/**
- * Host program families: requested-family fallback, particles, lines, glint, host-layout lanes and hands,
- * and the level samplers each draw reads.
- */
+/** Host program families and the level samplers each draw reads. */
 final class HostFamilyTest {
     /** The line lane's fragment stage, shared by the gbuffers_basic fallback and an authored gbuffers_line. */
     private static final String LINE_FRAGMENT = """
@@ -77,11 +74,7 @@ final class HostFamilyTest {
         }
     }
 
-    /**
-     * Each derived preamble edits its base by exact text, and each target must occur exactly once or
-     * the preambles fail to load. A missing target would silently leave the base's input bound where
-     * the derived layout has none.
-     */
+    /** Derived preambles edit their base by exact text; a missing target would silently leave a base input bound. */
     @Test
     void aPreambleEditsTargetsThatOccurExactlyOnce() {
         assertEquals("const ivec2 UV1 = ivec2(0);\nin vec3 Normal;",
@@ -100,10 +93,7 @@ final class HostFamilyTest {
                 GlslVertexPreambles.PARTICLE_VERTEX_PREAMBLE);
     }
 
-    /**
-     * The overlay fetch and varying go into the live main, never a commented-out one ahead of it: text
-     * inserted into a line comment would end at the comment's line break and turn the rest into code.
-     */
+    /** The overlay fetch goes into the live main, never a commented-out one ahead of it. */
     @Test
     void theOverlayIsServedInTheLiveMain() {
         String fragment = EntityOverlayColor.inject("#version 120\nuniform vec4 entityColor;\n"
@@ -123,8 +113,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris serves gl_NormalMatrix as the model view's inverse transpose on every lane. Nausea and
-     * the portal warp stretch the model view, and mat3 of it then tilts the normals packs read.
+     * Iris serves gl_NormalMatrix as the model view's inverse transpose; nausea and the portal warp stretch
+     * the model view, so mat3 of it would tilt normals.
      */
     @Test
     void normalMatrixIsTheInverseTranspose() {
@@ -198,8 +188,7 @@ final class HostFamilyTest {
                     && glyph.contains("layout(location = 7) in vec4 ChimeraPackedTangent;"),
                             "entity-family GLYPH inputs");
         }
-        // Minecraft 1.21.1's GL projection; the host (Reforged's VRenderSystem.applyProjectionMatrix)
-        // maps the depth row onto Vulkan's [0,1]
+        // Minecraft's GL projection; Reforged's VRenderSystem.applyProjectionMatrix maps depth onto Vulkan's [0,1]
         var raster = new Matrix4f().perspective(1.1F, 1.6F, 0.05F, 128F, false);
         var snapshot = new Matrix4f(raster);
         var squeezed = ChimeraHandRenderer.projection(raster);
@@ -221,10 +210,7 @@ final class HostFamilyTest {
         assertEquals(snapshot, raster, "hand projection must not mutate world matrices");
     }
 
-    /**
-     * Falling blocks and moving pistons: gbuffers_block on the block layout, as Iris draws MOVING_BLOCK
-     * on IrisVertexFormats.TERRAIN with mc_Entity (-1, -1) and no overlay.
-     */
+    /** Falling blocks and pistons: Iris's MOVING_BLOCK, with mc_Entity (-1, -1) and no overlay. */
     @Test
     void movingBlockLayout() {
         String vertex = """
@@ -260,9 +246,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Chimera describes every family format to Vulkan itself, since Reforged's translator rejects
-     * the family scalars: one input per element, at the element's offset, typed as the converted
-     * shaders declare them (ivec2 UV1/UV2, uvec4 EntityIds, vec2 MidTexCoord).
+     * Chimera describes family formats to Vulkan itself, as Reforged's translator rejects the family scalars;
+     * each input is typed as the converted shaders declare it.
      */
     @Test
     void familyVertexInputs() {
@@ -306,10 +291,7 @@ final class HostFamilyTest {
                 "SHADOW_BLOCK tests ONE_TENTH_ALPHA");
     }
 
-    /**
-     * The opaque hand draws where renderLevel enters its "translucent" section, before translucent
-     * terrain in both of its branches (Iris draws it there too).
-     */
+    /** The opaque hand draws before translucent terrain in both renderLevel branches, as in Iris. */
     @Test
     void opaqueHandSeamPrecedesTranslucency() throws IOException {
         var level = MixinBytecode.nativeClass("net/minecraft/client/renderer/LevelRenderer").methods.stream()
@@ -339,10 +321,7 @@ final class HostFamilyTest {
         assertTrue(hooked, "the opaque hand must draw at the translucent section");
     }
 
-    /**
-     * Every pack draw opens its program's attachment window around the host's own draw call: host
-     * meshes from the immediate and vertex-buffer paths (PackHostDraws) and buffered family batches.
-     */
+    /** Every pack draw, host mesh or family batch, opens its program's attachment window around the host's call. */
     @Test
     void packDrawsOwnTheirAttachments() throws IOException {
         for (String mixin : List.of("ChimeraBufferUploaderMixin", "ChimeraVertexBufferMixin")) {
@@ -447,10 +426,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris widens the crumbling overlay's BLOCK buffers to TERRAIN, so gbuffers_damagedblock reads a
-     * per-quad mid-coordinate and tangent: it plans on the entity contract and draws on EXTENDED_BLOCK,
-     * at BLOCK's locations, with its entity ids read as 0. Iris's CRUMBLING key is fullbright
-     * (LightingModel.FULLBRIGHT), so its light reads (240, 240), not the block's.
+     * Iris widens the crumbling overlay's BLOCK buffers to TERRAIN, so gbuffers_damagedblock draws on
+     * EXTENDED_BLOCK with entity ids 0; its CRUMBLING key is fullbright, so light reads (240, 240).
      */
     private static void assertCrumblingWidensTheBlockLayout(PackProbe.Analysis analysis) {
         PackProgramPlan damage = analysis.plan().program("gbuffers_damagedblock");
@@ -468,7 +445,7 @@ final class HostFamilyTest {
                 "crumbling widened layout: " + extended);
     }
 
-    /** The named program's plan, asserted present, executable and attempted. */
+    /** The named program's plan, asserted executable and attempted. */
     private static PackProgramPlan executablePlan(PackProbe.Analysis analysis, String name, String subject) {
         var plan = analysis.plan().program(name);
         assertTrue(plan != null && plan.executable() && analysis.report().shouldAttempt(name),
@@ -477,9 +454,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris ShaderKey.LINES: a pack's own gbuffers_line runs as authored on the core inputs
-     * and widens its own line; a gbuffers_basic fallback is widened by Iris (main runs at
-     * both segment ends, VIEW_SHRINK, +Z normal). Both compile on the host line layout.
+     * Iris ShaderKey.LINES: an authored gbuffers_line widens its own line; a gbuffers_basic fallback is
+     * widened as Iris does it, with main run at both segment ends.
      */
     @Test
     void basicFallbackLine(@TempDir Path fallback) throws IOException {
@@ -546,15 +522,11 @@ final class HostFamilyTest {
         assertTrue(compiled.failures().isEmpty(), "authored line compilation: " + compiled.failures());
     }
 
-    /**
-     * Iris ShaderKey.GLINT: gbuffers_armor_glint on the host POSITION_TEX layers, with the
-     * glint strength in gl_Color's alpha, NON_ZERO_ALPHA, and unbound material attributes.
-     */
+    /** Iris ShaderKey.GLINT: gbuffers_armor_glint on POSITION_TEX, with the glint strength in gl_Color's alpha. */
     @Test
     void glintLane(@TempDir Path root) throws IOException {
         assertEquals(0.0001F, HostLayoutLane.GLINT.alphaReference(), "Iris GLINT uses AlphaTests.NON_ZERO_ALPHA");
-        // a held foil item flushes its glint inside the hand scope; the hand lane has no
-        // POSITION_TEX variant, so the lookup must answer host fallback, not throw
+        // a held foil item's glint flushes in the hand scope, which has no POSITION_TEX variant: fall back, not throw
         assertTrue(new PackPipelines.PackHand(Map.of()).forFormat(DefaultVertexFormat.POSITION_TEX) == null,
                 "hand glint must fall back to its host draw");
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -678,9 +650,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris registers its white pixel under lightmap where a draw's ShaderKey has no light input: a
-     * format without UV2, or a FULLBRIGHT key (IrisSamplers.addLevelSamplers, ShaderAttributeInputs).
-     * Miniature lights its lightning bolt by lightmap, and the real night lightmap would turn it purple.
+     * Iris binds a white lightmap where a draw's ShaderKey has no light input (IrisSamplers.addLevelSamplers);
+     * the real night lightmap would turn Miniature's lightning purple.
      */
     @Test
     void lanesReadTheLightmapExactlyWithLightCoordinates() {
@@ -695,10 +666,7 @@ final class HostFamilyTest {
         }
     }
 
-    /**
-     * Families Iris 1.21.1 lights with white: its FULLBRIGHT keys ENTITIES_EYES and _TRANS, BEACON and
-     * CRUMBLING, and lightning, whose format has no UV2.
-     */
+    /** Families Iris lights with white: its FULLBRIGHT keys, and lightning, whose format has no UV2. */
     @Test
     void fullbrightFamiliesReadWhite() {
         for (Family family : List.of(Family.SPIDER_EYES, Family.BEACON_BEAM, Family.DAMAGED_BLOCK, Family.LIGHTNING)) {
@@ -711,9 +679,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris draws spider eyes and emissive entities with ENTITIES_EYES and _TRANS, FULLBRIGHT keys:
-     * their light reads (240, 240) whatever the vertex's (Noble's eyes store it and glow by it).
-     * gbuffers_entities keeps the vertex light.
+     * Iris's ENTITIES_EYES keys are fullbright, so spider eyes read light (240, 240) whatever the vertex
+     * holds; gbuffers_entities keeps the vertex light.
      */
     @Test
     void spiderEyesReadFullLight(@TempDir Path root) throws IOException {
@@ -734,9 +701,8 @@ final class HostFamilyTest {
     }
 
     /**
-     * Iris attaches SpiderEyes' additive default blend to the source read from gbuffers_spidereyes;
-     * when the eyes fall back to gbuffers_textured, that source carries none and the host's blend
-     * stays (I Like Vanilla, Pegasus, RedHat and Sildur's ship no gbuffers_spidereyes).
+     * Iris's additive SpiderEyes blend comes with gbuffers_spidereyes' source; a fallback source carries
+     * none, so the host's blend stays.
      */
     @Test
     void spiderEyesBlendAdditivelyOnlyWithTheirOwnProgram(@TempDir Path root) throws IOException {
@@ -768,11 +734,7 @@ final class HostFamilyTest {
                 "SKY_BASIC reads a white albedo; SKY_TEXTURED and CLOUDS their texture");
     }
 
-    /**
-     * LIGHTNING (through the entity fallback), BEACON and LEASH convert and compile with
-     * Iris's host-layout inputs and identity: entityId per draw, blockEntityId -1. BEACON's inputs
-     * are the block layout Iris widens to TERRAIN, at EXTENDED_BLOCK's locations.
-     */
+    /** Host-layout lanes compile on Iris's host inputs, with entityId per draw and blockEntityId -1. */
     @Test
     void hostLayoutLanePrograms(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -882,10 +844,7 @@ final class HostFamilyTest {
                 program + " has no Iris alpha test (AlphaTests.OFF)");
     }
 
-    /**
-     * Vanilla's world clear (fog colour, depth 1) would land on the pack's colortex0; a hook keeps
-     * it to depth while a pack owns that image, as Iris's ClearPass is colortex0's only clear.
-     */
+    /** While a pack owns colortex0, vanilla's world clear keeps to depth, as Iris's ClearPass is its only clear. */
     @Test
     void worldClearHook() throws IOException {
         assertWrapsCalls("ChimeraLevelRendererMixin", "net/minecraft/client/renderer/LevelRenderer", "renderLevel",
@@ -1018,7 +977,7 @@ final class HostFamilyTest {
                 name + " lost native/pack alpha cutout");
     }
 
-    /** The particle repair fabricates no material attributes, admits no unknown uniform and leaves terrain alone. */
+    /** The particle repair adds no material attribute or unknown uniform, and leaves terrain alone. */
     private static void assertParticleAdmissionStaysStrict(PackProbe.Analysis analysis, String source,
                                                            Path fragment) throws IOException {
         var uniforms = analysis.plan().program("gbuffers_particles").interfacePlan()

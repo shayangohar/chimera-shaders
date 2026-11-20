@@ -21,9 +21,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Sets an entity's context for the family lanes while EntityRenderDispatcher.render draws it, as Iris's
- * MixinEntityRenderDispatcher does: everything it writes, held items, fire and name tag included, batches in
- * the entity lanes with its entity.properties id.
+ * Everything an entity's render writes, held items and name tag included, carries its entity.properties id,
+ * as in Iris's MixinEntityRenderDispatcher.
  */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class ChimeraEntityRenderDispatcherMixin {

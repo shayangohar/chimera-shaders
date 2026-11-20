@@ -13,12 +13,8 @@ import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
 
 /**
- * The horizon of Iris 1.8.14, the Iris for 1.21.1: an eight-sided wall around the camera between the sky planes
- * at y -16 and 16, then both planes as 64-block grids out to 384 blocks, so the pack's sky surrounds the camera
- * on every side. Later Iris versions draw a cone instead.
- *
- * It draws in the fog colour with the position shader, which the sky window gives the pack's gbuffers_skybasic
- * program.
+ * The horizon of Iris 1.8.14, the Iris for 1.21.1: an eight-sided wall between the sky planes at y -16 and 16,
+ * then both planes as 64-block grids, in the fog colour. Later Iris versions draw a cone instead.
  */
 public final class ChimeraHorizonRenderer implements AutoCloseable {
     private static final float TOP = 16;

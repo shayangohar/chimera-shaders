@@ -11,12 +11,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A program's blend directives, as Iris reads them from shaders.properties: {@code blend.<program>} replaces the
- * draw's blend for every buffer, and {@code blend.<program>.<buffer>} for one colour target. Each value is
- * {@code off} or four OpenGL factor names: source colour, destination colour, source alpha, destination alpha.
- *
- * A target with no directive keeps the host draw's own blend, the vanilla render type's blend Iris also leaves
- * in place. A malformed directive is ignored with a named deviation, as Iris ignores it.
+ * A program's blend directives as Iris reads them: {@code blend.<program>} for every buffer and
+ * {@code blend.<program>.<buffer>} for one, each {@code off} or four OpenGL factor names. A target with no
+ * directive keeps the host draw's blend; a malformed directive is ignored with a named deviation, as in Iris.
  */
 public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<String> deviations) {
 
@@ -24,10 +21,7 @@ public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<Strin
     public record Mode(boolean enabled, int srcColor, int dstColor, int srcAlpha, int dstAlpha) {
         public static final Mode OFF = new Mode(false, 0, 0, 0, 0);
 
-        /**
-         * Iris's blendFunc uniform for this blend: the four factors as OpenGL enums, or zeros with blending off,
-         * as CommonUniforms reads GlStateManager's blend state.
-         */
+        /** Iris's blendFunc uniform: the four factors as OpenGL enums, or zeros with blending off. */
         public int[] glFunc() {
             if (!enabled) return new int[4];
             return new int[] {glFactor(srcColor), glFactor(dstColor), glFactor(srcAlpha), glFactor(dstAlpha)};
@@ -99,10 +93,9 @@ public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<Strin
     }
 
     /**
-     * Applies Iris ProgramId's built-in BlendModeOverride for the program whose source runs, when the pack sets
-     * no program-level blend: SpiderEyes draws additively with SRC_ALPHA, ONE, ZERO, ONE. Iris attaches it to
-     * the source read from gbuffers_spidereyes; a fallback to gbuffers_textured carries none, so eyes keep the
-     * host's blend.
+     * Applies Iris ProgramId's built-in BlendModeOverride when the pack sets no program-level blend: SpiderEyes
+     * draws with SRC_ALPHA, ONE, ZERO, ONE. Iris ties it to the gbuffers_spidereyes source, so a fallback keeps
+     * the host's blend.
      */
     PackBlendPlan withIrisDefault(String sourceProgram) {
         if (program != null || !"gbuffers_spidereyes".equals(sourceProgram)) return this;
@@ -113,9 +106,8 @@ public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<Strin
     }
 
     /**
-     * The modes a fullscreen pass draws with, as Iris's renderers apply them. A begin, prepare, deferred or
-     * composite pass takes {@code blend.<program>} for every buffer and ignores per-buffer directives, as
-     * CompositeRenderer does; FinalPassRenderer and ShadowCompositeRenderer always draw unblended.
+     * The modes a fullscreen pass draws with. As in Iris, a begin, prepare, deferred or composite pass takes
+     * only {@code blend.<program>}, and final and shadowcomp passes draw unblended.
      */
     PackBlendPlan forFullscreenPass(String pass) {
         Mode kept = pass.equals("final") || pass.startsWith("shadowcomp") ? null : program;
@@ -161,10 +153,9 @@ public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<Strin
     private static final Mode HOST = new Mode(true, -1, -1, -1, -1);
 
     /**
-     * The modes a device without independentBlend can draw with, where every attachment's blend state
-     * must be identical: the one blend every attachment resolves to, on each of them, else blending
-     * off on all. A null entry, or null {@code modes}, is the host draw's blend; an integer
-     * attachment never blends, as GL skips blending for it.
+     * The modes for a device without independentBlend, where every attachment's blend must match: the one
+     * blend they all resolve to, else blending off on all. A null entry, or null {@code modes}, is the host
+     * draw's blend; an integer attachment never blends, as in GL.
      */
     public static Mode[] sharedAttachments(Mode[] modes, boolean[] integer) {
         Mode shared = null;
@@ -182,10 +173,7 @@ public record PackBlendPlan(Mode program, Map<Integer, Mode> buffers, List<Strin
         return result;
     }
 
-    /**
-     * One mode per shadow attachment, attachment i drawing shadowcolor i: the pack's directives over Iris's
-     * default of no blending, as ProgramId's Shadow entries set BlendModeOverride.OFF.
-     */
+    /** One mode per shadowcolor attachment: the pack's directives over Iris's default of no blending. */
     public Mode[] shadowAttachments(int count) {
         Mode[] result = new Mode[count];
         for (int i = 0; i < count; i++) {

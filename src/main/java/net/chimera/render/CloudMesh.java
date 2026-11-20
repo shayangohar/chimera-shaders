@@ -5,19 +5,10 @@ package net.chimera.render;
 import java.util.function.IntBinaryOperator;
 
 /**
- * Sodium 0.8.13's cloud mesh, the clouds Iris on 1.21.1 runs a pack's gbuffers_clouds over.
- *
- * Each opaque texel of the cloud texture is a box 12 blocks wide and 4 high, out to
- * max(32, 2 x render distance + 9) cells on every side, the texture repeating. Under FANCY a cell emits each
- * face its neighbours leave open that can face the camera, and the camera's cell and its four neighbours also
- * emit their six faces wound inward, the walls seen from inside a cloud. Under FAST a cell is one quad at the
- * cloud base. Cells come out in rings of growing taxicab distance from the camera's cell, near to far along
- * every ray.
- *
- * A face's colour is its texel's colour times Sodium's face shade; the cloud colour and opacity come from the
- * shader colour. Positions are in blocks from the camera cell's lower corner at the cloud base. Vanilla's cloud
- * layout also carries a texture coordinate and a normal: each face gets its texel's centre, so a program that
- * samples the cloud texture sees the texel the cell stands for, and the face's axis normal.
+ * Sodium 0.8.13's cloud mesh, the clouds Iris on 1.21.1 runs a pack's gbuffers_clouds over. Under FANCY a
+ * cell emits the open faces that can face the camera, and the camera's cell and its four neighbours also emit
+ * inward faces. Cells come out in rings of growing taxicab distance, near to far along every ray. Each face's
+ * UV is its texel's centre.
  */
 public final class CloudMesh {
     /** A cell's width and depth, in blocks. */

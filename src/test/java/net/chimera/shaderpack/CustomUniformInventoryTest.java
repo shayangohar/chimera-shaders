@@ -13,12 +13,8 @@ import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The custom-uniform inventory of the two pinned packs.
- *
- * A pack authors derived uniforms in its {@code shaders.properties}, and Chimera either serves one or
- * refuses it. A refusal must be loud: the declaration is reported, and no program that reads the name
- * runs. Both packs load through the path the game uses; the test prints the inventory and fails when a
- * refused declaration has no diagnostic or an executable reader, or a served name is not the pack's own.
+ * The custom-uniform inventory of the two pinned packs. A refused declaration must be loud: it is
+ * reported and no program that reads the name runs. A served name must be the pack's own.
  */
 @Tag("packs")
 final class CustomUniformInventoryTest {
@@ -83,11 +79,7 @@ final class CustomUniformInventoryTest {
         }
     }
 
-    /**
-     * BSL derives its sun colour from {@code timeAngle}, a chain of {@code variable.} values over
-     * {@code sunAngle}. At noon (sunAngle 0.25) the chain gives 0.25; a wrong result turns
-     * a noon scene into dusk.
-     */
+    /** BSL's {@code timeAngle}, a chain of {@code variable.} values over {@code sunAngle}, gives 0.25 at noon. */
     private static void verifyBslTimeAngle(PackRuntimeSettings settings) {
         int index = settings.indexOf("timeAngle");
         assertTrue(index >= 0, "BSL timeAngle is not served");

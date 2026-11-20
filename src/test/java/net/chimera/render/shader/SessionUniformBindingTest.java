@@ -18,9 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * RenderPearl's water reads waveState in every variant but declares it only with WAVES on. Closing a session
- * frees its bindings, so the next session resolves the name afresh: the declared value in place of the unset
- * zero.
+ * Closing a session frees its bindings, so a uniform declared only under some option resolves afresh in
+ * the next session.
  */
 final class SessionUniformBindingTest {
     @Test

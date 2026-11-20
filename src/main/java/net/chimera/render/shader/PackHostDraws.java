@@ -14,28 +14,19 @@ import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 import java.util.function.BooleanSupplier;
 
 /**
- * Draws a host mesh that a pack program serves with that program, inside the program's pack outputs: the sky
- * and clouds (ChimeraSkyBridge), particles and the host-layout lanes (weather, lines, glint, lightning, leads,
- * text backgrounds, the textured lanes and the shadow lanes).
- *
- * The draw's shader and vertex format pick the program. The host's state and draw call stay, and the
- * ShaderInstance pipeline seam answers with the open draw's pipeline. In the shadow pass a draw no shadow lane
- * serves stays out of the shadow map. Without a gbuffers_skybasic the horizon and the sky disc keep their host
- * shader but draw unfogged, as Iris's SKY_BASIC fallback does. Family batches arrive with their draw already
- * open (FamilyRenderType) and pass through.
+ * Draws a host mesh with the pack program that serves it, picked by shader and vertex format, inside the
+ * program's pack outputs. The host's state and draw call stay. Family batches arrive with their draw already
+ * open and pass through.
  */
 public final class PackHostDraws {
-    /** True while a host draw runs under the program this class chose for it. */
     private static boolean serving;
 
     private PackHostDraws() {}
 
     /**
-     * Runs {@code draw} under the pack program serving it; {@code drop} discards the mesh instead.
-     *
-     * A draw inside one this class already serves runs as it is. Reforged 0.3.5 draws an immediate mesh by
-     * uploading it to its immediate VertexBuffer and drawing that (BufferUploaderM), so
-     * ChimeraBufferUploaderMixin's draw reaches ChimeraVertexBufferMixin's with the same mesh.
+     * {@code drop} discards the mesh instead. A nested draw runs as it is: Reforged 0.3.5 draws an immediate mesh
+     * through its immediate VertexBuffer, so ChimeraBufferUploaderMixin reaches ChimeraVertexBufferMixin with
+     * the same mesh.
      */
     public static void draw(ShaderInstance shader, VertexFormat format, Runnable draw, Runnable drop) {
         if (serving || ChimeraEntityBridge.isDrawActive()) {
@@ -82,7 +73,7 @@ public final class PackHostDraws {
         }
     }
 
-    /** Runs a host draw with no fog, as FogRenderer.setupNoFog leaves it, then restores the fog start. */
+    /** No fog, as FogRenderer.setupNoFog leaves it. */
     private static void drawUnfogged(Runnable draw) {
         float start = RenderSystem.getShaderFogStart();
         RenderSystem.setShaderFogStart(Float.MAX_VALUE);
@@ -98,11 +89,11 @@ public final class PackHostDraws {
         pass.prepareProgramImages(pipeline);
         if (outputs != null) {
             if (!pass.beginPackFamilyWindow(outputs)) {
-                // the program's outputs cannot open: the mesh keeps its host program
+                // outputs cannot open, so the mesh keeps its host program
                 draw.run();
                 return;
             }
-            // the host already set up its pass; reopen rendering inside the window
+            // the host already set up its pass
             pass.rebindMainTarget();
         }
         boolean open = false;

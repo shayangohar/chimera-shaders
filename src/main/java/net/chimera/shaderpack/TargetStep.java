@@ -5,12 +5,9 @@ package net.chimera.shaderpack;
 import java.util.List;
 
 /**
- * The targets one post program reads and writes, as scheduled.
- *
- * {@code mipmapTargets} are regenerated before the step runs, as Iris's CompositeRenderer.setupMipmapping
- * does for the program's directives. {@code unwrittenTargets} are output targets the program's directive
- * names and its shader never writes; the step flips them all the same. PackFlipPlan decides which side of
- * each target the step reads and writes.
+ * The targets one post program reads and writes, as scheduled. {@code mipmapTargets} are regenerated before the
+ * step runs, as in Iris; {@code unwrittenTargets} are directive targets the shader never writes, flipped all the
+ * same.
  */
 public record TargetStep(
         String programName,

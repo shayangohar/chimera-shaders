@@ -10,15 +10,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The sampling settings of Iris's PackShadowDirectives.
- *
- * Each shadowcolor target has a format, RGBA by default, a per-frame clear (on), a clear colour of
- * (1, 1, 1, 1), mipmaps (off) and nearest filtering (off, always on for an integer format). The shadow
- * depths, shadowtex0 and shadowtex1, each have hardware filtering, mipmaps and nearest filtering, all off.
- *
- * The const directives apply in the order the sources declare them. A base directive such as
- * shadowHardwareFiltering or generateShadowMipmap sets every target it covers, and a numbered one sets one.
- * Iris logs and ignores an unknown format or a malformed clear colour.
+ * The sampling settings of Iris's PackShadowDirectives. The const directives apply in source order: a base one
+ * such as shadowHardwareFiltering sets every target it covers, a numbered one sets one. Iris logs and ignores an
+ * unknown format or a malformed clear colour.
  */
 public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSampling> depths, List<String> deviations) {
     /** Shadowcolor targets with HIGHER_SHADOWCOLOR (Iris's MAX_SHADOW_COLOR_BUFFERS_IRIS). */
@@ -78,10 +72,8 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
     }
 
     /**
-     * Whether Iris binds the shadow resource {@code name} for the pack, as IrisSamplers.addShadowSamplers
-     * does: a shadowcolor target among the pass's targets (shadowcolor2..7 only with HIGHER_SHADOWCOLOR),
-     * and shadowtexNHW with SEPARATE_HARDWARE_SAMPLERS and that depth's shadowHardwareFiltering. Any other
-     * name counts as bound.
+     * Whether Iris binds the shadow resource {@code name}: a shadowcolor among the pass's targets, or shadowtexNHW
+     * with SEPARATE_HARDWARE_SAMPLERS and that depth's shadowHardwareFiltering. Any other name counts as bound.
      */
     static boolean bound(String name, PackConfig.PackConfigData config) {
         int color = PackResourcePlan.shadowColorIndex(name);
@@ -95,10 +87,8 @@ public record ShadowTargetDirectives(List<ColorTarget> colors, List<DepthSamplin
     }
 
     /**
-     * Whether Iris has shadowcolor {@code index} for a compute: eight with HIGHER_SHADOWCOLOR, two without
-     * (ShadowRenderTargets). Iris creates a target a compute names on first use (createIfEmpty in
-     * IrisSamplers.addShadowSamplers, getOrCreate in IrisImages.addShadowColorImages), so it need not be one
-     * the shadow pass renders ({@link #bound}).
+     * Whether Iris has shadowcolor {@code index} for a compute: eight with HIGHER_SHADOWCOLOR, two without. Iris
+     * creates a target a compute names on first use, so it need not be one the shadow pass renders.
      */
     static boolean computeHas(int index, PackConfig.PackConfigData config) {
         boolean higher = config != null && config.settings().hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR);

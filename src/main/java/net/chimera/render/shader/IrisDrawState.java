@@ -11,12 +11,8 @@ import net.vulkanmod.vulkan.util.MappedBuffer;
 import java.util.Set;
 
 /**
- * Iris's per-draw texture and blend uniforms (CommonUniforms), set as each draw uploads its uniforms.
- *
- * gtextureSize is the size of the texture on unit 0, the draw's albedo; ExtendedShader binds RenderSystem's
- * shader texture 0 there before it updates its uniforms. blendFunc is the draw's blend as GL factors, or zero
- * with blending off: the vanilla render type's blend, or the program's {@code blend.<program>} where Iris
- * reports it (PackPipelines.blendFuncOverride).
+ * Iris's per-draw gtextureSize and blendFunc (CommonUniforms). gtextureSize is unit 0's size; blendFunc is GL
+ * factors, zero with blending off, and takes the program's {@code blend.<program>} where Iris reports it.
  */
 final class IrisDrawState implements FrameValueSource {
     static final Set<String> NAMES = Set.of("gtextureSize", "blendFunc");
@@ -24,18 +20,17 @@ final class IrisDrawState implements FrameValueSource {
     private final int[] textureSize = new int[2];
     private final int[] blendFunc = new int[4];
 
-    /** Records the blend a pack pipeline's draws report in place of the host's (PipelineSide). */
+    /** The blend a pack pipeline's draws report in place of the host's. */
     static void registerProgramBlend(GraphicsPipeline pipeline, PackBlendPlan.Mode mode) {
         if (pipeline != null && mode != null) PipelineSide.of(pipeline).programBlend = mode;
     }
 
-    /** The blend a pipeline's draws report in place of the host's, or null. */
     static PackBlendPlan.Mode programBlend(Pipeline pipeline) {
         PipelineSide side = PipelineSide.ofBound(pipeline);
         return side == null ? null : side.programBlend;
     }
 
-    /** Sets the next draw's values, with the program's blend over the host's; true when either changed. */
+    /** True when either value changed. */
     boolean set(int width, int height, PackBlendPlan.Mode programBlend, PipelineState.BlendInfo host) {
         boolean changed = textureSize[0] != width || textureSize[1] != height;
         textureSize[0] = width;
@@ -48,7 +43,6 @@ final class IrisDrawState implements FrameValueSource {
                 host.dstAlphaFactor) || changed;
     }
 
-    /** True when the blend's GL factors changed. */
     private boolean setBlend(boolean enabled, int srcColor, int dstColor, int srcAlpha, int dstAlpha) {
         int[] factors = {srcColor, dstColor, srcAlpha, dstAlpha};
         boolean changed = false;

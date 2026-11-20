@@ -16,11 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-/**
- * The pack's own translations: {@code lang/*.lang} files beside shaders.properties, read as UTF-8
- * properties and keyed by the lower-cased file name ({@code en_US.lang} serves {@code en_us}). The
- * menu looks a key up in the player's language first, then in English.
- */
+/** A pack's {@code lang/*.lang} translations, read as UTF-8 properties and keyed by lower-cased file name. */
 public final class PackLanguage {
     private static final String FALLBACK = "en_us";
 
@@ -34,10 +30,7 @@ public final class PackLanguage {
         return new PackLanguage(Map.of());
     }
 
-    /**
-     * Reads the {@code lang} folder under {@code shadersRoot}. As Iris reads them, a bad byte becomes
-     * a replacement character and a malformed line keeps the entries before it.
-     */
+    /** As in Iris, a bad byte becomes a replacement character and a malformed line keeps the entries before it. */
     public static PackLanguage read(Path shadersRoot) {
         Path folder = shadersRoot.resolve("lang");
         Map<String, Map<String, String>> languages = new HashMap<>();

@@ -25,13 +25,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The shader pack screen, modelled on Iris's {@code ShaderPackScreen}. One set of bottom buttons serves two
- * modes: the pack list, and the loaded pack's settings ({@link OptionsView}).
- *
- * Applying writes {@code config/chimera.properties} and queues the change for a frame boundary, as
- * {@code /chimera pack} does. Settings edits wait in {@link PendingOptions} until Apply or Done reloads the
- * pack; Cancel drops them. Tab switches modes, applying first. Esc in the settings goes back a page, or back
- * to the list without applying.
+ * The shader pack screen, modelled on Iris's {@code ShaderPackScreen}; the pack list and the loaded pack's
+ * settings share its bottom buttons. Settings edits wait in {@link PendingOptions} until Apply or Done reloads
+ * the pack.
  */
 public final class ShaderPackScreen extends Screen {
     private static final Component SELECT_TITLE = Component.translatable("pack.chimera.select.title")
@@ -102,10 +98,7 @@ public final class ShaderPackScreen extends Screen {
         updateSwitchButton();
     }
 
-    /**
-     * The pack list, or the settings of the loaded pack. While a requested pack is still loading the
-     * settings stay empty; with no pack coming they give way to the list.
-     */
+    /** Settings stay empty while their pack loads, and give way to the list when no pack is coming. */
     private void initModeContent() {
         this.optionList = null;
         ChimeraRenderer.LoadedPack pack = settingsPack();
@@ -135,10 +128,7 @@ public final class ShaderPackScreen extends Screen {
         return loaded != null && loaded.path().equals(ChimeraRenderer.selectedPackPath()) ? loaded : null;
     }
 
-    /**
-     * In the list, the switch opens settings only with shaders on and a loaded pack that has settings, or no
-     * pack loaded yet, which Apply loads. In the settings it always leads back to the list.
-     */
+    /** From the list, settings open only with shaders on and a pack that has settings or is not loaded yet. */
     private void updateSwitchButton() {
         if (this.optionsMode) {
             this.switchButton.active = true;
@@ -213,9 +203,8 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * After a failed switch, shows what runs: that pack applied and picked so Done does not retry, saved as
-     * the selection so the next start matches, and the list instead of the settings, as in Iris. Chat reports
-     * the failure but is hidden behind this screen, so the screen says so too.
+     * After a failed switch, returns to the list as in Iris, showing and saving the pack that runs so Done does
+     * not retry. Chat is hidden behind this screen, so the screen reports the failure too.
      */
     private void returnToRunningPack() {
         Path failed = this.awaitedPack;
@@ -234,10 +223,7 @@ public final class ShaderPackScreen extends Screen {
         rebuildWidgets();
     }
 
-    /**
-     * Rebuilds the settings when a load finishes, so they show the values the pack now runs with,
-     * keeping keyboard focus on the bottom button that had it.
-     */
+    /** Rebuilds the settings when a load finishes, keeping focus on the bottom button that had it. */
     private void followLoadedPack() {
         ChimeraRenderer.LoadedPack pack = settingsPack();
         boolean stale = pack == null ? this.optionList != null || ChimeraRenderer.selectedPackPath() == null
@@ -281,8 +267,8 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * Files dropped on the window. The list copies packs into the shaderpacks folder and picks a lone one;
-     * the settings import a settings file, and ignore drops while they wait for their pack.
+     * The list copies dropped packs in; the settings import a dropped settings file, ignoring drops while their
+     * pack loads.
      */
     @Override
     public void onFilesDrop(List<Path> paths) {
@@ -319,10 +305,8 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * Applies the pack choice, or reloads the pack when settings are pending. As in Iris, only a change does
-     * anything, so opening the screen and pressing Done never turns off a pack it cannot name, such as one
-     * loaded from outside the shaderpacks folder. An Apply with nothing to reload still returns the settings
-     * page to the top, as Iris's does.
+     * Applies the pack choice, or reloads the pack when settings are pending. As in Iris, only a change acts, so
+     * Done never turns off a pack loaded from outside the shaderpacks folder.
      */
     private void applyChanges() {
         if (this.optionsView != null) this.optionsView.finishEdits(true);
@@ -342,10 +326,8 @@ public final class ShaderPackScreen extends Screen {
     }
 
     /**
-     * Saves the selection and switches to it. Shaders off means vanilla. Shaders on with no pack picked, as
-     * when the running one left the folder, changes nothing, as in Iris. A switch to the running pack queues
-     * nothing, as the pack command does. Settings pending for one pack never apply to another; turning
-     * shaders off keeps them for that pack.
+     * Saves the selection and switches to it; shaders on with no pack picked changes nothing, as in Iris.
+     * Settings pending for one pack never apply to another, but survive turning shaders off.
      */
     private void applySelection(Choice choice) {
         String selected = choice.pack();

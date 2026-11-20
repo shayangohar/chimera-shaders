@@ -12,10 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-/**
- * One source file as the option scan sees it: its lines, the option each line declares, and the names its
- * {@code #ifdef} and {@code #ifndef} lines test. Values are applied by editing the declaring lines in place.
- */
+/** One source file as the option scan sees it; values are applied by editing the declaring lines in place. */
 final class AnnotatedSource {
     private static final String CHANGED = " // changed by the shader pack options";
     private static final Pattern LEADING_SLASHES = Pattern.compile("^/+");
@@ -47,7 +44,7 @@ final class AnnotatedSource {
         return lines;
     }
 
-    /** The option each declaring line holds, by zero-based line index in ascending order. */
+    /** Declared options by zero-based line index, ascending. */
     Map<Integer, ShaderOption> options() {
         return options;
     }
@@ -57,8 +54,8 @@ final class AnnotatedSource {
     }
 
     /**
-     * The lines with {@code values} written into every line that declares a changed name, whichever
-     * declaration of that name survived; {@link #lines()} itself when no line's text changes.
+     * The lines with {@code values} written into every declaration of a changed name, whichever survived;
+     * {@link #lines()} itself when nothing changes.
      */
     List<String> apply(OptionValues values) {
         List<String> edited = new ArrayList<>(lines);

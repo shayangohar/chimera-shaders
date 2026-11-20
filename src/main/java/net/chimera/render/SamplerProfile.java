@@ -20,9 +20,8 @@ import static org.lwjgl.opengl.GL11.GL_REPEAT;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 
 /**
- * The sampler a draw samples an image with and, when known, VulkanMod's OpenGL-style key for it (filters with
- * their mip mode, wrap modes, LOD range and bias). With a null key only the Vulkan sampler is known, and
- * anything derived from the profile uses that sampler as is.
+ * The sampler a draw samples an image with and, when known, VulkanMod's OpenGL-style key for it; with a null
+ * key the sampler is used as is.
  */
 public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     /** The LOD bias VulkanMod gives every mipmapped sampler it builds from flags (MIP_BIAS). */
@@ -39,11 +38,8 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
     }
 
     /**
-     * This profile as OpenGL samples {@code image} under Iris, for a pack draw. A sampler VulkanMod built from
-     * texture flags drops VulkanMod's {@link #HOST_MIP_BIAS}, which picks mip levels half a level finer and
-     * which Vulkan also adds to an explicit textureLod. It also clamps to the edge where vanilla's upload asked
-     * for that (EdgeClampedImages), which VulkanMod ignores. Any other sampler is kept as is; VulkanMod's own
-     * draws keep their samplers.
+     * This profile as OpenGL samples {@code image} under Iris: a flag-built sampler drops {@link #HOST_MIP_BIAS},
+     * which Vulkan also adds to textureLod, and clamps where vanilla asked (EdgeClampedImages).
      */
     public SamplerProfile asGl(VulkanImage image) {
         SamplerManager.SamplerKey gl = glKey(flagKey(id), EdgeClampedImages.contains(image));
@@ -52,11 +48,8 @@ public record SamplerProfile(long id, SamplerManager.SamplerKey key) {
 
     /**
      * This profile's sampling, clamped to the base level when {@code baseLevelOnly}; null when the key is
-     * unknown. A {@code nearest} map reads the nearest texel of the nearest level, as Iris sets up a labPBR
-     * specular map (TextureFormat.setupTextureParameters: GL_NEAREST_MIPMAP_NEAREST when mipmapped).
-     *
-     * Its class values (metal indices, emission 255 for none) must not blend between levels: a blend of 255
-     * and 0 reads as half emission, and distant grass glows in Reverie.
+     * unknown. A {@code nearest} map reads the nearest texel of the nearest level, as Iris samples a labPBR
+     * specular map, since its class values must not blend between levels.
      */
     public SamplerManager.SamplerKey derive(boolean nearest, boolean baseLevelOnly) {
         if (key == null) return null;

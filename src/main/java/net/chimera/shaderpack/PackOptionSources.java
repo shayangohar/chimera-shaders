@@ -10,11 +10,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Where a pack's option values come from.
- *
- * Iris keeps them in {@code <pack>.txt} beside the pack zip or folder, such as
- * {@code ComplementaryReimagined_r5.9.3.zip.txt}. Chimera reads the same file, so one file drives both renderers.
- * {@code chimera.option.*} JVM properties apply on top for automated runs ({@link PackOptionStaging}).
+ * Where a pack's option values come from: Iris's {@code <pack>.txt} beside the pack, so one file drives both
+ * renderers, with {@code chimera.option.*} JVM properties on top for automated runs.
  */
 public final class PackOptionSources {
     private static final String OPTION_OVERRIDE_PREFIX = "chimera.option.";

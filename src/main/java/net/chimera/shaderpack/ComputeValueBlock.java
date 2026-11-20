@@ -8,13 +8,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The std140 uniform block a translated compute stage reads its value uniforms from.
- *
- * Each member states the offset dispatch writes it at. This layout gives a vec3 four whole words, where
- * implicit std140 would pack a following scalar into the vec3's fourth word, which dispatch leaves empty.
+ * The std140 block a translated compute stage reads its value uniforms from, each member at an explicit offset.
+ * A vec3 takes four whole words, since dispatch leaves the fourth empty where std140 would pack a scalar.
  */
 public final class ComputeValueBlock {
-    /** std140 sizes of the matrix value uniforms. */
     private static final Map<String, Integer> MATRIX_SIZES = Map.of("mat2", 32, "mat3", 48, "mat4", 64);
     private static final List<String> FOUR_WORD_VECTORS =
             List.of("vec3", "vec4", "ivec3", "ivec4", "uvec3", "uvec4", "bvec3", "bvec4");
@@ -22,10 +19,9 @@ public final class ComputeValueBlock {
 
     private ComputeValueBlock() {}
 
-    /** A live value, which dispatch writes and the block declares at {@code offset}. */
     public record Value(String name, String type, int offset, int size) {}
 
-    /** Lays the values out in the map's order, each at its std140 alignment. */
+    /** In the map's order. */
     public static List<Value> layout(Map<String, String> typesByName) {
         int offset = 0;
         List<Value> result = new ArrayList<>();
@@ -38,14 +34,13 @@ public final class ComputeValueBlock {
         return List.copyOf(result);
     }
 
-    /** The block's byte size, rounded to 16; 0 with no values. */
+    /** Rounded to 16. */
     public static int bufferSize(List<Value> values) {
         if (values == null || values.isEmpty()) return 0;
         Value last = values.get(values.size() - 1);
         return align(last.offset() + last.size(), 16);
     }
 
-    /** The block's GLSL declaration at this binding; empty with no values. */
     public static String declaration(String blockName, List<Value> values, int binding) {
         if (values == null || values.isEmpty()) return "";
         StringBuilder block = new StringBuilder("layout(std140, binding = ").append(binding)
@@ -71,7 +66,6 @@ public final class ComputeValueBlock {
         return 4;
     }
 
-    /** vec3 and vec4 of every component type, which std140 sizes and aligns as four words. */
     private static boolean isFourWordVector(String type) {
         return FOUR_WORD_VECTORS.stream().anyMatch(type::startsWith);
     }

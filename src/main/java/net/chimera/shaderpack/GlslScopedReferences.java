@@ -9,11 +9,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Renames references to global names the way GLSL resolves them.
- *
- * A parameter or local that shares a global's name hides it until its scope closes, so its declaration and
- * uses keep their spelling; Kappa names a parameter after its {@code lightDir} uniform. A field access
- * ({@code value.name}) is never a global.
+ * Renames references to global names the way GLSL resolves them: a parameter or local of the same name hides
+ * the global in its scope, and a field access is never a global.
  */
 final class GlslScopedReferences {
     private GlslScopedReferences() {}
@@ -36,8 +33,8 @@ final class GlslScopedReferences {
     }
 
     /**
-     * Whether the name at {@code token} is a global's: not a call, so a sampler named {@code texture} never
-     * renames {@code texture(...)}, not a field, and not hidden by a parameter or local.
+     * Whether the name at {@code token} is an unhidden global's and not a field or a call, so a sampler named
+     * {@code texture} never renames {@code texture(...)}.
      */
     private static boolean global(GlslTree tree, int token) {
         List<GlslLexer.Token> tokens = tree.tokens();

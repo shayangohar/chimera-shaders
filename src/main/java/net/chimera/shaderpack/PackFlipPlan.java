@@ -12,21 +12,10 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Iris's BufferFlipper, run once at load.
- *
- * IrisRenderingPipeline builds the begin, prepare, deferred and composite pass groups in that order over one
- * flipper, so each pass's flipped set, and the sets the world and final read, are fixed before the first frame.
- * Nothing flips at runtime.
- *
- * Each state is a mask of colour targets. A target in it is read from its alt side, and a post pass writes its
- * draw buffers to the side it does not read (CompositeRenderer). Gbuffers read and write the side the state names
- * (RenderTargets.createGbufferFramebuffer). At frame end FinalPassRenderer's swap passes copy each target the final
- * state flips, unless it is cleared every frame, from alt back to main, so every frame starts unflipped.
- *
- * In a group, the {@code <group>_pre=true} entries flip as it opens and do not count as written. After each pass,
- * every draw buffer flips unless {@code flip.<pass>.<buffer>=false} holds it, then each {@code true} entry flips,
- * so a true entry on a draw buffer cancels its flip. Every group is built even with no passes, so an empty
- * group's pre-flip still applies.
+ * Iris's BufferFlipper, run once at load so every pass's flipped set is fixed before the first frame. A target in
+ * a state is read from its alt side, and a post pass writes its draw buffers to the other side. A group's
+ * {@code <group>_pre} entries flip as it opens and do not count as written; after each pass its unheld draw
+ * buffers flip, then its {@code true} entries, so a true entry on a draw buffer cancels its flip.
  */
 public final class PackFlipPlan {
     /** The pass groups in Iris's build order, by the window each runs in. */
@@ -35,9 +24,8 @@ public final class PackFlipPlan {
             PackFrameSchedulePlan.PostWindow.EARLY, PackFrameSchedulePlan.PostWindow.LATE);
 
     /**
-     * One pass: the state it reads ({@code before}), the state after its flips, and its draw buffers.
-     * {@code marks} are the targets it marks flipped at least once, its unheld draw buffers and its true entries;
-     * later passes of its group then ignore those targets' stage texture overrides.
+     * One pass. {@code marks} are the targets it marks flipped at least once; later passes of its group then
+     * ignore those targets' stage texture overrides.
      */
     public record Step(String program, PackFrameSchedulePlan.PostWindow window, int before, int after,
                        List<Integer> drawBuffers, int marks) {
@@ -82,10 +70,7 @@ public final class PackFlipPlan {
         return of(List.of(), null);
     }
 
-    /**
-     * The plan for each begin, prepare, deferred and composite program with a target plan, in Iris's order, under
-     * the pack's flip directives. Final flips nothing.
-     */
+    /** The plan for each post program with a target plan, in Iris's order; final flips nothing. */
     public static PackFlipPlan of(List<PackProgramPlan> programs, PackConfig.PackConfigData config) {
         Map<String, List<Integer>> trues = config == null ? Map.of() : config.flips();
         Map<String, List<Integer>> cancels = config == null ? Map.of() : config.cancelledFlips();
@@ -191,10 +176,7 @@ public final class PackFlipPlan {
         return window == PackFrameSchedulePlan.PostWindow.FINAL ? finalState() : close.getOrDefault(window, 0);
     }
 
-    /**
-     * Whether {@code window}'s pre-flips change the state, net, as its group opens. Iris builds the group whether
-     * or not it has passes, so such a group opens even with none.
-     */
+    /** Whether {@code window}'s pre-flips change the state; Iris builds the group even with no passes. */
     public boolean preFlips(PackFrameSchedulePlan.PostWindow window) {
         int index = GROUPS.indexOf(window);
         if (index < 0) return false;
@@ -236,9 +218,8 @@ public final class PackFlipPlan {
     }
 
     /**
-     * The targets earlier passes of {@code pass}'s group flipped, Iris's flippedAtLeastOnce snapshot; a stage
-     * texture override of one of them stops applying. Final reads the composite group's whole set.
-     * {@code pass} need not be a step, so a compute-only pass takes its slot's snapshot.
+     * Iris's flippedAtLeastOnce snapshot before {@code pass}. Final reads the composite group's whole set, and a
+     * compute-only pass, which is no step, takes its slot's snapshot.
      */
     public Set<Integer> writtenBefore(String pass) {
         if ("final".equals(pass)) return targets(writtenInGroup.getOrDefault(PackFrameSchedulePlan.PostWindow.LATE, 0));

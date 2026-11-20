@@ -15,10 +15,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.util.Set;
 
-/**
- * Level renderer internals: entity drawing and global block entities for the shadow casters, the culling
- * frustums for the section setup before the sky, and the blindness and darkness check.
- */
+/** LevelRenderer internals the shadow casters and pre-sky passes need. */
 @Mixin(LevelRenderer.class)
 public interface ChimeraLevelRendererAccessor {
     /** The frustum the debug key froze, or null. */

@@ -37,12 +37,8 @@ final class PackOptionCasesTest {
     }
 
     /**
-     * Bliss LPV_VL_FOG_ILLUMINATION with LPV off: composite2.fsh defines IS_LPV_ENABLED itself, so
-     * composite3 samples texLpv1, which no image backs.
-     *
-     * Iris assigns no unit to a name it does not serve, so the sampler3D stays on unit 0 beside the first
-     * colortex sampler2D. GL refuses a draw with two sampler types on one unit (INVALID_OPERATION), so Iris
-     * draws nothing for composite3. Chimera refuses the program and the post chain skips the stage.
+     * Bliss with LPV off still samples texLpv1, which Iris leaves on unit 0 beside a sampler2D; GL refuses
+     * two sampler types on one unit, so Iris draws nothing and Chimera refuses the program.
      */
     @Test
     void aSamplerIrisServesNothingStillRefusesTheProgram() {
@@ -54,11 +50,7 @@ final class PackOptionCasesTest {
         assertTrue(!plan.executable(), plan.deviations().toString());
     }
 
-    /**
-     * A post fragment reads an input its vertex never writes; Bliss composite3 reads an exposure its vertex
-     * writes only under another option. As Iris's CompatibilityTransformer does, the vertex gains an output
-     * set to zero and the pair matches.
-     */
+    /** A post input its vertex never writes reads zero, as Iris's CompatibilityTransformer adds the output. */
     @Test
     void aPostInputNoVertexWritesReadsAsZero() {
         String vertex = """
@@ -86,11 +78,7 @@ final class PackOptionCasesTest {
         assertTrue(converted.contains("in float exposure;"), converted);
     }
 
-    /**
-     * Bliss RAYMARCH_CLOUDS_WITH_FOG: GetVolumetricFog samples the global {@code shadow} sampler,
-     * then declares a {@code float shadow} in a later block. The local hides the sampler only
-     * from its declaration to the end of that block.
-     */
+    /** A local {@code float shadow} hides the global sampler only from its declaration to the end of its block. */
     @Test
     void aLocalHidesASamplerOnlyWhereItIsInScope() {
         String source = """
@@ -110,10 +98,7 @@ final class PackOptionCasesTest {
                 "the read before the local's block is the sampler");
     }
 
-    /**
-     * Photon: its TAAU program ends in a stray #endif, and with cloud shadows off its prepare stage
-     * reaches an #error no switch disables. Iris's preprocessor reports both and carries on, as Chimera's does.
-     */
+    /** Iris's preprocessor reports a stray #endif and an #error and carries on, as Chimera's does. */
     @Test
     void aStrayEndifAndAnErrorDirectiveAreReportedNotFatal(@TempDir Path dir) {
         String source = """
@@ -134,9 +119,8 @@ final class PackOptionCasesTest {
     }
 
     /**
-     * Iris's preprocessor (JCPP) ends a directive name at the first non-word character, tests one
-     * name after #ifdef, and keeps a source whose conditional is never closed. Escheridia writes
-     * "#endif//CLOUDS_GLSL"; Bloop's TAA program never closes its #ifdef TAA.
+     * JCPP ends a directive name at the first non-word character, tests one name after #ifdef, and keeps a
+     * source whose conditional is never closed.
      */
     @Test
     void directivesReadAsJcppReadsThem(@TempDir Path dir) {
@@ -156,10 +140,7 @@ final class PackOptionCasesTest {
         assertTrue(result.source().contains("gl_FragColor"), result.source());
     }
 
-    /**
-     * A macro defined with no body expands to nothing, so JCPP reads "#if NAME" as false: Bloop's TAA
-     * program defines TAA_USE_YCOCG bare and tests it with #if, and Iris skips the YCoCg path.
-     */
+    /** A macro defined with no body expands to nothing, so JCPP reads "#if NAME" as false. */
     @Test
     void aBareDefineTestedByIfIsFalse(@TempDir Path dir) {
         String source = """
@@ -180,10 +161,8 @@ final class PackOptionCasesTest {
     }
 
     /**
-     * Bliss with SAND_STORMS off writes {@code uniform.float.sandStorm = 0.0;}. Iris cannot parse the
-     * semicolon, logs it and declares nothing, so programs read the uniform as zero.
-     *
-     * A value Chimera cannot compile for a missing feature, such as an unknown function, still fails closed.
+     * A custom value Iris cannot parse, such as one ending in a semicolon, declares nothing and reads zero;
+     * one Chimera cannot compile for a missing feature still fails closed.
      */
     @Test
     void aCustomValueIrisCannotParseReadsAsUnset() {
@@ -197,10 +176,7 @@ final class PackOptionCasesTest {
         assertEquals(UniformRegistry.Availability.REJECTED, settings.customDescriptors().get("wrong").availability());
     }
 
-    /**
-     * Complementary WATER_FOG_MULT: the first definition sits in a function no program calls. Removing that
-     * function keeps the directive, since later code relies on it.
-     */
+    /** Blanking a function no program calls keeps the directives inside it, which later code relies on. */
     @Test
     void blankingAnUnusedFunctionKeepsTheDefinesInside() {
         String source = """
@@ -221,12 +197,7 @@ final class PackOptionCasesTest {
         assertTrue(PackCompileTest.compile(result, false) == null, PackCompileTest.compile(result, false));
     }
 
-    /**
-     * Photon DEBUG_VIEW_HISTOGRAM: composite4 passes {@code flat out vec4[HISTOGRAM_BINS / 4]
-     * histogram_pdf}, which reaches translation as {@code vec4[32 / 4]}. GL sizes an array with any
-     * constant integral expression, so each stage declares eight locations and the pair links. An
-     * undeclared name as the size is refused.
-     */
+    /** GL sizes an interface array with any constant integral expression; an undeclared name as size is refused. */
     @Test
     void aConstantExpressionSizesAnInterfaceArray() {
         String vertex = """
@@ -262,11 +233,8 @@ final class PackOptionCasesTest {
     }
 
     /**
-     * I Like Vanilla SSS_LIDAR: composite5 passes {@code lidarSampleCoords[lidarSampleCount]} after
-     * {@code const int lidarSampleCount = 24}. GL reads the file-scope const as the size, so both stages
-     * declare 24 locations; a const built from other consts reads too.
-     *
-     * A size the scanner cannot read refuses the statement, so the name never reads as a plain vec2.
+     * GL reads a file-scope const int, even one built from other consts, as an interface array's size; a size
+     * the scanner cannot read refuses the statement rather than declaring a plain vec2.
      */
     @Test
     void aFileScopeConstIntSizesAnInterfaceArray() {

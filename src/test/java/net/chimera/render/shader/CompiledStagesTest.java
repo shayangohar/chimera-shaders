@@ -12,9 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Each stage compiles once per session. The same text with another kind or pack treatment is another
  * module, and past its byte budget the store drops the least recently used modules.
- *
- * Complementary's hand binds one fragment source in four vertex layouts, and a dimension visited again
- * compiles the same sources.
  */
 final class CompiledStagesTest {
     @Test

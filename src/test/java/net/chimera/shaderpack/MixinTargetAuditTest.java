@@ -31,12 +31,9 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Every registered Chimera mixin against the bytecode it targets (Minecraft as NeoForge patches it,
- * and VulkanMod Reforged), as Mixin resolves it when the game loads: each target class exists, each
- * injector's target method exists, each INVOKE, FIELD and NEW injection point (slices included)
- * occurs in that method, each @Inject and @WrapMethod handler's descriptor fits its target, and each
- * shadow, accessor and invoker names a member of the target with a matching descriptor.
- * Members VulkanMod's own mixins merge into a target count as the target's.
+ * Every registered Chimera mixin against the bytecode it targets, as Mixin resolves it at load: everything
+ * it names must exist with a fitting descriptor. Members VulkanMod's own mixins merge into a target count as
+ * the target's.
  */
 final class MixinTargetAuditTest {
     private static final Set<String> INJECTORS = Set.of(
@@ -167,13 +164,7 @@ final class MixinTargetAuditTest {
             }
         }
 
-        /**
-         * Whether a call or field injector's handler fits the instruction it targets: @Redirect and
-         * @WrapOperation take the receiver and arguments (a WrapOperation then its Operation) and
-         * return the result, @WrapWithCondition takes them and returns boolean,
-         * @ModifyExpressionValue takes and returns the result, and @ModifyArg returns an argument's
-         * type.
-         */
+        /** Whether a call or field injector's handler fits its target instruction, by that injector's rule. */
         private static boolean siteFits(AnnotationNode annotation, MethodNode handler, Site site) {
             Type[] params = Type.getArgumentTypes(handler.desc);
             Type result = Type.getReturnType(handler.desc);
@@ -238,10 +229,8 @@ final class MixinTargetAuditTest {
         }
 
         /**
-         * Whether an @Inject or @WrapMethod handler's descriptor fits one candidate, as Mixin checks it
-         * when it applies the mixin: an @Inject takes the target's arguments (or none), then its
-         * CallbackInfo, then any captured locals; a @WrapMethod takes the arguments and an Operation and
-         * returns the target's type. Other injectors are not checked here.
+         * Whether an @Inject or @WrapMethod handler's descriptor fits one candidate, as Mixin checks it on
+         * apply; an @Inject may omit the target's arguments.
          */
         private static boolean handlerFits(String injector, MethodNode handler, List<MethodNode> methods) {
             boolean inject = injector.equals(INJECT);
@@ -318,10 +307,7 @@ final class MixinTargetAuditTest {
             return reference.equals(member);
         }
 
-        /**
-         * An accessor or invoker resolves by name and descriptor: a getter returns the field's type, a
-         * setter takes it, and an invoker has its method's descriptor.
-         */
+        /** An accessor or invoker resolves by name and descriptor, as in Mixin. */
         private void member(MethodNode handler, AnnotationNode annotation, boolean field) {
             Object value = MixinBytecode.annotationValue(annotation, "value");
             String name = value instanceof String explicit && !explicit.isEmpty()

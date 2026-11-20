@@ -8,36 +8,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The clip range a world stage writes.
- *
- * The host draws the world with matrices that already map clip depth onto Vulkan's [0, w], and the
- * legacy built-ins a world stage reads stand for them. The pack's own projection uniforms carry GL's
- * [-w, w], as under Iris. A stage that projects with them (Ebin's and Glimmer's gbuffers_main:
- * gl_Position = gbufferProjection * view) would otherwise store GL's normalized depth, 2d - 1 where GL
- * keeps the window depth d, and every position a later pass rebuilt from that depth would land at half
- * its distance.
- *
- * Such a stage runs in GL's range throughout ({@link #GL}), as shadow (ShadowStageBuiltins), hand and
- * sky stages do: its clip built-ins take the host matrices into GL's range, and its final clip depth
- * comes back once, after the authored entry point. ftransform() keeps the host's depth exactly: 2z - w
- * and its sum with w are exact while 2z lies within a factor of two of w (Sterbenz), which holds for
- * every window depth from 0.25 on.
- *
- * A stage that reads a host clip built-in and no pack projection keeps the host's matrices and depth
- * ({@link #HOST}). A stage that reads neither builds its clip position itself, in GL's range as under
- * Iris: I Like Vanilla's isometric projection scales the view position by constants, and in the host's
- * range Vulkan would clip what it draws near the camera.
+ * The clip range a world stage writes. Host matrices map clip depth onto Vulkan's [0, w], but the pack's
+ * projection uniforms carry GL's [-w, w], as under Iris; mixed, every position rebuilt from depth lands at
+ * half its distance. A stage that reads a host clip built-in and no pack projection keeps the host's range
+ * ({@link #HOST}). Any other runs in GL's ({@link #GL}), as under Iris, and converts its clip depth once
+ * after the authored entry point; ftransform() stays exact there for window depths from 0.25 on (Sterbenz).
  */
 enum WorldClipRange {
     HOST,
     GL;
 
-    /**
-     * The pack's camera projections and their inverses, in GL's clip range. RenderPearl's terrain
-     * clamps gl_ProjectionMatrix * view to the frustum and unprojects it with
-     * gbufferProjectionInverse alone; in the host's range it would place each light at about twice
-     * its distance and cull every one past a few blocks.
-     */
+    /** The pack's camera projections and their inverses, in GL's clip range; an inverse read alone counts too. */
     private static final Set<String> PACK_PROJECTIONS = Set.of(
             "gbufferProjection", "gbufferProjectionInverse", "gbufferPreviousProjection", "dhProjection",
             "dhProjectionInverse", "dhPreviousProjection");
@@ -84,20 +65,15 @@ enum WorldClipRange {
         return HELPERS + ClipDepth.afterEntry(converted, AUTHORED_ENTRY);
     }
 
-    /**
-     * A stage before the last one ahead of the rasterizer, in this range: GL's helpers ahead of it
-     * and its clip depth left in GL's range, for a later stage (TessellationStageBridge) to convert.
-     */
+    /** A stage another follows before the fragment stage: GL's helpers added, its clip depth left for that one. */
     String withHelpers(String converted) {
         return this == HOST ? converted : HELPERS + converted;
     }
 
     /**
      * The range a modern vertex stage runs in, from its source without comments. A shadow stage gets
-     * {@link #HOST}, which leaves it to ShadowStageBuiltins: it reads the shadow matrices in GL's
-     * range, and ShadowStageBuiltins converts its clip depth. A world stage ahead of tessellation or a
-     * geometry stage ({@code laterStageConverts}) runs in GL's, so the next stage reads GL's clip
-     * position, as under Iris.
+     * {@link #HOST} because ShadowStageBuiltins converts it; one ahead of tessellation or a geometry
+     * stage runs in GL's, so the next stage reads GL's clip position, as under Iris.
      */
     static WorldClipRange forVertex(String stripped, boolean shadowStage, boolean laterStageConverts) {
         if (shadowStage) return HOST;
@@ -105,10 +81,9 @@ enum WorldClipRange {
     }
 
     /**
-     * A converted vertex stage with its clip depth converted, unless a later stage converts it. A
-     * stage ahead of another that writes no position (Shrimple's Nether and End shadow.vsh, whose
-     * shadow.gsh only voxelizes) writes a zero one: GL leaves the next stage's gl_in position
-     * undefined, and Vulkan pairs that stage's input with a written output.
+     * A converted vertex stage with its clip depth converted, unless a later stage converts it. One that
+     * feeds another stage but writes no position writes a zero one, since Vulkan pairs the next stage's
+     * gl_in input with a written output.
      */
     String vertexBody(String converted, boolean shadowStage, boolean laterStageConverts) {
         String body = laterStageConverts && !GlslTokenRewriter.containsIdentifier(converted, "gl_Position")

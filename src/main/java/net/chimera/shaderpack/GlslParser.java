@@ -12,10 +12,8 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 /**
- * Recursive-descent parser for {@link GlslTree}, over the significant tokens of a lexed source.
- * External declarations parse fully: qualifiers in any order, layout lists, types and structs,
- * declarator lists with arrays and initializers, interface blocks, and function signatures.
- * Bodies parse into statements, and expressions are skipped as balanced token runs.
+ * Recursive-descent parser for {@link GlslTree}. Declarations parse fully and bodies into statements;
+ * expressions are skipped as balanced token runs.
  */
 final class GlslParser {
     /** Why a source does not parse, with the line and token it stopped at. */

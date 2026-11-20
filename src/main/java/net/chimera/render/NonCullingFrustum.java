@@ -11,12 +11,8 @@ import org.joml.Matrix4f;
 
 /**
  * The camera frustum of a pack that sets {@code frustum.culling=false}: every box is visible, as with Iris's
- * NonCullingFrustum, which its MixinLevelRenderer puts in LevelRenderer.cullingFrustum. Entities, particles
- * and NeoForge's block entity check ask {@link #isVisible}.
- *
- * VulkanMod culls sections and its block entities through the VFrustum its FrustumMixin gives every Frustum
- * ({@link FrustumMixed#customFrustum}). Built from this frustum's identity matrices, that one would keep only
- * a box around the camera, so this frustum hands out one that culls nothing.
+ * NonCullingFrustum. VulkanMod culls sections through {@link FrustumMixed#customFrustum}, which from this
+ * frustum's identity matrices would keep only a box around the camera, so it gets one that culls nothing.
  */
 public final class NonCullingFrustum extends Frustum implements FrustumMixed {
     /** Holds no camera state, so one serves every frame. */
@@ -29,10 +25,8 @@ public final class NonCullingFrustum extends Frustum implements FrustumMixed {
     }
 
     /**
-     * Keeps the camera at the origin. VulkanMod leaves vanilla's setupRender body running, which copies this
-     * frustum and moves the copy until its camera cube is inside the planes (LevelRenderer.offsetFrustum).
-     * With identity planes and a camera off the 8-block grid that loop would never end; at the origin it ends
-     * at once. Nothing here reads the camera.
+     * Keeps the camera at the origin: with identity planes and a camera off the 8-block grid, vanilla's
+     * LevelRenderer.offsetFrustum loop would never end.
      */
     @Override
     public void prepare(double camX, double camY, double camZ) {
@@ -48,7 +42,7 @@ public final class NonCullingFrustum extends Frustum implements FrustumMixed {
         return sections;
     }
 
-    /** A VFrustum with every box inside, so the section graph, its areas and block entities draw everything. */
+    /** A VFrustum that culls nothing. */
     private static final class Everything extends VFrustum {
         @Override
         public VFrustum offsetToFullyIncludeCameraCube(int offset) {

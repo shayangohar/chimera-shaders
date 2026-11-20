@@ -10,11 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
- * Restores vanilla's finite far plane for the world projection while a pack renders the world. VulkanMod
- * makes GameRenderer.getDepthFar infinite, which would hand packs an infinite gbufferProjection; every sky
- * pixel at depth 1 would then reconstruct a ray behind the camera, removing pack clouds and skewing sky and
- * fog. Iris gives packs vanilla's projection. The depth buffer is written with the same matrix, so raster
- * and published uniforms agree.
+ * Restores vanilla's finite far plane while a pack renders, as Iris gives packs vanilla's projection.
+ * VulkanMod's infinite far plane would make sky pixels at depth 1 reconstruct rays behind the camera.
  */
 @Mixin(GameRenderer.class)
 public abstract class ChimeraProjectionFarMixin {

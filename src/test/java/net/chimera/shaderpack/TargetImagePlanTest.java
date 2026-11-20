@@ -18,12 +18,7 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 
 /** Iris's colorimgN in the post passes and the hand: the colour target as a storage image (TargetImages). */
 final class TargetImagePlanTest {
-    /**
-     * Rethinking Voxels' prepare clears colorimg9, its R32UI colortex9, with imageStore, and
-     * prepare1 and prepare2 reproject through it; they are the only writers of colortex8, which its
-     * terrain and deferred1 read. The pass binds colortex9 as a storage image at the slot it is
-     * sampled through, in its own format, and reads it as its samplers read their targets.
-     */
+    /** A post pass binds a colour target it stores to as a storage image at its sampler slot, in its own format. */
     @Test
     void aPostPassStoresToAColourTarget(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -63,12 +58,7 @@ final class TargetImagePlanTest {
                 analysis.report().program("prepare").deviations().toString());
     }
 
-    /**
-     * Spring's hand stores the held item's light colour to colorimg7 from its geometry stage under
-     * COLORED_LIGHT and PATH_TRACING, and its deferred1 reads it back. The hand binds colortex7 as a
-     * storage image at the slot it would sample it through, in its geometry stage, and the target
-     * graph counts it as a world read.
-     */
+    /** The hand binds a colour target it stores to as a storage image, counted as a world read. */
     @Test
     void aHandProgramStoresToAColourTarget(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -141,11 +131,8 @@ final class TargetImagePlanTest {
     }
 
     /**
-     * A pass that also samples the target it stores to would read one image through two layouts,
-     * and a format of another texel size has no view: both fall back with the image named. So does
-     * a hand that also draws to the target, which would hold it as an attachment and a storage image
-     * at once, and so do final and the other gbuffers programs, where Iris gives colorimgN too and
-     * Chimera binds none.
+     * A colour image Chimera cannot bind falls back with the image named: one also sampled or drawn to, one
+     * of another texel size, or one in final or a gbuffers program other than the hand.
      */
     @Test
     void colourImagesChimeraCannotBindFallBack(@TempDir Path root) throws Exception {
@@ -197,11 +184,9 @@ final class TargetImagePlanTest {
     }
 
     /**
-     * Rethinking Voxels' prepare1 names colortex3 in its directive, writes no output, and only
-     * stores to colorimg9. Iris flips colortex3 anyway, onto the other side it cleared too, so the
-     * flip hands back what the frame began with: the target is unwritten. Read as written, the
-     * flip would make last frame's uncleared side current. A write the scan cannot place, through a
-     * variable gl_FragData index, still reads as the first target's.
+     * A pass that writes no output leaves its directive's targets unwritten, as Iris's flip onto the other
+     * cleared side hands back what the frame began with. A write through a variable gl_FragData index still
+     * reads as the first target's.
      */
     @Test
     void aPassThatOnlyDiscardsLeavesItsTargetsUnwritten(@TempDir Path root) throws Exception {

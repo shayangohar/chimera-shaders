@@ -32,14 +32,8 @@ import static org.lwjgl.vulkan.KHRDynamicRendering.VK_KHR_DYNAMIC_RENDERING_EXTE
 import static org.lwjgl.vulkan.VK11.vkGetPhysicalDeviceFeatures2;
 
 /**
- * Enables what Chimera needs on VulkanMod's logical device.
- *
- * Pack GLSL compiles to the features in ChimeraDevice's tables, which a GL driver offers all of; each is
- * enabled where the device offers it. Among them are independentBlend, for per-attachment blend and write
- * masks, and geometryShader, for a pack program's .gsh stage. drawIndirectFirstInstance serves VulkanMod's
- * indirect terrain draws, and VK_KHR_dynamic_rendering with its feature serves Chimera's pack windows. The
- * pack device extensions are added where offered, and the device created is recorded as the PackDevice
- * pack GLSL compiles for.
+ * Enables what Chimera needs on VulkanMod's logical device, each feature and extension where the device offers
+ * it, and records the device as the PackDevice pack GLSL compiles for.
  */
 @Mixin(value = DeviceManager.class, remap = false)
 public abstract class ChimeraDeviceFeaturesMixin {
@@ -87,8 +81,7 @@ public abstract class ChimeraDeviceFeaturesMixin {
             if (feature.read().test(enabled)) chimera$features.add(feature.name());
         }
         if (enabled.tessellationShader()) chimera$features.add("tessellationShader");
-        // VulkanMod's terrain draws carry each section's offset in firstInstance
-        // (DrawBuffers.buildDrawBatchesIndirect); an indirect draw may set it only with this feature
+        // VulkanMod's indirect terrain draws carry each section's offset in firstInstance, which needs this
         if (available.drawIndirectFirstInstance()) enabled.drawIndirectFirstInstance(true);
         if (enabled.drawIndirectFirstInstance()) {
             chimera$features.add("drawIndirectFirstInstance");
@@ -140,8 +133,7 @@ public abstract class ChimeraDeviceFeaturesMixin {
     }
 
     /**
-     * Puts the offered Vulkan 1.2 features and dynamic rendering on the chain VulkanMod hands
-     * vkCreateDevice, once the host has chained all of its own structs (DeviceFeatureChain). New structs
+     * Chains the offered Vulkan 1.2 features and dynamic rendering after the host's own structs. New structs
      * live on the caller's stack frame, which outlasts vkCreateDevice.
      */
     @ModifyArg(
@@ -159,9 +151,8 @@ public abstract class ChimeraDeviceFeaturesMixin {
     }
 
     /**
-     * Adds VK_KHR_dynamic_rendering and the offered pack extensions (PackDevice.PACK_EXTENSIONS) to
-     * VulkanMod's list, and records the device it creates as the PackDevice. A module that needs an
-     * extension the device lacks fails its compile (GlslCompiler).
+     * Adds dynamic rendering and the offered pack extensions, and records the PackDevice; a module that needs
+     * an extension the device lacks fails its compile.
      */
     @ModifyArg(
             method = "createLogicalDevice",

@@ -14,9 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sodium 0.8.13's cloud mesh, which Iris 1.8.14 on 1.21.1 runs a pack's gbuffers_clouds over.
- * RenderPearl 2.8 never samples the cloud texture, so on vanilla's tile sheets its clouds would be one
- * solid haze; Sodium's cells keep the texture's shapes.
+ * Sodium's cloud mesh, which Iris runs gbuffers_clouds over. A pack that never samples the cloud
+ * texture would draw one solid haze on vanilla's tiles; Sodium's cells keep the texture's shapes.
  */
 final class CloudMeshTest {
     private static final int WHITE = 0xFFFFFFFF;

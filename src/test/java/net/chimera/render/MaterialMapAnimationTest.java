@@ -12,10 +12,7 @@ import static net.chimera.render.MaterialMapFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Animated material maps: schedules read from the .mcmeta files, interpolated frames, and companion
- * frames that tick in lockstep with their albedo atlas.
- */
+/** Animated material maps, read from .mcmeta files and ticking in lockstep with their albedo atlas. */
 final class MaterialMapAnimationTest {
     @Test
     void animationSchedules() throws Exception {

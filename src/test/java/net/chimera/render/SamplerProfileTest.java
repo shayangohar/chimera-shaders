@@ -19,9 +19,8 @@ import static org.lwjgl.opengl.GL11.GL_REPEAT;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 
 /**
- * Pack programs sample game textures as OpenGL does for Iris: a sampler VulkanMod built from
- * texture flags loses its MIP_BIAS and clamps to the edge where vanilla's upload asked; every
- * other sampler keeps its own.
+ * Pack programs sample game textures as GL does for Iris: a sampler VulkanMod built from texture flags
+ * loses its MIP_BIAS and clamps to the edge where vanilla's upload asked.
  */
 final class SamplerProfileTest {
     /** The block atlas as VulkanMod samples it: trilinear, repeating, four levels below the base. */

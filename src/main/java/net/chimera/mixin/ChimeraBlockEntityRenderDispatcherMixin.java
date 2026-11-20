@@ -13,11 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Sets a block entity's context for the family lanes while it renders in the world. As in Iris's
- * MixinBlockEntityRenderDispatcher, its block state's block.properties id is blockEntityId for everything
- * it draws.
- */
+/** While a block entity renders, its block state's block.properties id is blockEntityId, as in Iris. */
 @Mixin(BlockEntityRenderDispatcher.class)
 public abstract class ChimeraBlockEntityRenderDispatcherMixin {
     @Inject(method = "render", at = @At("HEAD"), require = 1)

@@ -9,13 +9,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Iris's InternalTextureFormat tokens as colour-target formats: the Vulkan format each is stored in, its bytes
- * per texel, and whether shaders read it as floats or as unsigned or signed integers.
- *
- * A format Vulkan cannot draw to as GL declares it is approximated. An RGB format gains an alpha that reads 1,
- * as GL's missing alpha does, and a packed or low-precision one widens. Signed normalized formats stay signed,
- * so a write clamps to [-1, 1] as in GL; Rethinking Voxels' colortex5 relies on this. PackTargetImages checks
- * the device can draw to them.
+ * Iris's InternalTextureFormat tokens as colour-target formats. A format Vulkan cannot draw to as GL declares
+ * it is approximated: an RGB format gains an alpha that reads 1, as GL's does, and a packed or low-precision
+ * one widens. Signed normalized formats stay signed, so a write clamps to [-1, 1] as in GL.
  */
 public final class IrisColorFormats {
     private IrisColorFormats() {}

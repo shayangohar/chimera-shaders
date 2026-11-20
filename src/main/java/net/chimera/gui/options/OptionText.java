@@ -16,12 +16,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The words the settings show for a pack, found as Iris finds them: a key in the game's own language first,
- * then in the pack's {@code lang} files for the player's language and then English, else the raw name.
- * Nothing is prettified, and legacy colour codes are left for the font to apply.
- *
- * Iris shows names, values, page titles, profiles and comments as translatable text, so {@code %%} reads as
- * {@code %}; a prefix or suffix is inserted as written.
+ * The pack's settings text, looked up as Iris does: the game's language, then the pack's {@code lang} files for
+ * the player's language and English, else the raw name. As in Iris, {@code %%} reads as {@code %} except in a
+ * prefix or suffix.
  */
 final class OptionText {
     /** A format specifier as a translatable string reads one: {@code %s}, {@code %1$s}, {@code %%}. */
@@ -67,10 +64,6 @@ final class OptionText {
         return translated("option." + name).orElse(name);
     }
 
-    /**
-     * A choice value: the {@code prefix.NAME} text, then {@code value.NAME.VALUE}, or the raw value
-     * with {@code suffix.NAME} after it, all in the value colour.
-     */
     MutableComponent value(ShaderOption.Choice choice, String value) {
         String name = choice.name();
         String core = translated("value." + name + "." + value)
@@ -86,10 +79,7 @@ final class OptionText {
         return translated("profile." + name).orElse(name);
     }
 
-    /**
-     * A comment's paragraphs: the text without one closing period, split at each period that ends a
-     * sentence, the periods themselves dropped.
-     */
+    /** A comment's sentences as paragraphs, full stops dropped. */
     static List<String> paragraphs(String comment) {
         String text = comment.endsWith(".") ? comment.substring(0, comment.length() - 1) : comment;
         List<String> paragraphs = new ArrayList<>();

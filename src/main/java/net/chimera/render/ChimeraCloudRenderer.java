@@ -29,17 +29,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Draws a pack's clouds over Sodium's cloud mesh (CloudMesh), which Iris on 1.21.1 runs its cloud program on,
- * in place of the 96-block tile sheets VulkanMod keeps from vanilla.
- *
- * As Sodium does, it drifts the layer 0.03 blocks a tick toward -X and rebuilds the mesh only when the camera's
- * cell, the reach, the camera's side of the layer or the cloud setting changes. It sets the terrain fog at 8
- * blocks per cell of reach and passes the cloud colour at 0.8 opacity as the shader colour.
- *
- * It draws through vanilla's cloud render types, so the pack's cloud program and cloud target serve it as they
- * serve vanilla's sheets. FANCY lays depth, then colour, each culling back faces as Sodium does; with culling
- * off, a cell's inner walls would blend over its outer faces. FAST draws colour alone with culling off, as
- * Sodium does.
+ * Draws a pack's clouds over Sodium's cloud mesh, which Iris on 1.21.1 runs its cloud program on, through
+ * vanilla's cloud render types. FANCY lays depth then colour with back faces culled, as Sodium does, or a
+ * cell's inner walls would blend over its outer faces.
  */
 public final class ChimeraCloudRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChimeraCloudRenderer.class);

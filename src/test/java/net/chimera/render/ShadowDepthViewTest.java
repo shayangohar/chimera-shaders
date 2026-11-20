@@ -23,10 +23,7 @@ import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
 
 /**
  * Iris swizzles its shadow depth textures to R, R, R, 1 (ShadowRenderer.configureDepthSampler), so a
- * pack that reads shadowtex0 or shadowtex1 without a depth compare finds the depth in every colour
- * channel, where a plain depth read gives (d, 0, 0, 1). A headless Vulkan run samples
- * one depth texel through Chimera's shadow depth view, through an identity view, and with a compare
- * sampler through the shadow view.
+ * pack reading shadowtex0 or shadowtex1 without a depth compare finds the depth in every colour channel.
  */
 final class ShadowDepthViewTest {
     private static final float DEPTH = 0.25f;

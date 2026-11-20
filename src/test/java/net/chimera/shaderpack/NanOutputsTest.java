@@ -15,10 +15,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * RenderPearl 2.8's float16 path computes a NaN name-tag background. NVIDIA's GL driver draws the
- * opaque glyphs over it, as their blend weighs the NaN by zero; Vulkan keeps the NaN and the whole
- * tag turns black. So a geometry fragment ends main by writing what the NaN shows, opaque black, and
- * at alpha 0 writes nothing visible, or the clear texels of RenderPearl's rain quads cover the world.
+ * NVIDIA's GL blend weighs a NaN by zero but Vulkan keeps it, so RenderPearl's NaN name-tag background
+ * turns black. A geometry fragment therefore ends main by writing a NaN as opaque black, or nothing at alpha 0.
  */
 final class NanOutputsTest {
     @Test
@@ -42,8 +40,7 @@ final class NanOutputsTest {
                 }
                 """;
         String converted = FragmentConverter.withoutNanOutputs(fragment);
-        // a NaN colour shows opaque black, as a NaN blended at any alpha but 0 does; at alpha 0 it adds
-        // nothing, as RenderPearl's clear rain texels add nothing under Iris
+        // a NaN shows opaque black, but nothing at alpha 0, or RenderPearl's clear rain texels cover the world
         // other outputs take 0
         assertTrue(converted.contains("vec4 chimeraNoNan(vec4 value) { return any(isnan(value)) "
                         + "? (value.a == vec4(0).a ? vec4(0) : vec4(0, 0, 0, 1)) : value; }")
@@ -57,9 +54,7 @@ final class NanOutputsTest {
                         && converted.contains("colortex4 = chimeraNoNan(colortex4);")
                         && !converted.contains("chimeraNoNan(colortex2)"),
                 converted);
-        // RenderPearl redeclares gl_FragDepth depth_unchanged and never writes it; writing its undefined
-        // value would break every depth test
-        // an output the program never writes stays unwritten too
+        // an unwritten output stays unwritten: RenderPearl's undefined gl_FragDepth would break every depth test
         assertTrue(!converted.contains("chimeraNoNan(gl_FragDepth)") && !converted.contains("chimeraNoNan(colortex5)"),
                 converted);
         assertTrue(converted.indexOf("colortex4 = 1.0 / tint.r;") < converted.indexOf("colortex1 = chimeraNoNan")

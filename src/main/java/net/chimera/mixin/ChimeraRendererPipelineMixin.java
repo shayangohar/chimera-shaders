@@ -19,11 +19,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Uploads a pack draw's uniforms under its per-draw state, and binds each pipeline's pack images
- * with its descriptor sets. A family draw uploads with its alpha test, entityId, albedo, lightmap,
- * atlas size and Iris rendering phase; a sky or cloud draw with its albedo and lightmap and the atlas
- * size of its texture, in the phase its LevelRenderer hooks set. Every draw uploads with its unit-0
- * texture size and blend (gtextureSize, blendFunc).
+ * Uploads a pack draw's uniforms under its per-draw state, and binds each pipeline's pack images with its
+ * descriptor sets.
  */
 @Mixin(value = Renderer.class, remap = false)
 public abstract class ChimeraRendererPipelineMixin {

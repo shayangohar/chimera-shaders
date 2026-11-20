@@ -25,10 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * GraphicsPipelineMrtMixin wraps createGraphicsPipeline: it opens the pipeline-creation scope
- * before the creation and closes it in a finally. A registered pipeline's creation swaps its own
- * contract in, so a creation that threw without closing its scope would hand that contract to the
- * pass's later variants.
+ * GraphicsPipelineMrtMixin closes the pipeline-creation scope in a finally, since a creation that threw
+ * with its contract swapped in would hand it to the pass's later variants.
  */
 final class MrtPipelineContextTest {
     private static final String MIXIN = "net/chimera/mixin/GraphicsPipelineMrtMixin";

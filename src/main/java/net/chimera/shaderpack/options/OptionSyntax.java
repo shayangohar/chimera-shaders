@@ -14,12 +14,9 @@ import static net.chimera.shaderpack.options.ShaderOption.Kind.CONST;
 import static net.chimera.shaderpack.options.ShaderOption.Kind.DEFINE;
 
 /**
- * The source line forms that declare an option or test a name. Each line is read on its own, trimmed, with
- * no knowledge of block comments, conditionals or continuations.
- *
- * Between tokens a form allows a gap: a whitespace character followed by any run of control characters
- * and spaces. Spaces outside ASCII (U+00A0, U+2003) never belong to a gap, so one breaks any form it sits
- * in. A comment marker is two or more slashes, and its text is the rest of the line, trimmed.
+ * The source line forms that declare an option or test a name, each line read alone with no knowledge of
+ * block comments or conditionals. A gap between tokens is a whitespace character then any control characters
+ * or spaces; a non-ASCII space breaks the form. A comment marker is two or more slashes.
  */
 final class OptionSyntax {
     private static final String GAP = "[\\t-\\r\\x1C-\\x20][\\x00-\\x20]*+";
@@ -29,10 +26,7 @@ final class OptionSyntax {
     /** {@code #ifdef NAME} or {@code #ifndef NAME}, alone on the line. */
     private static final Pattern TEST_LINE = form("#ifn?def" + GAP + "(?<name>" + WORD + ")" + OPTIONAL_GAP);
 
-    /**
-     * A define, perhaps commented out, followed by nothing or a comment (a toggle), or by a gap and the
-     * text that must hold a value and a value list (a choice).
-     */
+    /** A define, perhaps commented out: a toggle when at most a comment follows, else a choice candidate. */
     private static final Pattern DEFINE_LINE = form("(?<off>//+)?" + OPTIONAL_GAP + "#define" + GAP
             + "(?<name>" + WORD + ")(?:" + OPTIONAL_GAP + "//+(?<comment>.*)|" + GAP + "(?<value>.*))?");
 
@@ -47,9 +41,8 @@ final class OptionSyntax {
     private static final Pattern CONST_TAIL = form(OPTIONAL_GAP + ";" + OPTIONAL_GAP + "(?://+(?<comment>.*))?");
 
     /**
-     * A number candidate: the longest run whose every character is a digit or comes right before one, then
-     * an {@code f} or {@code F} when another character follows it. It counts only when it parses as a
-     * float, so {@code 1.5e-3} stops at {@code 1.5} and {@code 0x10} is read as a word instead.
+     * A run of digits and characters right before a digit, then {@code f} or {@code F} if more follows. It
+     * counts only when it parses as a float, so {@code 1.5e-3} stops at {@code 1.5} and {@code 0x10} is a word.
      */
     private static final Pattern NUMBER = form("(?:\\p{javaDigit}|.(?=\\p{javaDigit}))++(?:[fF](?=.))?");
     private static final Pattern WORD_TOKEN = form(WORD);
@@ -129,9 +122,8 @@ final class OptionSyntax {
     }
 
     /**
-     * A choice when the comment holds a value list: the text from its first {@code [} to the next {@code ]},
-     * split on every single space. The default joins the end of the list when missing, and the option's
-     * comment is what surrounds the list.
+     * A choice when the comment holds a {@code [...]} list, split on every single space. A missing default
+     * joins its end, and the text around the list becomes the option's comment.
      */
     private static Optional<ShaderOption> listed(String name, ShaderOption.Kind kind, Value value) {
         String comment = value.comment().orElse("");

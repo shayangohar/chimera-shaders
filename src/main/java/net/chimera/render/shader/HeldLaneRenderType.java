@@ -10,19 +10,13 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * A render type a world host-layout lane draws, held by a level source (FamilyBufferSource) with the Iris
- * rendering phase it was written in ({@link ChimeraEntityBridge#hostLaneWritePhase}). Iris answers renderStage
- * for such a draw from the wrapper around the render type it was asked for in, and vanilla asks for
- * RenderType.lines() for a hitbox and the block outline alike, so one held batch per type would draw both in
- * one phase.
- *
- * It keeps the host type's state, format and ordering flags. Its lane still takes the draw where the host
- * shader draws (PackHostDraws), in this type's phase.
+ * A host-layout lane's render type held by a level source with the Iris phase it was written in. Iris takes
+ * renderStage from the wrapper the type was asked for in, and vanilla uses RenderType.lines() for both hitboxes
+ * and the block outline, so one batch per type would draw both in one phase.
  */
 final class HeldLaneRenderType extends RenderType {
     private final RenderType host;
     private final PackRenderingPhase phase;
-    /** The host type's transparency, which orders the batch's draw as Iris orders its batches. */
     private final IrisTransparency transparency;
     /** The FamilyBufferSource flush that last drew this type. */
     private long lastDrawn;

@@ -10,27 +10,15 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Rewrites for the legacy-to-Vulkan GLSL bridge.
- *
- * The function and declaration rewrites edit the parse tree: unreachable functions, main's prologue and
- * epilogue, reserved parameter names, uniform declarator lists and global consts. The rest work on tokens,
- * since the tree holds expressions as token ranges.
- *
- * The token rewrites rename a name wherever it is spelled, as built-ins and the authored entry point need
- * ({@link #replaceIdentifiers}), or a sampler named like a lookup function, which only its calls tell apart
- * ({@link #renameSamplerIdentifier}). They also rename legacy texture calls, inline legacy shadow lookups,
- * replace {@code gl_FragData[N]} with the outputs it writes, test whether a const initializer is a constant
- * expression, and ask whether or how often a name is spelled ({@link #containsIdentifier}).
+ * Rewrites for the legacy-to-Vulkan GLSL bridge. Function and declaration rewrites edit the parse tree; the
+ * rest work on tokens, since the tree holds expressions as token ranges.
  */
 public final class GlslTokenRewriter {
     private GlslTokenRewriter() {}
 
     /**
-     * Blanks unreachable function definitions but keeps their line breaks, so compiler line numbers hold and
-     * later declaration rewrites see no dead resource references.
-     *
-     * Directive lines inside a blanked function stay, since a {@code #define} there holds for the rest of the
-     * file: Complementary defines {@code WATER_FOG_MULT_M} in an unused {@code GetWaterFog} and uses it later.
+     * Blanks unreachable function definitions, keeping their line breaks so line numbers hold, and their
+     * directive lines, since a {@code #define} there holds for the rest of the file.
      */
     static String removeUnreachableFunctions(
             String source, GlslResourceUsage.Analysis usage
@@ -82,10 +70,7 @@ public final class GlslTokenRewriter {
         return GlslLexer.render(tokens);
     }
 
-    /**
-     * Renames a sampler but not a call spelled the same. OptiFine's atlas sampler is often named
-     * {@code texture}, like the GLSL lookup function.
-     */
+    /** Renames a sampler but not a call spelled the same, such as OptiFine's atlas named {@code texture}. */
     static String renameSamplerIdentifier(String source, String sampler, String replacement) {
         if (source == null || sampler == null || replacement == null || sampler.equals(replacement)) {
             return source;
@@ -155,14 +140,12 @@ public final class GlslTokenRewriter {
 
     /**
      * Converts legacy shadow lookups to inline expressions on the sampler's type: a sampler parameter's own
-     * type inside its function, as in BSL's {@code texture2DShadow(sampler2DShadow, vec3)} helper, else the
-     * declared uniform's in {@code samplerTypes}.
+     * inside its function, else the uniform's in {@code samplerTypes}.
      */
     static String rewriteShadowCalls(String source, Map<String, String> samplerTypes) {
         List<GlslLexer.Token> tokens = new ArrayList<>(GlslLexer.lex(source));
         GlslTree tree = GlslTree.parse(source);
-        // Solas and BSL define their own texture2DShadow; a function the program defines under one of these
-        // names keeps its calls, left to GLSL overload resolution as Iris leaves them
+        // a program's own function of one of these names keeps its calls, as Iris leaves them
         Set<String> userDefined = userDefinedFunctions(tree, LEGACY_SHADOW_CALLS);
         // innermost calls first, so a nested lookup is already rewritten when the outer one renders its coordinate
         for (int index = tokens.size() - 1; index >= 0; index--) {
@@ -239,10 +222,8 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Splits {@code [layout(...)] [writeonly] uniform T a, b[2], c = x;} into one declaration per name.
-     * GLSL gives each declarator the same qualifiers and type, so a shader sees no change, and every per-name
-     * rewriter (bindings, advanced images, the shadowcomp translator) can find each declaration. Solas declares
-     * its two floodfill images in one statement. Interface blocks and struct-typed lists are left alone.
+     * Splits {@code [layout(...)] [writeonly] uniform T a, b[2], c = x;} into one declaration per name, so every
+     * per-name rewriter finds each one. Interface blocks and struct-typed lists are left alone.
      */
     public static String splitUniformDeclarators(String source) {
         if (source == null || !source.contains("uniform") || !source.contains(",")) return source;
@@ -269,11 +250,8 @@ public final class GlslTokenRewriter {
     }
 
     /**
-     * Drops {@code const} from globals whose initializer is not a constant expression, such as one reading a
-     * uniform, a plain global or a user function. Desktop GL drivers accept these and Vulkan GLSL refuses them.
-     *
-     * Dependencies are followed until nothing changes, so every truly constant global keeps {@code const} for
-     * the array sizes and other consts that need it.
+     * Drops {@code const} from globals whose initializer is not a constant expression, which desktop GL drivers
+     * accept and Vulkan GLSL refuses. Every truly constant global keeps it, for the array sizes that need it.
      */
     static String relaxNonConstantGlobals(String source) {
         if (source == null || !source.contains("const")) return source;
@@ -574,10 +552,7 @@ public final class GlslTokenRewriter {
         return GlslLexer.render(tokens);
     }
 
-    /**
-     * True when {@code name} appears as an identifier token, outside comments and literals. Most
-     * names asked about are absent, and then the text cannot hold the token, so it is not lexed.
-     */
+    /** True when {@code name} appears as an identifier token, outside comments and literals. */
     public static boolean containsIdentifier(String source, String name) {
         if (source == null || !source.contains(name)) return false;
         for (GlslLexer.Token token : GlslLexer.lex(source)) {

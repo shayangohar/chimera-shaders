@@ -16,10 +16,7 @@ public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
     private final PackMaterialResolver materialResolver;
     private final ChimeraExtVertexBuilder extendedVertexBuilder;
 
-    /**
-     * The host builder accepts only its own formats, so it starts on COMPRESSED_TERRAIN, whose prefix the
-     * extended formats share, and then takes the plan's format and vertex writer.
-     */
+    /** The host builder accepts only its own formats, so it starts on COMPRESSED_TERRAIN, a shared prefix. */
     public ChimeraExtTerrainBuilder(int size, PackMaterialResolver materialResolver,
                                     TerrainMaterialPlan materialPlan) {
         super(size, CustomVertexFormat.COMPRESSED_TERRAIN);
@@ -31,19 +28,12 @@ public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
         this.vertexBuilder = this.extendedVertexBuilder;
     }
 
-    /**
-     * The position within the section of the block the host renders next, as Iris's BlockContextHolder
-     * records it. ChimeraBlockRendererMixin calls this after the host's setBlockAttributes, which passes the
-     * state only.
-     */
+    /** Called after the host's setBlockAttributes, which passes the state only. */
     public void beginBlock(int localX, int localY, int localZ) {
         extendedVertexBuilder.setBlockPosition(localX, localY, localZ);
     }
 
-    /**
-     * Appends Iris's voxelizeLightBlocks quad for the light block at this position within the section
-     * ({@link ChimeraExtVertexBuilder#lightBlockQuad}); its id is the pack's for the state.
-     */
+    /** Iris's voxelizeLightBlocks quad ({@link ChimeraExtVertexBuilder#lightBlockQuad}). */
     public void lightBlockQuad(BlockState blockState, int localX, int localY, int localZ) {
         ensureCapacity();
         extendedVertexBuilder.lightBlockQuad(getPtr(), materialResolver.resolve(blockState),
@@ -59,10 +49,7 @@ public final class ChimeraExtTerrainBuilder extends TerrainBufferBuilder {
                 ChimeraExtVertexBuilder.BLOCK_RENDER_TYPE, LightEmission.of(blockState));
     }
 
-    /**
-     * A fluid's material is its own block, as in Iris: water inside seagrass or a waterlogged stair is water,
-     * not the block that holds it. The light emission is the holding block's, as Iris passes it.
-     */
+    /** As in Iris, the material is the fluid's own block but the light emission is the holding block's. */
     public void setFluidBlockAttributes(BlockState blockState, FluidState fluidState,
                                         int localX, int localY, int localZ) {
         extendedVertexBuilder.setBlockData(materialResolver.resolve(fluidState.createLegacyBlock()),

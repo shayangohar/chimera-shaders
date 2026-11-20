@@ -32,14 +32,9 @@ import java.util.function.IntPredicate;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * The session's pass computes, run as Iris's CompositeRenderer runs them: each dispatches at its pass's
- * place, before the pass's program draws or alone, with {@code colorimgN} and {@code colortexN} bound to the
- * image the pass reads.
- *
- * A written target is in GENERAL for the dispatch and returns to the sampled layout afterwards, so the pass
- * and every later reader see what the compute stored. Pack images and their samplers bind the session's
- * images, which stay in GENERAL. Pack textures bind the session's, loaded on first use when no program reads
- * them. Storage blocks bind the session's buffers whole, as programs do.
+ * The session's pass computes, each dispatched before its pass's program as Iris's CompositeRenderer does,
+ * with {@code colorimgN} and {@code colortexN} bound to the image the pass reads. A written target is GENERAL
+ * only for the dispatch; pack images stay GENERAL.
  */
 final class PackPassComputes implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -47,8 +42,8 @@ final class PackPassComputes implements AutoCloseable {
     private record Loaded(PassComputePlan.PassCompute plan, ComputeKernel kernel) {}
 
     /**
-     * The images a pass reads now, as its program reads them. Image bindings come before sampler bindings,
-     * so a sampler of a target a compute writes reads where {@link #storage} moved it.
+     * The images a pass reads now. Image bindings resolve before samplers, so a sampler of a written target
+     * reads where {@link #storage} moved it.
      */
     interface ImageSources {
         /** The colour targets the pass reads. */
@@ -115,18 +110,12 @@ final class PackPassComputes implements AutoCloseable {
         return loaded.stream().map(compute -> compute.plan().name()).toList();
     }
 
-    /**
-     * Whether a loaded compute runs in the post chain: a frame pass's or a setup compute. The shadowcomp
-     * computes run with the shadow pass (PackShadowComposites).
-     */
+    /** Whether a loaded compute runs in the post chain; shadowcomp computes run with the shadow pass. */
     boolean runInPostChain() {
         return loaded.stream().anyMatch(compute -> !PassComputePlan.isShadowcomp(compute.plan().pass()));
     }
 
-    /**
-     * Each pass of the frame some loaded compute runs before, with the depth snapshots its computes read;
-     * setup and shadowcomp computes run apart (dispatchSetup, PackShadowComposites).
-     */
+    /** The depth snapshots read by each frame pass's computes. */
     Map<String, Set<String>> depthReadsByPass() {
         Map<String, Set<String>> passes = new TreeMap<>();
         for (Loaded compute : loaded) {
@@ -139,9 +128,8 @@ final class PackPassComputes implements AutoCloseable {
     }
 
     /**
-     * The shadow colour targets the loaded computes bind, each with the Vulkan formats they write it in, none
-     * for one they only sample. The shadow map creates any the shadow pass does not draw, as Iris creates one
-     * a compute names (ShadowRenderTargets.getOrCreate).
+     * The shadow colour targets the computes bind, with the formats they write each in. The shadow map creates
+     * any the shadow pass does not draw, as Iris does (ShadowRenderTargets.getOrCreate).
      */
     Map<Integer, Set<Integer>> shadowTargets() {
         Map<Integer, Set<Integer>> targets = new TreeMap<>();
@@ -173,10 +161,7 @@ final class PackPassComputes implements AutoCloseable {
         return new PackTargetGraphPlan.ComputeUse(targets, depthReads);
     }
 
-    /**
-     * The targets a loaded compute writes, whose images must allow storage, each with the Vulkan formats it
-     * is bound in; each format other than the target's own gets a view (TargetFormatViews).
-     */
+    /** The targets the computes write, which need storage usage, with the formats each is bound in. */
     Map<Integer, Set<Integer>> storageTargets() {
         Map<Integer, Set<Integer>> targets = new TreeMap<>();
         for (Loaded compute : loaded) {
@@ -187,22 +172,14 @@ final class PackPassComputes implements AutoCloseable {
         return targets;
     }
 
-    /**
-     * Runs the computes of this pass, in order, over the images the pass is about to read. One that cannot
-     * dispatch this frame (frameGap) skips the frame before it binds anything; looking up its images may
-     * already have moved colortex0 out of the HDR image (storageSource), which leaves the chain's contents as
-     * they were. One that fails to record does not run again.
-     */
+    /** Runs this pass's computes in order, over the images the pass is about to read. */
     void dispatchBefore(String pass, VkCommandBuffer commandBuffer, ImageSources sources, int width, int height) {
         for (Loaded compute : loaded) {
             if (compute.plan().pass().equals(pass)) run(compute, commandBuffer, sources, width, height);
         }
     }
 
-    /**
-     * Runs the setup computes as their round allows (SetupRound), each with {@code dispatch(1, 1)} as Iris
-     * does, so a relative work-group count is that of a one-pixel screen (IrisRenderingPipeline).
-     */
+    /** Runs the setup computes as their round allows, sized for a one-pixel screen as Iris dispatches them. */
     void dispatchSetup(VkCommandBuffer commandBuffer, ImageSources sources) {
         Map<String, Loaded> setup = new LinkedHashMap<>();
         loaded.stream().filter(compute -> PassComputePlan.isSetup(compute.plan().pass()))
@@ -224,11 +201,7 @@ final class PackPassComputes implements AutoCloseable {
         return setupRound.due();
     }
 
-    /**
-     * The shadowcomp passes with computes. PackShadowComposites runs each pass's computes before its fragment
-     * program (dispatchBefore), at the screen's size, as ShadowCompositeRenderer.renderAll dispatches at the
-     * main render target's.
-     */
+    /** The shadowcomp passes with computes, which dispatch at the screen's size as Iris's do. */
     Set<String> shadowcompPasses() {
         Set<String> passes = new TreeSet<>();
         for (Loaded compute : loaded) {
@@ -245,11 +218,7 @@ final class PackPassComputes implements AutoCloseable {
     /** What one compute does this frame, and whether it counts as run, as a setup round reads it. */
     enum Step {
         DISPATCH(true),
-        /**
-         * Work groups that cannot be dispatched (dispatchGap): nothing is dispatched and the compute counts as
-         * run, as glDispatchCompute leaves work groups it refuses, so a setup round goes on to its next
-         * compute in the same frame. The reason holds at this size, so waiting would not help.
-         */
+        /** Work groups that cannot be dispatched (dispatchGap): counts as run, as GL then dispatches nothing. */
         NOTHING(true),
         /** An image or indirect count missing this frame (frameGap): it skips, holding a setup round. */
         SKIP_FRAME(false);
@@ -299,10 +268,8 @@ final class PackPassComputes implements AutoCloseable {
     }
 
     /**
-     * Why {@code compute} cannot dispatch this frame, or null when it can. Either an image it binds is
-     * missing ({@code bound} false for its binding), as when the pass that writes it did not run, or its
-     * indirect counts lie past the buffer, as a relative buffer's size can make them at some screen sizes;
-     * glDispatchComputeIndirect then dispatches nothing (INVALID_OPERATION).
+     * Why {@code compute} cannot dispatch this frame, or null: a bound image is missing, or its indirect counts
+     * lie past the buffer, where GL dispatches nothing.
      */
     static String frameGap(PassComputePlan.PassCompute compute, IntPredicate bound, long indirectBufferSize) {
         for (PassComputePlan.Binding binding : compute.bindings()) {
@@ -318,13 +285,9 @@ final class PackPassComputes implements AutoCloseable {
     }
 
     /**
-     * Why {@code compute}'s work groups for a {@code width} by {@code height} screen cannot be dispatched over
-     * {@code workGroupSize}, or null when they can.
-     *
-     * A count past {@code limits}, the device's maxComputeWorkGroupCount, or a negative one, as a negative
-     * workGroupsRender share makes, fails glDispatchCompute with INVALID_VALUE, which dispatches nothing;
-     * Vulkan leaves it undefined. A screen-sized count needs a positive work group size on x and y. When the
-     * module does not give one, Chimera refuses, although GL would know the size and Iris dispatches.
+     * Why {@code compute}'s work groups cannot be dispatched, or null. A count past the device limit, or a
+     * negative one, dispatches nothing in GL but is undefined in Vulkan. An unknown work group size is refused,
+     * although Iris would dispatch.
      */
     static String dispatchGap(PassComputePlan.PassCompute compute, int[] workGroupSize, int width, int height,
                               int[] limits) {
@@ -370,8 +333,7 @@ final class PackPassComputes implements AutoCloseable {
                 PackStorageBuffer buffer = buffers.buffer(binding.target());
                 compute.kernel().writeBuffer(frame, binding.binding(), buffer.getId(), buffer.getBufferSize());
             } else if (image instanceof PackStorageImage pack) {
-                // pack images stay in GENERAL, since graphics programs and computes read and write them alike
-                // a storage binding reads the image through the view in its declared format
+                // pack images stay in GENERAL; a storage binding goes through the view in its declared format
                 pack.transitionToGeneral(stack, commandBuffer);
                 long view = binding.storage()
                         ? pack.view(IrisColorFormats.of(binding.format()).vkFormat()) : pack.getImageView();
@@ -415,11 +377,7 @@ final class PackPassComputes implements AutoCloseable {
                 || binding.kind() == PassComputePlan.Kind.SHADOW_COLOR_IMAGE;
     }
 
-    /**
-     * The view a sampled binding reads: the depth-only one a depth-stencil image registers, else the image's
-     * own. The shadow map's depth and opaque depth are D24S8, and a sampled descriptor takes one aspect, as
-     * programs read them through ChimeraImageDescriptorMixin.
-     */
+    /** The view a sampled binding reads: depth-only for a depth-stencil image, as a descriptor takes one aspect. */
     private static long sampledView(VulkanImage image) {
         long depth = ChimeraDepthViewOverride.viewFor(image);
         return depth != 0L ? depth : image.getImageView();
@@ -434,11 +392,7 @@ final class PackPassComputes implements AutoCloseable {
         };
     }
 
-    /**
-     * Dispatches the work groups the pack's indirect buffer holds, once earlier writes to it are visible, or
-     * Iris's work groups for this screen (ComputeProgram.dispatch), over the work group size the compiled
-     * module declares.
-     */
+    /** Dispatches from the indirect buffer once earlier writes are visible, else Iris's groups for this screen. */
     private void dispatchGroups(VkCommandBuffer commandBuffer, MemoryStack stack, Loaded compute,
                                 int width, int height) {
         PassComputePlan.PassCompute plan = compute.plan();
@@ -494,11 +448,7 @@ final class PackPassComputes implements AutoCloseable {
                 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER).toArray();
     }
 
-    /**
-     * Why this compute cannot run in this session: a pack texture it reads could not be loaded, a binding's
-     * image or buffer is missing (bindingRefusal), or the buffer it dispatches from is. Null when it can.
-     * Loads the compute's textures.
-     */
+    /** Why this compute cannot run in this session, or null. Loads the compute's textures. */
     private static String refusal(PassComputePlan.PassCompute compute, PackResourceOwner resources,
                                   PackAdvancedImageOwner packImages, PackStorageBufferOwner buffers) {
         for (PackResourceBinding texture : compute.textures()) {
@@ -518,10 +468,7 @@ final class PackPassComputes implements AutoCloseable {
         return null;
     }
 
-    /**
-     * Why a binding cannot be bound: its pack image was not created, its buffer was not allocated, or the
-     * target it writes cannot be a storage image on this device. Null when it can.
-     */
+    /** Why a binding cannot be bound on this device, or null. */
     private static String bindingRefusal(PassComputePlan.Binding binding, PackAdvancedImageOwner packImages,
                                          PackStorageBufferOwner buffers) {
         return switch (binding.kind()) {

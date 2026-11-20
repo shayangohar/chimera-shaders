@@ -7,11 +7,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Iris's smoothed centre depth, as CompositeDepthTransformer and CenterDepthSampler provide it.
- *
- * A fullscreen pass that declares {@code uniform float centerDepthSmooth} reads it from
- * {@code iris_centerDepthSmooth}, a 1x1 texture the renderer smooths each frame. Iris registers no uniform
- * of that name, so in any other program it stays unset.
+ * Iris's centerDepthSmooth, read from a 1x1 texture the renderer smooths each frame (CompositeDepthTransformer).
+ * Iris registers no uniform of that name, so elsewhere it stays unset.
  */
 final class CenterDepthSmooth {
     static final String UNIFORM = "centerDepthSmooth";
@@ -19,12 +16,7 @@ final class CenterDepthSmooth {
 
     private CenterDepthSmooth() {}
 
-    /**
-     * Replaces the uniform with the sampler and each reference with a read of its centre texel.
-     *
-     * Only in programs whose Iris renderer registers the sampler (IrisSamplerOrder), which are the
-     * composite-style passes and final; any other source comes back unchanged.
-     */
+    /** Only in programs whose Iris renderer registers the sampler: composite-style passes and final. */
     static String apply(String source, String program) {
         if (source == null || !IrisSamplerOrder.of(program, false).registers(IrisSamplerOrder.Source.CENTER_DEPTH)) {
             return source;
@@ -47,7 +39,7 @@ final class CenterDepthSmooth {
                 Map.of(UNIFORM, "texture(" + SAMPLER + ", vec2(0.5)).r"));
     }
 
-    /** {@code uniform float centerDepthSmooth}, alone or beside other names, as Iris's matcher reads it. */
+    /** Alone or beside other names, as Iris's matcher reads it. */
     private static boolean declaresTheUniform(GlslDeclarations.Variable variable) {
         return variable.name().equals(UNIFORM) && variable.qualifiers().equals(List.of("uniform"))
                 && variable.type().equals("float") && variable.unarrayed();

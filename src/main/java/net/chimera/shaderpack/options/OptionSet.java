@@ -11,11 +11,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The options a pack declares, toggles and choices apart, each with every place it is declared. A name may
- * be both a toggle and a choice.
- *
- * Both maps iterate as a {@code java.util.HashMap} would after the same insertions, replacements and
- * removals. That order reaches players: a menu without its own layout lists the options in it.
+ * The options a pack declares, toggles and choices apart; a name may be both. Both maps iterate as a
+ * {@code HashMap} would after the same edits, and a menu without its own layout shows players that order.
  */
 public final class OptionSet {
     private static final OptionSet EMPTY = new OptionSet(Map.of(), Map.of());
@@ -60,12 +57,9 @@ public final class OptionSet {
     }
 
     /**
-     * Merges sightings of options. Sightings of one name that agree on the default merge; the first with a
-     * comment supplies the option, else the latest. A disagreeing default drops the name and forgets its
-     * places, and a later sighting starts it over.
-     *
-     * A pack is merged in two levels, each file's options first and the files after, so a conflict inside
-     * one file does not drop what earlier files declared.
+     * Merges sightings of options. Sightings that agree on the default merge, the first with a comment
+     * supplying the option, else the latest. A disagreeing default drops the name until a later sighting.
+     * Each file merges on its own first, so a conflict inside one file keeps what earlier files declared.
      */
     static final class Builder {
         private final Namespace<ShaderOption.Toggle> toggles = new Namespace<>();

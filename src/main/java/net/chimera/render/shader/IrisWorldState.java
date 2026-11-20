@@ -16,23 +16,11 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * Iris's fog uniforms in a program with fog (FogUniforms with FogMode.PER_VERTEX), the gl_Fog range
- * (IrisInternalUniforms iris_FogStart and iris_FogEnd) and the cloud clock (IrisExclusiveUniforms.cloudTime).
- * A post program reads FogMode.OFF's constant fogMode and fogShape instead, written into its source at plan
- * time (PackPlanBuilder).
- *
- * fogMode and fogDensity follow each FogRenderer.setupFog, as Iris reads them at every program bind. The
- * density is taken as setup begins: water fog's, -1 for any other fog (Iris MixinFogRenderer), and 0 before
- * any setup, CapturedRenderingState's default. fogMode reads GL_LINEAR for a negative density and GL_EXP2
- * otherwise, and fogDensity never goes below 0. cloudTime counts the level renderer's ticks at 0.03 a tick.
- *
- * fogShape (1 for cylindrical fog, 0 for spherical) and the gl_Fog range are PER_FRAME in Iris:
- * ProgramUniforms reads them at a program's first use in a frame, and its later draws keep them through the
- * fog setups that follow. The horizon is gbuffers_skybasic's first use, ahead of the sky's fog setup, so the
- * sky disc it draws next reads the Float.MAX_VALUE start setupNoFog left at the end of the last frame. That
- * reaches packs that fog their sky with gl_Fog.start, as packs written for OptiFine before 1.18.2 do (Sildurs
- * Vibrant's non-Iris branch). A pack pipeline stands for Iris's program here: Chimera builds one per program
- * and vertex format, as Iris builds one per shader key.
+ * Iris's fog uniforms (FogUniforms PER_VERTEX, iris_FogStart and iris_FogEnd) and cloudTime. fogMode and
+ * fogDensity follow each FogRenderer.setupFog; density is water fog's, -1 for other fog (Iris MixinFogRenderer).
+ * fogShape and the gl_Fog range are PER_FRAME in Iris, latched at a program's first draw in a frame, so the sky
+ * disc reads the Float.MAX_VALUE start setupNoFog left last frame. Packs that fog their sky with gl_Fog.start
+ * depend on it.
  */
 final class IrisWorldState implements FrameValueSource {
     static final Set<String> NAMES = Set.of("fogMode", "fogShape", "fogDensity", "iris_FogStart", "iris_FogEnd",
@@ -43,17 +31,14 @@ final class IrisWorldState implements FrameValueSource {
 
     private volatile float fogDensity;
     private volatile int fogShape;
-    /** Each pack pipeline's per-frame fog values, latched at its first draw in the frame. */
+    /** Keyed by pack pipeline, which stands for Iris's per-shader-key program. */
     private final Map<Object, FrameFog> programFog = new WeakHashMap<>();
-    /** The per-frame fog values the next draw reads: its program's, as the bindings were last written. */
+    /** What the bindings were last written with. */
     private final FrameFog drawFog = new FrameFog();
     private long frame;
     private float cloudTime;
 
-    /**
-     * Records the density of the fog FogRenderer is setting up. Water fog starts at 0.05, thins with the
-     * player's water vision, and thickens by 0.005 in a biome with closer water fog.
-     */
+    /** Taken as FogRenderer's setup begins. */
     void captureFogDensity(Camera camera) {
         if (camera.getFluidInCamera() != FogType.WATER) {
             fogDensity = -1.0F;
@@ -70,29 +55,22 @@ final class IrisWorldState implements FrameValueSource {
         fogDensity = density;
     }
 
-    /** Records the shape of the fog FogRenderer has set up, which each program latches at its first draw. */
     void captureFogShape() {
         fogShape = RenderSystem.getShaderFogShape() == FogShape.CYLINDER ? 1 : 0;
     }
 
-    /**
-     * Drops every program's latched fog when the pack session ends, as Iris builds its programs afresh with a
-     * pack. The captured fog stays, as Iris's CapturedRenderingState keeps it across a reload, and so do the
-     * draw's values, which are what the bindings hold.
-     */
+    /** The captured fog stays, as Iris's CapturedRenderingState keeps it across a reload. */
     void resetProgramFog() {
         programFog.clear();
     }
 
-    /** Each program latches its per-frame fog values afresh at its next draw. */
     void beginFrame() {
         frame++;
     }
 
     /**
-     * Serves the next draw its program's per-frame fog values: {@code live}'s fogStart and fogEnd and the fog
-     * shape, as they were at the program's first draw this frame. A null program, a compute dispatch, reads
-     * the current values, as Iris runs each compute once a frame. True when the served values changed.
+     * A null program, a compute dispatch, reads the current values, as Iris runs each compute once a frame.
+     * True when the served values changed.
      */
     boolean latchProgramFog(Object program, PackFrameState live) {
         FrameFog latched = program == null ? new FrameFog()
@@ -137,7 +115,6 @@ final class IrisWorldState implements FrameValueSource {
         }
     }
 
-    /** One program's per-frame fog values and the frame they were read in. */
     private static final class FrameFog {
         private long frame = -1L;
         private float start;

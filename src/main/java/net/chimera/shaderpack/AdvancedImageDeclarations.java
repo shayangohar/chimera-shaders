@@ -14,10 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * Reads a pack's advanced images: each {@code image.<name>} declaration and its dimensions, Iris's limit of
- * 16 images, whether a stage reads or writes one, and the type and format a declaration binds it in.
- */
+/** Reads a pack's {@code image.<name>} declarations as Iris's ShaderProperties does. */
 final class AdvancedImageDeclarations {
     /** The sampler name ShaderProperties reads as no sampler. */
     private static final String NO_SAMPLER = "none";
@@ -28,12 +25,10 @@ final class AdvancedImageDeclarations {
 
     private AdvancedImageDeclarations() {}
 
-    /** Parses every {@code image.<name>} property and marks each supported one ADVANCED_IMAGE_APPLIED. */
     static Map<String, PackAdvancedResourcePlan.ImageSpec> parseImages(
             PackSettingsPlan settings, List<String> deviations) {
         Map<String, PackAdvancedResourcePlan.ImageSpec> images = new TreeMap<>();
-        // sizes resolve against the macros in effect at the end of shaders.properties: option values and the
-        // file's own defines
+        // sizes resolve against the macros in effect at the end of shaders.properties
         Map<String, String> macros = new TreeMap<>(settings.propertyMacros());
         macros.putAll(settings.preprocessorDefines());
         for (Map.Entry<String, String> entry : settings.propertyValues().entrySet()) {
@@ -47,7 +42,7 @@ final class AdvancedImageDeclarations {
         return images;
     }
 
-    /** ShaderProperties's image values: the value split on single spaces. */
+    /** Split on single spaces, as ShaderProperties does. */
     static String[] values(String raw) {
         return raw == null ? new String[0] : raw.stripLeading().split(" ");
     }
@@ -57,19 +52,14 @@ final class AdvancedImageDeclarations {
     }
 
     /**
-     * Whether ShaderProperties reads an image of these values: a relative one with both shares, or a fixed one
-     * of 7 to 9 values. On any other entry its parse throws (parts[6] or parts[7] out of range) and Iris loads
-     * no pack at all; Chimera refuses that image alone (ADVANCED_IMAGE_UNSUPPORTED).
+     * On any other entry ShaderProperties throws and Iris loads no pack at all; Chimera refuses that image
+     * alone.
      */
     private static boolean readable(String[] values) {
         return relative(values) ? values.length >= 8 : values.length >= 7 && values.length <= 9;
     }
 
-    /**
-     * Iris adds at most 16 images (ShaderProperties: "Only up to 16 images are allowed"), the first in file
-     * order. Every later image entry is dropped from {@code orderedProperties} before anything reads it. An
-     * entry Chimera refuses as unreadable ({@link #readable}) does not count.
-     */
+    /** Iris keeps the first 16 in file order; an unreadable entry does not count. */
     static void dropImagesPastIrisLimit(Map<String, String> orderedProperties, List<String> deviations) {
         int added = 0;
         for (var entries = orderedProperties.entrySet().iterator(); entries.hasNext(); ) {
@@ -85,10 +75,8 @@ final class AdvancedImageDeclarations {
     }
 
     /**
-     * One {@code image.<name>} declaration as Iris's ShaderProperties reads it, split on single spaces: its
-     * sampler or none, pixel format, internal format, pixel type, clear and relative flags, then a relative
-     * image's share of the screen, or a fixed image's width, height and depth, as many as it has dimensions
-     * (7, 8 or 9 values).
+     * Values: sampler or none, pixel format, internal format, pixel type, clear, relative, then a relative
+     * image's two screen shares or a fixed image's one to three dimensions.
      */
     static PackAdvancedResourcePlan.ImageSpec parseImage(
             String key,
@@ -115,11 +103,7 @@ final class AdvancedImageDeclarations {
         }
     }
 
-    /**
-     * A 1D, 2D or 3D image of fixed size. As in Iris, any size the driver takes is created; the device's
-     * per-axis limit and the allocation bound it at creation (PackAdvancedImageOwner). Rethinking Voxels'
-     * VX_VOL_SIZE=3 asks for about 2.6 GB.
-     */
+    /** No size cap here, as in Iris; device limits apply at creation (PackAdvancedImageOwner). */
     private static PackAdvancedResourcePlan.ImageSpec fixedImage(
             String name, String[] values, Map<String, String> defines, List<String> deviations) {
         int[] size = new int[3];
@@ -137,10 +121,7 @@ final class AdvancedImageDeclarations {
         return image(name, values, size, bytes, PackAdvancedResourcePlan.Status.SUPPORTED, deviations);
     }
 
-    /**
-     * A relative image: 2D at a share of the screen (GlImage.Relative), so its size is the frame's and it is
-     * created and resized with the screen. Its tokens keep the shares.
-     */
+    /** Sized with the screen (GlImage.Relative); its tokens keep the shares. */
     private static PackAdvancedResourcePlan.ImageSpec relativeImage(
             String name, String[] values, Map<String, String> defines, List<String> deviations) {
         float width = relativeShare(name, values[6], defines, deviations);
@@ -157,7 +138,7 @@ final class AdvancedImageDeclarations {
         return image(name, shares, new int[3], 0, PackAdvancedResourcePlan.Status.SUPPORTED, deviations);
     }
 
-    /** A relative image's share of one screen axis: a number, or a macro that names one. */
+    /** A number, or a macro that names one. */
     private static float relativeShare(String image, String token, Map<String, String> defines,
                                        List<String> deviations) {
         String value = token.trim();
@@ -172,16 +153,11 @@ final class AdvancedImageDeclarations {
         }
     }
 
-    /**
-     * The name an image's selector slot is kept under: its sampler's, or the image's own when its sampler is
-     * {@code none}, which ShaderProperties reads as no sampler. GLSL gives a sampler and an image uniform
-     * different names, so the two never meet.
-     */
+    /** A sampler and an image uniform always have different GLSL names, so the two keys never meet. */
     static String slotKey(String image, String samplerToken) {
         return samplerToken.equals(NO_SAMPLER) ? image : samplerToken;
     }
 
-    /** The spec of one declaration with this size; its tokens are the declaration's own. */
     private static PackAdvancedResourcePlan.ImageSpec image(String name, String[] values, int[] size, long bytes,
             PackAdvancedResourcePlan.Status status, List<String> deviations) {
         IrisColorFormats.Format format = IrisColorFormats.of(token(values, 2));
@@ -228,8 +204,7 @@ final class AdvancedImageDeclarations {
     }
 
     /**
-     * Whether a stage reads or writes a pack image: a live image, an image's sampler, or a live 3D sampler. A
-     * 3D sampler a pack raw texture serves ({@code packVolume}) is an ordinary texture. A source the analysis
+     * A 3D sampler a pack raw texture serves ({@code packVolume}) is an ordinary texture. A source the analysis
      * cannot parse counts as using one.
      */
     static boolean usesAdvancedResource(String source, Map<String, PackAdvancedResourcePlan.ImageSpec> images,
@@ -250,7 +225,7 @@ final class AdvancedImageDeclarations {
         return usage.liveSamplers().stream().anyMatch(injectedSamplers::contains);
     }
 
-    /** Bytes per texel of an Iris internal format as stored; Iris skips an image whose format it does not know. */
+    /** As stored; Iris skips an image whose format it does not know. */
     static int bytesPerVoxel(String format) {
         IrisColorFormats.Format known = IrisColorFormats.of(format);
         if (known == null) throw new IllegalArgumentException("unsupported advanced image format: " + format);
@@ -261,7 +236,7 @@ final class AdvancedImageDeclarations {
         return spec == null || spec.format() == null ? "image3D" : spec.typePrefix() + "image" + spec.dimensionSuffix();
     }
 
-    /** The GLSL type of an image read through {@code viewFormat}; its own type for an empty one. */
+    /** Its own type for an empty {@code viewFormat}. */
     static String storageImageType(PackAdvancedResourcePlan.ImageSpec spec, String viewFormat) {
         IrisColorFormats.Format view = viewFormat.isEmpty() ? null : IrisColorFormats.of(viewFormat);
         if (view == null) return storageImageType(spec);
@@ -270,7 +245,7 @@ final class AdvancedImageDeclarations {
         return prefix + "image" + spec.dimensionSuffix();
     }
 
-    /** The format a {@code layout(...)} list names, lower case; empty when it names none. */
+    /** Lower case; empty when the {@code layout(...)} list names none. */
     static String declaredFormat(String layout) {
         if (layout == null) return "";
         for (String part : layout.split(",")) {
@@ -281,16 +256,13 @@ final class AdvancedImageDeclarations {
     }
 
     /**
-     * The format a declaration reads an image through when its qualifier names another one of the same texel
-     * size, as a GL image unit reinterprets the bits; Alpha Piscium declares its R32F uimg_csr32f r32i for
-     * integer atomics. Empty for the image's own format or no qualifier, and null for a format of another
-     * size, which nothing reads the image as.
+     * A qualifier of another format with the same texel size reinterprets the bits, as a GL image unit does.
+     * Empty for the image's own format or no qualifier, null for a format of another size.
      */
     static String viewFormat(PackAdvancedResourcePlan.ImageSpec spec, String declared) {
         return viewFormat(spec.format(), declared);
     }
 
-    /** As {@link #viewFormat(PackAdvancedResourcePlan.ImageSpec, String)}, of any image stored in {@code own}. */
     static String viewFormat(IrisColorFormats.Format own, String declared) {
         IrisColorFormats.Format format = IrisColorFormats.of(declared);
         if (format == null || format.vkFormat() == own.vkFormat()) return "";

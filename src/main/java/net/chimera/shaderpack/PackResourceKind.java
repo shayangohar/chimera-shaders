@@ -10,11 +10,7 @@ public enum PackResourceKind {
     SHADOW_COLOR,
     NOISE,
     PACK_TEXTURE,
-    /**
-     * A raw texture file declared with its type, format and size
-     * ({@code file TEXTURE_3D RGB16F 32 64 32 RGB HALF_FLOAT}). It replaces a sampler only where the program
-     * declares that sampler with the same type.
-     */
+    /** A raw texture file declared with its type, format and size; it replaces only a sampler of the same type. */
     RAW_TEXTURE,
     ADVANCED_IMAGE,
     /** A resource pack's normal or specular map, found at draw time from the bound albedo. */

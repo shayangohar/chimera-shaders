@@ -9,10 +9,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Stitched atlas dimensions by image, so {@code atlasSize} answers for the texture a draw samples, as Iris
- * does: an atlas reports its size and any other texture reports zero. Packs divide by it to step between
- * atlas texels (Complementary's POM slope normals), so a zero on the block atlas turns those lookups into
- * infinities.
+ * Stitched atlas sizes by image, so {@code atlasSize} reports the sampled atlas's size and zero for any other
+ * texture, as in Iris. Packs divide by it, so a zero on the block atlas gives infinities.
  */
 public final class AtlasSizes {
     private static final int[] NONE = {0, 0};

@@ -21,20 +21,16 @@ public final class FamilyAdapterRegistry {
             // Iris SodiumPrograms SHADOW_TRANS: the shadow pass's translucent terrain layer
             plan("shadow_water", FamilyAdapterPlan.Family.SHADOW,
                     UniformRegistry.Stage.SHADOW, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
-            // Iris SHADOW_CUTOUT: the shadow pass's cutout and cutout_mipped layers, which hold
-            // VulkanMod's solid blocks too; the pass tests them all at 0.1, and opaque texels pass
+            // Iris SHADOW_CUTOUT: cutout layers, which hold VulkanMod's solid blocks too; all alpha-test at 0.1
             plan("shadow_cutout", FamilyAdapterPlan.Family.SHADOW,
                     UniformRegistry.Stage.SHADOW, FamilyAdapterPlan.VertexContract.FIXED_TERRAIN),
-            // Iris SHADOW_ENTITIES_CUTOUT: the shadow pass's entity casters on the entity layout, the end
-            // portal and gateway among them after the entitySolid swap, and moving blocks on the block layout
+            // Iris SHADOW_ENTITIES_CUTOUT; end portals land here after the entitySolid swap
             plan("shadow_entities", FamilyAdapterPlan.Family.SHADOW_ENTITIES,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris 1.21.1 SHADOW_BLOCK: a block entity's solid, cutout, translucent and emissive models
+            // Iris 1.21.1 SHADOW_BLOCK: every block entity model
             plan("shadow_block", FamilyAdapterPlan.Family.SHADOW_BLOCK,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris IrisPipelines.assignToShadow keys, drawn on the host's own layout
-            // each resolves its Iris program through PackResolutionPlan; shadow_lightning is an Iris program
-            // itself, and the others name a ShaderKey that selects shadow or shadow_entities
+            // Iris assignToShadow keys on the host layout; PackResolutionPlan resolves each to its Iris program
             plan("shadow_lines", FamilyAdapterPlan.Family.SHADOW_LINES,
                     UniformRegistry.Stage.SHADOW_ENTITY, FamilyAdapterPlan.VertexContract.HOST_LINE),
             plan("shadow_leash", FamilyAdapterPlan.Family.SHADOW_LEASH,
@@ -61,12 +57,10 @@ public final class FamilyAdapterRegistry {
                     FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
             plan("gbuffers_block", FamilyAdapterPlan.Family.BLOCK,
                     UniformRegistry.Stage.BLOCK, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris BE_TRANSLUCENT and TEXT_BE: a block entity's translucent models on the entity
-            // layout, and its text on the GLYPH layout variant
+            // Iris BE_TRANSLUCENT and TEXT_BE; text uses the GLYPH layout variant
             plan("gbuffers_block_translucent", FamilyAdapterPlan.Family.BLOCK_TRANSLUCENT,
                     UniformRegistry.Stage.BLOCK, FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
-            // Iris CRUMBLING: the block-breaking overlay, whose BLOCK buffers Iris widens to TERRAIN with a
-            // mid-coordinate and tangent per quad, as Chimera widens them to EXTENDED_BLOCK
+            // Iris CRUMBLING: BLOCK buffers widened to EXTENDED_BLOCK, as Iris widens them to TERRAIN
             plan("gbuffers_damagedblock",
                     FamilyAdapterPlan.Family.DAMAGED_BLOCK, UniformRegistry.Stage.BLOCK,
                     FamilyAdapterPlan.VertexContract.EXTENDED_ENTITY),
@@ -88,8 +82,7 @@ public final class FamilyAdapterRegistry {
                     UniformRegistry.Stage.CLOUD, FamilyAdapterPlan.VertexContract.CLOUD_POSITION_UV_COLOR_NORMAL),
             plan("gbuffers_weather", FamilyAdapterPlan.Family.WEATHER,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_PARTICLE),
-            // Iris LINES, LINES_TRANSLUCENT and SECONDARY_BLOCK_OUTLINE (ShaderKey.LINES) on the
-            // host line layout, served like weather from the host transform blocks
+            // Iris ShaderKey.LINES, served like weather from the host transform blocks
             plan("gbuffers_line", FamilyAdapterPlan.Family.LINE,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LINE),
             // Iris GLINT (ShaderKey.GLINT) on the host POSITION_TEX glint layers
@@ -98,19 +91,16 @@ public final class FamilyAdapterRegistry {
             // Iris LIGHTNING (LIGHTNING, DRAGON_RAYS) on the host POSITION_COLOR layout
             plan("gbuffers_lightning", FamilyAdapterPlan.Family.LIGHTNING,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LIGHTNING),
-            // Iris BEACON (BEACON_BEAM_OPAQUE, BEACON_BEAM_TRANSLUCENT) on the BLOCK layout Iris widens to
-            // TERRAIN, as Chimera widens it to EXTENDED_BLOCK
+            // Iris BEACON (BEACON_BEAM_OPAQUE, BEACON_BEAM_TRANSLUCENT)
             plan("gbuffers_beaconbeam", FamilyAdapterPlan.Family.BEACON_BEAM,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_BEACON),
             // Iris LEASH (ProgramId.Basic) on the host POSITION_COLOR_LIGHTMAP lead strip
             plan("gbuffers_basic", FamilyAdapterPlan.Family.BASIC,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_LEASH),
-            // Iris TEXT_BG (TEXT_BACKGROUND, TEXT_BACKGROUND_SEE_THROUGH): a shader key that runs
-            // gbuffers_entities_translucent's chain on the host POSITION_COLOR_LIGHTMAP quads
+            // Iris TEXT_BG: a shader key on gbuffers_entities_translucent's chain
             plan("text_bg", FamilyAdapterPlan.Family.TEXT_BG,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_TEXT_BACKGROUND),
-            // Iris TEXTURED and TEXTURED_COLOR (MixinGameRenderer): world draws with position_tex, the
-            // world border among them, and position_tex_color, outside the sky phases
+            // Iris TEXTURED and TEXTURED_COLOR (MixinGameRenderer), outside the sky phases
             plan("gbuffers_textured", FamilyAdapterPlan.Family.TEXTURED,
                     UniformRegistry.Stage.PARTICLE, FamilyAdapterPlan.VertexContract.HOST_POSITION_TEX),
             plan("textured_color", FamilyAdapterPlan.Family.TEXTURED_COLOR,
@@ -149,10 +139,7 @@ public final class FamilyAdapterRegistry {
         return FamilyAdapterPlan.unsupported(name);
     }
 
-    /**
-     * A shadow terrain program, the shadow family on the terrain layout: shadow, shadow_cutout for
-     * the shadow pass's cutout layers, and shadow_water (Iris's ShadowWater) for its translucent one.
-     */
+    /** A shadow program on the terrain layout: shadow, shadow_cutout or shadow_water. */
     public static boolean isShadowTerrain(String name) {
         FamilyAdapterPlan plan = forProgram(name);
         return plan.family() == FamilyAdapterPlan.Family.SHADOW
@@ -170,9 +157,8 @@ public final class FamilyAdapterRegistry {
     }
 
     /**
-     * Families whose sources may write several outputs through DRAWBUFFERS or RENDERTARGETS, so each gets a
-     * geometry output plan. A single-output plan stays executable, and an unused directive never blocks the
-     * family.
+     * Families that get a geometry output plan for DRAWBUFFERS or RENDERTARGETS; an unused directive never
+     * blocks one.
      */
     static boolean isGeometryOutputFamily(String name) {
         return isEntityLike(name) || isParticleLike(name) || isWeatherFamily(name) || isHostLayoutFamily(name)
@@ -186,10 +172,8 @@ public final class FamilyAdapterRegistry {
     }
 
     /**
-     * Iris's per-layer terrain programs (SodiumPrograms TERRAIN, TERRAIN_CUTOUT, SHADOW) for layers
-     * VulkanMod does not draw apart: its chunk builds put solid blocks into cutout_mipped
-     * (TerrainRenderType.COMPACT_RENDER_TYPES and SEMI_COMPACT_RENDER_TYPES), so gbuffers_terrain
-     * draws both kinds of block, and shadow_cutout, or shadow, both kinds of shadow caster.
+     * Iris's per-layer terrain programs for layers VulkanMod does not draw apart: it builds solid blocks into
+     * cutout_mipped, so gbuffers_terrain and shadow_cutout (or shadow) draw both.
      */
     private static final Set<String> MERGED_LAYER_PROGRAMS = Set.of(
             "gbuffers_terrain_solid", "gbuffers_terrain_cutout", "shadow_solid");
@@ -229,17 +213,15 @@ public final class FamilyAdapterRegistry {
         return family == FamilyAdapterPlan.Family.SHADOW_ENTITIES || family == FamilyAdapterPlan.Family.SHADOW_BLOCK;
     }
 
-    /** A shadow-pass key drawn on the host's own layout (lines, leads, lightning, text, water mask). */
+    /** A shadow-pass key drawn on the host's own layout. */
     public static boolean isShadowLaneFamily(String name) {
         FamilyAdapterPlan plan = forProgram(name);
         return plan.stage().shadowPass() && plan.vertexContract().hostLayout();
     }
 
     /**
-     * Whether Iris's EntityPatcher applies to the lane's ShaderKey format, GLYPH for shadow text. There
-     * entityId and blockEntityId are per-vertex attributes the host mesh lacks, so they read the unbound
-     * value 0. Every other host-layout lane reads Iris's CommonUniforms fallback: the draw's entity id, and
-     * -1 for blockEntityId.
+     * Whether Iris's EntityPatcher applies, as on shadow text's GLYPH format: the ids are attributes the host
+     * mesh lacks, so they read 0. Other host-layout lanes read the draw's entity id and -1 for blockEntityId.
      */
     public static boolean readsEntityIdsPerVertex(String name) {
         return forProgram(name).family() == FamilyAdapterPlan.Family.SHADOW_TEXT;
@@ -259,11 +241,7 @@ public final class FamilyAdapterRegistry {
         return forProgram(name).family() == FamilyAdapterPlan.Family.GLINT;
     }
 
-    /**
-     * Lanes whose pack program runs on a host vertex layout Iris also draws natively: lines,
-     * glint, lightning, beacon beams (on the block layout widened as Iris widens it) and leads,
-     * and in the shadow pass lines, leads, lightning, text and the water mask.
-     */
+    /** Lanes whose pack program runs on a host vertex layout Iris also draws natively. */
     public static boolean isHostLayoutFamily(String name) {
         return forProgram(name).vertexContract().hostLayout();
     }

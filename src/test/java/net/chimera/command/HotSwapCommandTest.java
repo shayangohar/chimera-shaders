@@ -43,7 +43,7 @@ final class HotSwapCommandTest {
 
         Path explicit = gameDirectory.resolve("local pack");
         Files.createDirectories(explicit.resolve("shaders"));
-        // typed with the separator of the system running the test: a backslash is a separator on Windows only
+        // the running system's separator, since a backslash separates on Windows only
         String typed = "\"." + gameDirectory.getFileSystem().getSeparator() + "local pack\"";
         assertPath(explicit, ChimeraCommands.resolvePackPath(shaderpacks, gameDirectory, typed),
                 "quoted relative path");

@@ -13,17 +13,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Records a run of texture uploads into one graphics-queue command buffer, as VulkanMod's texture tick
- * records its sprite uploads (MTextureManager.tick). Render thread only.
- *
- * Outside such a recording, VulkanImage.uploadSubTextureAsync submits a command buffer with a fence per
- * region, and at every fiftieth fence Synchronization.addFence makes the render thread wait for the GPU to
- * drain the frame in flight. Binding each written image then submits its layout transition alone
- * (VulkanImage.readOnlyLayout). An open batch begins recording at its first upload; closing it makes the
- * written images shader-readable and submits once, with no wait.
+ * Records a run of texture uploads into one graphics-queue command buffer, as MTextureManager.tick does. Unbatched,
+ * uploadSubTextureAsync fences each region and every fiftieth fence stalls the render thread on the GPU. Render
+ * thread only.
  */
 final class TextureUploadBatch<I> {
-    /** What a batch drives: VulkanMod's graphics queue in game, a fake in tests. */
+    /** VulkanMod's graphics queue in game, a fake in tests. */
     interface Recorder<I> {
         void begin();
 
@@ -31,7 +26,6 @@ final class TextureUploadBatch<I> {
         void submit(List<I> written);
     }
 
-    /** The graphics queue's shared recording (GraphicsQueue.startRecording / endRecordingAndSubmit). */
     static final Recorder<VulkanImage> GRAPHICS_QUEUE = new Recorder<>() {
         @Override
         public void begin() {
@@ -63,7 +57,7 @@ final class TextureUploadBatch<I> {
         open = true;
     }
 
-    /** Called before each upload to {@code image}: an open batch's first one begins the recording. */
+    /** An open batch's first upload begins the recording. */
     void beforeUpload(I image) {
         if (!open) return;
         if (!recording) {
@@ -73,7 +67,6 @@ final class TextureUploadBatch<I> {
         written.add(image);
     }
 
-    /** Ends the batch, submitting its recording if an upload began one. */
     void close() {
         open = false;
         if (!recording) return;

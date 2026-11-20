@@ -10,11 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Pack sampler overrides per selector slot, kept apart from the images VulkanMod shares.
- *
- * The host render path owns an image and its sampler, so pack draws record an override here instead of changing
- * the image: a descriptor reading a slot samples the recorded image with the recorded sampler, and any other
- * image with its own.
+ * Pack sampler overrides per selector slot. The host owns an image and its sampler, so pack draws record an
+ * override here instead of changing the image.
  */
 public final class ChimeraTextureBindingState {
     private static final BindingStore<VulkanImage> STORE = new BindingStore<>();

@@ -161,10 +161,7 @@ final class SettingsResolutionTest {
                 "custom dimension source differs from its mapped folder");
     }
 
-    /**
-     * A program whose own file cannot be read falls back to the program Iris would draw in its place,
-     * and its report row keeps the scan's SOURCE_READ_FAILED, which says why, under the alias's inventory.
-     */
+    /** A program whose file cannot be read falls back as in Iris, and its report row keeps SOURCE_READ_FAILED. */
     @Test
     void aFallbackForAnUnreadableFileKeepsItsReadFailure(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));

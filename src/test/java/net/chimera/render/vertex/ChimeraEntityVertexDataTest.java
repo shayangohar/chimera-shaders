@@ -10,9 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The packing and maths behind the family formats' extra elements and the modern terrain tangent. Words that
- * the maths computes may differ by one in any packed byte from the reference values, which came from an
- * earlier implementation with its own float evaluation order; encodings must match exactly.
+ * The packing and maths behind the family formats' extra elements and the modern terrain tangent. Computed
+ * words may differ from the reference by one in any packed byte; encodings must match exactly.
  */
 final class ChimeraEntityVertexDataTest {
     private static final float NAN = Float.NaN;

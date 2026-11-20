@@ -3,15 +3,13 @@
 package net.chimera.shaderpack;
 
 /**
- * The format and GLSL type a storage image declaration binds an image in. Iris binds a target or
- * image in its own internal format (ProgramImages.addTextureImage); a layout naming another format
- * of the same texel size reads it through a view in that format.
+ * The format and GLSL type a storage image declaration binds an image in: its own internal format, as Iris binds
+ * it, or a view in another format of the same texel size that the layout names.
  */
 record StorageForm(String format, String type) {
     /**
-     * An image stored in {@code vkFormat}, as a declaration naming {@code declared} (lower case,
-     * empty for none) binds it: in its own format, or through a view in another one of its texel
-     * size; null for another size, or a format with no GLSL name.
+     * {@code vkFormat} as a declaration naming {@code declared} (lower case, empty for none) binds it; null for a
+     * format of another texel size or one with no GLSL name.
      */
     static StorageForm of(int vkFormat, String declared) {
         IrisColorFormats.Format own = IrisColorFormats.stored(vkFormat);

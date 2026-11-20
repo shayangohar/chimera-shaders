@@ -13,25 +13,17 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * dimension.properties, read as Iris 1.21.1's ShaderPack reads it.
- *
- * The file goes through PropertiesPreprocessor with Iris's environment defines and no pack options, then
- * OrderBackedProperties. Each world a {@code dimension.<folder>} key lists maps to that folder, and a later
- * key overrides an earlier one (parseDimensionMap). The same keys list the folders the option scan reads
- * (parseDimensionIds). A world list may continue onto the next line.
+ * dimension.properties, read as Iris 1.21.1's ShaderPack reads it: preprocessed with Iris's environment defines
+ * and no pack options, and a later key overrides an earlier one.
  */
 public final class DimensionProperties {
     private static final String PREFIX = "dimension.";
 
     private DimensionProperties() {}
 
-    /**
-     * Each world the file maps to its folder. {@code present} is Iris's test that the file loads any
-     * property; without one, Iris maps world0, world-1 and world1 as if there were no file.
-     */
+    /** Without {@code present}, Iris maps world0, world-1 and world1 as if there were no file. */
     record Folders(Map<String, String> worlds, boolean present) {}
 
-    /** The file read with the environment defines a pack's dimension.properties sees. */
     static Folders read(Path shadersDir, List<String> deviations) {
         return read(shadersDir, environment(), deviations);
     }
@@ -54,9 +46,8 @@ public final class DimensionProperties {
     }
 
     /**
-     * The folders the file's dimension keys name, in file order, as Iris's parseDimensionIds lists them for
-     * its option scan. Empty when the file is missing or loads no property; Iris then scans the world folders
-     * that exist.
+     * In file order, as Iris's parseDimensionIds lists them for its option scan. Empty when the file loads no
+     * property; Iris then scans the world folders that exist.
      */
     public static Optional<List<String>> folderNames(Path shadersDir) {
         Map<String, String> entries = entries(shadersDir, environment(), new ArrayList<>());
@@ -65,15 +56,12 @@ public final class DimensionProperties {
                 .map(key -> key.substring(PREFIX.length())).toList());
     }
 
-    /**
-     * Iris's environment defines, as near as Chimera has them: the standard set with IS_IRIS and the biome,
-     * category and precipitation names of IrisDefines. Iris's GL-extension and DH_BLOCK_* names are missing.
-     */
+    /** Iris's environment defines, without its GL-extension and DH_BLOCK_* names. */
     private static Map<String, String> environment() {
         return PackEngineDefines.forPack(Map.of());
     }
 
-    /** The file's properties after Iris's preprocessing, or null when it is missing or unreadable. */
+    /** Null when missing or unreadable. */
     private static Map<String, String> entries(Path shadersDir, Map<String, String> macros,
                                                List<String> deviations) {
         Path file = shadersDir.resolve("dimension.properties");

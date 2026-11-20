@@ -9,13 +9,9 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_DEPTH_BIT;
 import static org.lwjgl.vulkan.VK10.vkDestroyImageView;
 
 /**
- * Owns one depth-only view of a depth image, made again when the image changes.
- *
- * Sampling a combined depth-stencil attachment needs a depth-only view; the host image keeps its own
- * depth-stencil view, which is never replaced. A retired view goes through HandleRetirement: mid-frame it waits
- * for the frame slot's fence, since the command buffer being recorded can already hold a conversion that
- * samples the old view, and destroying it before submission loses the device. Re-joining a world recreates the
- * HDR depth image mid-frame.
+ * Owns one depth-only view of a depth image, made again when the image changes. A retired view waits for the
+ * frame slot's fence, since the recording command buffer may already sample it; destroying it sooner loses the
+ * device.
  */
 final class DepthSampleView {
     /** Whether the view samples as R, R, R, 1, as Iris's shadow depth textures do (ImageViews.shadowDepth). */

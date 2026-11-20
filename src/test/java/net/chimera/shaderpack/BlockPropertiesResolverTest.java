@@ -18,11 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * block.properties as Iris 1.21.1's IdMap and BlockMaterialMapping read it: a state takes the first
- * entry, in file order, that matches it; predicates compare exactly and skip a property the block
- * lacks; tag entries come after every block entry. The id maps are read through
- * PropertiesPreprocessor's JCPP pass, IdMap.loadProperties' rejoined continuations, and
- * OrderBackedProperties' key order.
+ * block.properties as Iris's IdMap and BlockMaterialMapping read it: a state takes the first matching
+ * entry in file order, predicates compare exactly and skip a property the block lacks, and tag entries
+ * come after every block entry. Expected entries are what Iris's JCPP pass gives for each file.
  */
 final class BlockPropertiesResolverTest {
     private static final String PROPERTIES = "block.-7 = diorite\n"
@@ -41,8 +39,8 @@ final class BlockPropertiesResolverTest {
             + "block.18 = %WALLS:north=low %minecraft:logs\n";
 
     /**
-     * ChimeraTerrainPipelines tells material maps apart by identity. A new empty map on each reset
-     * would count as a change, and each reset to vanilla would rebuild the live level in extended mode.
+     * ChimeraTerrainPipelines tells material maps apart by identity, so a new empty map on each reset
+     * would rebuild the live level.
      */
     @Test
     void theEmptyMapIsOneMap() {
@@ -110,8 +108,7 @@ final class BlockPropertiesResolverTest {
 
     /**
      * Iris preprocesses block.properties (IdMap, through JCPP): #ifdef names one identifier, and the
-     * file's own #define macros expand in the lines after them. Photon, Bloop and superDuperVanilla
-     * name their tags through such macros.
+     * file's own #define macros expand in the lines after them.
      */
     @Test
     void definesExpandAndIfdefNamesOneIdentifier(@TempDir Path root) throws IOException {
@@ -151,8 +148,8 @@ final class BlockPropertiesResolverTest {
     }
 
     /**
-     * IdMap rejoins a continuation across the lines preprocessing empties. Bliss and Pegasus put
-     * #if/#else/#endif and comment lines inside a block list; the names after #endif still belong to it.
+     * IdMap rejoins a continuation across the lines preprocessing empties, so names after an #endif
+     * inside a block list still belong to it.
      */
     @Test
     void aContinuationGoesOnPastDirectivesAndComments(@TempDir Path root) throws IOException {
@@ -223,12 +220,10 @@ final class BlockPropertiesResolverTest {
     }
 
     /**
-     * JCPP lexes the whole file, so a block comment runs across lines. A directive line that leaves
-     * one open takes the lines up to its close and goes on after it (CUSTOM is 1 + 1). A directive
-     * inside a comment is comment text, in an inactive branch too. An active comment's text is kept
-     * as written, macros unexpanded (KEEPCOMMENTS), and Properties.load reads it. A {@code #} line
-     * naming no JCPP directive is emptied first, comment marks and all. Each value here is what
-     * Iris's PropertiesPreprocessor and Properties.load give for this file.
+     * JCPP lexes the whole file, so a block comment runs across lines: a directive line that leaves one
+     * open takes the lines up to its close (CUSTOM is 1 + 1), and a directive inside one is comment text,
+     * in an inactive branch too. An active comment's text is kept unexpanded (KEEPCOMMENTS). A {@code #}
+     * line naming no JCPP directive is emptied first, comment marks and all.
      */
     @Test
     void aBlockCommentRunsAcrossLinesAsJcppLexesIt(@TempDir Path root) throws IOException {
@@ -277,7 +272,7 @@ final class BlockPropertiesResolverTest {
      * JCPP lexes a quote as a string or character literal, so a comment mark inside one is text and
      * a name inside one is not expanded. A broken character literal ({@code o'lantern}) runs to the
      * next {@code '} or the end of the line, and Iris hides each backslash behind an identifier
-     * first, so {@code '\''} reads as two literals. Each value is JCPP's for this file.
+     * first, so {@code '\''} reads as two literals.
      */
     @Test
     void aQuoteHidesACommentMarkAsJcppLexesIt(@TempDir Path root) throws IOException {
@@ -309,11 +304,9 @@ final class BlockPropertiesResolverTest {
     }
 
     /**
-     * JCPP reports a conditional it cannot read and reads on. An #if or #elif Chimera cannot
-     * evaluate, and an empty #if, read false; an empty #ifdef takes block.8, the line after it
-     * (anIfdefWithoutANameLeavesItsBranchOn). A second #else and an #elif after #else are ignored;
-     * a stray #endif is ignored and a stray #else turns the rest off. The file reports
-     * CONDITION_UNSUPPORTED and still reads. The entries are JCPP's for this file.
+     * JCPP reports a conditional it cannot read and reads on. An #if or #elif Chimera cannot evaluate,
+     * and an empty #if, read false; an empty #ifdef takes the line after it. A second #else, an #elif
+     * after #else and a stray #endif are ignored, and a stray #else turns the rest off.
      */
     @Test
     void aConditionalJcppCannotReadIsReportedAndSkipped(@TempDir Path root) throws IOException {
@@ -377,7 +370,7 @@ final class BlockPropertiesResolverTest {
     /**
      * A {@code #} right after a comment's close on its line starts a directive in JCPP; only a
      * {@code #} line survives Iris's line pass with its sign, so it takes a directive name's line
-     * inside a comment. The comment text before it stays. The entries are JCPP's for this file.
+     * inside a comment. The comment text before it stays.
      */
     @Test
     void aDirectiveMayFollowACommentsClose(@TempDir Path root) throws IOException {
@@ -409,8 +402,7 @@ final class BlockPropertiesResolverTest {
     /**
      * JCPP reads an #ifdef or #ifndef whose argument starts with no identifier as an error that
      * leaves its branch on; with no argument (a comment aside) it also takes the next line,
-     * whatever it is, an #endif included. In a skipped branch it does neither. The entries are
-     * JCPP's for this file.
+     * whatever it is, an #endif included. In a skipped branch it does neither.
      */
     @Test
     void anIfdefWithoutANameLeavesItsBranchOn(@TempDir Path root) throws IOException {

@@ -16,20 +16,15 @@ import java.util.function.Predicate;
 final class UnboundAttributes {
     private UnboundAttributes() {}
 
-    /**
-     * The attribute names Iris binds vertex data to (Iris ProgramCreator and IrisVertexFormats):
-     * vanilla's elements, its extended formats' inputs, and the core-profile names its
-     * transformers map onto those elements. Each lane serves these or names why it cannot.
-     */
+    /** The attribute names Iris binds vertex data to (Iris: ProgramCreator, IrisVertexFormats). */
     static final Set<String> IRIS_BOUND = Set.of(
             "Position", "Color", "UV0", "UV1", "UV2", "Normal",
             "iris_Entity", "mc_Entity", "mc_midTexCoord", "at_tangent", "at_midBlock",
             "vaPosition", "vaColor", "vaUV0", "vaUV1", "vaUV2", "vaNormal");
 
     /**
-     * Names Chimera's lanes serve themselves: the per-vertex identities, which Iris's EntityPatcher
-     * rewrites whatever their storage. Iris binds no {@code Tangent}, so a pack's {@code Tangent} reads
-     * GL's default.
+     * The per-vertex identities Chimera's lanes serve, as Iris's EntityPatcher rewrites them. Iris binds no
+     * {@code Tangent}, so it reads GL's default.
      */
     private static final Set<String> CHIMERA_SERVED = Set.of(
             "entityId", "blockEntityId", "currentRenderedItemId");

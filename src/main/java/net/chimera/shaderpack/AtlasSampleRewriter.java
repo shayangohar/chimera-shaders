@@ -14,10 +14,7 @@ import java.util.Set;
 final class AtlasSampleRewriter {
     private AtlasSampleRewriter() {}
 
-    /**
-     * The explicit-gradient atlas helper, sampling the texel centre the gradients select. {@code {grad}} is
-     * its name and {@code {p}} the prefix that keeps its locals clear of the pack's names.
-     */
+    /** {@code {grad}} is its name and {@code {p}} a prefix that keeps its locals clear of the pack's names. */
     static final String ATLAS_GRADIENT_HELPER = """
             vec4 {grad}(sampler2D {p}Tex, vec2 {p}Uv, vec2 {p}Du, vec2 {p}Dv) {
             vec2 {p}Pixel = 1.0 / vec2(textureSize({p}Tex, 0));
@@ -29,7 +26,7 @@ final class AtlasSampleRewriter {
             }
             """;
 
-    /** The plain atlas helper, {@code {plain}}, which takes its gradients from the derivatives. */
+    /** Takes its gradients from the derivatives. */
     static final String ATLAS_PLAIN_HELPER = """
             vec4 {plain}(sampler2D {p}Tex, vec2 {p}Uv) {
             return {grad}({p}Tex, {p}Uv, dFdx({p}Uv), dFdy({p}Uv));
@@ -37,7 +34,7 @@ final class AtlasSampleRewriter {
             """;
 
 
-    /** Points lookups of the global atlas samplers at the helpers; a parameter or local sampler stays as written. */
+    /** A parameter or local sampler stays as written. */
     public static String rewriteTerrainAtlasSamples(String source, Set<String> atlasSamplers) {
         if (source == null || source.isBlank() || atlasSamplers.isEmpty()) return source;
         if (!GlslResourceUsage.analyze(source).successful()) return source;
@@ -51,17 +48,15 @@ final class AtlasSampleRewriter {
         AtlasCalls calls = new AtlasCalls(tree, prefix, functions);
         for (var function : functions) calls.rewrite(function, atlasSamplers);
         if (!calls.plainRewritten && !calls.gradRewritten) return source;
-        // the plain helper calls the gradient one, so both call shapes share one texel-centre correction
+        // the plain helper calls the gradient one
         String helpers = calls.plainRewritten ? ATLAS_GRADIENT_HELPER + ATLAS_PLAIN_HELPER : ATLAS_GRADIENT_HELPER;
         String definitions = helpers.replace("{grad}", calls.gradHelper).replace("{plain}", calls.helper)
                 .replace("{p}", prefix);
-        // the helpers go just before the first function definition
         int insertion = functions.get(0).range().start();
         calls.edits.add(new GlslTree.Edit(new GlslTree.Range(insertion, insertion), definitions));
         return tree.print(calls.edits);
     }
 
-    /** {@code chimeraAtlas}, with underscores added until no identifier in the source starts with it. */
     private static String atlasPrefix(List<GlslLexer.Token> tokens) {
         Set<String> identifiers = new HashSet<>();
         for (var token : tokens) if (token.kind() == GlslLexer.Kind.IDENTIFIER) identifiers.add(token.text());
@@ -72,7 +67,6 @@ final class AtlasSampleRewriter {
 
     private static final Set<String> ATLAS_LOOKUPS = Set.of("texture2D", "texture", "chimeraTexture", "textureGrad");
 
-    /** Rewrites a source's atlas lookups as tree edits, remembering which helpers the rewritten calls need. */
     private static final class AtlasCalls {
         private final GlslTree tree;
         private final List<GlslLexer.Token> tokens;
@@ -93,11 +87,10 @@ final class AtlasSampleRewriter {
             this.callableShadows = callableShadows(functions);
         }
 
-        /** The source's function names and macro names, which a lookup name may stand for. */
+        /** Function and macro names, which a lookup name may stand for. */
         private Set<String> callableShadows(List<GlslTree.Function> functions) {
             Set<String> names = new HashSet<>();
             for (var function : functions) names.add(tree.text(function.name()));
-            // a macro with one of these names is not a known GLSL sampling operation
             for (GlslTree.Directive value : tree.directives()) {
                 int keyword = GlslLexer.nextSignificant(tokens, value.range().start());
                 int name = keyword < 0 ? -1 : GlslLexer.nextSignificant(tokens, keyword);
@@ -106,7 +99,6 @@ final class AtlasSampleRewriter {
             return names;
         }
 
-        /** Points one function's lookups of a global atlas sampler at the helpers. */
         private void rewrite(GlslTree.Function function, Set<String> atlasSamplers) {
             GlslTree.Range body = function.body().range();
             for (int i = body.start() + 1; i < body.end() - 1; i++) {
@@ -123,23 +115,19 @@ final class AtlasSampleRewriter {
             }
         }
 
-        /** Whether the sampler named at {@code index} is the global one, not a parameter or local. */
         private boolean global(int index) {
             GlslTree.Binding binding = tree.resolve(index);
             return binding == null || !GlslScopedReferences.insideFunction(tree, binding);
         }
 
-        /**
-         * The token of the sampler identifier the lookup call named at {@code name} reads, or -1 when the call
-         * has an unsupported shape.
-         */
+        /** The sampler token, or -1 for an unsupported call shape. */
         private int lookupSampler(int name) {
             int open = GlslLexer.nextSignificant(tokens, name);
             if (open < 0 || !tokens.get(open).symbol("(")) return -1;
             int close = GlslLexer.matching(tokens, open, "(", ")");
             if (close < 0) return -1;
             List<int[]> arguments = GlslTokenRewriter.argumentRanges(tokens, open + 1, close);
-            // a plain lookup takes two arguments and textureGrad four; any other overload stays as written
+            // any other overload stays as written
             boolean explicit = tokens.get(name).text().equals("textureGrad");
             if (explicit ? arguments.size() != 4 : arguments.size() != 2) return -1;
             int[] range = arguments.get(0);

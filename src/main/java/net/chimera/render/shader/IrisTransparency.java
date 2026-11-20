@@ -8,19 +8,11 @@ import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
 
-/**
- * Iris's batched-entity transparency of a render type (batchedentityrendering TransparencyType). With
- * a pack's separateEntityDraws, the entity batches of the opaque kinds draw before the deferred passes
- * and the rest after them (batchedentityrendering MixinLevelRenderer).
- */
+/** Iris's batched-entity transparency of a render type (batchedentityrendering TransparencyType). */
 public enum IrisTransparency {
     OPAQUE, OPAQUE_DECAL, GENERAL_TRANSPARENT, DECAL, WATER_MASK, LINES;
 
-    /**
-     * The type's transparency as Iris sets it (MixinSheets, then MixinCompositeRenderType). A non-composite
-     * type reads GENERAL_TRANSPARENT, Iris's default for any render type. The bolt's type reads the lightning
-     * type it wraps, as Iris's InnerWrappedRenderType does.
-     */
+    /** As Iris's MixinSheets, then MixinCompositeRenderType, set it; GENERAL_TRANSPARENT for a non-composite type. */
     public static IrisTransparency of(RenderType type) {
         RenderType drawn = LightningBoltRenderType.unwrap(type);
         if (drawn == Sheets.armorTrimsSheet(false)) return OPAQUE_DECAL;
@@ -31,7 +23,6 @@ public enum IrisTransparency {
         return ofComposite(drawn.name, state.chimera$transparencyState(), state.chimera$depthTestState());
     }
 
-    /** A composite type's transparency from its name and its transparency and depth-test shards. */
     static IrisTransparency ofComposite(String name, RenderStateShard.TransparencyStateShard transparency,
                                         RenderStateShard.DepthTestStateShard depthTest) {
         if ("water_mask".equals(name) || depthTest == RenderStateShard.NO_DEPTH_TEST) return WATER_MASK;
@@ -44,7 +35,7 @@ public enum IrisTransparency {
         return GENERAL_TRANSPARENT;
     }
 
-    /** Whether a pack with separateEntityDraws draws this kind's batches before the deferred passes. */
+    /** With separateEntityDraws, whether this kind draws before the deferred passes (MixinLevelRenderer). */
     public boolean drawsBeforeDeferred() {
         return this == OPAQUE || this == OPAQUE_DECAL || this == WATER_MASK;
     }

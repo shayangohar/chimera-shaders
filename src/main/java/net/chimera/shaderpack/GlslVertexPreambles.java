@@ -9,10 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The GLSL Chimera prepends to converted vertex stages: each family's host inputs, transform
- * blocks and the helpers that stand in for the legacy built-ins it reads.
- */
+/** The GLSL prepended to converted vertex stages: each family's host inputs, transform blocks and built-in helpers. */
 final class GlslVertexPreambles {
     private GlslVertexPreambles() {}
 
@@ -32,9 +29,8 @@ final class GlslVertexPreambles {
             """;
 
     /**
-     * The fragment stage's pack uniform block, for an entity vertex stage that reads any of its uniforms, such
-     * as {@code cameraPosition}; empty otherwise. Declaring the same block lets the shared pack buffer serve
-     * both stages at the same offsets.
+     * The fragment stage's pack uniform block, for an entity vertex stage that reads any of its uniforms; empty
+     * otherwise. The same block lets one buffer serve both stages at the same offsets.
      */
     static String entityCameraUniformBlock(
             String converted,
@@ -220,11 +216,7 @@ final class GlslVertexPreambles {
         return new Derived(base);
     }
 
-    /**
-     * {@code source} with its one occurrence of {@code target} replaced; throws unless there is exactly one.
-     * The derived constants call it as the class loads, and the sky preamble as a pack loads, where a missing
-     * target fails that load.
-     */
+    /** {@code source} with its one occurrence of {@code target} replaced; throws unless there is exactly one. */
     static String replaceOnce(String source, String target, String replacement) {
         int at = source.indexOf(target);
         if (at < 0 || source.indexOf(target, at + 1) >= 0) {
@@ -242,16 +234,12 @@ final class GlslVertexPreambles {
             .replace("mat4 LightMVP;\n", "").text();
 
     /**
-     * The mid-coordinate of a host format Iris does not widen. Iris binds mc_midTexCoord only in
-     * IrisVertexFormats TERRAIN, ENTITY and GLYPH; any other format reads GL's unbound generic attribute,
-     * (0, 0, 0, 1). Pegasus's weather rebuilds its sprite from it with POM on.
+     * The mid-coordinate of a host format Iris does not widen, which reads GL's unbound attribute default; Iris
+     * binds mc_midTexCoord only on its TERRAIN, ENTITY and GLYPH formats.
      */
     static final String UNBOUND_MID_TEX_COORD = "const vec2 MidTexCoord = vec2(0.0);";
 
-    /**
-     * Host transform blocks and the EXTENDED_ENTITY inputs. Every value is the host's, RenderSystem state
-     * through VulkanMod's uniform suppliers; LineWidth serves the line lane.
-     */
+    /** Host transform blocks and the EXTENDED_ENTITY inputs; LineWidth serves the line lane. */
     static final String ENTITY_VERTEX_PREAMBLE = """
             layout(binding = 0) uniform DynamicTransforms {
                 mat4 ModelViewMat;
@@ -310,9 +298,8 @@ final class GlslVertexPreambles {
             """;
 
     /**
-     * The shadow bridge's input helpers over EXTENDED_ENTITY and the host transform blocks, as Iris draws
-     * SHADOW_ENTITIES_CUTOUT on IrisVertexFormats.ENTITY. The entity layout has no mc_Entity or at_midBlock,
-     * so both read GL's unbound-attribute default (0, 0, 0, 1), as under Iris.
+     * The shadow bridge's input helpers over EXTENDED_ENTITY, as Iris draws SHADOW_ENTITIES_CUTOUT; mc_Entity and
+     * at_midBlock read GL's unbound default, as under Iris.
      */
     static final String ENTITY_SHADOW_VERTEX_PREAMBLE = ENTITY_VERTEX_PREAMBLE + """
             vec4 chimeraVertexValue() {
@@ -366,10 +353,7 @@ final class GlslVertexPreambles {
 
             """;
 
-    /**
-     * The hand's projection in GL's clip range, from the host's Projection block. The hand's vertex stage reads
-     * it, and so do its tessellation stages when they project, as with Shrimple's DISPLACE_TESSELATION.
-     */
+    /** The hand's projection in GL's clip range, for the hand's vertex and tessellation stages. */
     static final String HAND_PROJECTION = """
             mat4 chimeraHandProjection() {
                 mat4 legacy = ProjMat;
@@ -413,9 +397,9 @@ final class GlslVertexPreambles {
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
     /**
-     * DefaultVertexFormat.POSITION_COLOR_NORMAL, each segment drawn as a quad. Iris supplies the missing inputs
-     * as for any host format: UV0 (0.5, 0.5) and full light (240, 240). The line offset is zero except while a
-     * fallback program widens the line ({@link IrisCoreProfile#prepareLineVertex}).
+     * DefaultVertexFormat.POSITION_COLOR_NORMAL lines, each segment drawn as a quad, with Iris's defaults for the
+     * missing inputs. The line offset is zero unless a fallback program widens the line
+     * ({@link IrisCoreProfile#prepareLineVertex}).
      */
     static final String LINE_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 2) in vec2 UV0;", "const vec2 UV0 = vec2(0.5);")
@@ -431,9 +415,8 @@ final class GlslVertexPreambles {
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
     /**
-     * DefaultVertexFormat.POSITION_TEX glint layers. Iris supplies the missing inputs, a +Z normal and full
-     * light; gl_Color is the host ColorModulator with the glint strength in its alpha
-     * ({@link IrisCoreProfile#prepareGlintVertex}).
+     * DefaultVertexFormat.POSITION_TEX glint layers, with Iris's defaults for the missing inputs; gl_Color is the
+     * host ColorModulator with the glint strength in its alpha ({@link IrisCoreProfile#prepareGlintVertex}).
      */
     static final String GLINT_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 1) in vec4 Color;", "const vec4 Color = vec4(1.0);")
@@ -451,10 +434,7 @@ final class GlslVertexPreambles {
             .replace("vec4 chimeraEntityVertexValue()", HAND_PROJECTION + "vec4 chimeraEntityVertexValue()")
             .replace("return ProjMat * ModelViewMat", "return chimeraHandProjection() * ModelViewMat").text();
 
-    /**
-     * DefaultVertexFormat.POSITION_COLOR lightning and dragon rays. Iris supplies the missing inputs as for any
-     * host format: UV0 (0.5, 0.5), full light (240, 240) and +Z.
-     */
+    /** DefaultVertexFormat.POSITION_COLOR lightning and dragon rays, with Iris's defaults for the missing inputs. */
     static final String LIGHTNING_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 2) in vec2 UV0;", "const vec2 UV0 = vec2(0.5);")
             .replace("layout(location = 3) in ivec2 UV1;", "const ivec2 UV1 = ivec2(0);")
@@ -466,10 +446,8 @@ final class GlslVertexPreambles {
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
     /**
-     * Beacon beams on DefaultVertexFormat.BLOCK widened to EXTENDED_BLOCK, as Iris widens it to TERRAIN, so
-     * the face normal, mid-coordinate and tangent come per quad. Iris's BEACON key is fullbright
-     * (ShaderAttributeInputs), so the light reads (240, 240), and the host colour modulator applies as for any
-     * native layout. The entity ids are uniforms there.
+     * Beacon beams on DefaultVertexFormat.BLOCK widened to EXTENDED_BLOCK, as Iris widens it to TERRAIN. Iris's
+     * BEACON key is fullbright, so the light reads (240, 240).
      */
     static final String BEACON_VERTEX_PREAMBLE = "// DefaultVertexFormat.BLOCK beacon beam, widened\n"
             + derive(ENTITY_VERTEX_PREAMBLE)
@@ -481,10 +459,7 @@ final class GlslVertexPreambles {
             .replace("layout(location = 8) in vec4 ChimeraPackedTangent;",
                     "layout(location = 7) in vec4 ChimeraPackedTangent;").text();
 
-    /**
-     * DefaultVertexFormat.POSITION_COLOR_LIGHTMAP leads. Iris supplies UV0 (0.5, 0.5) and +Z; the light
-     * coordinates are the lead's own.
-     */
+    /** DefaultVertexFormat.POSITION_COLOR_LIGHTMAP leads, with Iris's defaults for UV0 and the normal. */
     static final String LEASH_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 2) in vec2 UV0;", "const vec2 UV0 = vec2(0.5);")
             .replace("layout(location = 3) in ivec2 UV1;", "const ivec2 UV1 = ivec2(0);")
@@ -495,11 +470,7 @@ final class GlslVertexPreambles {
             .replace("layout(location = 8) in vec4 ChimeraPackedTangent;",
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
-    /**
-     * DefaultVertexFormat.POSITION_TEX world draws (Iris TEXTURED and SHADOW_TEX) on the glint's layout. Iris's
-     * VanillaTransformer reads the colour as the host colour modulator, the light as 240 and the normal as +Z
-     * for a format without them.
-     */
+    /** DefaultVertexFormat.POSITION_TEX world draws (Iris TEXTURED and SHADOW_TEX) on the glint's layout. */
     static final String TEXTURED_VERTEX_PREAMBLE = "// DefaultVertexFormat.POSITION_TEX\n" + GLINT_VERTEX_PREAMBLE;
 
     /** DefaultVertexFormat.POSITION_TEX_COLOR world draws (Iris TEXTURED_COLOR and SHADOW_TEX_COLOR). */
@@ -515,10 +486,9 @@ final class GlslVertexPreambles {
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
     /**
-     * DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP glyph quads in the shadow pass. Iris draws them on its
-     * GLYPH layout, whose normal, entity ids, mid-coordinate and tangent it computes per quad. The host mesh
-     * has none of them, so they read +Z (VanillaTransformer's normal for a layout without one), 0, 0 and
-     * (0, 0, 0, 1).
+     * DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP glyph quads in the shadow pass. Iris computes its GLYPH
+     * layout's normal, entity ids, mid-coordinate and tangent per quad; the host mesh lacks them, so they read
+     * defaults.
      */
     static final String TEXT_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 3) in ivec2 UV1;", "const ivec2 UV1 = ivec2(0);")
@@ -529,10 +499,7 @@ final class GlslVertexPreambles {
             .replace("layout(location = 8) in vec4 ChimeraPackedTangent;",
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
-    /**
-     * DefaultVertexFormat.POSITION boat water mask. Iris supplies the host colour modulator, UV0 (0.5, 0.5),
-     * full light (240, 240) and +Z.
-     */
+    /** DefaultVertexFormat.POSITION boat water mask, with Iris's defaults for the missing inputs. */
     static final String WATER_MASK_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 1) in vec4 Color;", "const vec4 Color = vec4(1.0);")
             .replace("layout(location = 2) in vec2 UV0;", "const vec2 UV0 = vec2(0.5);")
@@ -545,10 +512,9 @@ final class GlslVertexPreambles {
                     "const vec4 ChimeraPackedTangent = vec4(0.0, 0.0, 0.0, 1.0);").text();
 
     /**
-     * The shadow bridge's input preamble for a host-layout shadow lane: the layout's inputs, then the
-     * chimera*Value helpers the shadow converter reads. As under Iris's VanillaTransformer, gl_Color is the
-     * vertex colour times the host colour modulator, and mc_Entity, mc_midTexCoord, at_tangent and at_midBlock
-     * read their unbound defaults. A widened line sees +Z for gl_Normal.
+     * The shadow bridge's input preamble for a host-layout shadow lane. As under Iris's VanillaTransformer,
+     * gl_Color carries the host colour modulator and the material inputs read their unbound defaults; a widened
+     * line sees +Z for gl_Normal.
      */
     static String shadowLanePreamble(FamilyAdapterPlan.VertexContract contract) {
         String inputs = switch (contract) {
@@ -616,9 +582,8 @@ final class GlslVertexPreambles {
     }
 
     /**
-     * gl_NormalMatrix for a model view: its inverse transpose, as Iris serves iris_NormalMat and
-     * iris_NormalMatrix. The model view's mat3 matches it only for a pure rotation; nausea and the portal warp
-     * stretch the model view, and then the mat3 tilts every normal a pack reads.
+     * gl_NormalMatrix for a model view: its inverse transpose, as Iris serves it. A plain mat3 is wrong once
+     * nausea or the portal warp stretches the model view.
      */
     static String normalMatrix(String modelView) {
         return "transpose(inverse(mat3(" + modelView + ")))";
@@ -642,9 +607,8 @@ final class GlslVertexPreambles {
             "TextureMat", "ProjMat");
 
     /**
-     * Renames the pack's own identifiers that share an entity preamble's names. Before the legacy inputs become
-     * those names, every such identifier in a pack source is the pack's: Mellow declares {@code out vec3 Normal},
-     * which the preamble's {@code Normal} would redefine.
+     * Renames the pack's own identifiers that share an entity preamble's names; run it before the legacy inputs
+     * become those names.
      */
     static String renameHostNameCollisions(String packSource) {
         Map<String, String> renames = hostNameCollisions(packSource);
@@ -672,8 +636,7 @@ final class GlslVertexPreambles {
             case SKY_POSITION_COLOR_UV -> DefaultVertexFormat.POSITION_TEX_COLOR;
             default -> throw new IllegalArgumentException("unsupported sky vertex contract");
         };
-        // the hand preamble's transform and GL clip-range projection, renamed for the sky
-        // the sky has no material attributes, and inputs its format lacks take Iris's defaults
+        // the hand preamble renamed for the sky; inputs its format lacks take Iris's defaults
         String preamble = HAND_VERTEX_PREAMBLE.replace("chimeraHandProjection", "chimeraSkyProjection");
         String[] types = {"vec4", "vec2", "ivec2", "ivec2", "vec3", "uvec4", "vec2", "vec4"};
         String[] names = {"Color", "UV0", "UV1", "UV2", "Normal", "EntityIds", "MidTexCoord", "ChimeraPackedTangent"};
@@ -690,11 +653,8 @@ final class GlslVertexPreambles {
     }
 
     /**
-     * What Iris's VanillaTransformer gives a cloud program, on vanilla's cloud layout
-     * (DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL), which Chimera's Sodium-shaped cloud mesh keeps.
-     * gl_Vertex is in the mesh's own space, since the draw's model view carries the cloud offset. The program
-     * also gets the cell's texel coordinate, the face shade as colour (times the cloud colour in
-     * ColorModulator), the face's axis normal and full light (240, 240).
+     * What Iris's VanillaTransformer gives a cloud program on vanilla's cloud layout. gl_Vertex is in the mesh's
+     * own space, since the draw's model view carries the cloud offset.
      */
     static final String CLOUD_VERTEX_PREAMBLE = derive(ENTITY_VERTEX_PREAMBLE)
             .replace("layout(location = 1) in vec4 Color;", "layout(location = 2) in vec4 Color;")

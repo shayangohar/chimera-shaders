@@ -16,10 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * One program whose planning throws falls back alone, and the pack still loads. A gbuffers_entities
- * fragment without main() makes the alpha-test injection throw, standing in for a Chimera planning defect.
- */
+/** One program whose planning throws falls back alone, and the pack still loads. */
 final class ProgramPlanningIsolationTest {
     private static final String ENTITIES_VERTEX = """
             #version 120
@@ -29,10 +26,7 @@ final class ProgramPlanningIsolationTest {
                 gl_Position = ftransform();
             }
             """;
-    /**
-     * It writes gl_FragData[0] but has no main(): the alpha test Iris appends to gbuffers_entities
-     * (PackAlphaTestPlan.injectDrawTest) has nowhere to go.
-     */
+    /** No main(), so the alpha-test injection throws, standing in for a Chimera planning defect. */
     private static final String ENTITIES_FRAGMENT_WITHOUT_MAIN = """
             #version 120
             uniform sampler2D texture;
@@ -100,11 +94,7 @@ final class ProgramPlanningIsolationTest {
         assertEquals(List.of(PackPlanBuilder.PLANNING_FAILED + ":StackOverflowError"), plan.deviations());
     }
 
-    /**
-     * A row whose report rules throw still names the program, and skips it: without the rules'
-     * verdict nothing says the program may run. A source map the rules cannot sort (a null stage
-     * name) stands in for a real defect in them.
-     */
+    /** A row whose report rules throw names the program and skips it, as nothing then says it may run. */
     @Test
     void aThrowingReportRowSkipsItsProgramAndNamesWhy() {
         PackProbe.Inventory inventory = new PackProbe.Inventory("composite");

@@ -25,9 +25,8 @@ final class FlipPlanTest {
     private static final PackFrameSchedulePlan.PostWindow LATE = PackFrameSchedulePlan.PostWindow.LATE;
 
     /**
-     * A {@code false} entry keeps a draw buffer from flipping after its pass (CompositeRenderer skips
-     * it): the pass still writes the other side, and later passes keep reading the side they read
-     * before. It is not marked written either.
+     * A {@code false} entry keeps a draw buffer from flipping after its pass (CompositeRenderer skips it):
+     * the pass still writes the other side, but the buffer is not marked written.
      */
     @Test
     void aFalseEntryHoldsItsDrawBuffer(@TempDir Path root) throws Exception {
@@ -47,10 +46,8 @@ final class FlipPlanTest {
     }
 
     /**
-     * Photon's flip.composite1.colortex6: deferred3 writes its AO to colortex6's alt side, composite
-     * writes fog transmittance to main for composite1, and the flip after composite1 makes the AO
-     * side current again. The frame ends with colortex6 flipped, so the copy-back hands the next
-     * frame's deferred3 its AO history in main.
+     * Photon's flip.composite1.colortex6 makes deferred3's AO side current again after composite1, so
+     * the frame ends with colortex6 flipped and the copy-back hands the AO history on.
      */
     @Test
     void aTrueEntryOnAnotherTargetFlipsItBack(@TempDir Path root) throws Exception {

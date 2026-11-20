@@ -7,9 +7,8 @@ import net.vulkanmod.vulkan.texture.VulkanImage;
 
 
 /**
- * The albedo image and its sampler profile for one material program draw, captured once and passed through the
- * whole binding transaction. The resolver never reads the live slot state again, so an entity batch cannot leak
- * its sampler into the next terrain draw.
+ * The albedo image and sampler profile for one material program draw, captured once so an entity batch cannot
+ * leak its sampler into the next terrain draw.
  */
 public record DrawMaterialContext(VulkanImage albedo, SamplerProfile profile) {
     public DrawMaterialContext {

@@ -10,25 +10,18 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * How Iris 1.21.1 keys a host draw, as its MixinGameRenderer picks a ShaderKey for a host shader.
- *
- * Gives the family program a world or shadow-pass render type draws with, by its shader, its format and the
- * entity or block entity drawing it. Also gives the discard threshold the key's AlphaTest sets, which the pack
- * program reads per draw as iris_currentAlphaTest. Host-layout lanes carry their own threshold
- * (HostLayoutLane).
+ * How Iris 1.21.1's MixinGameRenderer keys a host draw: the family program it draws with, and the AlphaTest
+ * threshold the program reads per draw as iris_currentAlphaTest.
  */
 public final class IrisShaderKeys {
     /** Iris AlphaTests.ONE_TENTH_ALPHA: GREATER 0.1. */
     static final float ONE_TENTH_ALPHA = 0.1F;
     /** Iris AlphaTests.NON_ZERO_ALPHA: GREATER 0.0001. */
     static final float NON_ZERO_ALPHA = 0.0001F;
-    /**
-     * Iris AlphaTests.VERTEX_ALPHA: GREATER than the vertex colour's alpha. gbuffers_entities reads a
-     * negative reference as this test (PackAlphaTestPlan).
-     */
+    /** Iris AlphaTests.VERTEX_ALPHA; PackAlphaTestPlan reads a negative reference as this test. */
     static final float VERTEX_ALPHA = -1.0F;
 
-    /** How Iris 1.21.1 keys an entity-format shader in an entity, in a block entity and in the shadow pass. */
+    /** Each constant lists Iris's key in an entity; in a block entity; in the shadow pass. */
     enum EntityShader {
         /** ENTITIES_SOLID_DIFFUSE or ENTITIES_CUTOUT_DIFFUSE; BLOCK_ENTITY_DIFFUSE; SHADOW_BLOCK. */
         MODEL,
@@ -44,13 +37,7 @@ public final class IrisShaderKeys {
         ALPHA
     }
 
-    /**
-     * Entity-format shaders by vanilla name. A render type routes by the shader it draws with, as Iris
-     * overrides shader getters, so NeoForge's and mods' render types on these shaders follow.
-     *
-     * Flat held and dropped items draw with item_entity_translucent_cull; a host draw would write no gbuffer
-     * data, and deferred lighting would erase them to a ghost.
-     */
+    /** Keyed by shader, as Iris overrides shader getters, so mods' render types on these shaders follow. */
     private static final Map<String, EntityShader> ENTITY_SHADERS = Map.ofEntries(
             Map.entry("rendertype_entity_solid", EntityShader.MODEL),
             Map.entry("rendertype_entity_cutout", EntityShader.MODEL),
@@ -69,28 +56,21 @@ public final class IrisShaderKeys {
             Map.entry("rendertype_eyes", EntityShader.EYES),
             Map.entry("rendertype_entity_translucent_emissive", EntityShader.EMISSIVE),
             Map.entry("rendertype_entity_alpha", EntityShader.ALPHA));
-    /** The block-breaking overlay's shader (RenderType.CRUMBLING, ModelBakery.DESTROY_TYPES). */
     private static final String CRUMBLING_SHADER = "rendertype_crumbling";
-    /** The beam shader of RenderType.beaconBeam, which beacons and end gateways draw. */
     private static final String BEACON_BEAM_SHADER = "rendertype_beacon_beam";
-    /** The chunk shaders Iris draws as MOVING_BLOCK when an entity or block entity draws with them. */
+    /** Chunk shaders Iris draws as MOVING_BLOCK when an entity or block entity uses them. */
     private static final Set<String> MOVING_BLOCK_SHADERS = Set.of("rendertype_solid", "rendertype_cutout_mipped",
             "rendertype_cutout", "rendertype_translucent", "rendertype_translucent_moving_block",
             "rendertype_tripwire");
-    /**
-     * The glyph shaders for world, sign and see-through text. Iris routes them through TEXT and TEXT_BE, and
-     * TrueType glyphs, whose one-channel page reads RRRR (IntensityTextureViews), through TEXT_INTENSITY and
-     * TEXT_INTENSITY_BE. In the hand they key HAND_TEXT and HAND_TEXT_INTENSITY.
-     */
+    /** Iris keys these TEXT and TEXT_BE, or their _INTENSITY forms for TrueType glyphs; HAND_TEXT in the hand. */
     private static final Set<String> TEXT_SHADERS = Set.of("rendertype_text", "rendertype_text_see_through",
             "position_color_tex_lightmap", "rendertype_text_intensity", "rendertype_text_intensity_see_through");
 
     private IrisShaderKeys() {}
 
     /**
-     * The family a world render type batches with whoever writes it: the crumbling overlay and beacon beams
-     * on the block layout, as Iris widens every BLOCK buffer to TERRAIN. Null for any other render type, whose
-     * family follows the entity or block entity drawing it (worldFamily).
+     * Crumbling and beacon beams batch on their own family whoever writes them, as Iris widens every BLOCK
+     * buffer to TERRAIN. Null for other types, whose family follows the drawer (worldFamily).
      */
     static Family blockLayoutFamily(String shader, VertexFormat format) {
         if (format != DefaultVertexFormat.BLOCK) return null;
@@ -98,12 +78,7 @@ public final class IrisShaderKeys {
         return BEACON_BEAM_SHADER.equals(shader) ? Family.BEACON_BEAM : null;
     }
 
-    /**
-     * The family Iris 1.21.1 draws a world render type with, by its shader and format, inside an entity
-     * ({@code context} ENTITY) or a block entity (BLOCK); null when Iris keeps it on another program. Text is
-     * TEXT (gbuffers_entities_translucent) in an entity and TEXT_BE (gbuffers_block_translucent) in a block
-     * entity.
-     */
+    /** {@code context} is ENTITY or BLOCK; null when Iris keeps the draw on another program. */
     public static Family worldFamily(String shader, VertexFormat format, Family context) {
         if (shader == null) return null;
         boolean blockEntity = context == Family.BLOCK;
@@ -127,11 +102,7 @@ public final class IrisShaderKeys {
         };
     }
 
-    /**
-     * The family Iris 1.21.1 draws a shadow caster with, by its shader and format: a block entity's models
-     * SHADOW_BLOCK, falling blocks and moving pistons the shadow program on the block layout, and every other
-     * entity-format caster SHADOW_ENTITIES_CUTOUT. Null leaves it out of the shadow map.
-     */
+    /** Null leaves the caster out of the shadow map. */
     public static Family shadowFamily(String shader, VertexFormat format, Family context) {
         if (format == DefaultVertexFormat.BLOCK) {
             return context != null && MOVING_BLOCK_SHADERS.contains(shader) ? Family.SHADOW_ENTITIES : null;
@@ -143,14 +114,7 @@ public final class IrisShaderKeys {
         return blockModel ? Family.SHADOW_BLOCK : Family.SHADOW_ENTITIES;
     }
 
-    /**
-     * Iris 1.21.1's threshold for a draw of {@code family} with the host shader {@code shader}.
-     *
-     * An entity's ENTITIES_SOLID_DIFFUSE and BEACON draw untested; ENTITIES_ALPHA tests the vertex alpha;
-     * ENTITIES_EYES and HAND_TEXT test NON_ZERO_ALPHA. Every other entity, block-entity, moving-block, hand,
-     * text, particle, crumbling and shadow caster key tests ONE_TENTH_ALPHA. Without a test, a flat item or a
-     * glyph quad would write depth and gbuffer data across its transparent texels.
-     */
+    /** Without a test, a flat item or glyph quad would write depth and gbuffer data across transparent texels. */
     public static float reference(String shader, Family family, boolean shadowCaster) {
         if (shadowCaster) return ONE_TENTH_ALPHA;
         return switch (family) {

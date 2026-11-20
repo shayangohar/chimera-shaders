@@ -9,11 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Optional;
 
-/**
- * An on/off option. Either mouse button flips it and Shift+click sets the default; from the keyboard, Control
- * resets. The value is white at the default and green or red away from it, so an Off the pack chose does not
- * read as a fault.
- */
+/** An on/off option; the value is coloured only away from the default, so a default Off does not read as a fault. */
 final class ToggleCell extends ValueCell {
     private final ShaderOption.Toggle option;
 

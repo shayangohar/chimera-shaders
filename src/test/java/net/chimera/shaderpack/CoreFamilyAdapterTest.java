@@ -143,10 +143,9 @@ final class CoreFamilyAdapterTest {
     }
 
     /**
-     * A world program with no lane names why: Iris draws terrain_solid for solid terrain, which
-     * VulkanMod draws in the cutout_mipped layer with the rest, and gbuffers_textured_lit under no
-     * key of its own (ShaderKey). gbuffers_textured has its lanes: Iris draws position_tex and
-     * position_tex_color world draws with it (MixinGameRenderer, TEXTURED and TEXTURED_COLOR).
+     * A world program with no lane names why: VulkanMod draws solid terrain in cutout_mipped, and Iris
+     * draws gbuffers_textured_lit under no key of its own (ShaderKey). gbuffers_textured keeps its lanes
+     * (MixinGameRenderer, TEXTURED and TEXTURED_COLOR).
      */
     @Test
     void unlanedProgramsNameTheirReason(@TempDir Path root) throws IOException {
@@ -178,10 +177,8 @@ final class CoreFamilyAdapterTest {
     }
 
     /**
-     * Iris draws the shadow pass's translucent terrain with shadow_water (SodiumPrograms SHADOW_TRANS)
-     * and its cutout terrain with shadow_cutout (SHADOW_CUTOUT), so a pack's own programs run on the
-     * shadow terrain lane. VulkanMod's cutout_mipped holds solid blocks too, which shadow_cutout
-     * draws; shadow_solid has no layer of its own and says so.
+     * A pack's shadow_water and shadow_cutout run on the shadow terrain lane, as Iris's SodiumPrograms
+     * draw them; shadow_solid has no layer of its own, since VulkanMod's cutout_mipped holds solid blocks.
      */
     @Test
     void shadowLayerProgramsRunOnTheShadowLane(@TempDir Path root) throws IOException {

@@ -102,9 +102,8 @@ final class FrameUniformCatalogTest {
     }
 
     /**
-     * Alpha Piscium's shadow vertex stage reconstructs each vertex's scene position with
-     * shadowProjectionInverse * ftransform(). Its 512-block shadow projection has a determinant
-     * near 3e-8; served as identity, every caster would shrink to a speck of the shadow map.
+     * A 512-block shadow projection has a determinant near 3e-8 and must still invert; served as
+     * identity, a pack's shadowProjectionInverse would shrink every caster to a speck.
      */
     @Test
     void aFarShadowProjectionInvertsExactly() {

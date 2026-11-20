@@ -10,20 +10,15 @@ import net.minecraft.core.Vec3i;
 import java.util.function.Predicate;
 
 /**
- * The end portal and end gateway as a shader pack draws them: an opaque cube with the end portal texture, lit and
- * coloured like any block entity, so the pack's own programs can shade it. Vanilla's portal shader takes
- * position-only vertices, which those programs cannot draw.
- *
- * Every face shows the same square window of the texture, unmirrored from outside, and the window slides
- * diagonally with the pack's frame time. Its low corner is at the cube's top south-west corner and it grows east,
- * down and north: on each face, u and v grow toward the two of those that lie in the face.
+ * The end portal and gateway as an opaque cube with the end portal texture, so the pack's programs can shade
+ * it; vanilla's portal shader takes position-only vertices, which they cannot draw. Every face shows the same
+ * square texture window, unmirrored from outside, sliding with the pack's frame time.
  */
 public final class EndPortalCube {
     /** The side of the texture window each face shows, in UV units. */
     static final float WINDOW = 0.2F;
     /** How far the window slides along u and v per second; it comes round again every 100 seconds. */
     private static final float SCROLL_PER_SECOND = 0.01F;
-    // a dark teal, the same on every face
     private static final float RED = 0.075F;
     private static final float GREEN = 0.15F;
     private static final float BLUE = 0.2F;
@@ -53,12 +48,7 @@ public final class EndPortalCube {
         return frameTimeCounter * SCROLL_PER_SECOND % 1.0F;
     }
 
-    /**
-     * Draws the faces the predicate lets through as one quad each, counter-clockwise from outside, in the block's
-     * own coordinates: x and z span the cell, y spans {@code bottom} to {@code top}.
-     *
-     * @param scroll the window's offset, from {@link #scroll}
-     */
+    /** Draws the faces the predicate lets through, one quad each, in the block's own coordinates. */
     public static void draw(VertexConsumer consumer, PoseStack.Pose pose, Predicate<Direction> faces, float top,
                             float bottom, float scroll, int light, int overlay) {
         EndPortalCube cube = new EndPortalCube(consumer, pose, top, bottom, light, overlay);

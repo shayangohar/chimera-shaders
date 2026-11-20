@@ -13,11 +13,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Reforged's BufferBuilder.addVertex stores colour as VulkanMod's packed RGBA, where vanilla uses ARGB; its
- * ModelPart hook packs the colour and writes through ExtendedVertexBuilder. While any screen is open
- * (GuiEntityRenderState.isGuiEntityPreview) that hook lets vanilla's Cube.compile run instead, and the ARGB
- * colour lands with red and blue swapped, so a red banner pattern shows blue in the inventory. Here a cube
- * writing to a fast-vertex consumer takes VulkanMod's own path, so its colour packs as with no screen open.
+ * While a screen is open, Reforged's ModelPart hook lets vanilla's Cube.compile run, and its ARGB colour
+ * lands in Reforged's RGBA buffer with red and blue swapped. A cube writing to a fast-vertex consumer takes
+ * VulkanMod's path instead.
  */
 @Mixin(ModelPart.Cube.class)
 public abstract class ChimeraModelCubeColorMixin {

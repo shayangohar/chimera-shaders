@@ -13,33 +13,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Gives every uninitialized function-scope variable of a plain data type an {@code OpConstantNull}
- * initializer, and turns every plain-data {@code OpUndef} into an {@code OpConstantNull}. Module-scope
- * private globals and the vertex, geometry and fragment stages' outputs, built-ins aside, get the same
- * initializer.
- *
- * GLSL leaves such locals undefined. The GL drivers packs are written against start them at zero, and packs
- * read them before writing them; Complementary's {@code parallaxTexDepth} feeds its first POM test this way.
- * A Vulkan driver keeps whatever the register held, so the pack's branch changes with unrelated GPU state.
- * Opaque types such as images and samplers are left alone, since they cannot be null-initialized and are
- * never read uninitialized.
- *
- * Pack modules reach this pass already optimized, and the optimizer's SSA rewrite replaces a read of a local
- * nothing wrote with {@code OpUndef}, for which the driver may pick any value. Ebin's held-light
- * {@code falloff}, unset outside the light's radius, becomes {@code max(torch, undef)}; NVIDIA can fold that
- * to a slightly negative torch level, and {@code pow} of it turns the water NaN and black. The null constant
- * is the zero the variable would have started at.
- *
- * An output a path never writes is zero under NVIDIA's GL compiler too. Escheridia's composite5 returns
- * before writing its reflection history over the sky. Iris leaves those pixels black; a Vulkan driver writes
- * whatever its registers held, and the reprojected history spreads it as bright specks along the sky's edges.
- *
- * A variable every path writes whole before anything can read it keeps no initializer
- * ({@link SpirvWrittenFirst}). A GLSL initializer is such a write, so the zero is never seen, under GL or
- * here, and the null would still cost, since NVIDIA fills the variable per invocation. BSL's shadowcomp
- * copies two colour tables into private globals this way, and zeroing them first makes its dispatch many
- * times slower. Its world programs hold such tables as locals stored after a branch, where zeroing slows
- * every terrain draw with multicoloured block light on.
+ * Gives each uninitialised plain-data variable an {@code OpConstantNull} initialiser, private globals and stage
+ * outputs included, built-ins aside, and makes plain-data {@code OpUndef}s null constants: GL drivers start these
+ * at zero and packs rely on it, where a Vulkan driver keeps whatever the register held. A variable written whole
+ * before any read keeps none ({@link SpirvWrittenFirst}), since NVIDIA fills the null per invocation at real cost.
  */
 public final class SpirvLocalInitializer {
     private static final int MAGIC = 0x07230203;
@@ -68,7 +45,7 @@ public final class SpirvLocalInitializer {
 
     private SpirvLocalInitializer() {}
 
-    /** The rewritten module, or {@code spirv} itself when nothing needs an initializer. */
+    /** The rewritten module, or {@code spirv} itself when nothing needs an initialiser. */
     public static ByteBuffer apply(ByteBuffer spirv) {
         int[] words = toWords(spirv);
         int[] result = apply(words);
@@ -87,7 +64,7 @@ public final class SpirvLocalInitializer {
         return result;
     }
 
-    /** The types, pointers, built-ins, null constants and undefs of one module, and the rewrite they allow. */
+    /** One module's declarations and the rewrite they allow. */
     private static final class Module {
         private final int[] words;
         private final Map<Integer, int[]> types = new HashMap<>();
@@ -154,11 +131,7 @@ public final class SpirvLocalInitializer {
             if (decoration == DECORATION_BUILT_IN) builtIns.add(words[at + 1]);
         }
 
-        /**
-         * The pointee of the uninitialized variable at {@code at} when it takes a null initializer, else null.
-         * It must be plain data, not written whole first, and a function local, a private global, or an
-         * output of a stage whose outputs start at zero, built-ins aside.
-         */
+        /** The pointee of the uninitialised variable at {@code at} when it takes a null initialiser, else null. */
         private Integer initializable(int at) {
             if ((words[at] & 0xFFFF) != OP_VARIABLE || words[at] >>> 16 != 4) return null;
             if (writtenFirst.contains(words[at + 2])) return null;
@@ -171,10 +144,8 @@ public final class SpirvLocalInitializer {
         }
 
         /**
-         * Every word after the header, with each initializable variable given a null initializer,
-         * each plain undef made a null constant, and the null constants function variables need
-         * placed before the first function. A module-level variable's constant goes just ahead of
-         * it, unless one is already declared.
+         * Every word after the header, rewritten. Null constants for function variables go before the first
+         * function; a module-level variable's goes just ahead of it unless one is already declared.
          */
         private List<Integer> initializedBody() {
             List<Integer> inserted = new ArrayList<>();
@@ -190,7 +161,7 @@ public final class SpirvLocalInitializer {
             return body;
         }
 
-        /** Writes the instruction at {@code at} with a null initializer when it is an initializable variable. */
+        /** Writes the instruction at {@code at} with a null initialiser when it is an initialisable variable. */
         private boolean initializeVariable(int at, List<Integer> body, List<Integer> inserted) {
             Integer pointee = initializable(at);
             if (pointee == null) return false;
@@ -218,11 +189,7 @@ public final class SpirvLocalInitializer {
             return nullId;
         }
 
-        /**
-         * Declares the plain undef at {@code at} as a null constant with the same id: in place
-         * among the module-level declarations, or before the first function when a function
-         * holds it.
-         */
+        /** Declares the plain undef at {@code at} as a null constant with the same id, hoisted out of any function. */
         private boolean nullUndef(int at, List<Integer> body, List<Integer> inserted) {
             if ((words[at] & 0xFFFF) != OP_UNDEF || !plainData(types, words[at + 1])) return false;
             boolean moduleLevel = at < firstFunction;

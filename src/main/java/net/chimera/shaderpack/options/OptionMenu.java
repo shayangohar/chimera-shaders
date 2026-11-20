@@ -47,16 +47,15 @@ public final class OptionMenu {
             elements = List.copyOf(elements);
         }
 
-        /** The column count the pack gives, any integer, or one that suits the number of elements. */
+        /** The pack's column count, unchecked, or one that suits the element count. */
         public int columnCount() {
             return columns.orElse(elements.size() > TWO_COLUMN_LIMIT ? 3 : 2);
         }
     }
 
     /**
-     * Lays out the screens. The main screen without a {@code screen} key is a lone {@code *}. The first
-     * {@code *}, counting the main screen then the sub-screens in their iteration order, lists every option
-     * no sub-screen names, toggles then choices; every later {@code *} adds nothing.
+     * Lays out the screens; a missing {@code screen} key means a lone {@code *}. Only the first {@code *},
+     * main screen first, lists the options no sub-screen names.
      */
     public static OptionMenu build(MenuProperties properties, OptionSet options, PackProfiles profiles) {
         Layout layout = new Layout(options, properties.sliders(), !profiles.declared().isEmpty(),
@@ -87,8 +86,8 @@ public final class OptionMenu {
     }
 
     /**
-     * The names the fill lists: every toggle, then every choice, so a name that is both comes twice, less
-     * one occurrence for each time a sub-screen names it. The main screen's own names stay.
+     * The fill: every toggle then every choice, so a name that is both comes twice, less one occurrence per
+     * sub-screen mention. The main screen's own names stay.
      */
     private static List<String> unplaced(MenuProperties properties, OptionSet options) {
         List<String> names = new ArrayList<>(options.toggles().keySet());

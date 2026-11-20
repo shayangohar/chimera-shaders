@@ -13,11 +13,9 @@ final class WorldClock {
     private WorldClock() {}
 
     /**
-     * The level's worldTime: the day time in the Nether, the End or a dimension with their effects, as Iris
-     * means it and OptiFine serves it, and elsewhere the dimension's fixed time when it has one.
-     *
-     * Iris compares the dimension by reference and reads 18000 where the pack maps the Nether, so RedHat v34
-     * lights its Nether as midnight under Iris. Chimera treats that as an Iris defect and does not copy it.
+     * The day time in the Nether, the End or a dimension with their effects, as OptiFine serves it; elsewhere the
+     * fixed time when there is one. Iris compares the dimension by reference and reads 18000 in a pack-mapped
+     * Nether; that is an Iris defect, not copied.
      */
     static int worldTime(ClientLevel level) {
         ResourceLocation effects = level.dimensionType().effectsLocation();

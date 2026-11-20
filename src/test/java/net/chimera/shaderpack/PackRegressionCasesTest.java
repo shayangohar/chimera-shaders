@@ -22,11 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Programs popular packs run at default settings, which Iris 1.21.1 runs as written. */
 final class PackRegressionCasesTest {
-    /**
-     * AstraLex derives {@code uniform.float.velocity} from the camera's motion. Iris 1.21.1 never
-     * registers its HardcodedCustomUniforms, so velocity is no built-in there and the pack's own value
-     * builds.
-     */
+    /** Iris 1.21.1 never registers HardcodedCustomUniforms, so a pack's own {@code velocity} value builds. */
     @Test
     void astraLexVelocityIsThePacksOwnUniform() {
         PackRuntimeSettings settings = PackRuntimeSettings.build(List.of(
@@ -43,9 +39,8 @@ final class PackRegressionCasesTest {
     }
 
     /**
-     * BSL Classic defines texture2DShadow twice, on sampler2D and on sampler2DShadow, and calls it on
-     * its sampler2DShadow shadowtex0. Iris leaves both to GLSL's overload resolution, so both stay;
-     * only the helper's own shadow2D call is a legacy lookup, rewritten for its parameter's type.
+     * Overloads of a pack's own texture2DShadow stay, as in Iris; only the shadow2D call inside one is
+     * rewritten, for its parameter's type.
      */
     @Test
     void bslClassicShadowOverloadsStay() {
@@ -77,10 +72,8 @@ final class PackRegressionCasesTest {
     }
 
     /**
-     * Pixel Perfect is GLSL 330, so Iris's core names apply, and its toViewspace(in mat4
-     * projectionMatrix, in mat4 modelViewMatrix, ...) names parameters after two of them. Iris renames
-     * each parameter together with its uses, so they keep their meaning; here the parameters keep their
-     * names and only the globals are replaced. A pack's line program takes the same scoped replacement.
+     * Parameters named after Iris's core names keep their meaning: only the globals are replaced, in a pack's
+     * line program too.
      */
     @Test
     void pixelPerfectCoreNameParametersKeepTheirNames() {
@@ -111,9 +104,8 @@ final class PackRegressionCasesTest {
     }
 
     /**
-     * Aurora's water writes {@code #if WATERCOLOR_B = 200}, one '='. JCPP 1.4.14 evaluates up to the
-     * '=', warns, and skips the rest of the line, so the branch holds for any nonzero value. Each case
-     * below is JCPP's own result, the character literal aside.
+     * JCPP evaluates {@code #if WATERCOLOR_B = 200} up to the '=' and skips the rest, so the branch holds for
+     * any nonzero value. Each case is JCPP's own result, the character literal aside.
      */
     @Test
     void auroraMalformedConditionsReadAsJcppReadsThem() {
@@ -137,11 +129,7 @@ final class PackRegressionCasesTest {
                 "JCPP reads a character literal as its value; Chimera refuses one rather than misread it");
     }
 
-    /**
-     * Clarity ships composite.fsh with no images beside composite.csh, which stores to a pack image.
-     * Iris builds the program and the pass's compute apart (CompositeRenderer), so the compute's image
-     * does not refuse the program, and the report agrees with the plan.
-     */
+    /** Iris builds a pass's program and compute apart, so the compute's image does not refuse the program. */
     @Test
     void clarityPassComputeImagesDoNotRefuseTheProgram(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -190,12 +178,9 @@ final class PackRegressionCasesTest {
             """;
 
     /**
-     * Pixel Perfect's shadow program declares {@code /* DRAWBUFFERS: *}{@code /} and only discards.
-     * Iris reads an empty route, and its shadow framebuffer for one draws no colour. A
-     * fullscreen or shadowcomp pass refuses it, as Iris's createColorFramebuffer does, and so does a
-     * gbuffers program, which Chimera draws only with a colour attachment. Final keeps output 0, as
-     * Iris never reads its directive. An empty RENDERTARGETS stays malformed: Iris's
-     * Integer.parseInt("") fails on it.
+     * An empty DRAWBUFFERS route lets a shadow program draw depth alone. Passes refuse it, as Iris's
+     * createColorFramebuffer does, and so do gbuffers programs, which need a colour attachment; final keeps
+     * output 0. An empty RENDERTARGETS stays malformed, as Iris's Integer.parseInt("") fails on it.
      */
     @Test
     void anEmptyDrawBuffersRouteDrawsAShadowProgramsDepthAlone() {
@@ -233,10 +218,8 @@ final class PackRegressionCasesTest {
     }
 
     /**
-     * The shadow program and its host-layout lanes run with the empty route, and their fragments write
-     * no colour location, even where the pack writes output 0, which GL drops with no buffer for it.
-     * The shadow pass masks the writes of every attachment a module never stores to
-     * (SpirvOutputWrites), so the program draws depth and each shadowcolor target keeps its contents.
+     * With the empty route the shadow fragments write no colour, as GL drops an output with no buffer; the
+     * pass masks unwritten attachments, so each shadowcolor target keeps its contents.
      */
     @Test
     void aDepthOnlyShadowProgramWritesNoShadowColour(@TempDir Path root) throws IOException {

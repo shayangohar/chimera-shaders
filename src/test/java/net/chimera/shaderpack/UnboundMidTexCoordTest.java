@@ -11,10 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * mc_midTexCoord on the host formats Iris does not widen. Iris binds it only in IrisVertexFormats
- * TERRAIN, ENTITY and GLYPH, so a particle, weather, line, glint, textured, lightning, leash, cloud,
- * text or boat-mask draw reads GL's unbound generic attribute, (0, 0, 0, 1). Pegasus's weather
- * rebuilds a sprite from it and depends on every rain vertex reading (0, 0) there.
+ * Iris binds mc_midTexCoord only in its TERRAIN, ENTITY and GLYPH formats, so a draw on any other host format
+ * reads GL's unbound generic attribute, (0, 0, 0, 1).
  */
 final class UnboundMidTexCoordTest {
     @Test

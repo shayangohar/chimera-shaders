@@ -131,8 +131,8 @@ final class ModernPostTranslationTest {
     }
 
     /**
-     * Iris's fullscreen pass feeds a post vertex stage only the quad's position and texture coordinate. An input
-     * it never reads is dropped, and one it reads takes GL's default generic attribute, (0, 0, 0, 1).
+     * Iris feeds a post vertex stage only the quad's position and texture coordinate; any other input it
+     * reads takes GL's default generic attribute, (0, 0, 0, 1).
      */
     @Test
     void postVertexInputsReadTheDefaultAttribute() {
@@ -164,10 +164,7 @@ final class ModernPostTranslationTest {
         return PostVertexBridge.convertPostVertex(vertex, vs, fs, GlslInterfaceScanner.match(vs, fs), plan);
     }
 
-    /**
-     * A program compiles the shadow constants it declares as it wrote them, as Iris compiles its
-     * source: nothing replaces their values, and nothing declares one the program does not.
-     */
+    /** Shadow constants a program declares compile as written, as in Iris; none is replaced or added. */
     @Test
     void authoredPostConstantsStayAsWritten() {
         String declarations = """

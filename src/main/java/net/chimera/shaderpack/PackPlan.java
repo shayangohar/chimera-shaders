@@ -86,9 +86,8 @@ public record PackPlan(
     }
 
     /**
-     * Whether the program writes a colortex target whose declared format has no Vulkan image here, as the report
-     * reads it; the target keeps the default format, which the program's output does not fit. Shadow-pass
-     * programs and shadowcomp passes write shadowcolor targets, which a colortex format never concerns.
+     * Whether the program writes a colortex target whose declared format has no Vulkan image here, so the target
+     * keeps a default format its output does not fit. Programs writing shadowcolor targets never count.
      */
     private boolean writesUnsupportedFormat(PackProgramPlan program) {
         PostTargetPlan targets = program.targetPlan() != null ? program.targetPlan()
@@ -154,9 +153,8 @@ public record PackPlan(
     }
 
     /**
-     * Whether the pack switches a program or pass off. A pass of computes alone has no resolved program, so its
-     * switch is read directly; Iris's ShaderPack then reads none of its files and the pass runs nothing. Shrimple
-     * switches off its compute-only composite1 this way.
+     * Whether the pack switches a program or pass off. A compute-only pass has no resolved program, so its switch
+     * is read directly; Iris then reads none of its files.
      */
     public boolean isProgramDisabled(String name) {
         PackProgramResolution value = resolution.resolution(name);
@@ -165,9 +163,8 @@ public record PackPlan(
     }
 
     /**
-     * Whether {@code name} runs as a cloud program whose selected branch draws nothing. The runtime then builds no
-     * pipeline and skips the host cloud draw, as Iris's program draws no fragment. A disabled, aliased or
-     * resource-refused program falls back instead.
+     * Whether {@code name} runs as a cloud program whose selected branch draws nothing, so the runtime skips the
+     * host cloud draw as Iris draws no fragment. A disabled, aliased or refused program falls back instead.
      */
     public boolean cloudRunsEmpty(String name) {
         PackProgramPlan program = program(name);
@@ -176,9 +173,8 @@ public record PackPlan(
     }
 
     /**
-     * Iris's {@code clouds} directive: "off", "fast" or "fancy", or null when the pack leaves the player's setting
-     * alone; Iris logs and ignores other values. "false" also means "off". Iris and OptiFine ignore it, but RedHat
-     * writes it to turn the vanilla clouds off, as it draws its own.
+     * Iris's {@code clouds} directive, "off", "fast" or "fancy", or null to leave the player's setting. "false"
+     * also reads as "off", which Iris ignores, since packs write it to hide vanilla clouds.
      */
     public String cloudSetting() {
         String value = settings.propertyValues().get("clouds");
@@ -251,9 +247,8 @@ public record PackPlan(
     }
 
     /**
-     * The programs that take part in the frame, which the schedule and target graph are built from. Iris removes a
-     * program the pack switches off ({@code program.<name>.enabled}) from the pipeline, so it neither runs nor
-     * counts as a producer.
+     * The programs that take part in the frame. As in Iris, a program the pack switches off neither runs nor counts
+     * as a producer.
      */
     public List<PackProgramPlan> activePrograms() {
         return programs().stream().filter(program -> !isProgramDisabled(program.name())).toList();
@@ -269,9 +264,8 @@ public record PackPlan(
     }
 
     /**
-     * The shadowcolor targets the shadow pass's programs sample, by index: each executable shadow program's
-     * sampler that reads the target itself rather than a pack texture in its place.
-     * ChimeraShadowMap.snapshotPassReads copies them as the pass opens.
+     * The shadowcolor targets shadow programs sample themselves, not through a pack texture in their place; the
+     * shadow map copies them as the pass opens.
      */
     public Set<Integer> shadowPassColorReads() {
         Set<Integer> reads = new TreeSet<>();

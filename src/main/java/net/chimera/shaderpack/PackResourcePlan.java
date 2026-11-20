@@ -29,15 +29,9 @@ public final class PackResourcePlan {
     private static final Pattern COLOR_TARGET = Pattern.compile("colortex([0-9]+)");
     /** A generated noisetex binding's source: this prefix, then the image's side in texels. */
     public static final String GENERATED_NOISE = "generated-noise:";
-    /**
-     * What an unbound texture reads, (0, 0, 0, 1). Without Distant Horizons, Iris binds texture 0 under
-     * every DH depth name (DHCompat.getDepthTex and getDepthTexNoTranslucent return 0).
-     */
+    /** What an unbound texture reads, (0, 0, 0, 1); without Distant Horizons, Iris binds it to every DH depth. */
     public static final String GENERATED_UNBOUND = "generated-unbound";
-    /**
-     * A resource key two different pack textures share (keyConflicts), reported as a pack deviation. PackProbe
-     * checks the programs' and pass computes' bindings together.
-     */
+    /** A resource key two different pack textures share, reported as a pack deviation. */
     public static final String KEY_CONFLICT = "PACK_RESOURCE_KEY_CONFLICT";
     /** The resource dhDepthTex and its alias dhDepthTex0 read; dhDepthTex1 is Iris's other registration. */
     static final String DH_DEPTH = "dhDepthTex";
@@ -151,9 +145,8 @@ public final class PackResourcePlan {
     }
 
     /**
-     * The resource keys under which bindings ask for different textures. PackResourceOwner makes one image per key
-     * and serves it to every binding under it, so a second source, kind, filter or wrap under a key would hand a
-     * program a texture other than the one it declares. Keys are built to name one texture each; this checks it.
+     * The resource keys under which bindings ask for different textures. One image serves every binding under a
+     * key, so a conflict would hand a program a texture other than the one it declares.
      */
     static Set<String> keyConflicts(Collection<PackResourceBinding> bindings) {
         Map<String, List<Object>> textures = new HashMap<>();
@@ -271,10 +264,8 @@ public final class PackResourcePlan {
     private record Choice(PackResourceDeclaration declaration, String image) {}
 
     /**
-     * Of the pack's own bindings of a sampler name and the built-in one, the one Iris registers last is what the
-     * name reads (IrisSamplerOrder). A stage texture replaces it when it is registered through the sampler
-     * interceptor, as when a stage reads a pack texture in place of a logical target; one a pass deactivated
-     * counts as none. The noise sampler reads texture.noise.
+     * Of the pack's bindings of a sampler name and the built-in one, the one Iris registers last is what the name
+     * reads (IrisSamplerOrder). A stage texture replaces it only when registered through the sampler interceptor.
      */
     private static Choice choose(String program, UniformRegistry.SamplerBinding sampler,
                                  Map<String, PackResourceDeclaration> declarations, String advancedImage,
@@ -298,9 +289,8 @@ public final class PackResourcePlan {
     }
 
     /**
-     * The {@code texture.<stage>} declaration of this sampler for the program's Iris texture stage, under any of
-     * the names Iris registers its texture with ({@code names}). Iris applies it through the sampler interceptor
-     * (choose); one a pass deactivated counts as none.
+     * The {@code texture.<stage>} declaration of this sampler under any of the {@code names} Iris registers its
+     * texture with; one a pass deactivated counts as none.
      */
     private static PackResourceDeclaration stageDeclaration(String program, UniformRegistry.SamplerBinding sampler,
                                                             List<String> names,
@@ -334,8 +324,8 @@ public final class PackResourcePlan {
 
     /**
      * The program stage's raw {@code texture.<stage>.<sampler>} entry for exactly this name and type. Iris keeps
-     * only the sampler name of the key, so {@code texture.deferred.colortex6.1} is a volume for
-     * {@code sampler3D colortex6} beside the 2D target, as in Photon's cloud noise. The unsuffixed key sorts first.
+     * only the sampler name of the key, so {@code texture.deferred.colortex6.1} can serve {@code sampler3D colortex6};
+     * the unsuffixed key sorts first.
      */
     private static PackResourceDeclaration rawStageTexture(String program, UniformRegistry.SamplerBinding sampler,
                                                            Map<String, PackResourceDeclaration> declarations) {
@@ -359,7 +349,7 @@ public final class PackResourcePlan {
         }
         boolean game = isNamespacedSource(declaration.source());
         // a declared noise is its own image; plain "noisetex" names the generated one, which programs no
-        // declaration covers still read, as when Spring declares it only for deferred and composite
+        // declaration covers still read
         String key = name.equals("noisetex") ? "noisetex:" + declaration.source() : declaration.key();
         String label = name.equals("noisetex") ? name : key;
         PackResourceKind kind = name.equals("noisetex")
@@ -399,10 +389,8 @@ public final class PackResourcePlan {
     }
 
     /**
-     * A raw texture (RawTextureSpec): the file's bytes uploaded as a 1D, 2D or 3D image and sampled as its .mcmeta
-     * says. Without one it is linear and clamped, as Iris's ShaderPack starts blur and clamp at true for a raw
-     * definition and at false only for a PNG. A format Chimera cannot upload unchanged stays unsupported, so the
-     * program never samples something else in its place.
+     * A raw texture, sampled as its .mcmeta says or else linear and clamped, as Iris starts a raw definition. A
+     * format Chimera cannot upload unchanged stays unsupported, so the program never samples a stand-in.
      */
     private static PackResourceBinding rawBinding(String program, String name, int slot,
                                                   PackResourceDeclaration declaration, Path shadersDir,
@@ -561,10 +549,8 @@ public final class PackResourcePlan {
     }
 
     /**
-     * What a program's sampler reads from the frame: its colour target, depth or shadow texture by canonical name
-     * (gaux3 is colortex6). Null when the pack serves the name with a texture, image or noise of its own, as
-     * Bloop's texture.prepare.depthtex1 replaces depthtex1 in prepare (Iris CustomTextureSamplerInterceptor). A
-     * sampler with no binding reads its canonical name.
+     * What a program's sampler reads from the frame, by canonical name; null when the pack serves the name with a
+     * texture of its own. A sampler with no binding reads its canonical name.
      */
     public String frameResource(String program, String sampler) {
         PackResourceBinding binding = binding(program, sampler);
@@ -617,8 +603,7 @@ public final class PackResourcePlan {
     /**
      * Iris's per-program shadow aliases ({@code IrisSamplers.addShadowSamplers}). {@code shadow} is shadowtex0,
      * unless the same program declares {@code watershadow}, which then takes shadowtex0 and leaves {@code shadow}
-     * the opaque casters, shadowtex1. {@code shadowcolor} is shadowcolor0. Every other name has one meaning
-     * everywhere ({@link #canonicalResource}).
+     * the opaque casters, shadowtex1. {@code shadowcolor} is shadowcolor0.
      */
     public static String programResource(String sampler, boolean declaresWaterShadow) {
         if (sampler == null) return "";
@@ -641,10 +626,9 @@ public final class PackResourcePlan {
     }
 
     /**
-     * As in Iris's CompositeRenderer, a stage texture override of colortexN applies within one post chain (begin,
-     * prepare, deferred, or composite with final) only until an earlier pass of that chain writes colortexN; later
-     * passes sample the target. Draw buffers and explicit flips count as writes, {@code _pre} flips do not. Bliss
-     * replaces colortex6 with blue noise for its early composites, then blurs bloom tiles in colortex6.
+     * As in Iris's CompositeRenderer, a stage texture override of colortexN applies within one post chain only
+     * until an earlier pass of that chain writes colortexN. Draw buffers and explicit flips count as writes,
+     * {@code _pre} flips do not.
      */
     private static Map<String, Set<Integer>> targetsWrittenEarlierInChain(PackPlan plan) {
         Map<String, Set<Integer>> result = new TreeMap<>();
@@ -667,14 +651,9 @@ public final class PackResourcePlan {
     }
 
     /**
-     * What the sampler {@code name} of {@code samplerType} reads in a compute of {@code pass}, which is what the
-     * pass's program would read under that name.
-     *
-     * Iris's CompositeRenderer.createComputes binds a pass's computes as its program, through the same stage
-     * textures, customTexture entries, noise and flippedAtLeastOnce snapshot; a compute-only pass has the snapshot
-     * its place in the chain gives it. The final pass's computes register in that order too, where its program
-     * takes customTexture entries after images (IrisSamplerOrder). {@code waterShadow} means the compute reads
-     * watershadow, so shadow is shadowtex1 (programResource).
+     * What the sampler {@code name} reads in a compute of {@code pass}: what the pass's program would read, as
+     * Iris's CompositeRenderer.createComputes binds computes like their program. A compute-only pass takes its chain
+     * slot's snapshot. {@code waterShadow} makes shadow read shadowtex1.
      */
     public static PackResourceBinding passComputeBinding(PackPlan plan, String pass, String name, String samplerType,
                                                          boolean waterShadow, Path shadersDir) {
@@ -725,9 +704,7 @@ public final class PackResourcePlan {
 
     /**
      * Whether a declaration replaces a sampler of this GLSL type. Iris patches a raw texture only into a sampler of
-     * its own type (TextureTransformer.isTypeValid), so {@code sampler2D colortex0} stays the render target while
-     * {@code sampler3D colortex0} takes the declared volume, and a rectangle texture takes only a sampler2DRect. A
-     * PNG applies to any sampler.
+     * its own type (TextureTransformer.isTypeValid); a PNG applies to any sampler.
      */
     static boolean appliesTo(PackResourceDeclaration declaration, String samplerType) {
         if (declaration == null || declaration.kind() != PackResourceKind.RAW_TEXTURE) {
@@ -845,10 +822,7 @@ public final class PackResourcePlan {
         }
     }
 
-    /**
-     * A texture path relative to the shaders folder. Iris drops one leading slash, as in Mellow's
-     * {@code /img/smaaArea.png}; a second one stays.
-     */
+    /** A texture path relative to the shaders folder; Iris drops one leading slash, but a second one stays. */
     private static String packRelative(String source) {
         String normalized = source.replace('\\', '/');
         return normalized.startsWith("/") ? normalized.substring(1) : normalized;

@@ -3,17 +3,10 @@
 package net.chimera.render;
 
 /**
- * The mip levels Iris setups give atlas sprites; Sodium, which Iris requires, builds each level from the one
- * above it.
- *
- * Every 2x2 footprint blends its two horizontal pairs, then blends the two results, and each pair's result is
- * stored as 8-bit sRGB. A pair of equal alpha averages its colour in linear light. A fully transparent texel
- * gives way to the other one, whose alpha is quartered. Otherwise the colours weigh by alpha in linear light and
- * the alphas average. A cutout texel beside transparent ones therefore fades below the 0.1 alpha test with
- * distance. VulkanMod Reforged averages all four in gamma 2.2 with no cutoff, so its distant foliage stays
- * opaque and fuller.
- *
- * Texels are ABGR, as NativeImage.getPixelRGBA returns them.
+ * The mip levels Iris setups give atlas sprites, built as Sodium builds them: each 2x2 footprint blends its two
+ * horizontal pairs, then the two results, each stored as 8-bit sRGB. A fully transparent texel gives way to the
+ * other at a quarter of its alpha, so cutout texels fade below the 0.1 alpha test with distance, unlike under
+ * VulkanMod's gamma average. Texels are ABGR, as NativeImage.getPixelRGBA returns them.
  */
 final class AtlasMipBlend {
     private AtlasMipBlend() {}

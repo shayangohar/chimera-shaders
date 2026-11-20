@@ -23,17 +23,15 @@ import static org.lwjgl.vulkan.VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 import static org.lwjgl.vulkan.VK10.vkWaitForFences;
 
 /**
- * Reads one mip level of a texture into client memory, as glGetTexImage does: the level at its own
- * size, in rows of the destination's width. VulkanMod's ImageUtil.downloadTexture reads level 0
- * only, at the texture's size, whatever the destination holds.
+ * Reads one mip level into client memory, as glGetTexImage does. VulkanMod's ImageUtil.downloadTexture reads only
+ * level 0, at the texture's size, whatever the destination holds.
  */
 public final class TextureLevelReadback {
     private TextureLevelReadback() {}
 
     /**
-     * Copies {@code level} of {@code image} into {@code destination}, an image {@code width} by {@code height}
-     * with {@code texelBytes} per texel. Only the part both cover is copied. A level the image lacks, or
-     * texels of another size, leave the destination as it was.
+     * Copies only the part both cover. A level the image lacks, or texels of another size, leave the destination
+     * as it was.
      */
     public static void read(VulkanImage image, int level, long destination, int width, int height, int texelBytes) {
         int copyWidth = Math.min(width, Math.max(1, image.width >> level));
@@ -59,14 +57,14 @@ public final class TextureLevelReadback {
         }
     }
 
-    /** Copies the level's corner into {@code buffer}, restoring the image's layout, and waits for the GPU. */
+    /** Restores the image's layout and waits for the GPU. */
     private static void copyLevel(MemoryStack stack, VulkanImage image, int level, long buffer, int width, int height) {
         int previous = image.getCurrentLayout();
         CommandPool.CommandBuffer commands = DeviceManager.getGraphicsQueue().beginCommands();
         image.transitionImageLayout(stack, commands.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         ImageUtil.copyImageToBuffer(commands.getHandle(), buffer, image.getId(), level, width, height,
                 0, 0, 0, 0, 0, image.aspect);
-        // as ImageUtil.downloadTexture leaves it: a texture that was never laid out becomes readable
+        // as downloadTexture leaves it: a texture never laid out becomes readable
         image.transitionImageLayout(stack, commands.getHandle(),
                 previous == VK_IMAGE_LAYOUT_UNDEFINED ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : previous);
         long fence = DeviceManager.getGraphicsQueue().submitCommands(commands);

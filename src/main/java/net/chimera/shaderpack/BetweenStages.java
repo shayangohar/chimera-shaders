@@ -9,12 +9,9 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_GEOMETRY_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 
-/**
- * The stages a program runs between vertex and fragment: tessellation control and evaluation, then geometry.
- * Each is null when the program has none; the two tessellation stages come together or not at all.
- */
+/** The stages between vertex and fragment; null when absent, and the tessellation pair comes together. */
 public record BetweenStages(String tessControl, String tessEvaluation, String geometry) {
-    /** Vertices per patch of a tessellated draw: terrain draws triangle lists, as Iris draws GL_PATCHES of 3. */
+    /** As Iris draws GL_PATCHES of 3. */
     public static final int PATCH_VERTICES = 3;
     public static final BetweenStages NONE = new BetweenStages(null, null, null);
 
@@ -28,10 +25,10 @@ public record BetweenStages(String tessControl, String tessEvaluation, String ge
         return tessControl != null;
     }
 
-    /** A present stage, named as PackProbe names program stages. */
+    /** Named as PackProbe names program stages. */
     public record Stage(String name, int stageBit, String source) {}
 
-    /** The present stages, in the order they run. */
+    /** In the order they run. */
     public List<Stage> present() {
         List<Stage> stages = new ArrayList<>(3);
         if (tessControl != null) {
@@ -47,7 +44,6 @@ public record BetweenStages(String tessControl, String tessEvaluation, String ge
         String apply(Stage stage);
     }
 
-    /** Each present stage's source mapped through {@code mapping}; an absent stage stays absent. */
     public BetweenStages map(Mapping mapping) {
         String[] mapped = new String[3];
         for (Stage stage : present()) {

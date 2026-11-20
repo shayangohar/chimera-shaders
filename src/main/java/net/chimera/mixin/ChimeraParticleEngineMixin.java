@@ -16,10 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.function.Predicate;
 
 /**
- * Tells the particle lanes which program a ParticleEngine.render call draws its sheets with. Iris's NeoForge
- * MixinParticleEngine sets one shader per call, from the sheets the call's filter accepts
- * (ChimeraEntityBridge.beginParticleCall). The filter is read here, as the call receives it, so the
- * Fabulous call and other mods' calls follow the same rule.
+ * Picks one particle program per ParticleEngine.render call from the sheets its filter accepts, as Iris on
+ * NeoForge does. Reading the filter here covers the Fabulous call and other mods' calls too.
  */
 @Mixin(ParticleEngine.class)
 public abstract class ChimeraParticleEngineMixin {

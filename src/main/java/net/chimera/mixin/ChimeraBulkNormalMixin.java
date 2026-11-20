@@ -11,16 +11,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * Vanilla's putBulkData normalises a quad's normal when the pose's normals are untrusted
- * (PoseStack.Pose.transformNormal), as after a non-uniform scale: the hotbar's pickup bounce in
- * Gui.renderSlot, or a stretched display entity. Reforged's overwrite (VertexConsumerM) does not, and its
- * packNormal wraps a component past 1 to a negative one, which swaps a popping block's lit and shaded faces.
- * Every other vanilla caller passes a unit normal, so while a pack renders the world, a normal that is not
- * unit length is normalised where Reforged's BufferBuilder.addVertex packs it. Without a pack, Reforged's
- * draws are left alone.
- *
- * Mixin 0.8.7 cannot inject into an interface method (VertexConsumer.putBulkData), and reaches a body
- * another mixin merged, Reforged's BufferBuilderM overwrite, only from a later priority.
+ * Normalises a non-unit normal while a pack renders, as vanilla's putBulkData does after a non-uniform scale
+ * such as the hotbar bounce. Reforged's packNormal wraps a component past 1 negative, swapping lit and shaded
+ * faces. Mixin 0.8.7 cannot inject into the interface method, and reaches Reforged's merged BufferBuilderM
+ * body only from a later priority.
  */
 @Mixin(value = BufferBuilder.class, priority = 1100)
 public abstract class ChimeraBulkNormalMixin {

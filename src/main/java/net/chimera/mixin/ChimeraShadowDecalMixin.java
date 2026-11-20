@@ -8,21 +8,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
- * Lifts the vanilla entity ground-shadow decal off its receiver, with or without a pack.
- *
- * EntityRenderDispatcher.renderBlockShadow builds the shadow.png quad exactly at the receiving voxel shape's
- * minimum Y. The entity shadow render type is translucent with no depth write and no depth bias, so the
- * decal would depth-fight the receiver as the camera angle changes. Only the decal's Y moves; X, Z, UVs,
- * alpha and depth state are untouched. Iris does not lift the decal. While a pack's shadow map replaces
- * entity shadows the decal is not drawn at all (ChimeraEntityRenderDispatcherMixin), as in Iris.
+ * Lifts the vanilla entity ground-shadow decal off its receiver, with or without a pack, since its render type
+ * has no depth bias and would depth-fight. Iris does not lift it.
  */
 @Mixin(EntityRenderDispatcher.class)
 public abstract class ChimeraShadowDecalMixin {
-    /**
-     * 1/64 block: enough to beat depth-buffer quantisation at gameplay distances, small enough to stay
-     * invisible and far below slab and stair geometry, so the decal cannot bleed through neighbouring
-     * receivers. Exact in float32, so integer receiver heights stay exact after the lift.
-     */
+    /** Enough to beat depth quantisation yet far below slab and stair steps; exact in float32. */
     private static final float GROUND_SHADOW_LIFT = 1.0F / 64.0F;
 
     // the quad has four shadowVertex calls; require = 4 fails if their count or signature changes

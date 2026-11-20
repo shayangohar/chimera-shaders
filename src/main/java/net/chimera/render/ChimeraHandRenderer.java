@@ -51,8 +51,8 @@ public final class ChimeraHandRenderer implements AutoCloseable {
     }
 
     /**
-     * A held block whose model renders in the translucent chunk layer, as Iris decides. NeoForge models name
-     * their own layers (a model's "render_type"), so this asks the model, not vanilla's block-to-layer table.
+     * A held block whose model renders in the translucent layer, as Iris decides. NeoForge models name their
+     * own layers, so this asks the model.
      */
     public static boolean translucent(ItemStack item) {
         if (!(item.getItem() instanceof BlockItem block)) return false;
@@ -109,8 +109,7 @@ public final class ChimeraHandRenderer implements AutoCloseable {
             game.itemInHandRenderer.renderHandsWithItems(tick, new PoseStack(), buffers, player,
                     minecraft.getEntityRenderDispatcher().getPackedLightCoords(player, tick));
             game.lightTexture().turnOffLightLayer();
-            // hand models, items and maps draw in their pack lanes first, then glint in its own lane
-            // (Iris ShaderKey.GLINT under the hand projection) over the depth they wrote
+            // pack lanes first, then glint in its own lane over the depth they wrote (Iris ShaderKey.GLINT)
             buffers.endFamilyBatches();
             buffers.endBatch();
         } finally {

@@ -41,15 +41,12 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
- * Measures the Java sources and fails when they regress past the recorded baseline. A regression
- * is a method newly over the complexity or length limit, or worse than recorded; a file newly at
- * {@link #MAX_FILE_LINES} lines or more, or longer than recorded; more inline qualified names or
- * lines over 120 characters; or more duplicated code. Every method and file the baseline lists must
- * also carry a reason to stay over its limit. {@code record} rewrites the baseline from the sources
- * and keeps each recorded reason.
+ * Measures the Java sources and fails when they regress past the recorded baseline: a method newly over the
+ * complexity or length limit, a file newly at {@link #MAX_FILE_LINES} lines, more long lines, qualified
+ * names or duplication, or anything worse than recorded. Every baseline entry must carry a reason, which
+ * {@code record} keeps when it rewrites the baseline.
  *
- * A file of {@link #WARN_FILE_LINES} lines or more only warns, as a prompt to look; a file earns a
- * split when it does two jobs.
+ * A file of {@link #WARN_FILE_LINES} lines only warns; split one only when it does two jobs.
  *
  * Usage: {@code CodeMetrics check|record <baseline> <source root>...}
  */

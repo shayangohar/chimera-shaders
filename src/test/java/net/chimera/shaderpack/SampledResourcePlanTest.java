@@ -50,11 +50,7 @@ final class SampledResourcePlanTest {
         verifyBaseline(root.resolve("baselines/sampled_resources.json"), supported, unsupported);
     }
 
-    /**
-     * Spring declares texture.deferred.noisetex and texture.composite.noisetex but no texture.noise,
-     * so its gbuffers programs read Iris's generated noise. A declared noise has its own resource key,
-     * apart from the generated noise's.
-     */
+    /** Stage noisetex entries leave gbuffers on Iris's generated noise; a declared noise has its own resource key. */
     @Test
     void aDeclaredNoiseIsItsOwnImage(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -89,10 +85,8 @@ final class SampledResourcePlanTest {
     }
 
     /**
-     * Iris skips a custom texture it cannot read (ShaderPack.readTexture) and runs the program:
-     * a stage texture leaves the sampler its own target, a customTexture name reads unit 0, and a
-     * missing texture.noise leaves the generated noise. A raw texture still refuses its program.
-     * Mellow's and Reverie's LUT_FILE options name files only some of them ship.
+     * Iris skips a custom texture it cannot read and runs the program, so the name reads what it would
+     * without the entry; a raw texture still refuses its program.
      */
     @Test
     void aMissingTextureIsSkippedAsIrisSkipsIt(@TempDir Path root) throws IOException {
@@ -225,10 +219,7 @@ final class SampledResourcePlanTest {
                 "gaux1 did not schedule a colortex4 read");
     }
 
-    /**
-     * Iris preprocesses shaders.properties as C, so a raw texture's size may be a macro the file
-     * defines: Alpha Piscium sizes customTexture.usam_restirReuseTex0 with RESTIR_REUSE_TEX_WIDTH.
-     */
+    /** Iris preprocesses shaders.properties as C, so a raw texture's size may be a macro the file defines. */
     @Test
     void resourceValuesReadPropertyMacros(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -247,9 +238,8 @@ final class SampledResourcePlanTest {
     }
 
     /**
-     * Iris applies a {@code texture.<stage>} entry only by replacing a registration: a name nothing
-     * registers keeps unit 0, which is colortex0 in a fullscreen pass. World programs register
-     * colortex4 and up and the DH depth textures (IrisSamplers.addRenderTargetSamplers).
+     * Iris applies a {@code texture.<stage>} entry only by replacing a registration, so a name nothing
+     * registers keeps unit 0. World programs register colortex4 and up and the DH depth textures.
      */
     @Test
     void stageTexturesOnlyReplaceRegisteredNames(@TempDir Path root) throws IOException {

@@ -34,10 +34,7 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
         }
     }
 
-    /**
-     * Reads the whole PNG, as Iris's CustomTextureManager does, and refuses it only past the device's
-     * 2D image limit (PackImageLimits).
-     */
+    /** Reads the whole PNG, as Iris does, refusing it only past the device's 2D image limit. */
     public static PackNoiseTexture load(InputStream input, String name, String filter, String wrap)
             throws IOException {
         if (input == null) {
@@ -58,12 +55,8 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
     }
 
     /**
-     * The noise Iris generates for a pack without texture.noise: {@code size} squared opaque texels whose red,
-     * green and blue are the low three bytes of successive {@code java.util.Random} ints from seed 0, drawn
-     * column by column, sampled linear and repeating.
-     *
-     * Refused, as a pack PNG is, past the device's 2D image limit (PackImageLimits), before any texel is made:
-     * a side of 20000 would first take 1.6 GB and seconds of work.
+     * The noise Iris generates for a pack without texture.noise, {@code Random(0)} ints filled column by column.
+     * The size is checked against the device limit before any texel is made.
      */
     public static PackNoiseTexture generated(int size, String name) throws IOException {
         String limit = PackImageLimits.deviceFailure("generated noise", 2, size, size);
@@ -79,10 +72,7 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
         return upload(pixels, name, "linear", "repeat");
     }
 
-    /**
-     * One texel of what GL samples from an unbound texture, (0, 0, 0, 1): Iris binds texture 0 where Distant
-     * Horizons would supply its depth textures (PackResourcePlan.GENERATED_UNBOUND).
-     */
+    /** What GL samples from an unbound texture, (0, 0, 0, 1), which Iris binds in place of Distant Horizons' depths. */
     public static PackNoiseTexture unbound(String name) throws IOException {
         NativeImage pixels = new NativeImage(NativeImage.Format.RGBA, 1, 1, false);
         pixels.setPixelRGBA(0, 0, 0xFF000000);
@@ -104,8 +94,7 @@ public final class PackNoiseTexture implements PackResourceOwner.LoadedTexture {
             if (image == null) {
                 throw new IOException("noise texture has no Vulkan image: " + name);
             }
-            // DynamicTexture samples nearest and repeating, but a pack's water normals difference neighbouring
-            // noise texels, which nearest sampling makes blocky; use the binding's filter and wrap
+            // the binding's sampling; DynamicTexture's nearest makes water normals built from noise blocky
             ((ChimeraVulkanImageAccessor) image).chimera$setSampler(
                     ChimeraSamplers.flat(!"nearest".equals(filter), "clamp".equals(wrap)));
             return new PackNoiseTexture(texture, image);

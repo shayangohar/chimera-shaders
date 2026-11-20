@@ -10,18 +10,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Which image holds each colour target's main and alt side through a frame, following only the load-time
- * flip plan (PackFlipPlan). Side 0 is main, side 1 alt. Iris fixes every pass's sides when it builds its
- * renderers and copies each flipped, uncleared target back into main at frame end, so every frame starts
- * unflipped. This class makes no Vulkan calls: PackPostTargets carries out the copies and clears it asks for,
- * and tests drive it against an Iris model with no device.
- *
- * colortex0 has a third image. The world draws into the HDR image, which stands in for the colortex0 side
- * the world's flip state names, since Iris's gbuffers write the side their flip state reads. From the frame's
- * start that is the opaque world's side (flippedAfterPrepare's), where Iris's horizon also draws, ahead of
- * the shadow and prepare passes. Before the world resumes, the HDR image is loaded with its side. Before a
- * pass writes that side, or needs it as a graph image (a mip chain, a store), the HDR image's content is
- * written back to it.
+ * Which image holds each colour target's main (0) and alt (1) side through a frame, following the load-time
+ * flip plan; as in Iris, every frame starts unflipped. It makes no Vulkan calls. colortex0 has a third image,
+ * the HDR image the world draws into, which stands in for the side the world's flip state names and is written
+ * back before a pass needs that side.
  */
 final class PostTargetSides {
     /** An image: a target's graph side, or the HDR image (target 0, side {@link #HDR}). */
@@ -85,13 +77,9 @@ final class PostTargetSides {
     }
 
     /**
-     * Opens a frame. The first frame after the images were made clears every side of every target, as Iris's
-     * full clear does. Later frames copy each uncleared target the last frame left flipped from alt back into
-     * main (FinalPassRenderer's swap passes), then clear both sides of each cleared target (ClearPassCreator).
-     *
-     * The HDR image then stands in for the opaque world's colortex0 side ({@link #opaqueWorldSide}). The caller
-     * clears it with colortex0's colour when colortex0 is cleared, and keeps it when not
-     * ({@link #carriesColortex0}). The world draws into it from here on, the horizon first, so it counts as newer.
+     * Opens a frame: the first clears every side, later ones copy each flipped, uncleared target back into main
+     * and clear the cleared targets, as Iris does. The HDR image then stands in for the opaque world's
+     * colortex0 side.
      */
     void beginFrame(Ops ops) {
         boolean full = fullClearDue;
@@ -118,20 +106,14 @@ final class PostTargetSides {
     }
 
     /**
-     * The colortex0 side Iris's gbuffers draw on until the translucents (flippedAfterPrepare's). It holds from
-     * the frame's start: Iris builds its gbuffer framebuffers once, so the horizon it draws after the begin
-     * passes, ahead of the shadow and prepare passes, lands there too. Glimmer's prepare2 flips colortex0, and
-     * its opaque world draws over that horizon.
+     * The colortex0 side Iris's gbuffers draw on until the translucents; it holds from the frame's start, as
+     * Iris builds its gbuffer framebuffers once.
      */
     private int opaqueWorldSide() {
         return sided(0) && PackFlipPlan.flipped(plan.opaqueWorld(), 0) ? 1 : 0;
     }
 
-    /**
-     * The HDR image was recreated between frames (a screen change rebuilds the world attachments) and is empty,
-     * so it stands in for no side and nothing is written back from it. Content the old image held newer than
-     * its graph side is lost; the next frame starts from the graph sides.
-     */
+    /** The HDR image was recreated empty between frames, so it stands in for no side and nothing is written back. */
     void hdrReplaced() {
         hdrSide = -1;
         hdrNewer = false;
@@ -143,14 +125,9 @@ final class PostTargetSides {
     }
 
     /**
-     * Carries colortex0 into a new frame. Main starts with what the last frame's final side held, as Iris's
-     * copy-back leaves it, alt keeps its own content, and the HDR image takes the content of {@code world}, the
-     * side it stands in for next.
-     *
-     * When {@code world} is main, the HDR image's content goes back to alt first if it stood in for alt, and
-     * main's graph image is not refreshed: the HDR image is newer and is written back when a pass needs main as
-     * a graph image. When it is alt, main's graph image takes the final side's content and the HDR image takes
-     * alt's. At most two copies, often none.
+     * Carries colortex0 into a new frame: main takes the last frame's final side, as Iris's copy-back leaves it,
+     * and the HDR image takes {@code world}'s content. When {@code world} is main, the HDR image stays the newer
+     * copy and is written back only when a pass needs main.
      */
     private void carryColortex0(Ops ops, int world) {
         int last = readSide(0);
@@ -184,9 +161,8 @@ final class PostTargetSides {
     }
 
     /**
-     * The graph image of {@code target}'s read side, brought up to date, for a mip chain or for a store through
-     * colorimgN, which binds the read side (IrisImages). A store makes the HDR image stale, so it stops standing
-     * in for the side.
+     * The up-to-date graph image of {@code target}'s read side, for a mip chain or a colorimgN store; a store
+     * makes the HDR image stale.
      */
     Image readGraph(int target, boolean store, Ops ops) {
         int side = readSide(target);
@@ -207,9 +183,8 @@ final class PostTargetSides {
     }
 
     /**
-     * Brings the frame up to {@code pass}, a step or a compute-only pass. Each earlier step that did not run
-     * passes its input through, so the sides stay the plan's. Returns the step, or null when {@code pass} is
-     * not one.
+     * Brings the frame up to {@code pass}, passing through earlier steps that did not run. Returns its step, or
+     * null for a compute-only pass.
      */
     PackFlipPlan.Step advanceTo(String pass, Ops ops) {
         Comparator<String> order = PostTargetPlan.programComparator();
@@ -225,9 +200,8 @@ final class PostTargetSides {
     }
 
     /**
-     * The image a running step writes draw buffer {@code target} to: the side it does not read. Before a write
-     * over the side the HDR image stands in for, the HDR image's content is copied there as the base a blend or
-     * discard keeps, and the HDR image stops standing in for it.
+     * The side a running step writes {@code target} to, the one it does not read. The HDR image is first written
+     * back there, as the base a blend or discard keeps.
      */
     Image write(PackFlipPlan.Step step, int target, Ops ops) {
         int side = sided(target) ? step.writeSide(target) : 0;
@@ -244,11 +218,7 @@ final class PostTargetSides {
         cursor = Math.max(cursor, steps.indexOf(step) + 1);
     }
 
-    /**
-     * A step that did not run copies each draw buffer's read side to its write side, as an identity pass would,
-     * then flips as the plan says. Later passes read the sides Iris's do, and each target keeps the last content
-     * written to it.
-     */
+    /** Passes a step that did not run through as an identity pass, then flips as the plan says. */
     private void passThrough(PackFlipPlan.Step step, Ops ops) {
         state = step.before();
         for (int target : step.drawBuffers()) {
@@ -267,10 +237,8 @@ final class PostTargetSides {
     }
 
     /**
-     * The world draws again after {@code window}'s group: BEGIN's for the horizon and the shadow pass,
-     * PREPARE's for the opaque world, EARLY's for the translucents. The group's remaining steps pass through,
-     * the state becomes the one the following world draws read, and the HDR image takes the colortex0 side
-     * Iris's gbuffers write next; after the begin group, that is the opaque world's.
+     * The world draws again after {@code window}'s group: its remaining steps pass through, and the HDR image
+     * takes the colortex0 side Iris's gbuffers write next.
      */
     void enterWorld(PackFrameSchedulePlan.PostWindow window, Ops ops) {
         passThroughBefore(next(window), ops);

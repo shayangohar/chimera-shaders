@@ -31,7 +31,7 @@ final class GlslMacroExpanderTest {
                 "#define V 1\nint a = V;\n#undef V\n#define V 2\nint b = V;\n"));
     }
 
-    /** Photon reaches samplers through macros: a chained alias and a macro's body expand where they are used. */
+    /** A chained sampler alias and a macro's body expand where they are used. */
     @Test
     void samplerMacroAliases() {
         String aliased = GlslMacroExpander.expand("""
@@ -73,9 +73,8 @@ final class GlslMacroExpanderTest {
     }
 
     /**
-     * Alpha Piscium pastes its colour-space converter's name onto the call's parenthesis
-     * ({@code _to_ ## b ##(x)}). That is not one token; JCPP lexes it again, and the rescan
-     * expands the pasted name as a call.
+     * A name pasted onto a call's parenthesis ({@code _to_ ## b ##(x)}) is not one token; JCPP lexes it
+     * again, and the rescan expands the pasted name as a call.
      */
     @Test
     void aPasteThatIsNotOneTokenIsLexedAgain() {
@@ -87,7 +86,7 @@ final class GlslMacroExpanderTest {
                 """));
     }
 
-    /** BSL documents its options with "#define FEATURE ..." inside a block comment; JCPP reads that as text. */
+    /** A #define inside a block comment is text to JCPP. */
     @Test
     void aDirectiveInsideABlockCommentIsText() {
         String source = "#version 120\n/*\n#define FEATURE -> feature is enabled\n*/\n"

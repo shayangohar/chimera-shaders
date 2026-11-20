@@ -83,9 +83,8 @@ final class FrameScheduleTest {
     }
 
     /**
-     * RenderPearl's deferred and composite passes are computes alone, with no post program and no
-     * final: the target graph has no step, yet the chain runs them (Iris ComputeOnlyPass) in their
-     * windows and shows colortex0, which composite.csh writes through colorimg0.
+     * Compute-only passes with no post program or final still run in their windows, as Iris's
+     * ComputeOnlyPass does, and the chain shows colortex0.
      */
     @Test
     void computeOnlyPassesRunTheChain(@TempDir Path root) throws Exception {
@@ -144,11 +143,7 @@ final class FrameScheduleTest {
         verifyTwoFrameHistory();
     }
 
-    /**
-     * Two full frames and the failure cases a temporal reader depends on. History advances with every
-     * committed frame; a skipped writer keeps the previous frame available as the runtime seeds it; an
-     * aborted frame keeps the last commit; a resize or reload restarts with no previous frame.
-     */
+    /** Two full frames and the failure cases a temporal reader depends on. */
     private static void verifyTwoFrameHistory() {
         PackTemporalState frames = new PackTemporalState();
         frames.beginFrame(true);
@@ -165,8 +160,7 @@ final class FrameScheduleTest {
         assertTrue(frames.commit(), "second history commit failed");
         assertTrue(frames.previousAvailable(2), "second frame produced no history");
 
-        // skipped writer: the runtime still seeds the persistent target at frame start, so the
-        // previous frame stays available
+        // skipped writer: the runtime seeds the persistent target, so the previous frame stays available
         frames.beginFrame(true);
         frames.seedCurrent(2);
         assertTrue(frames.commit(), "skipped-writer commit failed");

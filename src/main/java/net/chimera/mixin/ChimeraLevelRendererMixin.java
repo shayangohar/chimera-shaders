@@ -47,21 +47,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.function.Predicate;
 
 /**
- * Drives Chimera's world and output split inside LevelRenderer.renderLevel.
- *
- * - HEAD captures the frame the pack uniforms read, applies frustum.culling and opens the family lanes'
- *   world window.
- * - The world clear opens the HDR world target instead, cleared as the pack asks. The fog colour
- *   FogRenderer has just set is what the pack's fogColor reads from then on. The pack horizon draws there,
- *   as in Iris.
- * - Just before the sky, the shadow pass and the prepare passes run, as in Iris (PreSkyPasses).
- * - The level's family batches are held to Iris's translucent boundary, where they draw before the
- *   centre-depth sample and the solid hand. With separateEntityDraws the late kinds wait for the deferred
- *   passes at the translucent terrain layer (WorldRendererMixin).
- * - Particles and weather draw in their lanes' windows; particles move between NeoForge's early and late
- *   calls as the pack's particle ordering asks.
- * - RETURN draws the translucent hand and resolves the finished world into the output target, where the
- *   host hand, the GUI and VulkanMod's post chain draw.
+ * Drives Chimera's world and output split inside LevelRenderer.renderLevel. The world clear opens the HDR
+ * world target; RETURN resolves it into the output target, where the host hand and the GUI draw.
  */
 @Mixin(LevelRenderer.class)
 public abstract class ChimeraLevelRendererMixin {
@@ -96,9 +83,8 @@ public abstract class ChimeraLevelRendererMixin {
     }
 
     /**
-     * As Iris's MixinLevelRenderer.iris$setupPipeline: a pack's frustum.culling=false culls nothing among
-     * the sections, entities, block entities and particles renderLevel draws. VulkanMod rebuilds its visible
-     * sections only when the camera moves or turns, so a change either way schedules a rebuild.
+     * A pack's frustum.culling=false culls nothing, as in Iris. VulkanMod rebuilds its visible sections only
+     * when the camera moves, so a change either way schedules a rebuild.
      */
     @Unique
     private void chimera$frustumCulling(boolean cullNothing) {
@@ -128,10 +114,8 @@ public abstract class ChimeraLevelRendererMixin {
     }
 
     /**
-     * The horizon of Iris's IrisRenderingPipeline.beginLevelRendering: after the clear and the begin passes,
-     * in the SKY phase and the sky window, ahead of the sky's fog setup and the shadow pass, so the pack's sky
-     * program reads the fog the last frame left, as under Iris. It draws where the sky is the normal one or
-     * the dimension has skylight.
+     * Iris's horizon from beginLevelRendering, drawn before the sky's fog setup so the sky program reads last
+     * frame's fog, as under Iris. Only for a normal sky or a dimension with skylight.
      */
     @Unique
     private static void chimera$horizon(ChimeraMainPass pass, Matrix4f modelView, Matrix4f projection) {
@@ -153,11 +137,7 @@ public abstract class ChimeraLevelRendererMixin {
         }
     }
 
-    /**
-     * Iris's shadow pass and prepare passes, just before the sky (PreSkyPasses), with the frustum
-     * renderLevel then passes setupRender: the captured one if the debug key froze it, else the
-     * culling frustum.
-     */
+    /** Iris's shadow and prepare passes, just before the sky, with the frustum renderLevel passes setupRender. */
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = RENDER_SKY), require = 1)
     private void chimera$beforeSky(DeltaTracker deltaTracker, boolean renderBlockOutline, Camera camera,
                                    GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f modelView,
@@ -171,10 +151,7 @@ public abstract class ChimeraLevelRendererMixin {
                 captured != null, player != null && player.isSpectator());
     }
 
-    /**
-     * Makes one entity's render a batch group, as Iris's MixinLevelRenderer does; the order its render types
-     * are written in orders the level's held batches (IrisBatchOrder).
-     */
+    /** Makes one entity's render a batch group, as Iris's MixinLevelRenderer does (IrisBatchOrder). */
     @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = RENDER_ENTITY), require = 1)
     private void chimera$entityGroup(LevelRenderer renderer, Entity entity, double cameraX, double cameraY,
                                      double cameraZ, float partialTick, PoseStack poses, MultiBufferSource buffers,
@@ -188,9 +165,8 @@ public abstract class ChimeraLevelRendererMixin {
     }
 
     /**
-     * Iris's translucent boundary, in Iris's order: the level's entity batches, then beginHand's
-     * centre-depth sample, then the solid hand, whose segment copies the pre-hand depth (depthtex2) with
-     * every entity in it.
+     * Iris's translucent boundary, in Iris's order: entity batches, the centre-depth sample, then the solid
+     * hand, so depthtex2 holds every entity.
      */
     @Inject(method = "renderLevel", at = @At(value = "CONSTANT", args = "stringValue=translucent"), require = 1)
     private void chimera$translucentBoundary(CallbackInfo callback) {
@@ -208,10 +184,7 @@ public abstract class ChimeraLevelRendererMixin {
         chimera$drawParticles(particles, lightTexture, camera, partialTick, frustum, types, original);
     }
 
-    /**
-     * NeoForge's early particle call: opaque particles, before translucent terrain and so before the
-     * pack's deferred passes.
-     */
+    /** NeoForge's early particle call: opaque particles, before translucent terrain and the deferred passes. */
     @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = PARTICLES, ordinal = 1), require = 1)
     private void chimera$earlyParticles(ParticleEngine particles, LightTexture lightTexture, Camera camera,
                                         float partialTick, Frustum frustum, Predicate<ParticleRenderType> types,
@@ -228,8 +201,7 @@ public abstract class ChimeraLevelRendererMixin {
     }
 
     /**
-     * Moves particles between NeoForge's two calls as the pack's ordering asks, as Iris's NeoForge
-     * MixinLevelRenderer does: before draws every particle early, after every particle late, and
+     * Moves particles between NeoForge's two calls as the pack's ordering asks, as Iris on NeoForge does;
      * mixed keeps NeoForge's split.
      */
     private static void chimera$orderParticles(boolean early, ParticleEngine particles, LightTexture lightTexture,
@@ -272,10 +244,8 @@ public abstract class ChimeraLevelRendererMixin {
     }
 
     /**
-     * Iris's rain.depth: rain and snow write depth, so the passes after them see the weather in depthtex0.
-     * Like Iris's MixinLevelRenderer, this forces renderSnowAndRain's first RenderSystem.depthMask to true,
-     * where vanilla passes whether Fabulous transparency is on; without the directive the call keeps its own
-     * value. VulkanMod sets its weather state at the method's head, before this call.
+     * Iris's rain.depth: forces renderSnowAndRain's first depthMask to true, so later passes see weather in
+     * depthtex0. VulkanMod sets its weather state at the method's head, before this call.
      */
     @ModifyArg(method = "renderSnowAndRain", at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/systems/RenderSystem;depthMask(Z)V", ordinal = 0), require = 1)

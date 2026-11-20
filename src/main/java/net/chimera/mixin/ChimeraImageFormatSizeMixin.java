@@ -8,10 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * VulkanMod's image builder rejects any format outside its own small table. Pack colour targets use the
- * formats in PackConfig.FMT_TO_VK, so the builder takes their texel size from there.
- */
+/** Texel sizes for pack target formats, which VulkanMod's image builder would otherwise reject. */
 @Mixin(targets = "net.vulkanmod.vulkan.texture.VulkanImage$Builder", remap = false)
 public abstract class ChimeraImageFormatSizeMixin {
     @Inject(method = "formatSize(I)I", at = @At("HEAD"), cancellable = true, require = 1)

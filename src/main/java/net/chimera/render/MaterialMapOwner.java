@@ -23,13 +23,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Owns the resource pack's normal and specular map images for one renderer lifetime.
- *
- * Two permanent 1x1 images hold the flat texels, so a material program always binds something valid. The
- * atlas upload mixin reports each stitched layout; the pump builds a companion in the same layout on the
- * render thread, and a draw finds it by its exact albedo image. A non-atlas texture, such as an entity's, gets
- * a companion once a draw binds it and the pump finds its resource; a resource reload retires these.
- * Animated maps tick with their atlas and rewrite only their own slots.
+ * Owns the resource pack's normal and specular map images for one renderer lifetime. The pump builds each
+ * companion in its albedo's layout, and a draw finds it by its exact albedo image; two permanent 1x1 flat
+ * images stand in where no map exists.
  */
 public final class MaterialMapOwner implements AutoCloseable {
     static final Logger LOGGER = LoggerFactory.getLogger(MaterialMapOwner.class);
@@ -95,9 +91,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     private boolean closed;
 
     /**
-     * One stitched sprite, copied out of the upload preparations. The origin is the padded slot's, while
-     * width and height are the content's; the padding is the replicated border the stitcher put around the
-     * content. Only square borders are supported, so X and Y padding must agree.
+     * One stitched sprite. The origin is the padded slot's, while width and height are the content's; X and Y
+     * padding must agree.
      */
     public record AtlasSprite(String id, String namespace, String path, int x, int y, int width,
             int height, int padX, int padY) {}
@@ -106,10 +101,7 @@ public final class MaterialMapOwner implements AutoCloseable {
     public record AtlasUpload(String location, int width, int height, int mipLevels,
             List<AtlasSprite> sprites) {}
 
-    /**
-     * Opens a resource-pack file; empty when it is absent, since a missing map just means the fallback. The
-     * owner closes every stream it gets.
-     */
+    /** Opens a resource-pack file, empty when absent; the owner closes every stream it gets. */
     public interface ResourceLookup {
         Optional<InputStream> open(String namespace, String path);
     }
@@ -235,10 +227,7 @@ public final class MaterialMapOwner implements AutoCloseable {
                 materialSamplerFactory);
     }
 
-    /**
-     * Allocates the two permanent flat fallbacks on the calling thread. Call only on the render thread where
-     * uploads are allowed, such as a pack install or the frame-boundary pump; never during a draw.
-     */
+    /** Allocates the two flat fallbacks; render thread only, where uploads are allowed, never during a draw. */
     public static MaterialMapOwner create() {
         FlatImage normals = flat(MaterialMapKind.NORMALS);
         FlatImage specular;
@@ -276,9 +265,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * The flat fallback for a material sampler. A draw that knows its albedo image finds the companion
-     * instead ({@link #companionFor}, {@link #resolveDrawMaterial}). An unknown name throws, so a bad
-     * manifest entry cannot bind the wrong map.
+     * The flat fallback for a material sampler. An unknown name throws, so a bad manifest entry cannot bind the
+     * wrong map.
      */
     public VulkanImage image(String sampler) {
         return snapshot(sampler).image();
@@ -309,9 +297,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * One {@code TextureAtlas.cycleAnimationFrames} call for {@code location}: advances the atlas's animated
-     * maps by one tick, as the game advances the albedo, and marks changed slots for the next pump. Before the
-     * atlas is built, counts the tick for the build to catch up. Never touches the GPU.
+     * Advances the atlas's animated maps one tick with the albedo, marking changed slots for the next pump;
+     * before the atlas is built, counts the tick for the build to catch up.
      */
     public void tickAtlas(String location) {
         synchronized (companionsLock) {
@@ -330,12 +317,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Builds queued atlas companions, identifies wanted simple textures, writes changed animated slots and
-     * closes retired sets. Runs on the render thread at the frame boundary, where no draw can see a half-built
-     * companion.
-     *
-     * A failed atlas build warns and keeps the previous companions. A null source skips simple textures and
-     * leaves their queue for the next pump.
+     * Builds and writes pending companions at the frame boundary, where no draw can see a half-built one. A
+     * failed atlas build keeps the previous companions; a null source leaves simple textures for the next pump.
      */
     public void pumpPendingBuilds(ResourceLookup lookup, MapImageDecoder decoder,
             SimpleTextureSource source) {
@@ -366,8 +349,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * Writes every animated slot that changed since the last pump: each mip level, with its replicated
-     * padding, at the slot's own origin. A failed write warns and leaves that slot on its last good frame.
+     * Writes every animated slot that changed since the last pump; a failed write leaves that slot on its last
+     * good frame.
      */
     private void flushAnimations() {
         synchronized (companionsLock) {
@@ -412,14 +395,9 @@ public final class MaterialMapOwner implements AutoCloseable {
         }
     }
     /**
-     * Starts a new resource-reload generation and returns it.
-     *
-     * TextureManager registers every texture again on reload, so the simple-texture caches retire: their sets
-     * close at the next pump, and live draws queue the images again. Built atlas companions and pending uploads
-     * stay: the reload's re-stitch replaces the old atlas entries, and the reload listener applies after that
-     * texture work, so retiring them here would close companions already built for the new atlases. An old
-     * entry cannot be reached anyway: draws bind the new base image, which finds only its own companions or
-     * the flat fallbacks.
+     * Starts a new resource-reload generation and returns it, retiring the simple-texture caches. Atlas
+     * companions stay, since the listener runs after the re-stitch and retiring them would close companions
+     * already built for the new atlases.
      */
     public int bumpGeneration() {
         synchronized (companionsLock) {
@@ -464,11 +442,8 @@ public final class MaterialMapOwner implements AutoCloseable {
     }
 
     /**
-     * The material image and sampler for one draw. A companion of the draw's albedo samples with a sampler
-     * derived from the draw's own; without one the flat fallback binds.
-     *
-     * The context is captured once per draw, before the binding transaction, so this never reads live slot
-     * state. The transaction still owns rollback.
+     * The material image and sampler for one draw: the albedo's companion with a sampler derived from the
+     * draw's, else the flat fallback. Never reads live slot state.
      */
     public ChimeraTextureBindingState.Snapshot resolveDrawMaterial(
             DrawMaterialContext context, String sampler) {

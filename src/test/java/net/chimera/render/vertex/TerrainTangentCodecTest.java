@@ -11,9 +11,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Terrain at_tangent is the quad's texture U direction with Iris's handedness. A tangent synthesized
- * from the normal is a quarter turn off on up and down faces and wrong on rotated textures, which sends
- * pack parallax marching the wrong way.
+ * Terrain at_tangent is the quad's texture U direction with Iris's handedness; one synthesised from the
+ * normal would send pack parallax the wrong way.
  */
 final class TerrainTangentCodecTest {
     @Test
@@ -54,9 +53,9 @@ final class TerrainTangentCodecTest {
     }
 
     /**
-     * The builder stores each quad's face normal from its diagonals, as Iris does. VulkanMod's
-     * fluid renderer passes packed normal 0, which a pack would normalise into NaN water
-     * lighting; its block renderer passes the facing axis as unit bytes (1/127 once unpacked).
+     * The builder stores each quad's face normal from its diagonals, as Iris does: VulkanMod's fluid
+     * renderer passes packed normal 0, which a pack would normalise into NaN, and its block renderer
+     * passes unit bytes (1/127 once unpacked).
      */
     @Test
     void storesFaceNormals() {

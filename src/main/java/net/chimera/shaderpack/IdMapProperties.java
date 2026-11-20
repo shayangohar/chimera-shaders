@@ -12,31 +12,23 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * The id-map files (block.properties, item.properties, entity.properties) read as Iris reads them.
- * PropertiesPreprocessor runs the file through its C preprocessor (JCPP), IdMap.loadProperties
- * rejoins the continuations that preprocessing split and loads the text into OrderBackedProperties,
- * and IdMap.parseIdMap reads the item and entity keys. {@link #read} is the first two steps and
- * {@link #ids} the third.
+ * The id-map files (block.properties, item.properties, entity.properties) read as Iris reads them:
+ * {@link #read} preprocesses and loads one as IdMap.loadProperties does, and {@link #ids} parses its keys.
  */
 final class IdMapProperties {
     /** A continuation whose next lines preprocessing emptied goes on past them (IdMap.loadProperties). */
     private static final Pattern CONTINUED_PAST_EMPTY_LINES = Pattern.compile("\\\\\\n\\s*\\n");
     /**
-     * IdMap.loadProperties then starts a new line at each {@code block.} that follows other text on
-     * its line, and the character before it goes with the match: a continuation that runs into the
-     * next block key loses its last character.
+     * IdMap.loadProperties starts a new line at each {@code block.} after other text on its line, dropping the
+     * character before it, as Iris does.
      */
     private static final Pattern RUN_ON_BLOCK_KEY = Pattern.compile("\\S *block\\.");
 
     private IdMapProperties() {}
 
     /**
-     * One file's entries in the order their keys first appear, each with its last value, as
-     * OrderBackedProperties keeps them.
-     *
-     * {@code failure} says why there are none when the file exists but could not be read or has malformed
-     * escapes. It is {@code CONDITION_UNSUPPORTED} when a conditional Chimera could not evaluate read as false
-     * and the rest of the file read on, as JCPP reads it (PropertiesPreprocessor.applyConditional).
+     * One file's entries in first-key order, each with its last value. {@code failure} is
+     * {@code CONDITION_UNSUPPORTED} when an unevaluable conditional read as false, as JCPP reads it.
      */
     record Loaded(boolean present, String sourceHash, Map<String, String> entries, String failure) {}
 
@@ -67,10 +59,9 @@ final class IdMapProperties {
     }
 
     /**
-     * Iris's IdMap.parseIdMap over {@code <prefix><n>} keys, in entry order: each whitespace-separated
-     * name maps to n, a later key overriding an earlier one. A name with a state selector is skipped,
-     * a name without a namespace is in {@code minecraft}, and a key whose n is not an integer is
-     * reported in {@code invalidKeys}.
+     * Iris's IdMap.parseIdMap over {@code <prefix><n>} keys: each name maps to n, a later key overriding an
+     * earlier one. A name with a state selector is skipped; a key whose n is not an integer goes to
+     * {@code invalidKeys}.
      */
     static Map<String, Integer> ids(Map<String, String> entries, String prefix, List<String> invalidKeys) {
         Map<String, Integer> ids = new LinkedHashMap<>();

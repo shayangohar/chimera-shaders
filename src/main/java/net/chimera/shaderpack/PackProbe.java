@@ -77,11 +77,8 @@ public final class PackProbe {
     }
 
     /**
-     * Builds the report and the runtime plan from one loaded source tree.
-     *
-     * A dimension this load analysed before is not analysed again. The load's options and sources are fixed, so
-     * its analysis still holds (PackSource.LoadResult.analyzed), as Iris builds each dimension's pipeline from the
-     * shader pack it loaded once. Each caller gets its own report, which the runtime marks.
+     * Builds the report and the runtime plan from one loaded source tree. A dimension this load analysed before is
+     * reused, since the load's options and sources are fixed; each caller gets its own report.
      */
     public static Analysis analyze(Path packPath, PackSource.LoadResult loaded) {
         loaded.pinLoadInputs();
@@ -229,9 +226,8 @@ public final class PackProbe {
 
         private void buildPlans() {
             planPreparedSources();
-            // packs hide their image code behind Iris's custom-image capability
-            // offer it only when the first plan shows Chimera creates an image the pack declares, then prepare and
-            // plan again; Iris offers it whatever the programs do with the images
+            // offer the custom-image capability only when the first plan shows Chimera creates a declared image,
+            // then prepare and plan again; Iris offers it whatever the programs do with the images
             if (advancedPlan.capabilityPossible()) {
                 prepareWithCustomImages();
                 planPreparedSources();
@@ -443,7 +439,7 @@ public final class PackProbe {
                     live.addAll(usage.liveSamplers());
                     live.addAll(usage.liveImages());
                 }
-                // Iris binds every stage's samplers; Rethinking Voxels' shadow.gsh writes voxelCols
+                // Iris binds every stage's samplers
                 for (String source : program.preparedGeometryStages(settings.readsTessellation()).values()) {
                     GlslResourceUsage.Analysis usage = GlslResourceUsage.analyze(source);
                     live.addAll(usage.liveSamplers());

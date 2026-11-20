@@ -25,9 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A pack load hands the family bridge its lanes as one InstalledLanes. The set's pipelines are
- * all GraphicsPipelines, so a swapped argument would compile and draw one family with another's
- * program; each PackPipelineSet field goes into the component of its own name.
+ * Every InstalledLanes component is a GraphicsPipeline, so a swapped argument would compile and draw one
+ * family with another's program; each PackPipelineSet field must reach the component of its own name.
  */
 final class InstalledLanesTest {
     private static final String SET = "net/chimera/render/PackPipelineSet";

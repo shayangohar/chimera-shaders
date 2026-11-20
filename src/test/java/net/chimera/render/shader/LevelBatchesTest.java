@@ -10,12 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A pack fallback mid-frame switches the family bridge off, after which RenderBuffers hands out vanilla's
- * sources. The level sources are still found through their own list, and switching the bridge off drops
- * what they hold.
- *
- * A held batch needs a RenderType, which only a bootstrapped game can make (NeoForge's FeatureFlags reads
- * the loaded mod list), so this checks the lookup and that switching off leaves the sources usable.
+ * After a mid-frame fallback switches the family bridge off, the level sources are still found through
+ * their own list and stay usable. A held batch needs a bootstrapped game, so this test holds none.
  */
 final class LevelBatchesTest {
     @Test

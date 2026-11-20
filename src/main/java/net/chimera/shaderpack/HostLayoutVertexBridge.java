@@ -11,24 +11,14 @@ import java.util.Set;
 
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
-/**
- * Converts programs drawn on the host's own vertex layouts, as Iris draws them natively: lines,
- * lightning, leads, text and the water mask in both passes, glint in the world, and the sky and
- * cloud layouts. Beacon beams convert the same way onto the block layout Iris widens them to.
- */
+/** Converts programs drawn on the host's own vertex layouts, as Iris draws them natively. */
 final class HostLayoutVertexBridge {
     private HostLayoutVertexBridge() {}
 
     /**
-     * Converts the shadow program for a shadow-pass key Iris draws on the host's own layout (SHADOW_LINES,
-     * SHADOW_LEASH, SHADOW_LIGHTNING, SHADOW_TEXT, SHADOW_TEXT_BG, SHADOW_BASIC, SHADOW_TEX and
-     * SHADOW_TEX_COLOR), throwing its first concrete failure.
-     *
-     * It is the shadow_entities bridge on that layout's inputs: the legacy matrix built-ins name the draw's
-     * host blocks, which the pass loads with the light view and projection, and an input the layout lacks reads
-     * Iris's value for it. The host-layout preparation has already expanded the includes. {@code consumerSource}
-     * is the stage after the vertex stage: the fragment stage, or with {@code geometryNext} a geometry stage as
-     * GeometryStageBridge.consumerView declares it.
+     * Converts the shadow program for a shadow-pass key Iris draws on the host's own layout, throwing its first
+     * concrete failure. It is the shadow_entities bridge on that layout's inputs; {@code consumerSource} is the
+     * fragment, or a geometry stage when {@code geometryNext}.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertShadowLaneVertexChecked(
             FamilyAdapterPlan.VertexContract contract,
@@ -87,10 +77,8 @@ final class HostLayoutVertexBridge {
     }
 
     /**
-     * Converts a sky vertex onto one host sky format, throwing its first concrete failure. The sky formats
-     * carry no mid-coordinates or tangents, so those attributes read GL's unbound default, as under Iris.
-     * {@code samplers} binds the vertex stage's samplers where the fragment stage has them, as Iris gives both
-     * stages one sampler set; null without a plan.
+     * Converts a sky vertex onto one host sky format, throwing its first concrete failure; {@code samplers} is
+     * null without a plan.
      */
     public static LegacyGlslConverter.TerrainVertexConversion convertSkyVertexChecked(
             String source, Path sourceFile, String fragmentSource,
@@ -120,11 +108,7 @@ final class HostLayoutVertexBridge {
         return convertCloudVertex(source, sourceFile, fragmentSource, Map.of(), false, List.of());
     }
 
-    /**
-     * Converts a cloud vertex onto vanilla's cloud mesh with Iris's cloud inputs
-     * (GlslVertexPreambles.CLOUD_VERTEX_PREAMBLE); null when it cannot convert. The mesh carries no
-     * mid-coordinates or tangents, so those attributes read GL's unbound default, as under Iris.
-     */
+    /** Converts a cloud vertex onto vanilla's cloud mesh with Iris's cloud inputs; null when it cannot convert. */
     public static LegacyGlslConverter.TerrainVertexConversion convertCloudVertex(
             String source, Path sourceFile, String fragmentSource, Map<String, Integer> locations,
             boolean allowStorageBuffers, List<UniformRegistry.UniformDeclaration> uniforms
@@ -186,9 +170,7 @@ final class HostLayoutVertexBridge {
 
     /**
      * {@code source} with mc_midTexCoord and at_tangent read as Iris reads them on a host layout without them:
-     * unbound, so GL gives its default (0, 0, 0, 1) cut to the declared type. The entity bridge would map both
-     * names onto its own inputs, so the declaration goes and each reference becomes the value. A parameter or
-     * local of the same name keeps its own, as in Bloop's {@code computeTBNMatrix(..., vec4 at_tangent)}.
+     * GL's unbound default cut to the declared type. A parameter or local of the same name keeps its own.
      */
     static String unboundMaterialAttributes(String source) {
         GlslTree tree = GlslTree.parse(source);

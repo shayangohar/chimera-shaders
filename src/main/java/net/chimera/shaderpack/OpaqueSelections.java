@@ -9,14 +9,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Moves a sampler or image chosen by a conditional out of a call's first argument, as in
- * {@code textureLod(altFrame ? texDiffuseRT : texDiffuseRT_alt, uv, 0)}. NVIDIA's GL compiler takes an opaque
- * value as a {@code ?:} operand; GLSL does not, and glslang refuses it with "no operation ':' exists that takes
- * a left-hand operand of type ... sampler2D". Shrimple's traced lighting reads its ping-pong history this way.
- *
- * The rewritten call reads the texel GL's would:
- * {@code ((altFrame) ? textureLod(texDiffuseRT, uv, 0) : textureLod(texDiffuseRT_alt, uv, 0))}. Only the branch
- * taken runs, so the other arguments still run once.
+ * Moves a sampler or image chosen by a conditional out of a call's first argument: NVIDIA's GL compiler takes
+ * an opaque {@code ?:} operand, but GLSL does not and glslang refuses it. {@code f(c ? a : b, x)} becomes
+ * {@code ((c) ? f(a, x) : f(b, x))}, so only the branch taken runs.
  */
 final class OpaqueSelections {
     private OpaqueSelections() {}

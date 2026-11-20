@@ -14,13 +14,8 @@ import java.util.TreeSet;
 
 /**
  * A pack's custom uniforms and variables from {@code shaders.properties}, compiled into {@link PackExpression}
- * programs.
- *
- * Values are ordered so one that reads another reads a resolved value, and are evaluated once per frame into the
- * storage the uniform writer serves. Smoothing state lives in {@link Session} and is dropped on reload.
- *
- * A declaration may take a name Chimera only keeps as a placeholder. It may not take an engine input's name: the
- * host answers those, and a declaration that redefines one is refused.
+ * programs and evaluated once per frame in dependency order. A declaration may take a placeholder's name but not
+ * an engine input's, which the host answers.
  */
 public final class PackRuntimeSettings {
     private final List<Value> values;
@@ -88,8 +83,8 @@ public final class PackRuntimeSettings {
         Map<String, Declaration> byName = declarationsByName(declarations);
         Map<String, ParsedValue> parsed = new TreeMap<>();
         Set<String> rejected = new TreeSet<>();
-        // Iris logs a value it cannot parse and declares nothing, so shaders read that name as zero;
-        // Bliss's `uniform.float.sandStorm = 0.0;` is one; its dependents are still refused
+        // Iris logs a value it cannot parse and declares nothing, so shaders read that name as zero; its
+        // dependents are still refused
         Set<String> dropped = new TreeSet<>();
         // a declared value sets the width of every reference to it; any other name is a host input
         PackExpression.Widths widths = name -> {
@@ -214,9 +209,8 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * A host vector or matrix the expression reads whose components the host does not serve to expressions.
-     *
-     * A declaration that reads one is refused, since evaluating it against zeros would not mean what it says.
+     * A host vector or matrix the expression reads whose components the host does not serve to expressions; a
+     * declaration reading one is refused instead of being evaluated against zeros.
      */
     private static String unreadable(PackExpression.Program program, Set<String> declared) {
         for (String dependency : program.dependencies()) {
@@ -291,9 +285,8 @@ public final class PackRuntimeSettings {
         }
 
         /**
-         * Values whose expression gave a non-finite result, with the context of the first frame it happened on.
-         *
-         * Each is kept once; the value is still served as computed, as Iris serves it.
+         * Values whose expression gave a non-finite result, with the first such frame's context; the value is still
+         * served as computed, as Iris serves it.
          */
         public Map<String, String> failures() {
             return Map.copyOf(this.failures);
@@ -316,9 +309,8 @@ public final class PackRuntimeSettings {
     }
 
     /**
-     * Evaluates every valid custom value once, in dependency order, before any program's uniform block is written.
-     *
-     * A value that reads another reads this frame's result; a smoothing call advances its own state by one frame.
+     * Evaluates every valid custom value once, in dependency order, before any program's uniform block is written;
+     * a smoothing call advances its own state by one frame.
      */
     public void evaluate(PackExpression.Inputs engine, Session session, float frameDelta) {
         if (session == null) {
@@ -334,17 +326,15 @@ public final class PackRuntimeSettings {
                 double result = session.lanes[lane];
                 int slot = base + lane;
                 if (!Double.isFinite(result)) {
-                    // served as Iris serves it, to the uniform and to the values that read it;
-                    // RenderPearl's fog density divides by its Fog setting, and Iris's infinity at 0 means no fog
-                    // recorded once per value, with its expression and inputs
+                    // served as Iris serves it, since packs rely on infinities such as a fog density divided by a
+                    // zero setting; recorded once per value
                     session.failures.putIfAbsent(value.name(),
                             value.name() + (value.width() > 1 ? "." + "xyzw".charAt(lane) : "")
                                     + " is " + result + " at frame " + session.frames + ": "
                                     + value.program().source() + ", inputs " + context(value, inputs));
                 }
                 session.scratch[slot] = result;
-                // an int past float's 24 bits stays exact: RenderPearl's packedView at 1366x768 is 50333014,
-                // which a float rounds to 50333016, a width of 1368
+                // an int past float's 24 bits stays exact, as packs pack screen sizes into one
                 // both arms are double; an int arm beside a float arm makes the conditional a float (JLS 15.25)
                 boolean integral = value.type().equals("int") || value.type().equals("bool");
                 session.output[slot] = integral ? (double) (int) result : (double) (float) result;

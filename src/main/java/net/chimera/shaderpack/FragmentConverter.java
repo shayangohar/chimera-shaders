@@ -16,13 +16,9 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
- * Converts a pack fragment stage to Vulkan GLSL for its family (post, terrain, water, shadow, entity,
- * particle, sky and cloud): its outputs, sampler bindings and generated uniform blocks. A conversion that
- * fails returns null.
- *
- * Post stages draw fullscreen; the generated pack uniform block, if any, is binding 0 and the samplers follow
- * it. World stages read the converted vertex stage's varyings by location, and their samplers follow the host
- * and pack uniform blocks of their pipeline.
+ * Converts a pack fragment stage to Vulkan GLSL for its family; null on failure. In a post stage the pack
+ * uniform block, if any, is binding 0 and the samplers follow it; in a world stage the samplers follow the
+ * pipeline's host and pack uniform blocks.
  */
 public final class FragmentConverter {
     private FragmentConverter() {}
@@ -31,18 +27,12 @@ public final class FragmentConverter {
     private static final Set<String> BINDABLE_SAMPLERS = Set.of("sampler3D", "isampler3D", "usampler3D",
             "sampler2D", "sampler2DShadow", "isampler2D", "usampler2D", "sampler1D", "isampler1D", "usampler1D");
 
-    /**
-     * How many host blocks precede a terrain-lane program's own uniform block: chimera_terrain.json's view
-     * and fog blocks for terrain and water, chimera_shadow.json's view block for shadow.
-     */
+    /** Host blocks before a terrain-lane program's uniform block: view and fog, or for shadow the view alone. */
     static int terrainHostBlocks(UniformRegistry.Stage stage) {
         return stage == UniformRegistry.Stage.SHADOW ? 1 : 2;
     }
 
-    /**
-     * Inputs for one fragment conversion. Callers start from {@link #of} or {@link #withAutoPlan} and add the
-     * plans their stage needs; a plan left out is empty or disabled.
-     */
+    /** Inputs for one fragment conversion; a plan left out is empty or disabled. */
     public record FragmentConversionRequest(
             String source,
             Path sourceFile,
@@ -222,7 +212,7 @@ public final class FragmentConverter {
             }
         }
 
-        /** Drops what the host serves (metadata constants, uniforms, entity ids) and maps the varyings. */
+        /** Drops what the host serves and maps the varyings. */
         private void rewriteDeclarations() {
             src = LegacyGlslConverter.removePackMetadataConstants(src);
             src = LegacyGlslConverter.withoutKnownLegacyExtensions(src);
@@ -238,14 +228,10 @@ public final class FragmentConverter {
                     request.postVaryingLayout(), stage);
         }
 
-        /**
-         * Rewrites texture calls and binds each sampler the stage declares. A sampler's binding comes from
-         * the program's layout, not from the stage's own sampler order.
-         */
+        /** Rewrites texture calls and binds each declared sampler at its binding in the program's layout. */
         private void bindSamplers() {
             if (geometryStage) {
-                // in GLSL 460 'texture' is the sampling function, so OptiFine's 'uniform sampler2D texture'
-                // atlas is renamed; this runs first so convertTextureCalls yields texture(chimeraTexture, ...)
+                // 'texture' is a function in GLSL 460; rename OptiFine's sampler before convertTextureCalls
                 src = GlslTokenRewriter.renameSamplerIdentifier(src, "texture", "chimeraTexture");
             }
             src = LegacyGlslConverter.convertTextureCalls(src);
@@ -310,10 +296,8 @@ public final class FragmentConverter {
         }
 
         /**
-         * Each shadowcolor the program writes goes to the shadow pass attachment of its index, in the type
-         * the pack writes (Photon writes a vec3), as post outputs do. Every colour up to the highest written,
-         * and at least two, is declared; one the pack does not write is a vec4 whose attachment writes are
-         * masked.
+         * Each written shadowcolor goes to its index's attachment in the pack's type. Every colour up to the
+         * highest written, and at least two, is declared; an unwritten one is a vec4 with masked writes.
          */
         private String rewriteShadowOutputs() {
             PostTargetPlan shadowOutputs = PostTargetPlan.parseShadow("shadow", src, Map.of()).plan();
@@ -362,10 +346,7 @@ public final class FragmentConverter {
             return !geometryStage && !uniforms.isEmpty() ? generatedUniformBlock(uniforms, src) : "";
         }
 
-        /**
-         * Puts the generated declarations right after the version line, since glslang rejects a use before
-         * the declaration ("'fragColor' : undeclared identifier").
-         */
+        /** Puts the generated declarations right after the version line; glslang rejects a use before them. */
         private String assemble(String outputDeclarations, String uniformBlock) {
             String declarations = (stage.perVertexEntityIdentity()
                     ? chimeraFragmentVaryings(request.terrainLayout()) : "")
@@ -386,19 +367,9 @@ public final class FragmentConverter {
     private static final Pattern FLOAT_OUTPUT = Pattern.compile("float|vec[234]|float16_t|f16vec[234]");
 
     /**
-     * Replaces NaNs in {@code source}'s float outputs, at the end of main, with what they show under GL: a
-     * colour with a NaN component becomes opaque black, or nothing at alpha 0; other outputs take 0 for each
-     * NaN component.
-     *
-     * NVIDIA's GL driver blends a term weighed by zero to 0 even when it is NaN, where Vulkan gives NaN. So
-     * under GL a NaN colour at alpha 0 adds nothing, and at any other alpha it blends to NaN and shows black
-     * until a later draw weighs it by zero. RenderPearl 2.8's float16 path computes NaN for colourless texels:
-     * its rain quads' clear texels at alpha 0, and its name-tag background at 25%, which Iris shows black
-     * under the glyphs. Writing 0 there would show the unlit scene, bright at night, since the tag skips
-     * deferred lighting.
-     *
-     * A helper overloaded per type does the replacing, so it still resolves when a 16-bit output compiles as
-     * its 32-bit type.
+     * Replaces NaNs in the float outputs, at the end of main, with what NVIDIA's GL shows: a NaN colour becomes
+     * opaque black, or nothing at alpha 0; other outputs take 0 per NaN component. GL blends a zero-weighted
+     * NaN term to 0, where Vulkan keeps NaN.
      */
     static String withoutNanOutputs(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -406,15 +377,14 @@ public final class FragmentConverter {
         Set<String> types = new TreeSet<>();
         StringBuilder statements = new StringBuilder();
         for (GlslDeclarations.Variable output : GlslDeclarations.variables(tree)) {
-            // built-ins such as RenderPearl's depth_unchanged gl_FragDepth, and outputs the program never
-            // writes, stay unwritten; a write would store an undefined value
+            // built-ins and never-written outputs stay unwritten; a write would store an undefined value
             if (!output.qualifiers().contains("out") || !output.plain() || output.name().startsWith("gl_")
                     || !FLOAT_OUTPUT.matcher(output.type()).matches()
                     || GlslTokenRewriter.identifierCount(source, output.name()) < 2) {
                 continue;
             }
             types.add(output.type());
-            // a 16-bit output may compile as its 32-bit type (GlslVendorExtensions.widenInterfaces)
+            // a 16-bit output may compile as its 32-bit type, so the helper is overloaded for both
             String widened = GlslVendorExtensions.widenedType(output.type());
             if (widened != null) types.add(widened);
             statements.append(output.name()).append(" = ").append(helper).append('(').append(output.name())
@@ -480,8 +450,7 @@ public final class FragmentConverter {
         for (PostTargetPlan.ModernOutput output : outputs) {
             String declaration = source.substring(output.start(), output.end());
             if (targetPlan.discardedOutputs().contains(output.location())) {
-                // past the route GL discards it: make it a private global the pack still writes, keeping
-                // the line breaks so line numbers hold
+                // GL discards it past the route: keep a private global, and the line breaks for line numbers
                 result.append(source, last, output.start())
                         .append(declaration.replaceAll("[^\\r\\n]", ""))
                         .append(output.type()).append(' ').append(output.name()).append(';');
@@ -600,11 +569,7 @@ public final class FragmentConverter {
                 .convert();
     }
 
-    /**
-     * gbuffers_terrain and gbuffers_water share one contract: the terrain vertex inputs, the host blocks at
-     * bindings 0 and 1, the pack uniform block at 2 and the terrain alpha test. Only the samplers their stage
-     * tables admit differ.
-     */
+    /** gbuffers_terrain and gbuffers_water share one contract; only the samplers their stage tables admit differ. */
     static boolean terrainContract(UniformRegistry.Stage stage) {
         return stage == UniformRegistry.Stage.GEOMETRY || stage == UniformRegistry.Stage.TRANSLUCENT;
     }
@@ -621,8 +586,7 @@ public final class FragmentConverter {
         if (terrainContract(stage) || stage == UniformRegistry.Stage.SHADOW) {
             return terrainHostBlocks(stage) + (uniforms ? 1 : 0);
         }
-        // sky and clouds: binding 2 holds the pack's uniform block, or an empty one in its place
-        // (PackDescriptorContracts.familyLayout)
+        // sky and clouds: binding 2 holds the pack's uniform block, or an empty one
         return 3;
     }
 
@@ -638,10 +602,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * One block layout shared by both stages. A stage with its own file-scope global of a member's name
-     * (Bliss deferred.vsh declares {@code vec3 sunVec = ...} beside the fragment's {@code uniform vec3 sunVec})
-     * keeps the slot under a reserved name, so its global wins in that stage as under Iris, where each stage
-     * owns its uniforms.
+     * One block layout shared by both stages. A member a stage also declares as a file-scope global keeps its
+     * slot under a reserved name, so the global wins in that stage, as under Iris.
      */
     static String generatedUniformBlock(List<UniformRegistry.UniformDeclaration> uniforms,
                                                 String stageSource) {
@@ -654,10 +616,7 @@ public final class FragmentConverter {
         return block.append("};\n").toString();
     }
 
-    /**
-     * The shadow program's pack uniform block follows its lane's host blocks: binding 1 after
-     * the shadow view block, binding 2 after the entity transform blocks.
-     */
+    /** The shadow pack uniform block's binding, after its lane's host blocks. */
     static int shadowUniformBinding(UniformRegistry.Stage stage) {
         return stage == UniformRegistry.Stage.SHADOW_ENTITY ? 2 : terrainHostBlocks(stage);
     }
@@ -675,8 +634,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * Reads shadow uniforms through the block instance; the members keep the names PipelineConfig uses. A
-     * parameter or local that shares a uniform's name keeps it (GlslScopedReferences).
+     * Reads shadow uniforms through the block instance, whose members keep PipelineConfig's names. A parameter
+     * or local of the same name stays unqualified.
      */
     static String qualifyShadowUniformReferences(
             String source,
@@ -733,9 +692,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * A modern terrain fragment's single {@code out vec4 name;}, with or without a layout, becomes
-     * {@code fragColor} at location 0; more than one is unsupported. The authored declaration goes with
-     * the blank lines before it and the whitespace after it.
+     * A modern terrain fragment's single {@code out vec4} becomes {@code fragColor} at location 0; more than one
+     * is unsupported.
      */
     static String convertModernGeometryOutputs(String source) {
         GlslTree tree = GlslTree.parse(source);
@@ -799,8 +757,8 @@ public final class FragmentConverter {
     }
 
     /**
-     * Iris's render stage constants for shadow shaders. Pack sources already get them from PackEngineDefines
-     * before preprocessing; the guarded copies serve sources converted directly, as in tests.
+     * Iris's render stage constants for shadow shaders, guarded for sources converted directly; pack sources
+     * already get them from PackEngineDefines.
      */
     static final String SHADOW_RENDER_STAGE_DEFINES = """
             #ifndef MC_RENDER_STAGE_TERRAIN_SOLID

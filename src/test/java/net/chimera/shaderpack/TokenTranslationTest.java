@@ -10,11 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TokenTranslationTest {
-    /**
-     * The shadow bridge serves the legacy matrix built-ins from the shadow matrices, so a shadow
-     * source that reads them has those declared. RenderPearl's shadow vertex reads
-     * modelViewMatrix, which Iris's core profile makes gl_ModelViewMatrix.
-     */
+    /** The shadow bridge declares the shadow matrices for a shadow source that reads the legacy matrix built-ins. */
     @Test
     void legacyMatricesInTheShadowPassDeclareTheShadowMatrices() {
         String vertex = "#version 460 compatibility\n"

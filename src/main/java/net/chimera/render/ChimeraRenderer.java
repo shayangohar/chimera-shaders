@@ -28,12 +28,8 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * Swaps Chimera's main pass in for VulkanMod's and hands the frame back when Chimera cannot run.
- *
- * {@link #onHostRendererReady} keeps VulkanMod's main pass as the host pass; Chimera's pass is installed once a
- * pack is loaded. Chimera keeps rendering behind screens over a live level. A screen without a level, or a level
- * unloading under an open screen (respawn, portals, loading screens), hands the frame to the host until a live
- * level returns (WorldRendererLevelMixin).
+ * Swaps Chimera's main pass in for VulkanMod's once a pack loads, and hands the frame back to the host pass
+ * when Chimera cannot run.
  */
 public final class ChimeraRenderer {
 
@@ -61,10 +57,8 @@ public final class ChimeraRenderer {
     private ChimeraRenderer() {}
 
     /**
-     * Reads a {@code -D} debug switch: unset is off; a bare {@code -Dname} or any value but {@code false}
-     * (any case) is on.
-     *
-     * Boolean.getBoolean would read a bare flag as off, since it wants the literal {@code true}.
+     * A {@code -D} debug switch, on when set to anything but {@code false}; unlike Boolean.getBoolean, a bare
+     * {@code -Dname} is on.
      */
     public static boolean debugFlag(String name) {
         String value = System.getProperty(name);
@@ -102,10 +96,8 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * Resizes the host pass while Chimera's is current, since VulkanMod resizes only the current main pass.
-     *
-     * A host pass left at the old size keeps a stale depth texture. After {@code /chimera pack off}, vanilla's
-     * hand depth clear then skips that image and the hand clips into the world.
+     * Resizes the host pass while Chimera's is current, since VulkanMod resizes only the current main pass; a
+     * stale host depth texture would let the hand clip into the world after shaders turn off.
      */
     private static void refreshIdleHostPass() {
         if (hostPass != null && Renderer.getInstance().getMainPass() != hostPass) {
@@ -114,15 +106,8 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * Cleans Chimera's pass at VulkanMod's final teardown unless it is the installed pass, which VulkanMod
-     * cleans itself.
-     *
-     * Renderer.cleanUpResources, called from Vulkan.cleanUp once the device is idle, cleans only the installed
-     * main pass, and Chimera hands the frame to the host when the level closes. Left alone, Chimera's Vulkan
-     * objects would outlive the device and a zip pack's temporary folder would wait for the next start's sweep.
-     *
-     * Any failure, an Error included, is logged: one escaping would skip the rest of VulkanMod's teardown.
-     * Chimera is not ready afterwards, so nothing installs or drives the torn down pass.
+     * Cleans Chimera's pass at VulkanMod's final teardown unless it is installed, since VulkanMod cleans only
+     * the installed pass. Any failure, an Error included, is logged so the rest of the teardown runs.
      */
     public static void beforeHostCleanup() {
         ChimeraMainPass pass = chimeraPass;
@@ -194,10 +179,7 @@ public final class ChimeraRenderer {
         return failures.isEmpty() ? status : status + "\nFailures this load:\n" + String.join("\n", failures);
     }
 
-    /**
-     * F3's lines below the system information, as Iris's MixinDebugScreenOverlay: the version, the pack with
-     * whether it fell back or lost programs (PackFailureNotices.label), its profile and the colour space.
-     */
+    /** F3's lines below the system information, as Iris's MixinDebugScreenOverlay. */
     public static List<String> debugLines() {
         List<String> lines = new ArrayList<>(List.of("",
                 "[Chimera] Version: " + ChimeraMod.version(), ""));
@@ -214,14 +196,7 @@ public final class ChimeraRenderer {
         return lines;
     }
 
-    /**
-     * F3's shadow line below the game information, Iris's shadow lines in one (IrisRenderingPipeline and
-     * ShadowRenderer.addDebugText): the map's size and distance, the sections kept of those that cast (C), and
-     * the entities (E) and block entities (BE) drawn.
-     *
-     * Says instead that the pack uses no shadow map or that the shadow distance in force is 0; empty while the
-     * world is not pack-rendered.
-     */
+    /** F3's shadow line, Iris's shadow lines in one (C: sections kept of those that cast); empty without a pack. */
     public static List<String> shadowDebugLines() {
         if (!packProjectionActive()) return List.of();
         ChimeraShadowMap shadowMap = chimeraPass.shadowPass.shadowMap;
@@ -250,10 +225,8 @@ public final class ChimeraRenderer {
         if (!ready || chimeraPass == null) {
             return;
         }
-        // VulkanMod copies RenderSystem's texture matrix into VRenderSystem.TextureMatrix only when it is
-        // set or reset on the render thread, and allocates that copy uninitialised
-        // pack entity and hand stages read it as gl_TextureMatrix[0], which Iris serves from
-        // RenderSystem.getTextureMatrix(); a zero matrix samples a hand's skin black until the first glint draw
+        // VulkanMod's texture matrix copy starts uninitialised, and packs read it as gl_TextureMatrix[0];
+        // a zero matrix samples a hand's skin black until the first glint draw
         VRenderSystem.setTextureMatrix(RenderSystem.getTextureMatrix());
         // material maps build with or without a pack, since atlas uploads arrive either way
         chimeraPass.pumpMaterialMapBuilds();
@@ -295,10 +268,7 @@ public final class ChimeraRenderer {
         return installed && !screenMode;
     }
 
-    /**
-     * This frame's world renders for a loaded pack, whose gbufferProjection keeps vanilla's finite far plane
-     * (ChimeraProjectionFarMixin).
-     */
+    /** This frame's world renders for a loaded pack. */
     public static boolean packProjectionActive() {
         return segmentsActive() && chimeraPass != null && chimeraPass.packLoaded();
     }
@@ -308,45 +278,27 @@ public final class ChimeraRenderer {
         return chimeraPass != null && chimeraPass.shadowPass.shadowPassActive;
     }
 
-    /**
-     * The screen overlay switches of the pack rendering this frame's world, or null when the
-     * world is not pack-rendered and Minecraft's overlays draw as usual (Iris checks its active
-     * pipeline the same way in MixinGui and MixinScreenEffectRenderer).
-     */
+    /** The screen overlay switches of the pack rendering this frame's world; null when none does. */
     public static ScreenOverlayDirectives packScreenOverlays() {
         return packProjectionActive() ? chimeraPass.screenOverlays() : null;
     }
 
-    /**
-     * The sky switches of the pack rendering this frame's world, or null when the world is not
-     * pack-rendered and Minecraft's whole sky draws (Iris MixinLevelRenderer_SunMoonToggle).
-     */
+    /** The sky switches of the pack rendering this frame's world; null when none does. */
     public static SkyDirectives packSkyDirectives() {
         return packProjectionActive() ? chimeraPass.skyDirectives() : null;
     }
 
-    /**
-     * The weather switch of the pack rendering this frame's world, or null when the world is not
-     * pack-rendered and rain and snow draw as vanilla's (Iris MixinLevelRenderer checks its active
-     * pipeline the same way).
-     */
+    /** The weather switch of the pack rendering this frame's world; null when none does. */
     public static WeatherDirectives packWeatherDirectives() {
         return packProjectionActive() ? chimeraPass.weatherDirectives() : null;
     }
 
-    /**
-     * Where the pack rendering this frame's world draws particles against its deferred passes, or
-     * null when the world is not pack-rendered and NeoForge's split stands (Iris answers MIXED then).
-     */
+    /** Where this frame's pack draws particles against its deferred passes; null keeps NeoForge's split. */
     public static ParticleDirectives.Ordering packParticleOrdering() {
         return packProjectionActive() ? chimeraPass.packPlan.particleDirectives().ordering() : null;
     }
 
-    /**
-     * Whether the pack rendering this frame's world turns the camera's frustum culling off (Iris
-     * frustum.culling=false); false when the world is not pack-rendered, as Iris's vanilla pipeline
-     * answers.
-     */
+    /** Whether this frame's pack sets frustum.culling=false; false without a pack, as in Iris. */
     public static boolean packDisablesFrustumCulling() {
         CullingDirectives culling = packProjectionActive() ? chimeraPass.cullingDirectives() : null;
         return culling != null && !culling.frustumCulling();
@@ -358,11 +310,8 @@ public final class ChimeraRenderer {
     }
 
     /**
-     * Whether Chimera's level segment may open, starting a new frame first when none is recording.
-     *
-     * A nested Minecraft.runTick (the respawn loading screen) makes VulkanMod submit the outer frame before it
-     * renders its level, and Chimera records raw commands that need a recording command buffer. The new frame
-     * boundary may hand the frame to the host, so ownership is checked again.
+     * Whether Chimera's level segment may open, starting a new frame first when a nested runTick submitted the
+     * outer one. The new frame boundary may hand the frame to the host, so ownership is checked again.
      */
     public static boolean beginLevelSegments() {
         if (!segmentsActive()) {
@@ -394,8 +343,7 @@ public final class ChimeraRenderer {
         }
 
         if (!chimeraPass.prepareForInstall()) {
-            // requested while the command buffer still records; beforeMainCommandBuffer retries at the next
-            // frame boundary
+            // requested while the command buffer still records; retried at the next frame boundary
             resumeAfterVariant = true;
             ChimeraMod.LOGGER.debug("[chimera] install deferred to the next frame");
             return false;

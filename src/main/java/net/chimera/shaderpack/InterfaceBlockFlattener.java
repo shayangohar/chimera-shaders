@@ -11,18 +11,11 @@ import java.util.TreeSet;
 
 /**
  * A stage's {@code in} and {@code out} interface blocks as plain varyings. GL matches a block across stages by
- * its block name and its members by name, whatever each stage calls the instance: Reverie's vertex writes
- * {@code DataOut.texcoord} and its fragment reads {@code DataIn.texcoord}. Chimera's stage interface matches
- * varyings by name, so every member becomes {@code <Block>_<member>} in each stage that declares the block.
- * Member layouts are dropped, since Chimera gives each varying its location by name (GlslInterfaceScanner). A
- * redeclared built-in block such as {@code gl_PerVertex} is dropped; the built-ins it lists stay.
+ * block and member name, whatever the instance is called, so each member becomes {@code <Block>_<member>}. A
+ * redeclared built-in block such as {@code gl_PerVertex} is dropped.
  *
- * An arrayed instance, such as a geometry or tessellation stage's per-vertex block, becomes arrayed varyings:
- * {@code vIn[i].color} reads {@code VertexData_color[i]}. GL matches each pair of stages on its own, so a stage
- * between the vertex and fragment stages may read one {@code VertexData} and write another of the same name;
- * Shrimple's shadow.gsh reads an int blockId and writes a uint one. Each name therefore carries a suffix for
- * the stage that writes it (PackPlanBuilder.prepareStages). The vertex stage's outputs take none, so a vertex
- * and fragment pair needs no suffix.
+ * An arrayed instance becomes arrayed varyings. A middle stage may read and write blocks of the same name, so
+ * each name carries the writing stage's suffix (PackPlanBuilder.prepareStages); vertex outputs take none.
  */
 final class InterfaceBlockFlattener {
     private static final Set<String> STORAGE = Set.of("in", "out");

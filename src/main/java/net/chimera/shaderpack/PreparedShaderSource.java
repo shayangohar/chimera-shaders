@@ -4,11 +4,7 @@ package net.chimera.shaderpack;
 
 import java.util.List;
 
-/**
- * One stage's source after the pack preprocessor.
- *
- * The path is relative to the pack's shader root, with forward slashes, so reports and tests stay deterministic.
- */
+/** One stage's source after the pack preprocessor; the path is relative to the shader root, with forward slashes. */
 public record PreparedShaderSource(
         String stage,
         String relativePath,

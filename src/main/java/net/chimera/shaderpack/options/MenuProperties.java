@@ -19,14 +19,12 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * The menu entries of a pack's shaders.properties: the screens, their column counts, the sliders and the
- * profiles. The file is read as plain properties: {@code #if} and {@code #define} lines are comments, so
- * where a key appears in several branches the last value wins.
+ * The menu entries of a pack's shaders.properties. The file is read as plain properties, so {@code #if} lines
+ * are comments and a key set in several branches keeps its last value.
  *
- * @param mainScreen the {@code screen} entries
- * @param subScreens the {@code screen.<id>} entries, iterating as a {@code HashMap} keyed by id and filled in
- *                   file order; which sub-screen takes the {@code *} fill depends on it
- * @param profiles the {@code profile.<name>} entries, in the order the keys first appear
+ * @param subScreens iterates as a {@code HashMap} filled in file order; which sub-screen takes the {@code *}
+ *                   fill depends on it
+ * @param profiles in the order the keys first appear
  * @param problems one {@code MENU_COLUMNS_MALFORMED} entry for each column count that is no integer
  */
 public record MenuProperties(Optional<List<String>> mainScreen, Optional<Integer> mainColumns,
@@ -92,9 +90,8 @@ public record MenuProperties(Optional<List<String>> mainScreen, Optional<Integer
     }
 
     /**
-     * Reads properties exactly as {@link Properties#load(Reader)} does, keeping each key where it first
-     * appears with the value it last had. A malformed unicode escape or a read failure ends the read and
-     * keeps what came before.
+     * Properties as {@link Properties#load(Reader)} reads them, each key at its first position with its last
+     * value. A malformed unicode escape or a read failure keeps what came before.
      */
     static Map<String, String> orderedEntries(Reader reader) {
         Map<String, String> entries = new LinkedHashMap<>();

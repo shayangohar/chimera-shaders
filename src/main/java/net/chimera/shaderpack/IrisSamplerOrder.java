@@ -7,22 +7,18 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The order Iris registers a program's samplers in. Each registration of a name appends a glUniform1i for it in
- * ProgramSamplers.Builder.addDynamicSampler, so the name reads the last one. A pack's customTexture entry or
- * custom image sampler loses its name to a built-in sampler Iris registers after it.
- *
- * A stage texture replaces what a registration through the sampler interceptor binds. Each renderer makes some
- * kinds of registration on the program's own builder instead, and no stage texture replaces those.
+ * The order Iris registers a program's samplers in; a name reads its last registration
+ * (ProgramSamplers.Builder.addDynamicSampler). A stage texture replaces what the sampler interceptor binds, but
+ * not a registration a renderer makes on the program's own builder.
  */
 final class IrisSamplerOrder {
     /** What Iris binds a sampler name to. */
     enum Source { TARGET, CUSTOM_TEXTURE, IMAGE, LEVEL, DEPTH, NOISE, SHADOW, CENTER_DEPTH }
 
     /**
-     * One renderer's registrations in order. {@code direct} are those it makes on the builder, {@code depth}
-     * matches the depth sampler names it registers, and {@code firstTarget} is the first colour target it
-     * registers: world programs register only colortex4 and up, as IrisSamplers.addRenderTargetSamplers starts
-     * at 4.
+     * One renderer's registrations in order. {@code direct} are those made on the builder; {@code depth} matches
+     * its depth sampler names; {@code firstTarget} is its first colour target, 4 for world programs
+     * (IrisSamplers.addRenderTargetSamplers).
      */
     record Order(List<Source> sources, Set<Source> direct, Pattern depth, int firstTarget) {
         /** Whether a stage texture replaces what {@code source} binds. */

@@ -8,11 +8,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * Depth-only views for sampled depth-stencil images.
- *
- * VulkanMod's own view of a combined format carries both aspects, which a sampled descriptor must not use. A
- * pack depth conversion binds its view for one draw; a Chimera-owned depth image that is always sampled (the
- * shadow map) registers its view for the image's lifetime. The host view is never replaced.
+ * Depth-only views for sampled depth-stencil images, since VulkanMod's view of a combined format carries both
+ * aspects, which a sampled descriptor must not use.
  */
 public final class ChimeraDepthViewOverride {
     private static final ThreadLocal<State> STATE = ThreadLocal.withInitial(State::new);

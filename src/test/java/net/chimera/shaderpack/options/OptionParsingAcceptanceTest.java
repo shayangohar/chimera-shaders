@@ -21,10 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Acceptance cases for the options a pack's source lines declare, how sightings of one name merge, and how
- * changed values are written back. Each case is a line or file and the option or text it must give.
- */
+/** Acceptance cases for the options a pack's lines declare, merged per name, and their write-back. */
 final class OptionParsingAcceptanceTest {
     private static final ShaderOption.Kind DEFINE = ShaderOption.Kind.DEFINE;
     private static final ShaderOption.Kind CONST = ShaderOption.Kind.CONST;

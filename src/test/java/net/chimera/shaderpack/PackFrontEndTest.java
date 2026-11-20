@@ -19,10 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The pack front end reads the Iris and GLSL formats in full. Each check follows the spec, whatever a
- * given pack happens to use.
- */
+/** The pack front end reads the Iris and GLSL formats in full, by the spec rather than any one pack. */
 final class PackFrontEndTest {
     /** Sky and cloud draws take no implicit atlas or lightmap from the terrain bridge. */
     @Test
@@ -132,9 +129,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A raw {@code texture.<stage>} entry is a uniform of its own: Iris renames the declaration of its
-     * type to customtexN and every renderer registers that name (addCustomTextures), so it binds a name
-     * nothing else registers. A PNG entry on such a name binds nowhere.
+     * A raw {@code texture.<stage>} entry is a uniform of its own, as Iris renames its declaration to customtexN
+     * (addCustomTextures); a PNG entry on such a name binds nowhere.
      */
     @Test
     void aRawStageTextureBindsANameNothingRegisters(@TempDir Path root) throws IOException {
@@ -156,10 +152,7 @@ final class PackFrontEndTest {
                 plan.program("composite").deviations().toString());
     }
 
-    /**
-     * A shadowcomp program registers no colour target (Iris ShadowCompositeRenderer.createProgram),
-     * so an unregistered sampler2D there does not read colortex0, as it does in a composite program.
-     */
+    /** A shadowcomp registers no colour target in Iris, so an unregistered sampler2D there does not read colortex0. */
     @Test
     void aShadowcompSamplerIsNotReadAsColortex0(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -209,9 +202,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A volume a deferred pass samples binds as a pack file, sampled as its .mcmeta says. Without
-     * one a raw texture is linear and clamped (Iris ShaderPack starts blur and clamp at true for a
-     * raw definition; Ebin's atmosphere LUT relies on it), and an integer one is nearest.
+     * A raw texture samples as its .mcmeta says; without one it is linear and clamped, as Iris starts a raw
+     * definition, and an integer one is nearest.
      */
     @Test
     void rawTextureBinding(@TempDir Path root) throws IOException {
@@ -254,9 +246,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * Photon's cloud noise: Iris keeps only the sampler name of {@code texture.deferred.colortex6.1},
-     * so the deferred stage's {@code sampler3D colortex6} reads the volume while the 2D colortex6
-     * stays the render target.
+     * Iris keeps only the sampler name of {@code texture.deferred.colortex6.1}, so a {@code sampler3D colortex6}
+     * reads the volume while the 2D colortex6 stays the render target.
      */
     @Test
     void aSuffixedRawTextureKeyNamesItsSampler(@TempDir Path root) throws IOException {
@@ -360,9 +351,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A comment on a directive line is whitespace to JCPP, around a condition and in a #define body.
-     * A block comment the line leaves open spans the lines up to its close, and the directive goes on
-     * after it.
+     * A comment on a directive line is whitespace to JCPP; a block comment the line leaves open spans the lines
+     * up to its close, and the directive goes on after it.
      */
     @Test
     void aCommentOnADirectiveLineIsWhitespace() {
@@ -399,9 +389,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A directive's open block comment takes the lines up to its close, in an inactive branch too,
-     * and the rest of the file when it never closes, as in JCPP. Joining scans each line once, so a
-     * long comment costs linear time.
+     * A directive's open block comment takes the lines up to its close, in an inactive branch too, or the rest
+     * of the file, as in JCPP; joining stays linear.
      */
     @Test
     void aDirectiveCommentJoinsLinearlyUpToItsClose() {
@@ -491,7 +480,7 @@ final class PackFrontEndTest {
                 "declaration after a directive was missed: " + stage.outputs());
     }
 
-    /** Iris's typed language: vectors, accessors, matrix columns, widening, and type errors. */
+    /** Iris's typed expression language. */
     @Test
     void typedExpressions() {
         PackExpression.Widths widths = name -> switch (name) {
@@ -544,7 +533,7 @@ final class PackFrontEndTest {
         rejected("skyColor > 1.0", widths, "CUSTOM_EXPRESSION_TYPE");
     }
 
-    /** uniform.vecN values: declared width, per-component storage, and reads of their components. */
+    /** uniform.vecN values and reads of their components. */
     @Test
     void vectorCustomValues() {
         PackRuntimeSettings settings = PackRuntimeSettings.build(List.of(
@@ -574,11 +563,7 @@ final class PackFrontEndTest {
         assertTrue(values[settings.indexOf("cell")] == 7.0f, "matrix element m[3][0] is lane 12");
     }
 
-    /**
-     * Iris preprocesses shaders.properties with the pack's option values as macros
-     * (PropertiesPreprocessor), so a custom value reads an option as its value. Reverie's betaRfact
-     * reads RAYLEIGH_DENSITY_VARIANCE this way.
-     */
+    /** Iris preprocesses shaders.properties with the option values as macros, so a custom value can read an option. */
     @Test
     void aCustomValueReadsAnOptionAsItsValue(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -597,11 +582,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * Iris's function set (IrisFunctions), with the exp2 Alpha Piscium's values call and the mix many
-     * packs call. Iris's max and min past two arguments read the second again for each further one,
-     * and Iris has no round. OptiFine's documented functions evaluate.
-     *
-     * A declaration that reads a refused one is refused with it and never reads zero in its place.
+     * Iris's function set (IrisFunctions): max and min past two arguments read the second again for each
+     * further one, and there is no round. A declaration reading a refused function is refused too, never zero.
      */
     @Test
     void theFunctionsAreIrisFunctions() {
@@ -637,10 +619,7 @@ final class PackFrontEndTest {
                 "a value reading a refused declaration was not refused: " + settings.deviations());
     }
 
-    /**
-     * Iris's parser binds {@code a / b} to {@code divide(a, b)} (IrisOptions), so a zero divisor
-     * gives the same infinity either way.
-     */
+    /** Iris binds {@code a / b} to {@code divide(a, b)}, so a zero divisor gives the same infinity either way. */
     @Test
     void anOperatorDividesAsItsFunctionDoes() {
         assertEquals(Double.POSITIVE_INFINITY, value("1.0 / 0.0"));
@@ -651,9 +630,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * An int custom value is served exactly, as Iris's int uniforms are: RenderPearl packs the
-     * viewport into one int, and at 1366x768 a float would round 50333014 to 50333016, a width of
-     * 1368. A float value keeps float rounding.
+     * An int custom value is served exactly, as in Iris, since a float would round RenderPearl's packed
+     * viewport; a float value keeps float rounding.
      */
     @Test
     void anIntCustomValueIsExact() {
@@ -671,9 +649,8 @@ final class PackFrontEndTest {
     }
 
     /**
-     * A non-finite value is served as computed, to the uniform and to the values that read it, as
-     * Iris serves it. RenderPearl's fog density divides by its Fog setting: at 0, Iris's infinity
-     * means no fog; holding the last finite value would make the fog depend on whether it had rained.
+     * A non-finite value is served as computed, to the uniform and the values that read it, as in Iris;
+     * RenderPearl's fog at setting 0 relies on the infinity.
      */
     @Test
     void aNonFiniteValueIsServedAsIrisServesIt() {
@@ -709,11 +686,7 @@ final class PackFrontEndTest {
         assertTrue(UniformRegistry.expressionWidth("biome_category") == 1, "biome_category is an int input");
     }
 
-    /**
-     * Iris defines the same symbols as macros in every shader and properties file it preprocesses
-     * (IrisDefines.createIrisReplacements), so a pack's {@code #if} on one reads its value and
-     * Noble's and Photon's {@code #ifndef PPT_NONE} fallbacks in shaders.properties stay unused.
-     */
+    /** Iris also defines these symbols as macros in every file it preprocesses, so a pack's {@code #if} reads them. */
     @Test
     void irisBiomeSymbolsAreMacrosToo(@TempDir Path root) throws IOException {
         Map<String, String> macros = PackEngineDefines.standard();
@@ -767,10 +740,7 @@ final class PackFrontEndTest {
         throw new AssertionError("accepted: " + source);
     }
 
-    /**
-     * The uniform names Iris serves a program (player, HUD, clock and DH), and the zero it leaves
-     * in a uniform it does not provide.
-     */
+    /** The uniform names Iris serves a program, and the zero it leaves in one it does not provide. */
     @Test
     void irisUniforms() {
         UniformRegistry.ProgramInterface served = InterfacePlanner.plan(String.join("\n",
@@ -833,10 +803,7 @@ final class PackFrontEndTest {
                 "with watershadow, shadow is the opaque casters: " + both.deviations());
     }
 
-    /**
-     * As in Iris's CommonTransformer, gl_Fog reads Iris's own iris_Fog uniforms, so the pack's fog names stay
-     * its own: a vec3 fogColor uniform, a const fogStart and a local fogDensity meet no declaration of Chimera's.
-     */
+    /** As in Iris's CommonTransformer, gl_Fog reads iris_Fog uniforms, so the pack's own fog names stay its own. */
     @Test
     void glFogReadsIrisUniforms() {
         LegacyShaderNormalizer.Result fog = LegacyShaderNormalizer.normalize("""

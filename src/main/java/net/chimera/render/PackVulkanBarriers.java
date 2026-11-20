@@ -21,11 +21,8 @@ import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_TRANSFER_BIT;
 import static org.lwjgl.vulkan.VK10.vkCmdPipelineBarrier;
 
 /**
- * Memory barriers for pack storage images, storage buffers and computes.
- *
- * VulkanMod does not load VK_KHR_synchronization2, so these use vkCmdPipelineBarrier with the older stage and
- * access masks. The scopes are broad on purpose: ordering shared storage and sampled access correctly matters
- * more here than overlap.
+ * Memory barriers for pack storage images, buffers and computes, on vkCmdPipelineBarrier since VulkanMod does
+ * not load VK_KHR_synchronization2. The scopes are broad on purpose.
  */
 final class PackVulkanBarriers {
     private PackVulkanBarriers() {}

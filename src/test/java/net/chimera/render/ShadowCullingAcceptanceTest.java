@@ -15,12 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * What shadow caster culling keeps, for known cameras, lights and boxes, through the public API only.
- *
- * In the advanced modes a caster is kept when it can shade the camera's view: the camera frustum swept without
- * limit toward the light. Boxes touching a face that is axis-aligned and exact in float are kept. A box touching
- * a tilted plane is not pinned, since the answer there depends on rounding; every tilted case below keeps a
- * margin from its plane.
+ * What shadow caster culling keeps, through the public API only. The advanced modes keep a caster that can
+ * shade the view: the camera frustum swept toward the light without limit. Boxes touching an exact
+ * axis-aligned face are kept; tilted cases keep a margin, since the answer there depends on rounding.
  */
 final class ShadowCullingAcceptanceTest {
     private static final boolean KEPT = true;

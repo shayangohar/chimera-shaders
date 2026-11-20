@@ -17,8 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Iris repairs every vertex/fragment pair before it links them
  * (CompatibilityTransformer.transformGrouped): a read input the vertex never declares gets a
  * zeroed output, an output never written starts at zero, and an output of another type of the
- * same kind is converted at the end of main. Bloop's overworld shadow writes lmtexcoord without
- * declaring it.
+ * same kind is converted at the end of main.
  */
 final class CrossStageRepairTest {
     @Test
@@ -125,10 +124,8 @@ final class CrossStageRepairTest {
     }
 
     /**
-     * Spring's shadow writes v_glColor in its vertex stage and glColor in its geometry stage, and
-     * its fragment reads glColor. Iris pairs the vertex with the geometry stage and the geometry
-     * stage with the fragment. The shadow terrain lane runs the three, and so does the entity lane
-     * resolved to the program (Iris ProgramId.ShadowEntities falls back to Shadow).
+     * With a geometry stage, Iris pairs the vertex with it and it with the fragment. The shadow terrain
+     * lane runs all three, and so does the entity lane (Iris ProgramId.ShadowEntities falls back to Shadow).
      */
     @Test
     void aShadowProgramRunsItsGeometryStage(@TempDir Path root) throws IOException {

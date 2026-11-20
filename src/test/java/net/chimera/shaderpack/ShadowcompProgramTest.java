@@ -17,17 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A shadowcomp fragment pass plans as a fullscreen program over the shadowcolor targets, as Iris's
- * ShadowCompositeRenderer runs it. Kappa's shadowcomp turns the shadow pass's albedo into the light
- * transmittance its lighting decodes; without it Kappa would light the End and water with the raw albedo.
- */
+/** A shadowcomp fragment pass plans as a fullscreen program over the shadowcolor targets, as in Iris. */
 final class ShadowcompProgramTest {
-    /**
-     * A route says which targets its indices name, so a reader applying colortex formats or
-     * deviations asks the route: shadowcomp passes and shadow-pass programs
-     * index shadowcolor targets, every other program colortex ones.
-     */
+    /** A route knows whether its indices name shadowcolor or colortex targets; readers of formats ask it. */
     @Test
     void aRouteKnowsWhetherItIndexesTheShadowTargets() {
         assertFalse(PostTargetPlan.parse("composite", "/* DRAWBUFFERS:01 */").plan().shadowTargets());
@@ -72,10 +64,7 @@ final class ShadowcompProgramTest {
                 row.deviations().toString());
     }
 
-    /**
-     * A shadowcomp pass converts as a composite does, so a refused one reads its dialect as a refused
-     * composite with the same source does: stage declarations are the post converter's to take.
-     */
+    /** A shadowcomp converts as a composite does, so a refused one reads its dialect as a refused composite. */
     @Test
     void aRefusedShadowcompReadsItsDialectAsAComposite(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -108,10 +97,8 @@ final class ShadowcompProgramTest {
     }
 
     /**
-     * A colortex format Chimera cannot make refuses the colour programs that write that target, never a
-     * shadowcomp pass or a shadow-pass program, whose targets are shadowcolor indices. A shadowcomp pass
-     * and the shadow host-layout lanes (shadow_lines, shadow_basic, ...) write {0, 1} by default, the
-     * same indices colortex0 and colortex1 have.
+     * A colortex format Chimera cannot make refuses the programs that write that target, never a shadowcomp or
+     * shadow-pass program, though their default {0, 1} matches colortex0 and colortex1's indices.
      */
     @Test
     void aColortexFormatErrorLeavesTheShadowTargetsAlone(@TempDir Path root) throws Exception {

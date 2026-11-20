@@ -20,11 +20,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * The load-time plan for a pack's custom images and storage buffers: their declarations, the programs that use
- * them, and each program's descriptor bindings. Sampled textures are {@link PackResourcePlan}'s, and the pass
- * computes that use these resources are {@link PassComputePlan}'s.
- */
+/** The load-time plan for a pack's custom images and storage buffers, and each program's descriptor bindings. */
 public final class PackAdvancedResourcePlan {
     /** The highest bufferObject index; Iris's ShaderProperties skips higher ones as reserved. */
     public static final int MAX_BUFFER_INDEX = 8;
@@ -80,21 +76,18 @@ public final class PackAdvancedResourcePlan {
             return IrisColorFormats.of(internalFormat);
         }
 
-        /** The GLSL image format qualifier of the format the texels are stored in ({@code rgba8}, {@code r32ui}). */
+        /** The GLSL image format qualifier of the stored texels, such as {@code r32ui}. */
         public String layoutQualifier() {
             return IrisColorFormats.stored(format().vkFormat()).token().toLowerCase(Locale.ROOT);
         }
 
-        /** The prefix of the image's GLSL types: {@code u} or {@code i} for an integer format, none for a float one. */
+        /** The image's GLSL type prefix: {@code u} or {@code i} for an integer format, else empty. */
         public String typePrefix() {
             IrisColorFormats.Kind kind = format().kind();
             return kind == IrisColorFormats.Kind.UINT ? "u" : kind == IrisColorFormats.Kind.SINT ? "i" : "";
         }
 
-        /**
-         * The image's dimensions, as Iris's ShaderProperties reads its declaration: a relative image
-         * is 2D, and a fixed one has as many as the sizes it gives.
-         */
+        /** The image's dimensions as Iris reads them: a relative image is 2D, a fixed one has one per size. */
         public int dimensions() {
             if (relative) return 2;
             return depth > 0 ? 3 : height > 0 ? 2 : 1;
@@ -114,10 +107,7 @@ public final class PackAdvancedResourcePlan {
             return dimensions() + "D";
         }
 
-        /**
-         * The image's width, height and depth on a screen of this size: a relative image's share of it, truncated
-         * as Iris's GlImage.Relative does, else its declared size.
-         */
+        /** The image's extent on a screen of this size; a relative share truncates as in Iris's GlImage.Relative. */
         public int[] extent(int screenWidth, int screenHeight) {
             if (!relative) return new int[] {width, Math.max(1, height), Math.max(1, depth)};
             return new int[] {Math.max(1, (int) (screenWidth * Float.parseFloat(widthToken))),
@@ -127,8 +117,7 @@ public final class PackAdvancedResourcePlan {
 
     /**
      * A program's binding of a pack image, as a storage image or through its sampler. {@code viewFormat} is the
-     * format qualifier the stage reads the image through when that is not the image's own, as Alpha Piscium
-     * reads r32i over an R32F image; else empty.
+     * stage's format qualifier when it differs from the image's own, such as r32i over R32F; else empty.
      */
     public record GraphicsImageBinding(
             String program,
@@ -188,9 +177,8 @@ public final class PackAdvancedResourcePlan {
         }
 
         /**
-         * The buffer's bytes on a screen of this size. A relative buffer takes its size for each pixel of its
-         * truncated share, at least one per side, as Iris's ShaderStorageBuffer.resizeIfRelative does. A product
-         * past a long is Long.MAX_VALUE, beyond every device's limit, where Iris's wraps.
+         * The buffer's bytes on a screen of this size; a relative share truncates to at least one pixel per side,
+         * as in Iris's ShaderStorageBuffer.resizeIfRelative. Overflow saturates at Long.MAX_VALUE where Iris wraps.
          */
         public long bytes(int screenWidth, int screenHeight) {
             if (!relative) return size;
@@ -261,8 +249,7 @@ public final class PackAdvancedResourcePlan {
                     a.rewrittenBinding(), a.stageMask() | b.stageMask(), a.size(), a.status(), a.deviations()));
         }
         List<DescriptorBinding> slots = new ArrayList<>(ordinaryDescriptors);
-        // one descriptor per buffer: blocks of one bufferObject share its binding whatever their names,
-        // since GL lets a vertex and a fragment stage name it differently
+        // one descriptor per bufferObject, since GL lets stages name its block differently
         for (StorageBufferBinding buffer : uniqueBuffers.values()) {
             slots.add(new DescriptorBinding(buffer.blockName(), 0, buffer.rewrittenBinding(), 9,
                     buffer.stageMask(), storageIdentity(buffer.logicalIndex())));
@@ -330,8 +317,7 @@ public final class PackAdvancedResourcePlan {
                 case "(" -> parenDepth++;
                 case ")" -> parenDepth--;
             }
-            // an opaque function parameter borrows the caller's resource and declares no slot, even in a
-            // file-scope prototype
+            // an opaque function parameter declares no slot, even in a file-scope prototype
             if (braceDepth != 0 || parenDepth != 0) continue;
             DescriptorBinding binding = uniformBlockAt(tokens, i)
                     ? uniformBlockBinding(tokens, i, stage) : opaqueBinding(tokens, i, stage);
@@ -404,9 +390,8 @@ public final class PackAdvancedResourcePlan {
     }
 
     /**
-     * The first disagreement between the planned layout, the bindings each stage declares and the native
-     * {@code descriptors}, as a deviation code; null when they agree. The stages {@code between} the vertex
-     * and fragment are checked too.
+     * The first disagreement between the planned layout, each stage's declared bindings and the native
+     * {@code descriptors}, as a deviation code; null when they agree.
      */
     public static String layoutMismatch(ProgramBindingLayout layout, String vertex, BetweenStages between,
             String fragment, List<DescriptorBinding> descriptors) {
@@ -559,10 +544,7 @@ public final class PackAdvancedResourcePlan {
                 List.of(), List.of(), List.of(), List.of(), List.of(), Map.of(), Map.of());
     }
 
-    /**
-     * A plan of the buffer properties alone, so the program builder can keep admitted storage declarations
-     * before the full source scan builds each program's bindings.
-     */
+    /** The buffer properties alone, for the program builder to use before the full source scan. */
     public static PackAdvancedResourcePlan catalog(PackSettingsPlan settings) {
         Map<Integer, BufferSpec> buffers = StorageBufferDeclarations.parseBuffers(settings, new ArrayList<>());
         return new PackAdvancedResourcePlan(Map.of(), Map.of(), Map.of(), buffers, Map.of(),
@@ -726,9 +708,8 @@ public final class PackAdvancedResourcePlan {
     static final String UNSERVED_IMAGE = "ADVANCED_IMAGE_UNSERVED:";
 
     /**
-     * Whether the program declares an image or storage block that no binding here serves, which the report
-     * shows as ADVANCED_RESOURCE_UNSUPPORTED: neither the image scan nor the storage block scan counts it as
-     * using one. A final or non-hand gbuffers program storing to {@code colorimgN} fails
+     * Whether the program declares an image or storage block that no binding here serves
+     * (ADVANCED_RESOURCE_UNSUPPORTED). A final or non-hand gbuffers program storing to {@code colorimgN} fails
      * {@link #imagesServable} instead.
      */
     public boolean declaresUnplannedResource(String program) {
@@ -753,9 +734,8 @@ public final class PackAdvancedResourcePlan {
     }
 
     /**
-     * Whether the source has a storage block or references a variable of an image type; an identifier that only
-     * starts with "image" does not count. An image the stage only declares is inactive, as GL leaves it, and
-     * stage preparation drops its declaration (PackPlanBuilder.withoutInactiveImages).
+     * Whether the source has a storage block or references an image variable. An image the stage only declares
+     * is inactive, as in GL, and stage preparation drops it (PackPlanBuilder.withoutInactiveImages).
      */
     static boolean containsAdvancedDeclarations(String source) {
         if (containsStorageBlock(source)) return true;
@@ -783,9 +763,8 @@ public final class PackAdvancedResourcePlan {
         return ordinaryContracts.get(program);
     }
     /**
-     * Rewrites the bindings of admitted storage blocks, leaving their std430 members alone. Null when the program
-     * has a block this plan cannot bind or a stage it cannot parse, which refuses that program alone
-     * (STORAGE_BUFFER_REWRITE_FAILED), never its pack.
+     * Rebinds admitted storage blocks, leaving their std430 members alone. Null when a block cannot be bound or
+     * a stage cannot be parsed, which refuses that program alone (STORAGE_BUFFER_REWRITE_FAILED).
      */
     public String rewriteStorageBuffers(String program, String source) {
         if (source == null) return null;
@@ -824,9 +803,8 @@ public final class PackAdvancedResourcePlan {
     public boolean hasSupportedImages() { return !images.isEmpty()
             && images.values().stream().allMatch(ImageSpec::supported); }
     /**
-     * Whether a program that uses pack images can run: Chimera creates and binds every image it uses, and
-     * GraphicsImageScan records one it cannot bind. Iris creates the images whatever programs exist, shadowcomp
-     * or none, so each program is judged on its own.
+     * Whether Chimera creates and binds every pack image the program uses. Iris creates the images whatever
+     * programs exist, so each program is judged on its own.
      */
     public boolean imagesServable(String program) {
         return unservedImages(program).isEmpty();
@@ -840,8 +818,8 @@ public final class PackAdvancedResourcePlan {
     }
 
     /**
-     * Whether Chimera offers the pack Iris's IRIS_FEATURE_CUSTOM_IMAGES: it creates at least one image the pack
-     * declares. A program using an image it does not create falls back on its own ({@link #imagesServable}).
+     * Whether the pack gets IRIS_FEATURE_CUSTOM_IMAGES: Chimera creates at least one image it declares. A program
+     * using an image Chimera does not create falls back alone ({@link #imagesServable}).
      */
     public boolean capabilityPossible() {
         return images.values().stream().anyMatch(ImageSpec::supported);

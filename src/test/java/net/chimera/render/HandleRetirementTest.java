@@ -110,9 +110,8 @@ final class HandleRetirementTest {
     }
 
     /**
-     * A raw texture whose upload throws is retired whether or not its copy was recorded: the frame op runs
-     * after the work recorded before it, as every other retirement does. Read from the bytecode, since the
-     * upload needs a device.
+     * A raw texture whose upload throws is still retired, after the work recorded before it. Read from the
+     * bytecode, since the upload needs a device.
      */
     @Test
     void aRawTextureWhoseUploadFailsIsRetired() throws IOException {

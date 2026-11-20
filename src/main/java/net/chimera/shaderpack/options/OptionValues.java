@@ -9,10 +9,9 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * The values a player has changed from a pack's defaults. Only options the pack declares are kept,
- * and a value equal to the default is not a change. A toggle accepts only {@code true} and
- * {@code false}; anything else resets it. A choice takes any value, even one outside its list,
- * because OptiFine applies option files and profiles unchecked and only the menu keeps to the list.
+ * The values a player has changed from a pack's defaults, for declared options only. A toggle takes only
+ * {@code true} or {@code false}, anything else resetting it. A choice takes any value, even off its list,
+ * as OptiFine applies option files and profiles unchecked.
  */
 public final class OptionValues {
     private final OptionSet options;
@@ -68,10 +67,7 @@ public final class OptionValues {
         return Optional.ofNullable(choices.get(name));
     }
 
-    /**
-     * A toggle's effective value. {@code 0} and {@code 1} read as literals, and a name the pack does
-     * not declare reads as on, as in OptiFine's profile and condition checks.
-     */
+    /** Effective toggle value; {@code 0} and {@code 1} are literals and an undeclared name is on, as in OptiFine. */
     public boolean toggleOrDefault(String name) {
         if ("0".equals(name)) return false;
         if ("1".equals(name)) return true;

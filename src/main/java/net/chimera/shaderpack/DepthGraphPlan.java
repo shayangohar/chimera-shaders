@@ -28,7 +28,6 @@ public record DepthGraphPlan(
         return new DepthGraphPlan(false, false, false, R32_SFLOAT, List.of());
     }
 
-    /** The snapshots {@code reads} names, with what copying them records. */
     public static DepthGraphPlan of(Set<String> reads) {
         boolean depth0 = reads.contains("depthtex0");
         boolean depth1 = reads.contains("depthtex1");

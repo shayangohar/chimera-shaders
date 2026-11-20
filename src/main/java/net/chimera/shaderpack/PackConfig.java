@@ -20,20 +20,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reads a pack's const directives and shaders.properties target keys: colour target formats, clears and clear
- * colours, shadow settings, target sizes and flips, and gbuffers_terrain's draw-buffer count. Const directives
- * come from the programs Iris reads them from, in its order ({@link IrisConstDirectives}).
- *
- * A format token Vulkan cannot store exactly is approximated and named; an unknown one keeps the default. The
- * shadow resolution and distance are validated here, before the shadow framebuffer is created.
+ * Reads a pack's const directives and shaders.properties target keys. Const directives come from the programs
+ * Iris reads them from, in its order ({@link IrisConstDirectives}). A format Vulkan cannot store exactly is
+ * approximated and named; an unknown one keeps the default.
  */
 public final class PackConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
 
-    /**
-     * A colour target in a declaration name: colortexN or one of the legacy aliases Iris accepts the same way,
-     * so gaux2Format is colortex5Format.
-     */
+    /** A colour target name: colortexN or a legacy alias Iris accepts, so gaux2Format is colortex5Format. */
     private static final String TARGET_NAME = "(colortex\\d+|gcolor|gdepth|gnormal|composite|gaux[1-4])";
     /** A colour target directive: {@code <target>Format} (int), {@code Clear} (bool), {@code ClearColor} (vec4). */
     private static final Pattern TARGET_DIRECTIVE = Pattern.compile(TARGET_NAME + "(Format|ClearColor|Clear)");
@@ -70,10 +64,7 @@ public final class PackConfig {
         return Map.copyOf(exact);
     }
 
-    /**
-     * Bytes per texel of a colour-target format in {@link #FMT_TO_VK}, or 0 for any other format. VulkanMod's
-     * image builder sizes only its own formats, so pack targets take their size from here.
-     */
+    /** Bytes per texel of a format in {@link #FMT_TO_VK}, else 0; VulkanMod's image builder sizes only its own. */
     public static int formatBytes(int vkFormat) {
         return IrisColorFormats.bytes(vkFormat);
     }
@@ -143,20 +134,16 @@ public final class PackConfig {
             return finiteValue("entityShadowDistanceMul", 1.0F);
         }
 
-        /**
-         * Iris shadowDistanceRenderMul as shadow culling reads it: -1, Iris's default, when the
-         * pack sets none (ShadowCullingPlan).
-         */
+        /** Iris shadowDistanceRenderMul for shadow culling; -1, Iris's default, when the pack sets none. */
         public float cullingRenderMultiplier() {
             return rawValues.containsKey("shadowDistanceRenderMul") ? distanceRenderMultiplier() : -1.0F;
         }
 
         /**
-         * The shadow distance in chunks a pack forces on the player's Max Shadow Distance, as Iris's
-         * IrisRenderingPipeline.forcedShadowRenderDistanceChunks: empty when the pack sets no
-         * shadowDistanceRenderMul, so the player's setting holds; the pack's distance times its multiplier,
-         * rounded up to chunks, for a multiplier of 0 or more; -1 for a negative one. Either value locks the
-         * setting, and only a forced 0 stops the shadow pass.
+         * The shadow distance in chunks a pack forces on Max Shadow Distance, as Iris's
+         * IrisRenderingPipeline.forcedShadowRenderDistanceChunks: empty without shadowDistanceRenderMul, else the
+         * distance times the multiplier rounded up, or -1 for a negative one. Either locks the setting, and only
+         * a forced 0 stops the shadow pass.
          */
         public OptionalInt forcedShadowRenderDistanceChunks() {
             if (!rawValues.containsKey("shadowDistanceRenderMul")) return OptionalInt.empty();
@@ -201,10 +188,7 @@ public final class PackConfig {
         }
     }
 
-    /**
-     * A colour target's size expression, clear switch and clear colour. A null {@code clearColor} means the pack
-     * declared none, so the target clears to Iris's default.
-     */
+    /** A colour target's settings; a null {@code clearColor} clears to Iris's default. */
     public record TargetSettings(
             String sizeExpression,
             boolean clear,
@@ -232,9 +216,8 @@ public final class PackConfig {
         }
 
         /**
-         * The colour Iris's ClearPassCreator clears colortex{@code index} to: the declared one,
-         * else the fog colour with alpha 1 for colortex0, opaque white for colortex1, and
-         * transparent black for the rest.
+         * The colour Iris's ClearPassCreator clears colortex{@code index} to: the declared one, else fog with
+         * alpha 1 for colortex0, opaque white for colortex1 and transparent black for the rest.
          */
         public float[] irisClearColor(int index, float[] fogColor) {
             if (clearColor != null) return clearColor.clone();
@@ -322,9 +305,8 @@ public final class PackConfig {
             }
         }
 
-        // shaders.properties' target sizes and flips as Iris reads them: from the #if branches that hold, the
-        // last value of a key wins, and option names in a value expand
-        // Complementary sizes colortex1 by REFLECTION_RES
+        // target sizes and flips as Iris reads them: the last value of a key in the live branches wins, and
+        // option names in a value expand
         settings.propertyValues().forEach((key, raw) -> {
             int comment = raw.indexOf('#');
             String value = (comment < 0 ? raw : raw.substring(0, comment)).trim();
@@ -360,10 +342,7 @@ public final class PackConfig {
                 PackDirectives.read(directives));
     }
 
-    /**
-     * One const directive: a colour target's format, clear or clear colour, or a shadow setting.
-     * A directive declared with another type than Iris reads it as is ignored, as Iris ignores it.
-     */
+    /** One const directive; one declared with another type than Iris reads it as is ignored, as in Iris. */
     private static void acceptDirective(String program, IrisConstDirectives.Directive directive, Collected collected) {
         Matcher target = TARGET_DIRECTIVE.matcher(directive.name());
         if (target.matches() && directive.type().equals(TARGET_DIRECTIVE_TYPES.get(target.group(2)))) {
@@ -377,9 +356,8 @@ public final class PackConfig {
     private static final Pattern SHADOW_COLOR_NAME = Pattern.compile("\\bshadowcolor([0-7])\\b");
 
     /**
-     * How many shadowcolor targets the shadow pass renders. Iris has two, or eight with HIGHER_SHADOWCOLOR,
-     * creating each on first use, so the pass renders every one up to the highest a program reads or a shadow
-     * program writes.
+     * How many shadowcolor targets the shadow pass renders. With HIGHER_SHADOWCOLOR Iris creates each on first
+     * use, so the pass renders up to the highest a program reads or a shadow program writes.
      */
     private static int shadowColorTargetCount(List<PackProgram> programs, PackSettingsPlan settings) {
         if (!settings.hasFeature(PackFeatureFlags.HIGHER_SHADOWCOLOR)) {
@@ -434,10 +412,7 @@ public final class PackConfig {
         return collected.colortexFormats.put(slot, code);
     }
 
-    /**
-     * A colour target directive: a format token, a clear switch Iris reads only as exactly true or
-     * false, or a clear colour.
-     */
+    /** A colour target directive; Iris reads a clear switch only as exactly true or false. */
     private static void acceptTargetDirective(String program, String target, String setting, String value,
                                               Collected collected) {
         int slot = parseTargetIndex(target, collected.deviations);
@@ -475,10 +450,8 @@ public final class PackConfig {
     }
 
     /**
-     * One shaders.properties entry, as Iris's ShaderProperties reads target keys: a {@code size.buffer.<target>}
-     * size or a {@code flip.<pass>.<target>} switch. Formats, clears and shadow settings come only from const
-     * directives in the source, as in Iris's PackRenderTargetDirectives and PackShadowDirectives, so a
-     * properties key with one of their names applies nothing.
+     * One shaders.properties entry: a {@code size.buffer.<target>} size or a {@code flip.<pass>.<target>} switch.
+     * As in Iris, formats, clears and shadow settings come only from const directives, never properties keys.
      */
     private static void applyProperty(String key, String value, Collected collected) {
         Matcher sizeKey = TARGET_SIZE_PROPERTY_KEY.matcher(key);
@@ -500,9 +473,8 @@ public final class PackConfig {
     }
 
     /**
-     * A {@code flip.<program>.<buffer>} switch, the last value for a key winning. A {@code false} keeps the
-     * pass's draw buffer from flipping after it, as in Iris's CompositeRenderer, so it is kept apart. A
-     * {@code <group>_pre} key's flips are kept apart too, and a false one there does nothing.
+     * A {@code flip.<program>.<buffer>} switch. A {@code false} keeps the pass's draw buffer from flipping after
+     * it, as in Iris's CompositeRenderer; a false {@code <group>_pre} flip does nothing.
      */
     private static void applyTargetFlip(String key, Matcher flipKey, String value, Collected collected) {
         int slot = parseTargetIndex(flipKey.group(2), collected.deviations);
@@ -646,9 +618,8 @@ public final class PackConfig {
     }
 
     /**
-     * The declared shadow map resolution, Iris's 1024 without one. Iris clamps none; one that is
-     * no positive whole number sizes no image, so it takes the default. The device's image limit
-     * applies when the map is created (ChimeraShadowMap).
+     * The declared shadow map resolution, Iris's 1024 without one; one that is no positive whole number takes
+     * the default. The device's image limit applies later, in ChimeraShadowMap.
      */
     private static int validShadowMapResolution(String raw, List<String> deviations) {
         if (raw == null) {

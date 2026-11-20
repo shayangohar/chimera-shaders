@@ -11,9 +11,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The profiles shaders.properties declares: named sets of option values, which may include each other and
- * switch programs off. A profile that includes a missing profile, or itself, is left out with a problem
- * rather than failing the pack.
+ * The profiles shaders.properties declares. A profile with a missing or circular include is left out with a
+ * problem instead of failing the pack.
  */
 public final class PackProfiles {
     private static final String PROGRAM = "!program.";
@@ -43,8 +42,8 @@ public final class PackProfiles {
     }
 
     /**
-     * The profile the values match, if any, and the ones before and after it in matching order, wrapping
-     * round; without a match, the first and the last. Both neighbours are null when there are no profiles.
+     * The matched profile and its neighbours in matching order, wrapping; without a match, the first and the
+     * last. Both neighbours are null when there are no profiles.
      */
     public record ProfileMatch(Optional<Profile> current, Profile next, Profile previous) {}
 
@@ -90,9 +89,8 @@ public final class PackProfiles {
     }
 
     /**
-     * Whether every value the profile sets for a declared option is the effective one. A toggle compares
-     * as the words {@code true} and {@code false}; a name that is both a toggle and a choice must agree as
-     * both, and an undeclared name never disagrees.
+     * Whether every value the profile sets is the effective one. A name that is both a toggle and a choice
+     * must agree as both, and an undeclared name never disagrees.
      */
     private boolean matches(Profile profile, OptionValues values) {
         return profile.values().entrySet().stream().allMatch(setting -> {
@@ -133,8 +131,8 @@ public final class PackProfiles {
         }
 
         /**
-         * One value token: {@code !NAME} sets false, {@code NAME=VALUE} or else {@code NAME:VALUE} sets the
-         * value, and a bare declared toggle sets true. Any other bare name sets nothing.
+         * {@code !NAME} sets false, {@code NAME=VALUE} or else {@code NAME:VALUE} sets a value, and a bare
+         * declared toggle sets true.
          */
         private void set(String token, Map<String, String> values) {
             if (token.startsWith("!")) {

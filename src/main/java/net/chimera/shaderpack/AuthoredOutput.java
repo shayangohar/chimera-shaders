@@ -5,13 +5,9 @@ package net.chimera.shaderpack;
 import java.util.regex.Pattern;
 
 /**
- * Load-time proof that an authored program writes nothing.
- *
- * Packs switch a family off by discarding every fragment in the selected branch (BSL's gbuffers_clouds with
- * CLOUDS != 3, Complementary with CLOUD_STYLE_DEFINE != 50); Iris runs such a program and it draws nothing.
- * The proof reads prepared sources, whose inactive preprocessor branches are already removed. The fragment
- * main must begin with an unconditional discard, and neither stage may write images, storage buffers or
- * atomics, the only effects a discarded draw keeps.
+ * Load-time proof that an authored program writes nothing, as packs switch a family off by discarding every
+ * fragment. The fragment main must begin with an unconditional discard, and neither stage may have side
+ * effects, which a discarded draw keeps.
  */
 public final class AuthoredOutput {
     private static final Pattern DISCARDING_MAIN = Pattern.compile(
@@ -22,7 +18,7 @@ public final class AuthoredOutput {
 
     private AuthoredOutput() {}
 
-    /** True when the prepared stages provably produce no fragment and no side effect. */
+    /** Prepared sources have their inactive preprocessor branches removed. */
     public static boolean producesNothing(String preparedVertex, String preparedFragment) {
         if (preparedFragment == null) return false;
         String fragment = strip(preparedFragment);

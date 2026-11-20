@@ -13,11 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Follows level swaps under an open screen, which setScreen never sees.
- *
- * On a respawn or a nether portal the screen opens while the old level is live, then the level goes null and a
- * new one arrives. While it is null the host renders; Chimera reinstalls once a live level exists again, and the
- * new level selects the pack's dimension variant.
+ * Follows level swaps under an open screen, which setScreen never sees. While the level is null the host
+ * renders; the new level reinstalls Chimera with the pack's dimension variant.
  */
 @Mixin(value = WorldRenderer.class, remap = false)
 public abstract class WorldRendererLevelMixin {

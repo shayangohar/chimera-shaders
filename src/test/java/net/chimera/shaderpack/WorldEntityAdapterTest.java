@@ -85,9 +85,8 @@ final class WorldEntityAdapterTest {
     private record Route(String shader, Family entity, Family blockEntity, Family shadow, Family blockEntityShadow) {}
 
     /**
-     * Every entity-format shader Iris 1.21.1 overrides, in an entity, in a block entity and in the
-     * shadow pass; then the chunk shaders Iris draws as MOVING_BLOCK. Routes key on the shader, as
-     * Iris's do, so NeoForge's item types and the armour trim decal follow their shaders' rows.
+     * Every entity-format shader Iris 1.21.1 overrides, per draw context, then the chunk shaders it draws as
+     * MOVING_BLOCK. Routes key on the shader, as Iris's do.
      */
     @Test
     void worldPipelineContract() {
@@ -295,11 +294,7 @@ final class WorldEntityAdapterTest {
                 "entityId vertex data was not bridged to the fragment");
     }
 
-    /**
-     * A parameter named after an identity hides it, as Shrimple's GetSceneEntityLightColor(const in
-     * int entityId) does in its Nether and End voxel lighting: only the global's references read the
-     * identity, and the parameter list stays as written.
-     */
+    /** A parameter named after an identity hides it: only the global's references read the identity. */
     @Test
     void aParameterNamedEntityIdKeepsItsName() {
         String vertex = """
@@ -325,10 +320,7 @@ final class WorldEntityAdapterTest {
                 && !converted.source().contains("lightOf(entityId)"), converted.source());
     }
 
-    /**
-     * As in Iris's EntityPatcher, blockEntityId reads iris_Entity.y whether declared as an attribute
-     * (MakeUp 9.5g solid_blocks_vertex) or a uniform, beside entityId on .x.
-     */
+    /** As in Iris's EntityPatcher, blockEntityId reads iris_Entity.y, declared as an attribute or a uniform. */
     @Test
     void blockEntityIdBridge() {
         String vertex = """
@@ -397,11 +389,7 @@ final class WorldEntityAdapterTest {
                 "terrain blockEntityId must read GL's unbound default, not entity data");
     }
 
-    /**
-     * As in Iris's EntityPatcher, currentRenderedItemId reads iris_Entity.z on the entity layout
-     * (Photon's get_material_mask takes a dropped item's or a held item's id from it). On a host
-     * layout it reads CommonUniforms' constant -1.
-     */
+    /** As in Iris's EntityPatcher, currentRenderedItemId reads iris_Entity.z on the entity layout, else -1. */
     @Test
     void renderedItemIdBridge(@TempDir Path shaders) throws IOException {
         String vertex = """

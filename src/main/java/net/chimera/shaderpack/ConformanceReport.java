@@ -20,10 +20,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * What a pack declares, how far each program is supported, and what installed at runtime.
- *
- * Support and runtime disposition are kept apart: a supported program still falls back to identity when its
- * conversion or pipeline creation fails.
+ * What a pack declares, how far each program is supported, and what installed at runtime. These differ: a
+ * supported program still falls back when its conversion or pipeline creation fails.
  */
 public final class ConformanceReport {
     private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().create();
@@ -144,7 +142,7 @@ public final class ConformanceReport {
         }
     }
 
-    /** Whether the runtime may build {@code name}: a supported program not attempted yet. */
+    /** A supported program not attempted yet. */
     public boolean shouldAttempt(String name) {
         ProgramReport program = programs.get(name);
         return program != null
@@ -180,10 +178,8 @@ public final class ConformanceReport {
     }
 
     /**
-     * Records that a pass's computes loaded, which installs a pass of computes alone.
-     *
-     * A pass that also draws keeps its disposition until its program installs. Iris runs the computes and
-     * then the program, and a program marked installed here would never be attempted, so it would never draw.
+     * Installs a pass of computes alone. A pass that also draws keeps its disposition, since marking it installed
+     * here would mean its program is never attempted.
      */
     public void markPassComputeInstalled(String name) {
         ProgramReport program = programs.get(name);
@@ -201,10 +197,7 @@ public final class ConformanceReport {
         }
     }
 
-    /**
-     * Records that the whole pack frame runs on the host: every installed or pending program becomes a
-     * fallback for one session-level reason.
-     */
+    /** The whole pack frame runs on the host, so every installed or pending program falls back. */
     public void markFrameFallback(String deviation, String reason) {
         addDeviation(deviation);
         for (ProgramReport program : List.copyOf(programs.values())) {
@@ -215,7 +208,7 @@ public final class ConformanceReport {
         }
     }
 
-    /** Installed and fallback program counts for the load log; not part of the JSON. */
+    /** For the load log; not part of the JSON. */
     public String runtimeSummary() {
         int installed = 0;
         int fallback = 0;
@@ -272,7 +265,7 @@ public final class ConformanceReport {
         return sha256(toJson().getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Hash of a pack text file with CRLF folded to LF, so a pack hashes the same however it was saved. */
+    /** CRLF folds to LF, so a pack hashes the same however it was saved. */
     public static String textSha256(byte[] bytes) {
         int kept = 0;
         byte[] folded = new byte[bytes.length];

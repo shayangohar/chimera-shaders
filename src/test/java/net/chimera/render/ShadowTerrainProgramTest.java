@@ -12,8 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The pack shadow pass draws each terrain layer with the program Iris's SodiumPrograms pick:
- * shadow_cutout for the cutout layers (SHADOW_CUTOUT) and shadow_water for the translucent layer
- * (SHADOW_TRANS) where the pack has them, shadow otherwise. Each layer also reads its render stage.
+ * shadow_cutout or shadow_water where the pack has them, shadow otherwise.
  */
 final class ShadowTerrainProgramTest {
     @Test
@@ -25,8 +24,8 @@ final class ShadowTerrainProgramTest {
     }
 
     /**
-     * Alpha Piscium's shadow_cutout is its shadow with the alpha test; drawn with shadow, leaves,
-     * grass and flowers cast their whole quads. VulkanMod's cutout_mipped holds solid blocks too.
+     * Drawn with shadow instead of an alpha-testing shadow_cutout, leaves cast their whole quads.
+     * VulkanMod's cutout_mipped holds solid blocks too.
      */
     @Test
     void cutoutTerrainDrawsWithShadowCutout() {

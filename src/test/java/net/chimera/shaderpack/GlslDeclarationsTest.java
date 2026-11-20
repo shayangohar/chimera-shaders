@@ -108,7 +108,7 @@ final class GlslDeclarationsTest {
                 normalized);
     }
 
-    /** Pegasus comments out a sampler declaration above the real one; only the real one takes the binding. */
+    /** A sampler declaration commented out above the real one takes no binding. */
     @Test
     void samplerBindingsGoOnRealDeclarations() {
         String source = "//uniform sampler2D depthtex0;\nlayout(location = 0) out vec4 color;\n"
@@ -132,8 +132,8 @@ final class GlslDeclarationsTest {
 
     /**
      * Mipmap directives are Iris's line-based const directives (ConstDirectiveParser): one inside a
-     * block comment counts, as Photon declares them, and one behind // does not. A later false
-     * removes an earlier true, in source order. colortex16 is past Iris's targets and is dropped.
+     * block comment counts, and one behind // does not. A later false removes an earlier true, in source
+     * order. colortex16 is past Iris's targets and is dropped.
      */
     @Test
     void mipmapDirectivesAreConstDeclarations() {
@@ -291,7 +291,7 @@ final class GlslDeclarationsTest {
                 """, converted);
     }
 
-    /** A parameter named after the attribute hides it, as Bloop's computeTBNMatrix(..., vec4 at_tangent) does. */
+    /** A parameter named after the attribute hides it. */
     @Test
     void unboundMaterialAttributesKeepParametersOfTheSameName() {
         String converted = HostLayoutVertexBridge.unboundMaterialAttributes("""

@@ -13,10 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The block data each terrain vertex carries, as Iris's Sodium terrain writes it: mc_Entity is
- * the block's id and render type, 0 for a block model and 1 for a fluid
- * (MixinChunkMeshBuildTask.beginBlock, decoded as {@code mc_Entity & 1u}), and at_midBlock points
- * at the block's centre.
+ * The block data each terrain vertex carries, as Iris's Sodium terrain writes it: mc_Entity's render
+ * type is 0 for a block model and 1 for a fluid (MixinChunkMeshBuildTask.beginBlock).
  */
 final class TerrainBlockDataTest {
     private static final TerrainMaterialPlan PLAN = new TerrainMaterialPlan(true, true, true, true, List.of());
@@ -34,11 +32,8 @@ final class TerrainBlockDataTest {
     }
 
     /**
-     * Iris's voxelizeLightBlocks quad (MixinChunkMeshBuildTask.iris$setLightBlock): four vertices at
-     * the light block's corner + 0.25, colour 0, UV 0 as XHFPTerrainVertex encodes it (wrapped to
-     * the top word) with a mid-coordinate of 0, the emission as both lightmap coordinates, the
-     * block's id with render type 0, and an at_midBlock of the emission alone. The next block's
-     * quads take their mid-block offsets again.
+     * Iris's voxelizeLightBlocks quad (MixinChunkMeshBuildTask.iris$setLightBlock), UV 0 wrapped to the
+     * top word as XHFPTerrainVertex encodes it. The next block's quads take their mid-block offsets again.
      */
     @Test
     void lightBlockQuadIsIrisVoxelQuad() {
@@ -78,11 +73,9 @@ final class TerrainBlockDataTest {
     }
 
     /**
-     * Terrain at_midBlock must be Iris's: for every vertex, the offset to the centre of the block
-     * being rendered in 1/64 blocks, then the block's light emission. A centre taken from the
-     * vertex names the neighbouring block for every vertex on a +X, +Y or +Z face. Solas's
-     * voxelization places each block at vertex + at_midBlock / 64, so such a centre would race
-     * neighbouring blocks into one voxel and make its light sources flicker.
+     * at_midBlock is the offset to the centre of the block being rendered, in 1/64 blocks, then its
+     * emission. A centre taken from the vertex names the neighbour on a +X, +Y or +Z face, and a
+     * voxelising pack would race the two blocks into one voxel.
      */
     @Test
     void midBlockOffsets() {

@@ -5,13 +5,8 @@ package net.chimera.render;
 import java.util.function.Supplier;
 
 /**
- * A value this thread holds while it makes one thing, for a hook deep in VulkanMod's or the game's allocation
- * code to read.
- *
- * Image creation (TargetFormatViews), image view creation (IntensityTextureViews) and pipeline construction
- * (GeometryStageModules) run shared code, and only the allocation this thread opened should change. The value
- * covers what one call allocates on this thread, the outer value comes back however the call ends, and other
- * threads never see it.
+ * A value this thread holds while it makes one thing, for a hook deep in shared allocation code to read. Only
+ * the allocation this thread opened changes, and the outer value comes back however the call ends.
  */
 public final class AllocationScope<T> {
     private final ThreadLocal<T> current = new ThreadLocal<>();

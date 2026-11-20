@@ -11,19 +11,14 @@ import net.vulkanmod.vulkan.shader.GraphicsPipeline;
 import net.vulkanmod.vulkan.texture.VTextureSelector;
 
 /**
- * An immediate mesh drawn under a tessellated pack pipeline. Chimera builds those for patches of 3
- * (BetweenStages.PATCH_VERTICES), as Iris draws GL_PATCHES of 3, so the mesh draws its own triangle indices:
- * a quad as two triangles, each three vertices one patch.
- *
- * VulkanMod's immediate draw of a tessellated pipeline builds four-vertex patches from QUADS for a GL patch
- * size of 4 and throws for any other draw (PatchGeometry.requireQuads). The steps here are VulkanMod's own
- * immediate draw (BufferUploaderM.drawWithShader and drawPrepared), with its triangle draw in place of its
- * patch draw.
+ * An immediate mesh drawn under a tessellated pack pipeline as patches of 3, as Iris draws GL_PATCHES of 3.
+ * VulkanMod's own immediate draw builds four-vertex patches and throws for anything but QUADS, so this repeats
+ * BufferUploaderM.drawWithShader with a triangle draw.
  */
 public final class PatchDraws {
     private PatchDraws() {}
 
-    /** Draws {@code mesh} as patches of 3 under an open tessellated pack pipeline, else through {@code host}. */
+    /** Falls back to {@code host} unless a tessellated pack pipeline is open. */
     public static void draw(MeshData mesh, Runnable host) {
         GraphicsPipeline pipeline = ChimeraEntityBridge.pipeline();
         if (pipeline == null || !pipeline.hasTessellation()) {

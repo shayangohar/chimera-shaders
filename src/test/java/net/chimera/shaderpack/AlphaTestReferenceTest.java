@@ -18,9 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris serves alphaTestRef as the program's current alpha-test reference
- * (IrisInternalUniforms, CapturedRenderingState.getCurrentAlphaTest), and its core transformers
- * rename the name to iris_currentAlphaTest.
+ * Iris serves alphaTestRef as the program's current alpha-test reference (IrisInternalUniforms), and
+ * its core transformers rename it to iris_currentAlphaTest.
  */
 final class AlphaTestReferenceTest {
     private static final String READER = """

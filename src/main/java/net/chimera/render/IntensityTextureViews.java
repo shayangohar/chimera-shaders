@@ -3,13 +3,8 @@
 package net.chimera.render;
 
 /**
- * Marks the image views VulkanMod creates while TextureUtil.prepareImage allocates a RED texture (a TrueType
- * glyph page; ChimeraIntensityTextureMixin), and ChimeraIntensityViewMixin gives them an RRRR swizzle, as Iris
- * swizzles that texture for its TEXT_INTENSITY keys.
- *
- * A pack program then reads the glyph's coverage in every channel, and vanilla's intensity shader, which reads
- * red alone, is unaffected. Chimera's own single-channel images are built from a Vulkan format and keep
- * identity views.
+ * Marks the image views VulkanMod creates for a RED texture (a TrueType glyph page), which then get an RRRR
+ * swizzle, as Iris swizzles it for its TEXT_INTENSITY keys; vanilla's intensity shader reads red alone.
  */
 public final class IntensityTextureViews {
     private static final AllocationScope<Boolean> PREPARING = new AllocationScope<>();

@@ -7,19 +7,9 @@ import net.vulkanmod.vulkan.memory.MemoryManager;
 import java.util.function.Consumer;
 
 /**
- * Chimera's one rule for destroying a Vulkan handle it owns once it may be in use: never while work that may
- * have recorded it can still run on the GPU.
- *
- * In a teardown that directly follows an idle wait ({@link #whileIdle}: a pack change, a dimension variant, the
- * final cleanup) nothing can, and the handle goes at once, so a pack change never holds the old pack's images
- * beside the new pack's.
- *
- * Otherwise it goes in a VulkanMod frame op, which runs when this frame slot comes round again, after its fence,
- * so after every frame recorded so far. At shutdown Vulkan.cleanUp runs the pending ops (MemoryManager.cleanUp)
- * before it destroys the device. A rollback, a dimension restore or renderVanilla cleans up after a load that
- * may have submitted uploads it did not wait for (PackRawTexture), so their handles wait too.
- *
- * Never retire from inside a frame op: an op queued while VulkanMod runs a slot's ops runs in the same pass,
+ * Chimera's rule for destroying a Vulkan handle it owns: never while work that may have recorded it can still
+ * run on the GPU. Right after an idle wait ({@link #whileIdle}) it goes at once; otherwise a VulkanMod frame op
+ * destroys it after this frame slot's fence. Never retire from inside a frame op, which would run the destroy
  * before the other slots' frames finish.
  */
 final class HandleRetirement {

@@ -9,12 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Terrain texture coordinates as Iris's terrain vertex holds them: the word ChimeraExtVertexBuilder
- * writes, decoded as the terrain preamble's chimeraTexCoord0Value does, puts a sprite's edge one
- * sub-texel inside the sprite.
- *
- * Vanilla shrinks a quad's edge inward by half a 1/32768 step. VulkanMod's truncating word drops that
- * shrink and leaves the edge on the sprite boundary.
+ * Terrain texture coordinates as Iris's terrain vertex holds them: decoded, a sprite's edge lands one
+ * sub-texel inside the sprite, where VulkanMod's truncating word leaves it on the boundary.
  */
 final class TerrainTexCoordTest {
     private static final double STEP = 1.0 / 32768.0;

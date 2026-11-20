@@ -8,14 +8,11 @@ import java.util.regex.Pattern;
 
 /**
  * An Iris raw texture declaration, {@code <file> <type> <internalFormat> <x> [y] [z] <pixelFormat> <pixelType>}.
- * Six words are 1D, seven 2D or RECTANGLE, eight 3D, as in Iris's ShaderProperties. The file holds the pixels
- * as glTexImage reads them: tightly packed, except that each row starts on a 4-byte boundary, since Iris's
- * TextureUploadHelper sets GL_UNPACK_ALIGNMENT 4.
+ * Rows start on a 4-byte boundary, as Iris sets GL_UNPACK_ALIGNMENT 4.
  *
  * Chimera uploads formats whose pixel type already is the internal storage, and 32-bit floats into a 16-bit
- * float format, halved as glTexImage does; Pixel Perfect's colour LUT is RGB16F from FLOAT. A three-channel
- * format widens to four with alpha 1, since Vulkan devices rarely sample three-channel images. Anything else
- * is {@code PACK_RAW_TEXTURE_UNSUPPORTED}.
+ * float format, halved as glTexImage does. A three-channel format widens to four with alpha 1, since Vulkan
+ * devices rarely sample three-channel images.
  */
 public record RawTextureSpec(
         String file,
@@ -27,7 +24,7 @@ public record RawTextureSpec(
         String pixelFormat,
         String pixelType
 ) {
-    /** Internal formats GL names by channels, bits and kind: RGBA8, RG16F, R32UI, RGB16_SNORM. */
+    /** GL internal formats such as RGBA8, RG16F, R32UI or RGB16_SNORM. */
     private static final Pattern INTERNAL_FORMAT = Pattern.compile("(RGBA|RGB|RG|R)(8|16|32)(F|I|UI|_SNORM)?");
 
     /** Null when {@code value} is not a well-formed raw declaration. */
@@ -128,7 +125,6 @@ public record RawTextureSpec(
 
     public enum Kind { UNORM, SNORM, FLOAT, SINT, UINT }
 
-    /** Channels, bits per channel and numeric kind of an internal format. */
     public record Storage(int channels, int bits, Kind kind) {
         /** The GL pixel format whose data needs no channel reorder. */
         public String pixelFormat() {

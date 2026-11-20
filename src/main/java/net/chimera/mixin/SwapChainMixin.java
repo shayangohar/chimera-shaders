@@ -10,11 +10,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Skips SwapChain.cleanUp once recreate has already destroyed the swapchain ({@code swapChainId == 0}).
- *
- * On a zero surface extent (minimised window) recreate destroys the swapchain, its image views and its depth
- * image but keeps the image list. cleanUp would then destroy the views a second time and free the missing
- * depth image, an access violation on exit.
+ * Skips SwapChain.cleanUp once recreate has destroyed the swapchain on a zero extent (minimised window); a
+ * second cleanup would free the missing depth image, an access violation on exit.
  */
 @Mixin(value = SwapChain.class, remap = false)
 public abstract class SwapChainMixin {

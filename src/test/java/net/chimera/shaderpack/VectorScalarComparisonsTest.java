@@ -8,10 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Body Camera's old lighting compares a vec3 with a number, which NVIDIA's GL compiler
- * takes as a comparison with that number in every component and GLSL refuses.
- */
+/** NVIDIA's GL compiler compares a vector with a number in every component, which GLSL refuses. */
 final class VectorScalarComparisonsTest {
     @Test
     void aNumberComparedWithAVectorBecomesThatVector() {

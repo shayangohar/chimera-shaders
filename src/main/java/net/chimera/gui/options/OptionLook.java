@@ -6,12 +6,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
 
 /**
- * The settings' look, matching Iris's: flat translucent controls drawn as a 1 px border, a 1 px inner ring
- * and a fill, and dark panels for tooltips and comments. The layers never overlap, so each alpha blends only
- * with the world behind.
+ * The settings' look, matching Iris's. A control's layers never overlap, so each alpha blends only with the
+ * world behind.
  */
 public final class OptionLook {
-    /** Normal, hovered or focused, or inset for disabled controls, value boxes and slider tracks. */
+    /** HOVERED also covers focus; INSET is for disabled controls and the wells values and sliders sit in. */
     public enum State {
         NORMAL(0x8AE0E0E0, 0x36050505, 0x36232323),
         HOVERED(0xFFFFFFFF, 0x638C8C8C, 0x63A3A3A3),
@@ -48,9 +47,8 @@ public final class OptionLook {
     }
 
     /**
-     * The dark panel behind tooltips and comments, on the overlay type without depth test, as Iris's
-     * GuiUtil.drawPanel draws it. Text sits 0.03 in front of its widget, Font's shadow offset, so a
-     * depth-tested panel would hide a button's face but let its label show through.
+     * The panel behind tooltips and comments, without depth test as in Iris's GuiUtil.drawPanel. Text sits 0.03
+     * in front of its widget, so a depth-tested panel would let labels show through.
      */
     static void panel(GuiGraphics graphics, int x, int y, int width, int height) {
         frame(graphics, RenderType.guiOverlay(), x, y, width, height, PANEL_BORDER);

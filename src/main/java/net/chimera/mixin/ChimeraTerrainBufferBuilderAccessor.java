@@ -8,10 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/**
- * Sets a Chimera terrain builder's vertex format. VulkanMod's constructor accepts only its own
- * formats; the builder sizes, sorts and hands over its vertices by this one (ChimeraExtTerrainBuilder).
- */
+/** Sets a Chimera terrain builder's vertex format, since VulkanMod's constructor accepts only its own. */
 @Mixin(value = TerrainBufferBuilder.class, remap = false)
 public interface ChimeraTerrainBufferBuilderAccessor {
     @Mutable

@@ -19,17 +19,11 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * Every shader one pack compiles in {@link PackCompileTest}: each prepared stage, input variant
- * and compute, by key ({@code gbuffers_terrain.vsh}, {@code gbuffers_hand [hand input variant
- * ...].vsh}), with a hash of its converted source and of its SPIR-V (for a graphics stage, the
- * optimized module the game builds).
- *
- * The baseline {@code testpacks/baselines/converted/<pack>.json} holds both as "source spirv"; a
- * change in either names the key. With {@code chimera.snapshot.spirvOnly} only SPIR-V must match,
- * for a change such as full macro expansion that rewrites the source but compiles the same.
- *
- * Each run writes the sources to {@code build/converted-output/current/<pack>/}; a key that
- * matches its baseline is also copied to {@code baseline/}, so a later change diffs against it.
+ * Every shader one pack compiles in {@link PackCompileTest}, by key, with hashes of its converted source
+ * and SPIR-V, held in {@code testpacks/baselines/converted/<pack>.json} as "source spirv". With
+ * {@code chimera.snapshot.spirvOnly} only SPIR-V must match. Sources go to
+ * {@code build/converted-output/current/<pack>/}; a key matching its baseline is also copied to
+ * {@code baseline/}, so a later change diffs against it.
  */
 final class ConvertedOutputSnapshot {
     private static final int HASH_CHARS = 16;

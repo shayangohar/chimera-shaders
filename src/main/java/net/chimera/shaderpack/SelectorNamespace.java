@@ -27,22 +27,15 @@ public final class SelectorNamespace {
     public static final int HIGH_COLORTEX_FIRST_SLOT = 27;
     /** shadowcolor2..shadowcolor7 from here, as Iris's HIGHER_SHADOWCOLOR adds them. */
     public static final int HIGH_SHADOW_COLOR_FIRST_SLOT = HIGH_COLORTEX_FIRST_SLOT + 7;
-    /**
-     * shadowtex0HW and shadowtex1HW: the shadow depths again, through comparison samplers, as Iris's
-     * SEPARATE_HARDWARE_SAMPLERS adds them.
-     */
+    /** shadowtex0HW and shadowtex1HW, the comparison samplers Iris's SEPARATE_HARDWARE_SAMPLERS adds. */
     public static final int SHADOW_TEX0_HW_SLOT = HIGH_SHADOW_COLOR_FIRST_SLOT + 6;
     public static final int SHADOW_TEX1_HW_SLOT = SHADOW_TEX0_HW_SLOT + 1;
-    /**
-     * Further pack-owned textures and images. Iris gives every custom texture and image its own unit, and
-     * packs such as Escheridia and Glimmer need more than the ten slots between the host's own.
-     */
+    /** Further pack-owned textures and images, as Iris gives each its own unit and some packs need more than ten. */
     public static final int PACK_EXTENDED_FIRST = SHADOW_TEX1_HW_SLOT + 1;
     public static final int PACK_EXTENDED_COUNT = 32;
     /**
-     * The Distant Horizons depth textures, which Iris registers with the render targets
-     * (IrisSamplers.addRenderTargetSamplers): dhDepthTex and its alias dhDepthTex0, then dhDepthTex1.
-     * Without Distant Horizons Iris binds texture 0 to both; Chimera reports {@code DH_DEPTH_UNBOUND}.
+     * dhDepthTex (alias dhDepthTex0), then dhDepthTex1, which Iris registers with the render targets. Without
+     * Distant Horizons Iris binds texture 0 to both; Chimera reports {@code DH_DEPTH_UNBOUND}.
      */
     public static final int DH_DEPTH_SLOT = PACK_EXTENDED_FIRST + PACK_EXTENDED_COUNT;
     public static final int DH_DEPTH1_SLOT = DH_DEPTH_SLOT + 1;

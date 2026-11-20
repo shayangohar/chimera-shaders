@@ -12,16 +12,11 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The SPIR-V of the stages compiled this session, keyed by shader kind, pack treatment and the source's
- * SHA-256. A module depends on those alone, so a stored one is never stale.
- *
- * A program drawn in several vertex layouts binds the same fragment source in each (Complementary's hand
- * fragment stage appears four times per load), and a dimension the session visited before compiles the same
- * sources again; Iris's TransformPatcher likewise keeps its transformed sources across pipeline rebuilds. The
- * least recently used modules go once the store passes its byte budget.
+ * The session's compiled SPIR-V, keyed by shader kind, pack treatment and source SHA-256, so a stored module is
+ * never stale. Least recently used modules go once the store passes its byte budget.
  */
 public final class CompiledStages {
-    /** About three of Complementary's dimension variants; each load reports the store's size. */
+    /** About three of Complementary's dimension variants. */
     static final long SESSION_BUDGET = 64L << 20;
     private static final CompiledStages SESSION = new CompiledStages(SESSION_BUDGET);
 
@@ -37,12 +32,11 @@ public final class CompiledStages {
         this.budget = budget;
     }
 
-    /** The session's module of this stage, compiled by {@code compile} unless it was compiled before. */
     static byte[] module(int kind, boolean packModule, String source, Supplier<byte[]> compile) {
         return SESSION.moduleOf(kind, packModule, source, compile);
     }
 
-    /** Ends a load, reporting how many stages it compiled and reused and what the store holds. */
+    /** Reports the load's compiled and reused counts and resets them. */
     public static String endLoad() {
         return SESSION.report();
     }
@@ -70,7 +64,6 @@ public final class CompiledStages {
         return module;
     }
 
-    /** The counts since the last report, which resets them, and the store's size. */
     synchronized String report() {
         String counts = String.format(Locale.ROOT, "%d compiled, %d reused; the session keeps %d modules, %.1f MB",
                 compiled, reused, modules.size(), bytes / (1024.0 * 1024.0));

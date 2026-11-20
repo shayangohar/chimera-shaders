@@ -10,13 +10,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * GL vendor extensions and leniencies that shaderc lacks, rewritten as Vulkan GLSL provides them.
- *
- * GL_NV_gpu_shader5 is the extension NVIDIA's GL drivers offer for explicitly sized arithmetic types. Alpha
- * Piscium's "Assume NVIDIA GPU" enables it for {@code float16_t} and {@code f16vecN}, and Iris defines
- * {@code MC_GL_NV_gpu_shader5} on such a driver. shaderc does not know it and fails the stage at its first
- * {@code float16_t}. The directive becomes the extensions in {@code VULKAN} when the device enables their
- * types; otherwise it stays, and the stage fails to compile as on a GL driver without it.
+ * GL vendor extensions and leniencies that shaderc lacks, rewritten as Vulkan GLSL provides them. shaderc does
+ * not know GL_NV_gpu_shader5, so it becomes the extensions in {@code VULKAN} when the device enables their
+ * types; otherwise the stage fails, as on a GL driver without it.
  */
 public final class GlslVendorExtensions {
     private GlslVendorExtensions() {}
@@ -32,14 +28,10 @@ public final class GlslVendorExtensions {
 
     private static final String NVIDIA = "GL_NV_gpu_shader5";
     /**
-     * GL_NV_gpu_shader5's half-float, 16-bit and 64-bit types in Vulkan GLSL. For Vulkan 1.2 each emits only
-     * its capability (Float16, Int16, Int64) and no vendor SPIR-V extension.
-     *
-     * These keep glslang's GLSL 4.00 overload rules, which resolve a built-in call mixing {@code float16_t}
-     * with float literals, such as Alpha Piscium's {@code smoothstep(0.0, 1.0, edgeWeight)}, as NVIDIA's
-     * compiler does. Any GL_EXT_shader_explicit_arithmetic_types extension switches glslang to rules that call
-     * it ambiguous. The 8-bit types come only from those extensions, so they stay out, and a stage that uses
-     * them fails to compile.
+     * GL_NV_gpu_shader5's 16-bit and 64-bit types in Vulkan GLSL, each emitting only its SPIR-V capability.
+     * These keep glslang's GLSL 4.00 overload rules, which resolve {@code float16_t} mixed with float literals
+     * as NVIDIA does; any GL_EXT_shader_explicit_arithmetic_types extension makes such calls ambiguous, so the
+     * 8-bit types stay out.
      */
     private static final List<String> VULKAN = List.of("GL_AMD_gpu_shader_half_float", "GL_AMD_gpu_shader_int16",
             "GL_ARB_gpu_shader_int64");
@@ -54,8 +46,6 @@ public final class GlslVendorExtensions {
     /**
      * GL_AMD_shader_trinary_minmax's functions as the extension defines them, for a device without
      * VK_AMD_shader_trinary_minmax, whose SPIR-V crashes NVIDIA's driver ({@link PackDevice#missing}).
-     * RenderPearl requires the extension on any GPU it does not know to be NVIDIA's, and defines the same
-     * macros itself on NVIDIA.
      */
     private static final List<String> TRINARY_BUILT_INS = List.of(
             "#define min3(a, b, c) min(a, min(b, c))",
@@ -99,15 +89,9 @@ public final class GlslVendorExtensions {
     }
 
     /**
-     * {@code source} as the {@code device} compiles it. Extension lines move up to follow {@code #version}
-     * ({@link #hoistExtensions}); GL_NV_gpu_shader5 becomes its Vulkan extensions, and
-     * GL_AMD_shader_trinary_minmax becomes min and max without the device extension. Without
-     * storageInputOutput16, 16-bit stage inputs and outputs take their 32-bit types ({@link #widenInterfaces}).
-     *
-     * GL driver leniencies are rewritten as well: a sampler chosen by {@code ?:} moves out of the call it feeds
-     * (OpaqueSelections), and three forms NVIDIA's driver takes become standard GLSL: {@code any()} of boolean
-     * vectors joined by {@code ||} (VectorLogicalOperators), an array's length read without {@code ()}
-     * (ArrayLengthCalls), and a vector compared with a number (VectorScalarComparisons).
+     * {@code source} as the {@code device} compiles it, with its extension lines hoisted and vendor extensions
+     * rewritten. 16-bit stage interfaces widen without storageInputOutput16, and NVIDIA's GL leniencies become
+     * standard GLSL.
      */
     public static String forVulkan(String source, PackDevice device) {
         String lenient = VectorScalarComparisons.widen(ArrayLengthCalls.complete(
@@ -120,10 +104,8 @@ public final class GlslVendorExtensions {
     private static final Pattern DIRECTIVE = Pattern.compile("^[ \\t]*#[ \\t]*(extension|version)\\b");
 
     /**
-     * {@code source} with its {@code #extension} lines moved up to follow its {@code #version} line, when code
-     * comes before one of them, and unchanged otherwise. Chimera declares a stage's outputs and uniforms ahead
-     * of the pack's source, and RenderPearl's AMD path declares them {@code f16vec3}, which is no type before
-     * its GL_AMD_gpu_shader_half_float directive. A directive inside a comment stays.
+     * {@code source} with its {@code #extension} lines moved up to follow {@code #version} when code precedes
+     * one, since Chimera's generated declarations go ahead of the pack's source and may use an extension's types.
      */
     static String hoistExtensions(String source) {
         if (source == null || !source.contains("extension")) return source;
@@ -189,10 +171,8 @@ public final class GlslVendorExtensions {
     }
 
     /**
-     * {@code source} with its 16-bit stage inputs and outputs declared as their 32-bit types. A Vulkan stage
-     * interface of a 16-bit type needs storageInputOutput16, which NVIDIA's GPUs lack, while their GL driver
-     * takes RenderPearl's {@code out f16vec4 colortex1}. A 16-bit value written to the output widens
-     * implicitly and the target stores it in its own format; an input reads as the wider type.
+     * {@code source} with its 16-bit stage inputs and outputs declared as their 32-bit types, since a 16-bit
+     * Vulkan interface needs storageInputOutput16, which NVIDIA's GPUs lack. Values widen implicitly.
      */
     static String widenInterfaces(String source) {
         if (source == null || WIDENED.keySet().stream().noneMatch(source::contains)) return source;

@@ -15,9 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * GL matches an interface block across stages by its block name and its members by name.
- * RenderPearl, Reverie and Shrimple pass their varyings in blocks, so each block flattens into
- * plain varyings named after the block and its members.
+ * GL matches interface blocks across stages by block and member name, so each block flattens into plain
+ * varyings named after the block and its members.
  */
 final class InterfaceBlockFlattenerTest {
     @Test
@@ -79,11 +78,7 @@ final class InterfaceBlockFlattenerTest {
         assertTrue(perVertex.source().contains("gl_Position = vec4(0.0);"), perVertex.source());
     }
 
-    /**
-     * Shrimple's shadow.gsh reads the vertex stage's VertexData (an int blockId) and writes its own
-     * (a uint one) for the fragment stage: GL pairs each stage with the next on its own, so the
-     * names a stage reads carry the suffix of the stage that writes them.
-     */
+    /** GL pairs each stage with the next, so a stage reads names suffixed for the stage that writes them. */
     @Test
     void anArrayedBlockBecomesArrayedVaryingsNamedForTheStageThatWritesThem() {
         InterfaceBlockFlattener.Result geometry = InterfaceBlockFlattener.flatten("""

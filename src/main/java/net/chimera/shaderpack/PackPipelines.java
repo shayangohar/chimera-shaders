@@ -33,24 +33,13 @@ import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT;
 import static org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT;
 
 /**
- * Builds GraphicsPipelines from pack programs.
- *
- * Each program gets a {@link PackDescriptorLayout}, applied through {@link HostPipelineLayout}, in which samplers
- * take the bindings after the uniform blocks, in slot order. The stages are the converted pack GLSL, with a fixed
- * Chimera vertex source where the pack has none. A failed build returns null and the program falls back, except a
- * typed PreparationFailure from anything but shader compilation, which aborts the install.
- *
- * A post build draws a fullscreen triangle, with one optional generated fragment UBO at binding 0 and the samplers
- * after it; a program without uniforms keeps sampler bindings from 0. A terrain build takes the extended terrain
- * vertex inputs and keeps the terrain config's uniform blocks (bindings 0 to 2) and push constants as they are,
- * with samplers from binding 3.
+ * Builds GraphicsPipelines from pack programs, samplers taking the bindings after the uniform blocks in slot order.
+ * A failed build returns null and the program falls back, except a typed PreparationFailure from anything but
+ * shader compilation, which aborts the install.
  */
 public final class PackPipelines {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
-    /**
-     * An image declaration's qualifiers, with a layout among them in any order (GLSL 4.20). RenderPearl writes
-     * {@code uniform layout(rg8) restrict writeonly image2D edge}.
-     */
+    /** An image declaration's qualifiers, with a layout among them in any order, as GLSL 4.20 allows. */
     static final String IMAGE_QUALIFIERS =
             "(?:layout\\s*\\([^)]*\\)\\s*|(?:uniform|writeonly|readonly|coherent|volatile|restrict)\\s+)*";
     /** A sampler declaration's {@code uniform}, with a layout before or after it. */
@@ -89,10 +78,7 @@ public final class PackPipelines {
                 plan.convertedVertex() == null ? fixedVertex : plan.convertedVertex());
     }
 
-    /**
-     * Binds the sources and builds the descriptors and image manifest without a native pipeline, so headless tests
-     * check the same descriptor contract the runtime installs.
-     */
+    /** Binds the sources and descriptors without a native pipeline, so headless tests check the runtime's contract. */
     static PreparedPipeline prepare(PackProgramPlan plan, PackAdvancedResourcePlan resources,
             UniformRegistry.Stage stage, String vertex) {
         return prepare(plan, resources, stage, vertex, plan.convertedFragment());
@@ -123,10 +109,7 @@ public final class PackPipelines {
                 layout, interfacePlan.project(each.name(), stage), stage, each.stageBit()));
     }
 
-    /**
-     * The whole descriptor set of a prepared program, checked against its shaders, its binding plan
-     * and its image manifest before any native object exists.
-     */
+    /** A prepared program's descriptor set, checked against its shaders and plans before any native object exists. */
     static PackDescriptorLayout prepareLayout(PreparedPipeline prepared, String program,
             PackAdvancedResourcePlan resources) {
         validateSelectorLayout(prepared.layout());
@@ -195,9 +178,8 @@ public final class PackPipelines {
     }
 
     /**
-     * The same for one of {@code program}'s pipelines, such as a sky format or an entity layout, named
-     * {@code pipeline} in the log and Copy Info. The notice names the program, so the load's skip of it is the same
-     * failure, told once (PackFailureNotices).
+     * The same for one of {@code program}'s pipelines, named {@code pipeline} in the log. The notice names the
+     * program, so the load's skip of it is the same failure, told once.
      */
     static void handleBuildFailure(String program, String pipeline, Exception failure) {
         if (failure instanceof PreparationFailure typed
@@ -225,10 +207,7 @@ public final class PackPipelines {
                         + detail, cause));
     }
 
-    /**
-     * A compiler report's first error, without the translated file and line it names. shaderc lists warnings
-     * before errors.
-     */
+    /** A compiler report's first error, without its file and line; shaderc lists warnings before errors. */
     static String compileError(String report) {
         String first = firstError(report);
         int error = first.indexOf(": error: ");
@@ -246,10 +225,7 @@ public final class PackPipelines {
         return text.lines().filter(line -> line.contains(": error: ")).findFirst()
                 .orElse(text.lines().findFirst().orElse(""));
     }
-    /**
-     * A built post pipeline with the slots its samplers occupy, the frame resources they read
-     * (PackResourcePlan.frameResource), and the blend its pass draws with (PackBlendPlan.forFullscreenPass).
-     */
+    /** A built post pipeline with what its samplers read and the blend its pass draws with. */
     public record PackPost(
             String name,
             GraphicsPipeline pipeline,
@@ -436,10 +412,9 @@ public final class PackPipelines {
     ) {}
 
     /**
-     * Builds one geometry-family pipeline: the converted shaders bound to the plan's interface for {@code stage},
-     * its advanced resources and its authored output route. A shadow-lane program renders into the shadow map's
-     * colour attachments with blending off, as Iris's shadow programs use BlendModeOverride.OFF. Null when the
-     * plan cannot serve {@code stage} or the build fails.
+     * Builds one geometry-family pipeline; null when the plan cannot serve {@code stage} or the build fails. A
+     * shadow-lane program draws unblended unless the pack says otherwise, as Iris's shadow programs default to
+     * BlendModeOverride.OFF.
      */
     static BuiltGeometry buildGeometry(
             PackProgramPlan plan, UniformRegistry.Stage stage, String pipelineName, VertexFormat format,
@@ -498,11 +473,8 @@ public final class PackPipelines {
     }
 
     /**
-     * The blend a pipeline with no attachment contract draws with in VulkanMod's render pass, one mode for its
-     * single attachment, colortex0. It is the program's {@code blend.<program>} or
-     * {@code blend.<program>.colortex0}, as Iris's BlendModeOverride replaces the host blend for every draw of the
-     * program; null keeps the host blend. Without it Kappa's glint (SRC_ALPHA ONE ZERO ONE) would draw with
-     * vanilla's SRC_COLOR ONE, squaring its dim colour.
+     * The blend for a pipeline without an attachment contract, drawing colortex0 in VulkanMod's render pass: the
+     * program's directive, as Iris's BlendModeOverride replaces the host blend, or null to keep the host's.
      */
     static PackBlendPlan.Mode[] hostPassBlends(PackBlendPlan blendPlan) {
         return blendPlan == null ? null : blendPlan.attachments(List.of(0));
@@ -519,10 +491,8 @@ public final class PackPipelines {
     }
 
     /**
-     * Creates the pipeline under its attachment contract, when it has one, and registers that contract for the
-     * variants VulkanMod creates lazily. Without a contract, {@code attachmentBlends} holds the modes for
-     * VulkanMod's render pass (hostPassBlends). The {@code blend.<program>} directive is registered for its draws'
-     * blendFunc.
+     * Creates the pipeline under its attachment contract, if any, registering it for the variants VulkanMod creates
+     * lazily. The {@code blend.<program>} directive is registered for its draws' blendFunc.
      */
     private static GraphicsPipeline createRouted(
             String name, VertexFormat format, PackDescriptorLayout layout, String vertex, BetweenStages between,
@@ -548,10 +518,9 @@ public final class PackPipelines {
     }
 
     /**
-     * The blend a program's draws report as blendFunc in place of the host's, or null to report the host blend.
-     * Iris's SodiumShader applies a {@code blend.<program>} directive before its uniforms update, so an off
-     * directive reads zero there. ExtendedShader updates its uniforms first, and only an enabled directive's
-     * glBlendFuncSeparate notifies the uniform.
+     * The blend a program's draws report as blendFunc, or null for the host's. Iris's SodiumShader applies the
+     * directive before its uniforms update, so an off directive reads zero; ExtendedShader reports only an enabled
+     * one.
      */
     private static PackBlendPlan.Mode blendFuncOverride(PackProgramPlan plan, UniformRegistry.Stage stage) {
         PackBlendPlan.Mode directive = plan.blendPlan().program();
@@ -652,10 +621,7 @@ public final class PackPipelines {
         }
     }
 
-    /**
-     * ChimeraShadowMap's colour attachments in the pack's shadowcolor formats (PackProgramPlan). A plan made
-     * without pack settings gets Iris's default, two RGBA8 targets.
-     */
+    /** The shadow map's colour attachment formats; without pack settings, Iris's default of two RGBA8 targets. */
     private static int[] shadowAttachmentFormats(PackProgramPlan plan) {
         List<Integer> formats = plan.shadowAttachmentFormats();
         if (formats.isEmpty()) return new int[] {37, 37};
@@ -742,9 +708,8 @@ public final class PackPipelines {
     }
 
     /**
-     * Puts registry slot 2, the lightmap, at index 1 of the sampler slots, after the atlas. The fixed terrain
-     * vertex reads its lightmap at descriptor index 1 ({@code layout(binding = 4)}); anywhere else its fetch reads
-     * another descriptor, such as the shadow map, and block and sky light never reach the terrain.
+     * Puts registry slot 2, the lightmap, at sampler index 1 after the atlas, where the fixed terrain vertex reads
+     * it ({@code layout(binding = 4)}); anywhere else block and sky light never reach the terrain.
      */
     static int[] interleaveLightmap(int[] slots) {
         int[] withoutLightmap = Arrays.stream(slots)
@@ -806,10 +771,7 @@ public final class PackPipelines {
                 advancedResources, storageOwner, familyVertex(plan));
     }
 
-    /**
-     * The converted vertex a family draws with. The spider-eyes family is Iris's ENTITIES_EYES and
-     * ENTITIES_EYES_TRANS, both fullbright keys, so its light reads (240, 240) (EntityVertexBridge.fullbrightLight).
-     */
+    /** The converted vertex a family draws with; spider eyes use Iris's fullbright keys, so read light (240, 240). */
     static String familyVertex(PackProgramPlan plan) {
         String vertex = plan.convertedVertex();
         return vertex != null && plan.familyAdapter().family() == FamilyAdapterPlan.Family.SPIDER_EYES
@@ -818,8 +780,7 @@ public final class PackPipelines {
 
     /**
      * gbuffers_damagedblock on the crumbling overlay's BLOCK buffers widened to EXTENDED_BLOCK, as Iris widens
-     * every BLOCK buffer to TERRAIN. The mid-coordinate and tangent come per quad from the decal's own
-     * coordinates. The overlay draws fullbright, and its entity ids read 0 (EntityVertexBridge.crumblingInputs).
+     * every BLOCK buffer to TERRAIN. The overlay draws fullbright, and its entity ids read 0.
      */
     public static PackEntity buildDamagedBlock(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner
@@ -927,10 +888,8 @@ public final class PackPipelines {
     }
 
     /**
-     * Builds a host-layout lane on its contract's vertex format. In the main pass these are lines, glint,
-     * lightning, beacon beams and leads (Iris ShaderKey.LINES, GLINT, LIGHTNING, BEACON and LEASH). In the shadow
-     * pass they are the shadow keys Iris draws on those layouts, built as shadow_entities is, into the shadow map's
-     * attachments with the shadow blend (PackBlendPlan.shadowAttachments).
+     * Builds a host-layout lane, such as lines or leads, on its contract's vertex format. A shadow-pass lane is
+     * built as shadow_entities is, into the shadow map's attachments with the shadow blend.
      */
     public static PackParticle buildHostLayout(
             PackProgramPlan plan, PackAdvancedResourcePlan advancedResources, PackStorageBufferOwner storageOwner

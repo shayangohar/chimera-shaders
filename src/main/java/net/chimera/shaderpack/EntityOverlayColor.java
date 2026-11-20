@@ -6,27 +6,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Serves {@code entityColor}, the hurt tint and creeper flash, per vertex from the overlay texel the
- * entity's UV1 points at, as Iris's EntityPatcher does. One uniform would give every mob on screen the same
- * colour, so a hit mob would never flash.
- *
- * The fragment keeps the pack's name as a global it sets at the top of {@code main}. The entity vertex
- * converter forwards UV1 as the flat varying {@link #UV_VARYING} whenever the fragment reads it. The fetch
- * is a {@code texelFetch}, so no sampler filter can blend the red tint row with the white flash row.
+ * Serves {@code entityColor} per vertex from the overlay texel UV1 points at, as Iris's EntityPatcher does; one
+ * uniform would make every mob flash together. A texelFetch keeps the red tint row from blending with the white
+ * flash row.
  */
 final class EntityOverlayColor {
     static final String UV_VARYING = "chimeraOverlayUV";
 
     private static final String OVERLAY_FETCH = fetch(UV_VARYING);
-    /** A geometry stage's fetch: the primitive's first vertex, as Iris reads entityColor[0]. */
+    /** The primitive's first vertex, as Iris reads entityColor[0]. */
     private static final String GEOMETRY_FETCH = fetch(UV_VARYING + "[0]");
     private static final Pattern UV_READ = Pattern.compile("\\b" + UV_VARYING + "\\b");
-    /** An opaque empty texel: entityColor comes out (0, 0, 0, 0). */
+    /** entityColor comes out (0, 0, 0, 0). */
     private static final String NO_OVERLAY_TEXEL = "vec4 chimeraOverlayTexel = vec4(0.0, 0.0, 0.0, 1.0);";
     /**
-     * entityColor from the fetched texel. The overlay texture stores how much of the mob shows through, so the
-     * tint's strength is one minus its alpha; a texel with none leaves the whole colour zero, so a pack that
-     * reads only the rgb sees black.
+     * The overlay stores how much of the mob shows through, so the tint's strength is one minus alpha; with none,
+     * the whole colour is zero.
      */
     private static final String OVERLAY_COLOR =
             "\n    entityColor = vec4(chimeraOverlayTexel.rgb, 1.0 - chimeraOverlayTexel.a);"
@@ -35,20 +30,15 @@ final class EntityOverlayColor {
     private static final Pattern DECLARATION =
             Pattern.compile("(?m)^[ \\t]*uniform\\s+vec4\\s+entityColor\\s*;");
     private static final Pattern READ = Pattern.compile("\\bentityColor\\b");
-    /** A main's head, matched with comments masked so a commented-out main never takes the inserted text. */
+    /** Matched with comments masked, so a commented-out main never takes the inserted text. */
     private static final Pattern MAIN =
             Pattern.compile("\\bvoid\\s+main\\s*\\(\\s*(?:void\\s*)?\\)\\s*\\{");
 
     private EntityOverlayColor() {}
 
     /**
-     * The overlay texel at {@code uv}, or GL's empty texel (0, 0, 0, 1) where {@code uv} falls outside the
-     * bound image.
-     *
-     * A render type that sets no overlay, such as eyes or the energy swirl, leaves a 1x1 white stand-in on
-     * the unit while its UV1 is vanilla's NO_OVERLAY (0, 10). Vulkan leaves a fetch outside the image
-     * undefined and NVIDIA reads zero, which would make entityColor opaque black. Iris's GL reads unbound
-     * texture 0 there as (0, 0, 0, 1), which leaves entityColor (0, 0, 0, 0).
+     * GL's empty texel (0, 0, 0, 1) outside the bound image. Types with no overlay keep UV1 at NO_OVERLAY (0, 10)
+     * over a 1x1 stand-in; Vulkan leaves that fetch undefined and NVIDIA reads zero, giving opaque black.
      */
     private static String fetch(String uv) {
         String sampler = PackResourcePlan.OVERLAY_SAMPLER;
@@ -56,15 +46,15 @@ final class EntityOverlayColor {
                 + ", 0)))) ? texelFetch(" + sampler + ", " + uv + ", 0) : vec4(0.0, 0.0, 0.0, 1.0);";
     }
 
-    /** Rewrites a fragment that declares {@code uniform vec4 entityColor}; others are unchanged. */
+    /** A fragment without {@code uniform vec4 entityColor} is unchanged. */
     static String inject(String fragment) {
         return inject(fragment, OVERLAY_FETCH, "");
     }
 
-    /** {@code source} reading entityColor through {@code fetch}, with {@code input} declared just before main. */
+    /** {@code input} is declared just before main. */
     private static String inject(String source, String fetch, String input) {
         if (source == null) return null;
-        // find the declaration and its repeats outside comments, at the offsets of the source as written
+        // match outside comments, at the offsets of the source as written
         Matcher declaration = DECLARATION.matcher(GlslLexer.maskComments(source));
         if (!declaration.find()) return source;
         StringBuilder rewritten = new StringBuilder(source.substring(0, declaration.start()))
@@ -82,17 +72,11 @@ final class EntityOverlayColor {
                 + declared.substring(main.end());
     }
 
-    /** A shadow entity program's stages once the overlay serves entityColor (injectShadow). */
     record ShadowStages(String vertex, String geometry, String fragment) {}
 
     /**
-     * The shadow pass's entity casters (shadow_entities, shadow_block), which Iris draws on the entity
-     * layout and patches as it does gbuffers_entities (VanillaTransformer, hasOverlay).
-     *
-     * A running geometry stage reads the primitive's first vertex, as EntityPatcher's entityColor[0] does;
-     * Rethinking Voxels' shadow geometry stage uses it to light primed TNT while it flashes. Without a
-     * geometry stage the fragment reads its own. The vertex stage forwards UV1 for either. Where a geometry
-     * program's vertex or fragment stage also reads the value, the uniform stays and reads zero.
+     * Shadow entity casters, which Iris patches as it does gbuffers_entities. A running geometry stage reads
+     * the fetch; where its vertex or fragment stage also reads the value, the uniform stays and reads zero.
      */
     static ShadowStages injectShadow(String vertex, String geometry, String fragment, boolean geometryRuns) {
         ShadowStages unchanged = new ShadowStages(vertex, geometry, fragment);
@@ -111,10 +95,6 @@ final class EntityOverlayColor {
         return new ShadowStages(forwardOverlayUv(servedVertex, injected), injected, servedFragment);
     }
 
-    /**
-     * The shadow entity vertex stage with the overlay coordinates its consumer reads (an injected
-     * fragment's fetch, or a geometry stage's input) forwarded from UV1.
-     */
     static String forwardOverlayUv(String vertex, String consumer) {
         if (vertex == null || consumer == null || !UV_READ.matcher(GlslLexer.stripComments(consumer)).find()
                 || UV_READ.matcher(GlslLexer.stripComments(vertex)).find()) {
@@ -132,16 +112,12 @@ final class EntityOverlayColor {
     }
 
     /**
-     * The vertex stage beside an injected fragment, without the entityColor declaration. Iris deletes the
-     * uniform from every stage (EntityPatcher.patchOverlayColor). A declaration from a header shared with
-     * the fragment would otherwise meet the fragment's global in the shared uniform block.
-     *
-     * Helpers main never calls go too, as every converter prunes them. A vertex stage whose main reaches a
-     * read keeps the declaration.
+     * Iris deletes the uniform from every stage; a declaration shared with the fragment would otherwise meet its
+     * global in the shared uniform block. A vertex stage whose main reaches a read keeps it.
      */
     static String withoutUnreadVertexDeclaration(String vertex) {
         if (vertex == null) return null;
-        // match outside comments, as inject does, and cut the source as written at those offsets
+        // match outside comments, as inject does
         Matcher declaration = DECLARATION.matcher(GlslLexer.maskComments(vertex));
         StringBuilder kept = new StringBuilder();
         int from = 0;
@@ -156,12 +132,8 @@ final class EntityOverlayColor {
     }
 
     /**
-     * The converted fragment, or shadow geometry stage, for a host layout without overlay coordinates: text,
-     * a held map's background, particles in the hand, or a moving block's shadow, whose UV1 is a constant zero.
-     *
-     * Iris patches the overlay fetch only where the layout has UV1 (VanillaTransformer, hasOverlay);
-     * elsewhere entityColor stays the uniform CommonUniforms sets to zero. These host draws bind no overlay,
-     * so a fetch would read whatever texture slot 1 last held.
+     * For a layout without UV1, where Iris leaves entityColor zero. These draws bind no overlay, so a fetch would
+     * read whatever slot 1 last held.
      */
     static String withoutOverlay(String fragment) {
         return fragment == null ? null

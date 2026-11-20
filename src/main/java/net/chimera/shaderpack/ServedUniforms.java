@@ -10,14 +10,9 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * Serves an Iris uniform whose value a program fixes, or reads under another name, by rewriting the
- * program's source. The file-scope {@code uniform} declaration goes, and every reference that resolves to
- * it reads the given expression. A local or parameter of the same name stays the pack's own. A source
- * without the declaration, or one that does not parse, is left as written.
- *
- * Iris's core transformers rename such names the same way (alphaTestRef to iris_currentAlphaTest), and
- * FogMode.OFF's fogMode and fogShape are constants Iris sets once. Iris disables a declaration of another
- * type ("Wrong uniform type" in ProgramUniforms), so it reads its initializer, or zero. An int uniform
+ * Serves an Iris uniform whose value a program fixes, or reads under another name, by rewriting the program's
+ * source: every reference that resolves to the file-scope declaration reads the given expression. Iris disables a
+ * declaration of another type ("Wrong uniform type"), so it reads its initialiser or zero, though an int uniform
  * declared bool is still set.
  */
 public final class ServedUniforms {
@@ -45,9 +40,8 @@ public final class ServedUniforms {
     }
 
     /**
-     * {@code source} with each of {@code names} read as a uniform Iris never sets: its initializer, or zero,
-     * as GL leaves it. Iris pushes no custom uniform to a setup compute, since IrisRenderingPipeline runs them
-     * without CustomUniforms.push. Each name served is added to {@code served}.
+     * {@code source} with each of {@code names} read as GL leaves an unset uniform: its initialiser, or zero. Each
+     * name served is added to {@code served}.
      */
     static String serveUnset(String source, Collection<String> names, List<String> served) {
         String result = source;
@@ -59,7 +53,7 @@ public final class ServedUniforms {
         return result;
     }
 
-    /** The value a declaration reads: Iris's in its type, or a disabled uniform's initializer or zero. */
+    /** The value a declaration reads: Iris's in its type, or a disabled uniform's initialiser or zero. */
     private static String servedValue(GlslTree tree, GlslDeclarations.Variable uniform, String type, String value) {
         String declared = uniform.type();
         if (declared.equals(type)) return value;
@@ -72,12 +66,8 @@ public final class ServedUniforms {
     static final List<String> POST_VALUES = List.of("fogMode", "fogShape", "blendFunc");
 
     /**
-     * Serves the values Iris fixes for a fullscreen pass: FogMode.OFF's ({@link #serveFogOff}) and blendFunc.
-     *
-     * Blending is off when a pass's uniforms update, since Program.use runs before the pass's blend override
-     * applies. blendFunc reads zero unless an enabled {@code blend.<pass>} directive's glBlendFuncSeparate then
-     * sets it to the directive's factors. Only CompositeRenderer applies one; final and shadowcomp passes get
-     * none.
+     * Serves the values Iris fixes for a fullscreen pass: FogMode.OFF's and blendFunc. blendFunc reads zero unless
+     * an enabled {@code blend.<pass>} directive sets it, which only CompositeRenderer applies.
      */
     static String servePostValues(String source, PackBlendPlan.Mode passBlend) {
         int[] blend = passBlend == null ? new int[4] : passBlend.glFunc();
@@ -85,19 +75,14 @@ public final class ServedUniforms {
         return serve(serveFogOff(source), "blendFunc", "ivec4", blendFunc);
     }
 
-    /**
-     * FogMode.OFF's constants, fogMode 0 and fogShape -1. Iris builds every fullscreen pass and compute
-     * program without fog.
-     */
+    /** FogMode.OFF's fogMode 0 and fogShape -1; Iris builds every fullscreen pass and compute without fog. */
     static String serveFogOff(String source) {
         return serve(serve(source, "fogMode", "int", "0"), "fogShape", "int", "-1");
     }
 
     /**
-     * A compute stage's source as Iris compiles it. Each name has one declaration, uniforms Iris never sets
-     * read their initializers ({@link #readInitializers}), uniforms it sets lose theirs
-     * ({@link #withoutSetInitializers}), fog reads FogMode.OFF's values, and the source gets the normalization
-     * Iris's CommonTransformer gives computes. Every compute path prepares its source here.
+     * A compute stage's source as Iris compiles it: unset uniforms read their initialisers and set ones lose them.
+     * Fog reads FogMode.OFF's values.
      */
     public static Compute computeSource(String source, Predicate<String> irisSets) {
         String initialized = readInitializers(GlslTokenRewriter.splitUniformDeclarators(source), irisSets).source();
@@ -108,10 +93,7 @@ public final class ServedUniforms {
                 ? List.of("SOURCE_NORMALIZATION_FAILED") : normalized.deviations());
     }
 
-    /**
-     * A compute's source as Iris compiles it. When the normalizer cannot read it, {@code deviations} says why
-     * and the source is the served one, which no compiler takes and only the analysis reads.
-     */
+    /** When the normaliser fails, {@code deviations} says why and {@code source} is fit only for analysis. */
     public record Compute(String source, List<String> deviations) {
         public boolean successful() {
             return deviations.isEmpty();
@@ -119,9 +101,8 @@ public final class ServedUniforms {
     }
 
     /**
-     * Drops the initializer of each file-scope uniform Iris sets, such as Rethinking Voxels'
-     * {@code uniform ivec3 cameraPositionInt = ivec3(-98257195)}. Iris's upload replaces it before any read,
-     * and Vulkan GLSL takes no initializer on a uniform.
+     * Drops the initialiser of each file-scope uniform Iris sets: Iris's upload replaces it before any read, and
+     * Vulkan GLSL takes no initialiser on a uniform.
      */
     static String withoutSetInitializers(String source, Predicate<String> irisSets) {
         if (source == null || !source.contains("=")) return source;
@@ -141,18 +122,13 @@ public final class ServedUniforms {
         return edits.isEmpty() ? source : tree.print(edits);
     }
 
-    /** A source whose initialized unset uniforms became constants, and their names. */
+    /** A source whose initialised unset uniforms became constants, and their names. */
     record Initialized(String source, List<String> names) {}
 
     /**
-     * Rewrites each file-scope uniform that Iris never sets and the source initializes as the constant GL
-     * reads, since a uniform no glUniform call reaches keeps its initializer. Alpha Piscium's
-     * {@code uniform mat4 textureMatrix = mat4(1.0)} is one, in passes where no Iris transformer names
-     * textureMatrix.
-     *
-     * An uninitialized one reads zero through the planner's unset rule (UniformRegistry.unsetDescriptor).
-     * {@code irisSets} names the uniforms Iris gives a value; their initializers stay as written, since the
-     * upload overwrites them.
+     * Rewrites each file-scope uniform Iris never sets and the source initialises as the constant GL reads, since
+     * a uniform no glUniform call reaches keeps its initialiser. An uninitialised one reads zero through
+     * UniformRegistry.unsetDescriptor.
      */
     static Initialized readInitializers(String source, Predicate<String> irisSets) {
         if (source == null || !source.contains("=")) return new Initialized(source, List.of());

@@ -9,9 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Alpha Piscium's "Assume NVIDIA GPU" enables GL_NV_gpu_shader5 for half floats and 16-bit
- * integers. shaderc does not know the extension and stops at float16_t with "syntax error,
- * unexpected IDENTIFIER".
+ * Packs enable GL_NV_gpu_shader5 for half floats and 16-bit integers; shaderc does not know the
+ * extension and stops at float16_t with "syntax error, unexpected IDENTIFIER".
  */
 final class GlslVendorExtensionsTest {
     private static final GlslVendorExtensions.SizedTypes ALL = new GlslVendorExtensions.SizedTypes(true, true, true);
@@ -89,9 +88,8 @@ final class GlslVendorExtensionsTest {
     }
 
     /**
-     * RenderPearl's NVIDIA path writes {@code out f16vec4 colortex1}, which a Vulkan device without
-     * storageInputOutput16, as NVIDIA GPUs are, cannot take. Stage inputs and outputs widen to their
-     * 32-bit types; parameters, locals and uniforms keep theirs.
+     * A 16-bit stage input or output needs storageInputOutput16, which NVIDIA GPUs lack, so it widens to
+     * its 32-bit type; parameters, locals and uniforms keep theirs.
      */
     @Test
     void sixteenBitStageInterfacesWidenWithoutStorageInputOutput16() {
@@ -126,9 +124,9 @@ final class GlslVendorExtensionsTest {
     }
 
     /**
-     * Chimera declares RenderPearl's outputs ahead of its source, where AMD's path makes them f16vec3
-     * before its half-float directive: "syntax error, unexpected IDENTIFIER". The directives move up
-     * to follow the version line; one in a comment stays, and a source already in order is unchanged.
+     * Chimera declares outputs ahead of the source, so a half-float output would precede its directive
+     * ("syntax error, unexpected IDENTIFIER"). The directives move up to follow the version line; one in
+     * a comment stays, and a source already in order is unchanged.
      */
     @Test
     void extensionsMoveAheadOfTheDeclarationsBeforeThem() {

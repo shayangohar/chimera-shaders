@@ -96,9 +96,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * Iris registers only colortex4 and up in a gbuffers or shadow program (IrisSamplers.addRenderTargetSamplers,
-     * startIndex 4), and depthtex0-2 without gdepthtex. Kappa's gbuffers_particles reads gcolor, which
-     * therefore reads unit 0, the particle's albedo texture.
+     * In a world program Iris registers only colortex4 and up and no gdepthtex
+     * (IrisSamplers.addRenderTargetSamplers), so Kappa's gcolor reads unit 0, the albedo.
      */
     @Test
     void anUnregisteredSampler2DInAWorldProgramReadsTheAlbedo(@TempDir Path root) throws IOException {
@@ -149,10 +148,7 @@ final class IrisParityCasesTest {
         assertTrue(particles.contains("SAMPLER_UNIT0_ALBEDO:gcolor"), particles.toString());
     }
 
-    /**
-     * Reverie's composite2 reads dhDepthTex1 without a DISTANT_HORIZONS guard. Iris registers the DH depth
-     * names with the render targets and, without DH, binds texture 0 under all three (DHCompat.getDepthTex).
-     */
+    /** Without DH, Iris binds texture 0 under the DH depth names (DHCompat.getDepthTex), which Reverie reads. */
     @Test
     void theDistantHorizonsDepthTexturesReadTheUnboundTexture(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -188,9 +184,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * GLSL forms Iris passes through: a default-qualifier statement (Alpha Piscium's
-     * layout(early_fragment_tests) in;) declares no variable, and an array size may sit on the type
-     * (Noble's flat in vec3[9] skyIlluminanceCoefficients).
+     * A default-qualifier statement such as layout(early_fragment_tests) in; declares no variable, and an
+     * array size may sit on the type.
      */
     @Test
     void interfaceScanningReadsDefaultQualifiersAndTypeArrays(@TempDir Path root) throws IOException {
@@ -226,9 +221,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * Mellow's and superDuperVanilla's core-profile gbuffers_clouds draw nothing at their defaults.
-     * Iris runs them and no cloud shows; Chimera skips the host cloud draw. Nothing is left to
-     * convert, so the report calls the program neither unconverted modern GLSL nor a fallback.
+     * A core-profile gbuffers_clouds that draws nothing at its defaults runs, as in Iris; the report calls it
+     * neither unconverted modern GLSL nor a fallback.
      */
     @Test
     void aCloudProgramThatDrawsNothingRuns(@TempDir Path root) throws IOException {
@@ -251,11 +245,7 @@ final class IrisParityCasesTest {
         assertFalse(clouds.deviations().contains("MODERN_GLSL_UNSUPPORTED"), clouds.deviations().toString());
     }
 
-    /**
-     * RenderPearl's gbuffers_line declares two core inputs at once: in vec3 vaNormal, vaPosition;.
-     * The core names become compatibility built-ins, so their declarators go, and a name beside them
-     * stays declared.
-     */
+    /** Core inputs become compatibility built-ins, so their declarators go; a name declared beside them stays. */
     @Test
     void coreInputsDeclaredTogetherLeaveTheirDeclaration() {
         String vertex = """
@@ -280,12 +270,9 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * RedHat and Spring read centerDepthSmooth in fullscreen passes. Iris rewrites a fullscreen pass's
-     * uniform declaration into its smoothed texture and each reference into the texture's centre
-     * (CompositeDepthTransformer); a world program keeps an unset uniform.
-     *
-     * The pass samples the texture in GENERAL, the layout its compute kernel keeps it in; a shader-read
-     * descriptor would make VulkanMod transition it, which throws.
+     * Fullscreen passes read centerDepthSmooth as the smoothed texture's centre (Iris's
+     * CompositeDepthTransformer); a world program keeps an unset uniform. The pass samples it in GENERAL,
+     * since a shader-read descriptor would make VulkanMod transition it, which throws.
      */
     @Test
     void fullscreenPassesReadTheSmoothedCentreDepth(@TempDir Path root) throws IOException {
@@ -399,9 +386,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * Mellow with COLORED_LIGHTS declares its voxel images in every stage, and most programs never use
-     * them. Each stage compiles alone, so a declaration the vertex and fragment stages share is still
-     * no use: the report runs the program, as the plan and Iris do.
+     * An image both stages declare but neither uses is no use, since each stage compiles alone; the report
+     * runs the program, as Iris does.
      */
     @Test
     void anImageBothStagesOnlyDeclareIsNoUse(@TempDir Path root) throws IOException {
@@ -420,9 +406,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * Escheridia with bloom off declares colortex6 in every program and reads it in none, so no slot is
-     * kept for it and a custom texture takes colortex6's slot. GL leaves the unread sampler inactive: it is
-     * stripped and the program keeps the texture it reads. Two read samplers on one slot still refuse.
+     * A declared but unread colortex6 keeps no slot, so a custom texture takes it; GL leaves the unread
+     * sampler inactive, so it is stripped. Two read samplers on one slot still refuse.
      */
     @Test
     void anUnreadSamplerGivesItsSlotToTheOneTheProgramReads() {
@@ -444,9 +429,8 @@ final class IrisParityCasesTest {
     }
 
     /**
-     * A stage that declares only the unread target gives up its slot too. Kept there, it would sit on
-     * slot 10 beside the fragment's custom texture, and the program would sample whichever texture the
-     * slot resolved to first. Without a custom texture on its slot, a stage still binds an unread target.
+     * A stage that only declares the unread target gives up its slot too, or the program would sample
+     * whichever texture the slot resolved first. Without a custom texture there, the target stays bound.
      */
     @Test
     void everyStageGivesUpAnUnreadTargetsSlotToACustomTexture() {

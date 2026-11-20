@@ -16,11 +16,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * The samplers, storage images and storage blocks a prepared source declares, references, and reads on a path
- * from {@code main}, read from the parse tree.
- *
- * It errs towards live: a call reaches every overload of its name, and a source without {@code main}, such as an
- * interface-only snippet, counts everything it references as live.
+ * The samplers, storage images and storage blocks a prepared source declares, references and reads on a path
+ * from {@code main}. It errs towards live: a call reaches every overload, and without {@code main} everything
+ * referenced is live.
  */
 final class GlslResourceUsage {
     private static final Set<String> FUNCTION_KEYWORDS = Set.of(
@@ -63,8 +61,8 @@ final class GlslResourceUsage {
     }
 
     /**
-     * Analyses the source with {@code injectedSamplers} counted as declared samplers. Iris image properties can
-     * add a sampler name without a GLSL declaration, and such a sampler is live by the same rule as any other.
+     * Analyses the source with {@code injectedSamplers} counted as declared; Iris image properties can add a
+     * sampler without a GLSL declaration.
      */
     static Analysis analyze(String source, Set<String> injectedSamplers) {
         AnalysisKey key = new AnalysisKey(source == null ? "" : source,
@@ -83,10 +81,7 @@ final class GlslResourceUsage {
     /** Everything an analysis depends on, so it can key the cache. */
     private record AnalysisKey(String source, Set<String> injectedSamplers) {}
 
-    /**
-     * The sixteen most recently used analyses. Planning one program asks about the same prepared source many
-     * times, once per sampler among others, and each answer would trace the whole program again.
-     */
+    /** The sixteen most recent analyses; planning one program asks about the same source many times. */
     private static final Map<AnalysisKey, Analysis> RECENT = new LinkedHashMap<>(32, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<AnalysisKey, Analysis> eldest) {
@@ -116,7 +111,6 @@ final class GlslResourceUsage {
             Set<FunctionDefinition> reachable = new HashSet<>();
             Resources live = new Resources();
             if (main == null) {
-                // without main, such as in an interface-only snippet, everything referenced counts as live
                 reachable.addAll(functions);
                 live.addAll(referenced);
             } else {
@@ -136,11 +130,8 @@ final class GlslResourceUsage {
     }
 
     /**
-     * Follows calls from main, collecting the functions reached and the resources their bodies read. Every
-     * overload of a called name is reached.
-     *
-     * A global initializer runs before main, so what it reads is live and what it calls is reached: Spring
-     * reads {@code vec4 CT4 = texture(colortex4, texcoord);} at file scope.
+     * Follows calls from main, collecting the functions reached and the resources their bodies read. A global
+     * initializer runs before main, so what it reads is live and what it calls is reached.
      */
     private static void trace(FunctionDefinition main, Map<FunctionDefinition, Uses> bodies, Uses topLevel,
                               Set<FunctionDefinition> reachable, Resources live) {
@@ -194,10 +185,7 @@ final class GlslResourceUsage {
     /** What one stretch of source reads and calls. */
     private record Uses(Resources reads, Set<String> calls) {}
 
-    /**
-     * The injected samplers plus the file-scope uniform samplers, storage images and storage blocks with their
-     * instances. Every name of a list counts, as in {@code writeonly uniform image3D a, b;}.
-     */
+    /** The injected samplers plus the file-scope resource declarations, every name of a declarator list included. */
     private static Declared declared(GlslTree tree, Set<String> injectedSamplers) {
         Resources names = new Resources();
         Set<Integer> tokens = new HashSet<>();

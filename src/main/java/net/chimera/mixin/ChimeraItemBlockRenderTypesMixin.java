@@ -13,12 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Applies the pack's block.properties {@code layer.*} lines, as Iris does on NeoForge; Complementary and
- * Bliss use them to draw glass, panes and beacons in the translucent layer, through the water program.
- *
- * Chunk building asks each block model for its render types, and a model without its own reads
- * {@code getRenderLayers}, as does a block item's fallback render type. The older {@code getChunkRenderType}
- * serves the deprecated block and item paths. Moving blocks keep the host's type, as in Iris.
+ * Applies the pack's block.properties {@code layer.*} lines, as Iris does on NeoForge. The older
+ * {@code getChunkRenderType} serves deprecated paths; moving blocks keep the host's type, as in Iris.
  */
 @Mixin(ItemBlockRenderTypes.class)
 public abstract class ChimeraItemBlockRenderTypesMixin {

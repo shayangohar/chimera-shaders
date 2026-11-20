@@ -7,19 +7,16 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * An array's length read without its parentheses, as Pixel Perfect's Fake GI and object outlines loop to
- * {@code superSampleOffsetsCross.length}. NVIDIA's GL compiler takes it as {@code length()}, so Iris loads
- * those options; glslang refuses it ("'length' : incomplete method syntax"). The call gets its parentheses
- * only where the name resolves to an array, so a struct's {@code length} field stays as written, as does every
- * source that already compiled.
+ * Adds the parentheses to a bare {@code array.length}, which NVIDIA's GL compiler accepts and glslang refuses
+ * ("'length' : incomplete method syntax"). Only names that resolve to arrays change, so a struct's {@code length}
+ * field stays as written.
  */
 final class ArrayLengthCalls {
     private ArrayLengthCalls() {}
 
-    /** A {@code .length} with no call after it, spaces allowed; a source without one is not parsed. */
+    /** A source without one is not parsed. */
     private static final Pattern BARE_LENGTH = Pattern.compile("\\.\\s*length\\b(?!\\s*\\()");
 
-    /** {@code source} with each {@code array.length} not followed by a call written {@code array.length()}. */
     static String complete(String source) {
         if (source == null || !BARE_LENGTH.matcher(source).find()) return source;
         try {
@@ -48,7 +45,7 @@ final class ArrayLengthCalls {
         return edits.isEmpty() ? source : tree.print(edits);
     }
 
-    /** Whether a name declares an array: {@code vec3 name[5]}, {@code vec3[5] name}, or such a parameter. */
+    /** {@code vec3 name[5]}, {@code vec3[5] name}, or such a parameter. */
     private static boolean array(GlslTree.Binding binding) {
         if (binding == null) return false;
         return switch (binding.node()) {

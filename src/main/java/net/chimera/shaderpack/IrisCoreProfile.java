@@ -45,19 +45,11 @@ final class IrisCoreProfile {
         SODIUM,
         /** Fullscreen passes: shadowcomp, prepare, deferred, composite and final. */
         COMPOSITE,
-        /**
-         * A pack's own gbuffers_line: VANILLA in core mode whatever its stages' versions, as TransformPatcher's
-         * isLine. A compatibility stage still keeps its own variables of the core names it does not declare as
-         * uniforms, since {@link #coreMode} is asked per stage.
-         */
+        /** A pack's own gbuffers_line: VANILLA in core mode whatever its versions, as TransformPatcher's isLine. */
         LINES
     }
 
-    /**
-     * The Iris patch that compiles a program: COMPOSITE for a fullscreen pass, LINES for a pack's own
-     * gbuffers_line, SODIUM for terrain and shadow terrain, and VANILLA for the rest, shadow entities and
-     * host-layout shadow lanes included.
-     */
+    /** The Iris patch that compiles a program; shadow entities and host-layout shadow lanes are VANILLA. */
     static Patch patchFor(String program, UniformRegistry.Stage stage, boolean packLine) {
         if (stage == UniformRegistry.Stage.POST) return Patch.COMPOSITE;
         if (packLine) return Patch.LINES;
@@ -68,11 +60,7 @@ final class IrisCoreProfile {
 
     /**
      * Whether Iris's TransformPatcher compiles a stage in core-profile mode: a core profile, or 150 and above
-     * with no profile. That mode serves the core names whether or not the stage declares them.
-     *
-     * Iris also uses the mode for every stage of a pack's own gbuffers_line ({@link Patch#LINES}); there a
-     * compatibility stage gets only the core names it declares. Pass the source as written, since the modern
-     * post and terrain normalisations drop the version line.
+     * with no profile. Pass the source as written, since the modern normalisations drop the version line.
      */
     static boolean coreMode(String source) {
         GlslVersion version = GlslVersion.first(source);
@@ -80,13 +68,8 @@ final class IrisCoreProfile {
     }
 
     /**
-     * The core uniforms Iris gives one stage; only its core-profile transformers name them.
-     *
-     * VanillaCoreTransformer renames all of them in every stage. SodiumCoreTransformer renames all but
-     * textureMatrix, which it replaces with the identity in the vertex stage alone. CompositeCoreTransformer
-     * replaces the vertex stage's matrices other than normalMatrix. Outside core mode, and outside a pack's own
-     * gbuffers_line, no transformer touches them, so a declared one is an ordinary uniform Iris never sets and
-     * reads its initializer or zero.
+     * The core uniforms Iris's core-profile transformers give one stage. Outside core mode and a pack's own
+     * gbuffers_line none is served, so a declared one is an ordinary uniform Iris never sets.
      */
     static Set<String> servedUniforms(Patch patch, boolean vertexStage, boolean coreMode) {
         if (!coreMode && patch != Patch.LINES) return Set.of();
@@ -109,20 +92,12 @@ final class IrisCoreProfile {
             Map.entry("normalMatrix", "mat3"), Map.entry("textureMatrix", "mat4"), Map.entry("chunkOffset", "vec3"));
 
     /**
-     * Rewrites the names Iris's core-profile mode serves to the compatibility built-ins, before the stage's
-     * interface is planned. Every converter already serves those built-ins with the same values, as
-     * VanillaCoreTransformer maps both spellings to one input.
+     * Rewrites the names Iris's core-profile mode serves to the compatibility built-ins, which every converter
+     * serves with the same values, before the stage's interface is planned. A declared core input gets its
+     * intended value even outside core mode, where Iris leaves it unbound.
      *
-     * The names are vaPosition and the other core inputs, and the core uniforms the stage's transformer serves
-     * ({@link #servedUniforms}). In core mode Iris serves them whether or not the stage declares them. Elsewhere
-     * it leaves a declared core input unbound, which only a driver's attribute order made meaningful; Photon's
-     * compatibility gbuffers_basic reads vaColor. Here a declared one gets its intended value. A core uniform the
-     * stage's transformer does not serve stays declared, and Iris never sets it.
-     *
-     * chunkOffset is zero, since Chimera's positions are already camera-relative, as Iris's vaPosition plus
-     * chunkOffset is. {@code overlay} is what vaUV1 reads, {@link #NO_OVERLAY} for fullscreen and terrain passes.
-     * On a format without UVs Iris leaves vaUV0 and vaUV2 unbound, reading zero, where the compatibility inputs
-     * read (0.5, 0.5) and full light; a pack's own gbuffers_line keeps Iris's zeros ({@link #prepareLineVertex}).
+     * chunkOffset is zero, since Chimera's positions are already camera-relative. {@code overlay} is what vaUV1
+     * reads. On a format without UVs, vaUV0 and vaUV2 read the compatibility defaults where Iris reads zero.
      */
     public static String prepareIrisCoreProfile(String source, Path sourceFile, boolean vertexStage,
                                                 String overlay, boolean coreMode, Patch patch) {
@@ -131,8 +106,7 @@ final class IrisCoreProfile {
         Map<String, String> declared = new TreeMap<>();
         String result = withoutCoreDeclarations(expandIncludes(source, sourceFile), vertexStage, served, declared);
         if (coreMode) {
-            // the source is macro-expanded as Iris's is, so a core name the pack defines as a macro has
-            // expanded away, such as Noble's #define projectionMatrix gbufferProjection
+            // the source is macro-expanded as Iris's is, so a core name defined as a macro has expanded away
             String stripped = stripComments(result);
             for (Map.Entry<String, String> name : CORE_NAME_TYPES.entrySet()) {
                 boolean named = name.getKey().startsWith("va") ? vertexStage : served.contains(name.getKey());
@@ -146,11 +120,8 @@ final class IrisCoreProfile {
         for (Map.Entry<String, String> entry : declared.entrySet()) {
             replacements.put(entry.getKey(), compatibilityValue(entry.getKey(), entry.getValue(), overlay));
         }
-        // only the core names themselves: a same-named parameter or local keeps its meaning, as in Pixel
-        // Perfect's toViewspace(in mat4 projectionMatrix, ...)
-        // Iris gets the same result by renaming the parameter and its uses together to a fresh name
-        // except in a composite vertex stage, where CompositeCoreTransformer replaces every reference, a
-        // same-named parameter's uses included; none of the packs tested names one there
+        // a same-named parameter or local keeps its meaning, as in Iris, except that Iris's composite vertex
+        // stage replaces a same-named parameter's uses too
         return GlslScopedReferences.replace(result, replacements);
     }
 
@@ -240,9 +211,8 @@ final class IrisCoreProfile {
     static final String PACK_LINE_MAIN = "chimeraPackLineMain";
 
     /**
-     * What the pack's vertex code reads while Chimera widens its line, in every function. The vertex moves by
-     * the current run's offset, the model view is shrunk toward the eye, and the normal reads +Z rather than
-     * the segment's direction. ftransform() becomes {@link #LINE_FTRANSFORM}, which reads the same.
+     * What the pack's vertex code reads while Chimera widens its line: the vertex moved by the run's offset,
+     * the model view shrunk toward the eye, and a +Z normal.
      */
     private static final Map<String, String> WIDENED_LINE_BUILTINS = Map.of(
             "gl_Vertex", "(gl_Vertex + vec4(chimeraLineOffset, 0.0))",
@@ -252,9 +222,8 @@ final class IrisCoreProfile {
             "ftransform", "chimeraLineFtransform");
 
     /**
-     * The widened line's globals. The offset is what each run of the pack's code adds to its vertex: the line's
-     * direction for the far point, zero for the vertex's own. The shrink scales the view position by 255/256,
-     * so the line keeps its place on screen and comes just in front of the face it outlines.
+     * The widened line's globals. The offset moves the vertex to the far point, or is zero for its own; the
+     * 255/256 shrink keeps the line's place on screen but just in front of the face it outlines.
      */
     private static final String LINE_GLOBALS = """
             vec3 chimeraLineOffset;
@@ -269,10 +238,9 @@ final class IrisCoreProfile {
             """;
 
     /**
-     * The widened line's entry point. The pack's code runs twice: first from the far point, the vertex moved
-     * by the line's direction, keeping only the clip position, then from the vertex's own point, which leaves
-     * every other output. The two projected points give the line's direction on screen, and the vertex moves half
-     * the line width across it, in pixels, to the side its index picks.
+     * The widened line's entry point. The pack's code runs from the far point for its clip position, then from
+     * the vertex's own point for every output; the vertex then moves half the line width across the screen
+     * direction, to the side its index picks.
      */
     private static final String LINE_ENTRY = """
 
@@ -299,12 +267,9 @@ final class IrisCoreProfile {
             """.formatted(PACK_LINE_MAIN);
 
     /**
-     * Prepares the vertex stage of a program drawn on the host line layout, before its interface is planned.
-     * The host's vertex index replaces gl_VertexID either way.
-     *
-     * A pack's own gbuffers_line ({@code packLineProgram}) widens its own line from the core names, which read
-     * the compatibility built-ins here. Any other program, a fallback serving gbuffers_line or any shadow_lines
-     * program, is widened as Iris widens it: see {@link #widenLine}.
+     * Prepares the vertex stage of a program on the host line layout, before its interface is planned. A pack's
+     * own gbuffers_line ({@code packLineProgram}) widens its own line from the core names; any other program is
+     * widened as Iris widens it ({@link #widenLine}).
      */
     public static String prepareLineVertex(String source, Path sourceFile, boolean packLineProgram) {
         if (source == null) return null;
@@ -316,14 +281,9 @@ final class IrisCoreProfile {
     }
 
     /**
-     * Widens a line drawn by a program that does not widen its own. The line must stay as wide as the host
-     * asks, in pixels, after the pack's own transform, which may jitter, bend or project in its own way, so
-     * both ends go through the pack's code ({@link #LINE_ENTRY}).
-     *
-     * The pack reads gl_Vertex moved by the run's offset, and the model view, its product with the projection
-     * and ftransform() all shrunk toward the eye ({@link #WIDENED_LINE_BUILTINS}); the projection and normal
-     * matrix stay the host's. The screen size is the pack's viewWidth and viewHeight, declared where the pack
-     * does not declare them.
+     * Widens a line drawn by a program that does not widen its own. The line must stay the host's width in
+     * pixels after the pack's own transform, which may bend or jitter it, so both ends go through the pack's
+     * code ({@link #LINE_ENTRY}).
      */
     private static String widenLine(String src) {
         String renamed = GlslDeclarations.renameMain(src, PACK_LINE_MAIN);
@@ -365,12 +325,9 @@ final class IrisCoreProfile {
     }
 
     /**
-     * Folds entityId and blockEntityId into every stage of a host-layout program before planning. Iris applies
-     * EntityPatcher only to entity and text formats; on any other layout the two stay CommonUniforms uniforms.
-     *
-     * blockEntityId is the constant -1. entityId is Iris's fallback for lightning, where attributes cannot carry
-     * it, read from CapturedRenderingState when the batch draws. Here it is the per-draw
-     * {@link UniformRegistry#HOST_ENTITY_ID}, 0 except while a lightning bolt draws.
+     * Folds entityId and blockEntityId into every stage of a host-layout program before planning, where Iris
+     * keeps them CommonUniforms uniforms. blockEntityId is -1; entityId is {@link UniformRegistry#HOST_ENTITY_ID},
+     * 0 except while a lightning bolt draws.
      */
     public static String prepareHostLayoutIdentity(String source) {
         if (source == null) return null;
@@ -415,9 +372,8 @@ final class IrisCoreProfile {
     }
 
     /**
-     * Declares Iris's {@code mc_chunkFade} as 1.0 in a Sodium-patch vertex stage that reads it. Iris's
-     * SodiumTransformer.injectVertInit declares it in every terrain and shadow terrain vertex stage, core or not,
-     * as the section's fade-in fraction, 1.0 for a section not fading; VulkanMod fades no section in.
+     * Declares Iris's {@code mc_chunkFade}, the section fade-in fraction, as 1.0 in a Sodium-patch vertex stage
+     * that reads it; VulkanMod fades no section in.
      */
     static String withChunkFade(String vertex) {
         if (vertex == null || !GlslTokenRewriter.containsIdentifier(vertex, "mc_chunkFade")) return vertex;

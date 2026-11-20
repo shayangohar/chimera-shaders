@@ -20,12 +20,8 @@ import java.util.Map;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * The main pass's render targets and the GPU resources behind them: the HDR world framebuffer, the composite and
- * pack-final output framebuffers with their render passes, and the OpenGL texture names the host reads the world
- * and output images through (Minecraft's main target asks the main pass for them).
- *
- * The world attachments are recreated on a resize, a screen change or a pack change; the output resources, which
- * the frame presents through, survive a screen change.
+ * The main pass's render targets and the OpenGL texture names the host reads them through. The world
+ * attachments are recreated on every screen change; the output resources survive one.
  */
 final class MainPassTargets {
     private final ChimeraMainPass pass;
@@ -65,9 +61,8 @@ final class MainPassTargets {
     }
 
     /**
-     * Recreates the world attachments a screen change retired, before the frame records its first command. This
-     * is not a VulkanMod frame op: a framebuffer retired while those run is queued onto the list being run and
-     * destroyed at once, while the previous frame may still use it.
+     * Recreates the world attachments a screen change retired, before the frame records. Not a VulkanMod frame
+     * op: a framebuffer retired while those run would be destroyed at once, while the previous frame may use it.
      */
     void refreshWorldResourcesIfDue() {
         if (!this.worldRefreshDue) return;
@@ -114,12 +109,8 @@ final class MainPassTargets {
     }
 
     /**
-     * Whether the live resources still serve the swapchain VulkanMod just recreated.
-     *
-     * VulkanMod recreates it at 0x0 when the window is minimised and again on restore. Minecraft ignores a 0x0
-     * framebuffer and Iris sizes its targets from Minecraft's, so neither step resets a pack's targets there.
-     * Rebuilding them here would wipe their history, and Kappa's TAA would divide by a zero exposure for a frame.
-     * The swapchain's own framebuffers are rebuilt per render pass on use.
+     * Whether the live resources still serve the swapchain VulkanMod just recreated. A minimise recreates it at
+     * 0x0, which Iris ignores; rebuilding the pack's targets then would wipe their history.
      */
     boolean serveSwapchain() {
         Framebuffer output = this.compositeFramebuffer;
@@ -131,11 +122,7 @@ final class MainPassTargets {
                 swapChain.getWidth(), swapChain.getHeight(), swapChain.getFormat());
     }
 
-    /**
-     * Whether an output built at {@code builtWidth}x{@code builtHeight}, presenting in {@code builtFormat}, serves
-     * a swapchain now {@code width}x{@code height} in {@code format}. A 0x0 swapchain draws nothing; otherwise the
-     * size and the present format must match.
-     */
+    /** Whether an output built at one size and format serves the swapchain now; a 0x0 swapchain draws nothing. */
     static boolean serves(int builtWidth, int builtHeight, int builtFormat, int width, int height, int format) {
         if (width == 0 && height == 0) return true;
         return builtWidth == width && builtHeight == height && builtFormat == format;
@@ -175,12 +162,8 @@ final class MainPassTargets {
     }
 
     /**
-     * Retires the HDR attachments at a frame boundary, before recording starts, and recreates them at the same
-     * point. VulkanMod frees the retired images and framebuffers once every frame that used them has finished.
-     *
-     * hdrFramebuffer must not stay null: while screens suppress segments, the next frame's openLevelSegment can
-     * run before another recreate boundary, and when the level dies the host handoff leaves no Chimera frame to
-     * recreate it in.
+     * Retires and recreates the HDR attachments at a frame boundary. hdrFramebuffer must not stay null, since
+     * openLevelSegment can run before another recreate boundary.
      */
     void refreshWorldResources() {
         invalidateWorldResources();
@@ -225,12 +208,8 @@ final class MainPassTargets {
     }
 
     /**
-     * Creates the HDR framebuffer and points the HDR render passes at it.
-     *
-     * A screen change recreates it at a frame boundary, and a Reforged RenderPass transitions the images of the
-     * framebuffer it holds, so passes left on the old one would transition its freed images. Repointing the passes
-     * instead of rebuilding them keeps the pipeline variants Reforged caches per RenderPass. The format changes
-     * only in createResources, which builds new passes.
+     * Creates the HDR framebuffer and repoints the HDR render passes at it, since a Reforged RenderPass
+     * transitions its framebuffer's images; repointing keeps the pipeline variants Reforged caches per pass.
      */
     void createHdrFramebuffer(int width, int height) {
         this.hdrFramebuffer = framebuffer(width, height, pass.packHdrFormat);
@@ -240,19 +219,16 @@ final class MainPassTargets {
     }
 
     /**
-     * The pass the world target opens with each frame: clearing colour and depth, or, when the HDR image carries
-     * colortex0 from the last frame (colortex0Clear=false, PackPostTargets.carriesColortex0), loading colour and
-     * clearing depth. clearWorldTarget then clears colour where Iris would.
+     * The pass the world target opens with: clearing both, or loading colour when the HDR image carries
+     * colortex0 from the last frame.
      */
     RenderPass worldOpenPass() {
         return pass.packPostTargets.carriesColortex0() ? hdrAuxClearDepthRenderPass : hdrRenderPass;
     }
 
     /**
-     * The pass that resumes {@code bound} after Reforged 0.3.5 splits it (MainPass.resumeRenderPass):
-     * Renderer.flushCmds for a readback and RenderTargetBlit for a blit end the bound pass and begin it again. A
-     * world or output pass that clears resumes with its load twin, so what was drawn before the split stays, as
-     * DefaultMainPass resumes its own passes. Any other pass resumes as it is.
+     * The pass that resumes {@code bound} after Reforged splits it for a readback or blit: a clearing world or
+     * output pass resumes with its load twin, so what was drawn stays.
      */
     RenderPass resumePass(RenderPass bound) {
         if (bound == hdrRenderPass || bound == hdrAuxClearDepthRenderPass) return hdrAuxRenderPass;
@@ -268,9 +244,8 @@ final class MainPassTargets {
     }
 
     /**
-     * A framebuffer as Reforged's builder makes one, with transfer usage on its colour image: the post chain
-     * copies colortex0 into and out of the HDR image, and screenshots copy the output. Chimera asks for that
-     * usage itself instead of relying on the builder's defaults.
+     * A framebuffer as Reforged's builder makes one, with transfer usage on its colour image, which the post
+     * chain and screenshots copy.
      */
     private static Framebuffer framebuffer(int width, int height, int colorFormat) {
         VulkanImage color = VulkanImage.builder(width, height)
@@ -307,9 +282,8 @@ final class MainPassTargets {
         ChimeraRasterOrientation.markGlOriented(this.hdrAuxRenderPass);
         ChimeraRasterOrientation.markGlOriented(this.hdrAuxClearDepthRenderPass);
 
-        // output depth is stored for the same reason: the hand and the GUI split the output pass many times
-        // (rebindMainTarget), each resuming with a depth load
-        // NVIDIA happens to keep DONT_CARE depth; other drivers need not
+        // output depth is stored too: the hand and the GUI split the output pass, each resuming with a depth load;
+        // NVIDIA happens to keep DONT_CARE depth, other drivers need not
         b = RenderPass.builder(this.compositeFramebuffer);
         b.getColorAttachmentInfo().setOps(VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
         b.getDepthAttachmentInfo().setOps(VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
@@ -415,8 +389,7 @@ final class MainPassTargets {
                 && framebuffer.getDepthAttachment().getId() != 0L;
     }
 
-    // OpenGL texture names for Chimera-owned images, as VulkanMod names its own main images
-    // VulkanMod binds a draw's sampled images from RenderSystem's texture units, which hold OpenGL names
+    // OpenGL names for Chimera's images, since VulkanMod binds sampled images from GL texture units
 
     private static int createGlAlias(VulkanImage image) {
         int id = GlTexture.genTextureId();

@@ -62,18 +62,13 @@ import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
 import static org.lwjgl.vulkan.VK11.VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
 
 /**
- * Pack target images: allocation, the device checks their formats need, clears, copies, mip chains and
- * samplers. An integer target (IrisColorFormats) samples nearest, as Iris's RenderTarget and
- * CompositeRenderer do; its clears and mip chains are Chimera's defined stand-ins for what GL leaves
- * undefined or refuses.
+ * Pack target images and their clears, copies and mip chains. An integer target samples nearest, as in Iris;
+ * its clears and mip chains are Chimera's stand-ins for what GL leaves undefined or refuses.
  */
 final class PackTargetImages {
     private PackTargetImages() {}
 
-    /**
-     * Exact formats whose target features are optional in Vulkan: R16, RG16 and RGBA16 normalized,
-     * R11F_G11F_B10F as B10G11R11_UFLOAT_PACK32, and the signed normalized formats.
-     */
+    /** Formats whose target features are optional in Vulkan. */
     private static final Set<Integer> OPTIONAL_TARGET_FORMATS = Set.of(
             VK_FORMAT_R16_UNORM, VK_FORMAT_R16G16_UNORM, VK_FORMAT_R16G16B16A16_UNORM,
             VK_FORMAT_B10G11R11_UFLOAT_PACK32, VK_FORMAT_R8_SNORM, VK_FORMAT_R8G8_SNORM, VK_FORMAT_R8G8B8A8_SNORM,
@@ -81,8 +76,7 @@ final class PackTargetImages {
 
     /** Checks the device features the targets' formats rely on before any image is allocated. */
     static void verifyFormats(Collection<TargetSpec> targets) {
-        // these formats' sampled and attachment features are optional; a device without them fails the
-        // targets, since another format would store different values
+        // a device without them fails the targets, since another format would store different values
         targets.stream().map(TargetSpec::format).filter(OPTIONAL_TARGET_FORMATS::contains)
                 .distinct().forEach(PackTargetImages::verifyOptionalTargetSupport);
         targets.stream().filter(TargetSpec::mipmapped).map(TargetSpec::format)
@@ -94,10 +88,7 @@ final class PackTargetImages {
         return createTargetImage(target, storage ? Set.of(target.format()) : Set.of());
     }
 
-    /**
-     * A target image that storage bindings write in {@code storageFormats} (none: not a storage
-     * image), with a view in each one other than its own (TargetFormatViews).
-     */
+    /** A target image, with storage usage and a view per format when {@code storageFormats} is not empty. */
     static VulkanImage createTargetImage(TargetSpec target, Set<Integer> storageFormats) {
         boolean storage = !storageFormats.isEmpty() && PackPassComputes.storageSupported(target.format());
         VulkanImage image = TargetFormatViews.create(() -> VulkanImage.builder(target.width(), target.height())
@@ -106,8 +97,7 @@ final class PackTargetImages {
                         | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                         | (storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0))
                 .setMipLevels(target.mipLevels())
-                // Reforged makes per-level views only on request; a mipmapped target renders to level 0 through one
-                // so does a padded-alpha target, whose main view reads alpha as 1
+                // Reforged makes per-level views only on request; mipmapped and padded-alpha targets render through one
                 .setLevelViews(target.mipLevels() > 1 || target.paddedAlpha())
                 .setLinearFiltering(!IrisColorFormats.integer(target.format()))
                 .setClamp(true)
@@ -149,11 +139,7 @@ final class PackTargetImages {
         }
     }
 
-    /**
-     * Clears a target's base level to its clear colour. An integer target takes the colour's
-     * integer parts. GL leaves a float clear of an integer buffer undefined (Iris ClearPass clears
-     * with a float colour); Chimera writes the integer value the colour names.
-     */
+    /** Clears a target's base level; an integer target takes the colour's integer parts, where GL is undefined. */
     static void clearImage(MemoryStack stack, VkCommandBuffer commandBuffer, VulkanImage image, float[] color) {
         if (image == null) throw new IllegalStateException("cannot clear missing target image");
         VkClearColorValue clear = VkClearColorValue.calloc(stack);
@@ -221,12 +207,8 @@ final class PackTargetImages {
     }
 
     /**
-     * glGenerateMipmap: each level is a downsample of the one above. Every level enters in TRANSFER_DST and
-     * leaves in SHADER_READ_ONLY.
-     *
-     * An integer target downsamples nearest, Chimera's choice. GL refuses glGenerateMipmap on a format it
-     * cannot filter, so a strict driver leaves Iris's integer target mipmap-incomplete under
-     * NEAREST_MIPMAP_NEAREST, reading zero, while a lenient one builds a chain.
+     * glGenerateMipmap; every level enters in TRANSFER_DST and leaves in SHADER_READ_ONLY. An integer target
+     * downsamples nearest, Chimera's choice where GL drivers disagree.
      */
     static void recordMipChain(MemoryStack stack, VkCommandBuffer commandBuffer,
                                long image, int width, int height, int levels, int filter) {

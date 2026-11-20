@@ -13,10 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Tests shadow casters against the light's volume alone, as Iris skips Sodium's entity culling while it
- * renders shadows. VulkanMod's entity culling also requires an entity's section to be visible from the
- * camera this frame and the entity to be near the camera, so mobs behind the player, around corners or far
- * away would cast no shadow.
+ * Tests shadow casters against the light's volume alone, as Iris skips Sodium's entity culling for shadows.
+ * VulkanMod's culling needs camera visibility, so mobs behind the player would cast no shadow.
  */
 @Mixin(value = EntityCulling.class, remap = false)
 public abstract class ChimeraEntityCullingMixin {

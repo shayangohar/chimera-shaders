@@ -98,11 +98,7 @@ final class MaterialCompanionPixels {
         }
     }
 
-    /**
-     * Places one decoded map in its slot. Without a schedule the whole image is the map, as for a static
-     * sprite. A single-entry schedule shows the strip's first frame. A cycling schedule keeps a scaled mip
-     * chain for every frame it names and starts on its first entry.
-     */
+    /** Places one decoded map in its slot; a cycling schedule keeps a mip chain for every frame it names. */
     static PlacedSprite place(MaterialMapOwner.AtlasSprite sprite, MaterialMapOwner.MaterialMapKind kind,
             MaterialMapOwner.DecodedImage decoded,
             MaterialAnimationSchedule schedule, int mipLevels, boolean labPbr) {
@@ -150,9 +146,8 @@ final class MaterialCompanionPixels {
     }
 
     /**
-     * One kind's mip chain in the atlas layout. At each level a sprite's logical image grows a replicated
-     * border of {@code pad >> level} and lands at the slot origin shifted by the level. The canvas starts as
-     * the flat fallback, so a sprite without a map leaves its whole padded slot flat.
+     * One kind's mip chain in the atlas layout, each sprite padded by {@code pad >> level}; a sprite without a
+     * map leaves its padded slot at the flat fallback.
      */
     static List<MaterialMapOwner.LevelPixels> buildLevels(MaterialMapOwner.AtlasUpload upload,
             MaterialMapOwner.MaterialMapKind kind,

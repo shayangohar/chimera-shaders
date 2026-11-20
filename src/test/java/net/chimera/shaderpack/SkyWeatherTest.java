@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Sky, weather and rain programs, the horizon, the frame's fog colour, and the end portal hooks. */
+/** Sky and weather programs, the horizon and the end portal hooks. */
 final class SkyWeatherTest {
     /**
      * Without a gbuffers_skybasic Iris draws the sky disc with its SKY_BASIC fallback, the sky colour
@@ -49,10 +49,7 @@ final class SkyWeatherTest {
         }
     }
 
-    /**
-     * Iris draws the horizon in beginLevelRendering, right after the world clear: before the sky's
-     * fog setup and the shadow pass, not inside renderSky.
-     */
+    /** Iris draws the horizon right after the world clear, before the sky's fog setup and the shadow pass. */
     @Test
     void theHorizonDrawsAfterTheWorldClear() throws IOException {
         assertTrue(callsDrawPackHorizon("net/chimera/mixin/ChimeraLevelRendererMixin", "chimera$openWorld"));
@@ -147,9 +144,8 @@ final class SkyWeatherTest {
     }
 
     /**
-     * Iris 1.8.14's horizon: eight walls at the render distance's radius, capped at 256, that face
-     * the axes and diagonals and close into a ring, then the top plane and the bottom plane as
-     * 64-block grids from -384 to 448. Every quad faces the camera, so back-face culling keeps it.
+     * Iris 1.8.14's horizon: a ring of eight walls at the render distance, capped at 256, and top and bottom
+     * planes as 64-block grids. Every quad faces the camera, so back-face culling keeps it.
      */
     @Test
     void horizonGeometry() {
@@ -200,9 +196,8 @@ final class SkyWeatherTest {
     }
 
     /**
-     * The horizon is Iris 1.8.14's quads in a vertex buffer, drawn with the position shader so the
-     * sky window gives it gbuffers_skybasic. VulkanMod's quad index buffer draws its 346 quads with
-     * Iris's 2076 indices.
+     * The horizon draws with the position shader so the sky window gives it gbuffers_skybasic; VulkanMod's
+     * quad index buffer draws its 346 quads with Iris's 2076 indices.
      */
     @Test
     void horizonSubmission() throws IOException {
@@ -225,11 +220,7 @@ final class SkyWeatherTest {
                 "the horizon must draw quads from a vertex buffer with the position shader");
     }
 
-    /**
-     * The end portal follows Iris: an entitySolid cube in place of the portal's own render type,
-     * from a head-cancelling hook on TheEndPortalRenderer.render. The gateway draws its portal
-     * through that same method, after its beam.
-     */
+    /** As in Iris, a head-cancelling hook on TheEndPortalRenderer.render draws an entitySolid cube, gateways too. */
     @Test
     void endPortalHooks() throws IOException {
         String portal = "net/minecraft/client/renderer/blockentity/TheEndPortalRenderer";
@@ -246,12 +237,9 @@ final class SkyWeatherTest {
     }
 
     /**
-     * Iris's high-fog sky rules cancel at the heads of the methods every reader calls: the horizon
-     * height, which places renderSky's void plane, and the sunrise colour, which
-     * FogRenderer.setupColor reads as well as renderSky. The overworld's effects inherit
-     * getSunriseColor, so its head runs for them. Each rule holds only while a pack renders the
-     * world and reads the camera's fluid; the sunrise rule also reads LevelRenderer's blindness and
-     * darkness check.
+     * Iris's high-fog sky rules cancel at the heads of the methods every reader calls: the horizon height and
+     * the sunrise colour, whose head also runs for the overworld's effects, which inherit it. Each rule holds
+     * only while a pack renders the world.
      */
     @Test
     void highFogSkyRules() throws IOException {
@@ -288,10 +276,7 @@ final class SkyWeatherTest {
                         && call.name.equals(calledName));
     }
 
-    /**
-     * A sky program's samplers follow binding 2, which holds its uniform block or an empty block in
-     * its place: with or without pack uniforms, the shader's sampler binding is the layout's.
-     */
+    /** A sky program's samplers follow binding 2, which holds its uniform block or an empty one in its place. */
     @Test
     void skySamplersFollowTheUniformBlock() {
         String vertex = "#version 120\nvarying vec2 uv;\n"

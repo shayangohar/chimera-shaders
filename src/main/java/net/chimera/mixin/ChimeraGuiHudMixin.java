@@ -12,10 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Hides the HUD while the shader pack screen is open, as Iris does: the settings draw no blur so
- * the world shows for a live preview, and the hotbar, crosshair and chat would show through.
- */
+/** Hides the HUD under the shader pack screen, as Iris does, since the settings leave the world unblurred. */
 @Mixin(Gui.class)
 public abstract class ChimeraGuiHudMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)

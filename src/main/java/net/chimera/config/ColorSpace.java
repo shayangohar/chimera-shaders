@@ -2,10 +2,7 @@
 
 package net.chimera.config;
 
-/**
- * Display colour spaces for the finished world image, named and ordered as Iris's ColorSpace so saved
- * values match. {@link #SRGB} leaves the image alone; the others re-encode it for a wide-gamut display.
- */
+/** Display colour spaces, named and ordered as Iris's ColorSpace so saved values match. */
 public enum ColorSpace {
     SRGB("sRGB"),
     DCI_P3("DCI-P3"),

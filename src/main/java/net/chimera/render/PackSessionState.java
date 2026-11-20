@@ -12,13 +12,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * One pack session's flags, once-only logs and plans that no owner closes. PackSessionLifecycle's
- * cleanUpPackVariant replaces it whole, so a field added here starts each session clear with no reset
- * list to forget.
- *
- * Kept out on purpose: what must outlive the cleanup (packFrameUnsupported, which renderVanilla sets
- * before it cleans up, and the conformance report a failure's report reads after it), the plan and the
- * resource owners, which close in order, and per-frame flags, which each frame resets.
+ * One pack session's flags, once-only logs and plans that no owner closes; cleanUpPackVariant replaces it
+ * whole, so each session starts clear. State that must outlive the cleanup, such as packFrameUnsupported and
+ * the conformance report, stays out.
  */
 final class PackSessionState {
     // main pass

@@ -13,9 +13,8 @@ import java.util.Properties;
 import java.util.TreeMap;
 
 /**
- * A pack's option file, {@code <pack file name>.txt} beside the pack in the shaderpacks folder, in the
- * format OptiFine defined and Iris keeps: an ISO-8859-1 properties file holding only the options that
- * differ from the pack's defaults, deleted once none do. Iris and Chimera read the same file.
+ * A pack's option file, {@code <pack file name>.txt} beside the pack, in OptiFine's format: ISO-8859-1
+ * properties holding only non-default values, deleted once none remain. Iris reads the same file.
  */
 public final class OptionFile {
     private OptionFile() {}

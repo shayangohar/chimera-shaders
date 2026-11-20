@@ -8,20 +8,15 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Where a pack draws particles against its deferred passes, read from shaders.properties as Iris's
- * ShaderProperties reads it and resolved as IrisRenderingPipeline resolves it.
+ * Where a pack draws particles against its deferred passes, as Iris's ShaderProperties and IrisRenderingPipeline
+ * resolve it. {@code separateEntityDraws}, true or false, sets mixed, and {@code particles.before.deferred = true}
+ * sets before while nothing else has. Unset means after. Iris's check for deferred programs always passes, so none
+ * is made here.
  *
- * A key starting {@code particles.ordering} names {@code before}, {@code mixed} or {@code after}; any other value
- * leaves the ordering unset. {@code separateEntityDraws}, true or false, sets mixed.
- * {@code particles.before.deferred = true} sets before while nothing else has. Left unset, particles draw after,
- * or mixed with separateEntityDraws. Iris tests for deferred programs there, but its deferred array always has
- * 100 slots, so every pack passes.
- *
- * Iris's OrderBackedProperties applies the keys in the order they first appear, each with its last value, so
- * superDuperVanilla's {@code particles.ordering = after} is undone by the {@code separateEntityDraws} below it.
+ * Keys apply in first-appearance order, each with its last value (Iris: OrderBackedProperties), so a later
+ * separateEntityDraws undoes an earlier {@code particles.ordering}.
  */
 public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws, List<String> deviations) {
-    /** A pack's particles with no ordering keys: all after the deferred passes. */
     public static final ParticleDirectives DEFAULTS = new ParticleDirectives(Ordering.AFTER, false, List.of());
     private static final String ORDERING = "particles.ordering";
     private static final String BEFORE_DEFERRED = "particles.before.deferred";
@@ -31,10 +26,7 @@ public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws,
     public enum Ordering {
         BEFORE, MIXED, AFTER;
 
-        /**
-         * Whether a particle draws before translucent terrain and the deferred passes, in
-         * NeoForge's first particle call; otherwise it draws in the call after translucent terrain.
-         */
+        /** Whether a particle draws in NeoForge's early call, before translucent terrain and the deferred passes. */
         public boolean early(boolean translucent) {
             return this == BEFORE || this == MIXED && !translucent;
         }
@@ -54,10 +46,7 @@ public record ParticleDirectives(Ordering ordering, boolean separateEntityDraws,
         deviations = deviations == null ? List.of() : List.copyOf(deviations);
     }
 
-    /**
-     * The directives of shaders.properties entries in Iris's order: each key where it first
-     * appears, with its last value, as a LinkedHashMap keeps them.
-     */
+    /** Reads {@code properties} in Iris's key order, as a LinkedHashMap keeps them. */
     static ParticleDirectives fromOrderedProperties(Map<String, String> properties) {
         List<String> deviations = new ArrayList<>();
         Ordering ordering = null;

@@ -24,10 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Reading and preparing a pack's sources: archives, dimension folders, includes, conditionals and macros,
- * GLSL 130 post conversion, token boundaries and the preprocessor's budgets.
- */
+/** Reading and preparing a pack's sources as Iris and its JCPP preprocessor do. */
 final class PackSourceEdgesTest {
     /**
      * Iris preprocesses dimension.properties with JCPP, which reads every comment as whitespace, so a block
@@ -51,11 +48,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris reads dimension.properties as it reads the id maps (PropertiesPreprocessor, then Properties.load),
-     * with the standard environment defines. A continuation goes on to the next line (superDuperVanilla lists
-     * undergarden:undergarden under world-1 that way), a block comment runs across lines, and a colon
-     * separates a key as an equals sign does. Each folder here is what JCPP and Properties.load give for this
-     * file.
+     * Iris reads dimension.properties as it reads the id maps, through JCPP then Properties.load; each folder
+     * here is what they give for this file.
      */
     @Test
     void dimensionPropertiesReadsAsIrisLoadsIt(@TempDir Path root) throws IOException {
@@ -100,10 +94,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris pastes an include in as text before JCPP reads the program (IncludeProcessor), so what an include
-     * leaves open goes on into the includer: its open block comment hides the includer's #define up to the
-     * close, and a directive whose comment is still open at the include's end goes on after the includer's
-     * close (X is 1 + 1). JCPP gives these results for the pasted text.
+     * Iris pastes an include in as text before JCPP reads the program, so a comment an include leaves open
+     * goes on into the includer.
      */
     @Test
     void whatAnIncludeLeavesOpenGoesOnIntoTheIncluder(@TempDir Path root) throws IOException {
@@ -130,10 +122,7 @@ final class PackSourceEdgesTest {
         assertEquals(List.of("lib/define.glsl", "lib/open.glsl"), result.dependencies());
     }
 
-    /**
-     * JCPP matches directive names as written. An uppercase #IFDEF is an unknown directive: JCPP reports it, drops
-     * the line and goes on, so the lines it would guard stay; any other unknown directive goes the same way.
-     */
+    /** JCPP reports and drops an unknown directive, an uppercase #IFDEF too, so the lines it would guard stay. */
     @Test
     void anUnknownOrUppercaseDirectiveIsReportedAndDropped(@TempDir Path root) {
         ShaderSourcePreprocessor.Result result = ShaderSourcePreprocessor.prepare(root, root.resolve("main.fsh"),
@@ -147,9 +136,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris sets no limit on how many files a program includes; Complementary Unbound with Euphoria Patches
-     * includes several hundred in gbuffers_entities_translucent. Includes that fan out into thousands of empty
-     * files still stop, since the line and character budgets never see them.
+     * Iris sets no include limit and Euphoria Patches includes hundreds of files, but a fan-out into thousands
+     * of empty files still stops, as the line and character budgets never see them.
      */
     @Test
     void aProgramMayIncludeHundredsOfFilesButNotARunawayFanOut(@TempDir Path root) throws IOException {
@@ -175,10 +163,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris's JCPP lexes a quote as a string or character literal, in a skipped branch too, so a
-     * comment mark after one is text: the apostrophe in {@code don't} keeps the {@code /*} from
-     * hiding the #endif, and a #define with a quoted comment mark takes no lines. JCPP gives these
-     * results.
+     * JCPP lexes a quote as a literal, in a skipped branch too, so a comment mark after one is text: the
+     * apostrophe in {@code don't} keeps a {@code /*} from hiding the #endif.
      */
     @Test
     void aQuoteHidesACommentMarkInGlsl() {
@@ -211,9 +197,7 @@ final class PackSourceEdgesTest {
 
     /**
      * JCPP reads a comment as whitespace, so a {@code #} after block comments on its line starts a directive,
-     * also after the close of one opened on an earlier line; a license comment before #version is such a
-     * comment. A comment that opened after code keeps the line it closes on from starting one. The comments
-     * stay in the source. JCPP gives these results.
+     * unless the comment opened after code. The comments stay in the source.
      */
     @Test
     void aDirectiveMayFollowCommentsOnItsLine() {
@@ -241,9 +225,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris pastes an include without its trailing empty lines (IncludeGraph splits on \R), so a
-     * backslash on its last line splices into the includer's next line: LONG is 1 + 2.
-     * JCPP gives this result for the pasted text.
+     * Iris pastes an include without its trailing empty lines (IncludeGraph splits on \R), so a backslash on
+     * its last line splices into the includer's next line.
      */
     @Test
     void anIncludesLastBackslashSplicesIntoTheIncluder(@TempDir Path root) throws IOException {
@@ -302,9 +285,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * Iris reads MC_MIPMAP_LEVEL once per pack load. A load analyses every dimension at the level it
-     * began with, even if the level is set again while it lives, and leaves that level for the id
-     * maps read after it.
+     * Iris reads MC_MIPMAP_LEVEL once per pack load, so a load analyses every dimension, and the id maps read
+     * after it, at the level it began with.
      */
     @Test
     void aLoadAnalysesEveryDimensionAtTheMipmapLevelItBeganWith(@TempDir Path root) throws IOException {
@@ -323,9 +305,8 @@ final class PackSourceEdgesTest {
     }
 
     /**
-     * A load keeps each dimension's analysis: selecting a dimension again reuses its plan and hands
-     * out a fresh copy of its report, the one part the runtime marks, so an earlier use's marks do
-     * not carry over (PackProbe.analyze, LoadResult.keep).
+     * Selecting a dimension again reuses its plan with a fresh copy of its report, the one part the runtime
+     * marks, so earlier marks do not carry over.
      */
     @Test
     void aLoadReusesEachDimensionsAnalysisWithItsOwnReport(@TempDir Path root) throws IOException {

@@ -14,18 +14,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A conditional directive's expression as Iris's preprocessor, JCPP 1.4.14, evaluates it.
+ * A conditional directive's expression as Iris's preprocessor, JCPP 1.4.14, evaluates it. Values are C
+ * {@code long}s, so {@code 1.5e1} reads 10, and an undefined name reads 0, {@code true} included.
  *
- * Macros expand first, but a {@code defined} operand does not. Every value is a C {@code long}, with C's operators
- * and precedence. A number keeps its integer part, so {@code 0.5} reads 0 and {@code 1.5e1} reads 10. A name no
- * macro defines reads 0, {@code true} and {@code false} included. Division or modulus by zero reads 0. Shrimple
- * sizes its light bins with {@code (LIGHT_SIZE_XZ*LIGHT_SIZE_XZ*LIGHT_SIZE_Y * LIGHT_BIN_SIZE3) < (2048*2048)}.
- *
- * Malformed conditions read as leniently as in JCPP. At a token no operator takes, the value so far stands and the
- * rest of the line is skipped; Aurora's {@code #if WATERCOLOR_B = 200} holds for any nonzero WATERCOLOR_B. A group
- * missing its ')' and a conditional missing its ':' read 0, as a missing operand does, and the token found in their
- * place ends the expression. Two forms JCPP reads stay refused: a character literal and a malformed
- * {@code defined}.
+ * Malformed conditions read as leniently as in JCPP: at a token no operator takes, the value so far stands, so
+ * {@code #if X = 200} holds for any nonzero X. A character literal and a malformed {@code defined} stay refused.
  */
 final class PreprocessorExpression {
     private static final Pattern TOKEN = Pattern.compile(
@@ -43,9 +36,8 @@ final class PreprocessorExpression {
     }
 
     /**
-     * An operand JCPP finds missing, as when {@code #if X} tests a macro defined with no body, or a missing ')' or
-     * ':'. JCPP reports the bad token, and the expr() call that wanted it reads 0 without consuming it; at the top,
-     * the directive skips the rest of its line.
+     * An operand JCPP finds missing, or a missing ')' or ':'. The expr() call that wanted it reads 0 without
+     * consuming the token; at the top, the directive skips the rest of its line.
      */
     private static final class MissingOperand extends RuntimeException {
         MissingOperand() {
@@ -53,10 +45,7 @@ final class PreprocessorExpression {
         }
     }
 
-    /**
-     * Whether {@code expression} holds under {@code macros}. Throws for one Chimera cannot evaluate as JCPP does: a
-     * function-like macro, a malformed {@code defined}, or one past the size budgets.
-     */
+    /** Whether {@code expression} holds under {@code macros}; throws where Chimera cannot match JCPP. */
     static boolean evaluate(String expression, Map<String, String> macros) {
         List<String> expanded = expand(lex(expression), macros, new HashSet<>(), new int[1]);
         PreprocessorExpression parser = new PreprocessorExpression(expanded);

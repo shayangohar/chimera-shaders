@@ -7,11 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Option changes the settings screen has made that no pack load has applied yet, kept as Iris keeps
- * them: one queue for the whole game, emptied by the next load of a pack, so any reload (Apply, the
- * reload key) applies them. A reset request makes that load ignore the queue and the option file
- * alike, so the pack comes back with every option at its default. The queue belongs to the pack whose
- * settings were shown; a load of any other pack drops it rather than writing it into that pack.
+ * Option changes the settings screen made that no pack load has applied yet. As in Iris, one queue serves
+ * the game and the next load empties it; a reset request makes that load ignore the option file too. A load
+ * of any pack but the one whose settings were shown drops the queue.
  */
 public final class PendingOptions {
     /** What a load takes from the queue. */
@@ -71,10 +69,7 @@ public final class PendingOptions {
         return reset;
     }
 
-    /**
-     * Takes the queue and the reset request for a load of {@code pack}, leaving both empty. A queue
-     * that belongs to another pack is dropped, never applied.
-     */
+    /** Empties the queue and reset request for a load of {@code pack}; another pack's queue is dropped. */
     public static synchronized Drained drain(Path pack) {
         boolean belongs = owner == null || owner.equals(key(pack));
         Drained drained = belongs ? new Drained(QUEUE, reset) : Drained.NONE;

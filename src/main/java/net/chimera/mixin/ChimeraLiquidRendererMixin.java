@@ -42,9 +42,8 @@ public abstract class ChimeraLiquidRendererMixin {
     }
 
     /**
-     * Iris's separateAo: the fluid's tint stays in RGB and the light pipeline's brightness times the face
-     * shade moves to alpha, as Sodium's fluid renderer hands its vertices to Iris. VulkanMod's own
-     * updateColor multiplies both into RGB.
+     * Iris's separateAo: the tint stays in RGB and the brightness moves to alpha; VulkanMod's own updateColor
+     * multiplies both into RGB.
      */
     @Inject(method = "updateColor", at = @At("TAIL"))
     private void chimera$separateAo(float red, float green, float blue, float brightness, CallbackInfo ci) {

@@ -13,14 +13,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Expands a prepared source's macros as a C preprocessor does, and as Iris's JCPP does before any analysis:
- * object-like and function-like macros, arguments expanded before substitution, {@code ##} pasting, and
- * rescanning with each macro hidden from its own expansion.
- *
- * The input is {@link ShaderSourcePreprocessor}'s output, whose conditionals are resolved and whose active
- * {@code #define} and {@code #undef} lines stand in source order. Those lines become empty. Comments and every
- * other directive stay as written, and a call that spans lines keeps the line count. A call with the wrong
- * number of arguments, or one that never closes, stays as written for the compiler to report.
+ * Expands a prepared source's macros as a C preprocessor does, as Iris's JCPP does before any analysis. The
+ * input's conditionals are resolved; its {@code #define} and {@code #undef} lines become empty, other
+ * directives stay, and a call spanning lines keeps the line count. A malformed call stays as written for the
+ * compiler to report.
  */
 final class GlslMacroExpander {
     static final int MAX_EXPANDED_CHARS = 16 * 1024 * 1024;
@@ -31,9 +27,8 @@ final class GlslMacroExpander {
     private record Macro(List<String> parameters, List<Tok> body) {}
 
     /**
-     * A token in flight. {@code spaceBefore} records whitespace before it in a replacement list, {@code hidden}
-     * the macros it may no longer expand, {@code original} that it is the source's own, and {@code directive}
-     * that it is the {@code #} opening a directive line.
+     * A token in flight. {@code spaceBefore} marks whitespace before it in a replacement list, {@code hidden} the
+     * macros it may no longer expand, {@code original} a source token, {@code directive} a line-opening {@code #}.
      */
     private record Tok(GlslLexer.Kind kind, String text, boolean spaceBefore, Set<String> hidden,
                        boolean original, boolean directive) {
@@ -347,9 +342,8 @@ final class GlslMacroExpander {
     }
 
     /**
-     * The tokens two operands of {@code ##} make. Text that is not one token is lexed again into the tokens it
-     * holds, as JCPP's paste does: Alpha Piscium pastes {@code 8 ## (x)}, and the rescan reads the name before
-     * it as a call. Two empty operands leave an empty placeholder.
+     * The tokens two operands of {@code ##} make, lexed again when the text is not one token, as JCPP's paste
+     * does. Two empty operands leave an empty placeholder.
      */
     private static List<Tok> joined(Tok left, Tok right) {
         Set<String> hidden = union(left.hidden(), right.hidden());

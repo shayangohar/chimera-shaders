@@ -13,10 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Every vertex bridge a program attempts names why it failed, and the bridges read the material
- * attributes Iris's formats carry or leave unbound. I Like Vanilla's shadow declares
- * {@code attribute vec4 at_tangent}, and Reverie's shadow a {@code uniform restrict image2D}, which
- * is no value uniform. An input Iris binds nothing to reads GL's unbound default.
+ * Every vertex bridge a program attempts names why it failed, and the bridges read the material attributes
+ * Iris's formats carry or leave unbound.
  */
 final class VertexBridgeFailuresTest {
     /**
@@ -56,9 +54,8 @@ final class VertexBridgeFailuresTest {
     }
 
     /**
-     * A shadow with no vertex stage has nothing the runtime can draw it with (PackPipelines.buildShadow), so the
-     * compile check reports it instead of compiling its fragment alone. This differs from Iris, which writes a
-     * legacy vertex stage for any program shipped as a fragment alone (ProgramSet.readProgramSource).
+     * A shadow with no vertex stage has nothing the runtime can draw it with, so the compile check reports it;
+     * Iris writes a legacy vertex stage for a fragment-only program instead.
      */
     @Test
     void aFragmentOnlyShadowFailsToPrepare(@TempDir Path root) throws IOException {
@@ -170,10 +167,7 @@ final class VertexBridgeFailuresTest {
         assertTrue(converted.contains("gl_VertexIndex & 3") && !converted.contains("gl_VertexID"), converted);
     }
 
-    /**
-     * A vertex input Iris binds no data to reads GL's current generic attribute, (0, 0, 0, 1) by
-     * default. I Like Vanilla and Spring declare at_velocity, which Iris 1.21.1 never supplies.
-     */
+    /** A vertex input Iris binds no data to reads GL's default generic attribute, (0, 0, 0, 1). */
     @Test
     void anUnboundInputBecomesItsDefaultCutToItsType() {
         String source = """

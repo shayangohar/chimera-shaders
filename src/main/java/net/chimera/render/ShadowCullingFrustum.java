@@ -14,27 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Which chunk sections and entities one shadow frame draws: those that could darken something the camera sees.
- *
- * Every mode keeps a box only where it meets the camera-centred outer cube, when there is one. The advanced and
- * safe-zone modes also need the box to reach the sweep: the camera frustum extruded without limit toward the
- * light, since a caster shades the points behind it along the light. The safe-zone mode also draws every box that
- * meets its inner cube, within the outer one, whatever the view, so a pack that voxelises the scene in its shadow
- * program receives every caster near the camera.
- *
- * The sweep is tested one bounding plane at a time: a box is culled only when a single plane has all of it
- * outside, so a box just past one of the sweep's corners can still be kept. Nothing here adds a margin; callers
- * pad the boxes they need to ({@link #SECTION_MARGIN}).
- *
- * Immutable once built. {@link #visible} and {@link #forced} allocate nothing, since they run for every section
- * and entity each frame.
+ * Which sections and entities a shadow frame draws: boxes inside the camera-centred outer cube that reach the
+ * sweep, the camera frustum extruded without limit toward the light. The safe-zone mode also forces every box in
+ * its inner cube, for packs that voxelise in the shadow program. The sweep is tested per plane, so a box just past
+ * a corner can be kept; callers add any margin. {@link #visible} and {@link #forced} run per box each frame and
+ * allocate nothing.
  */
 public final class ShadowCullingFrustum {
-    /**
-     * How far, in blocks, a chunk section's box is padded on every side before it is tested. A block model may
-     * reach a block outside its own cell, so geometry can stick out of its section by up to a block; the last
-     * eighth is slack.
-     */
+    /** In blocks: a block model may reach a block outside its cell; the last eighth is slack. */
     public static final float SECTION_MARGIN = 1.125F;
 
     private static final Vector4f[] NO_PLANES = new Vector4f[0];
@@ -42,18 +29,16 @@ public final class ShadowCullingFrustum {
             new ShadowCullingFrustum(Culler.NONE, new Matrix4f(), new Vector3f());
 
     private final Culler culler;
-    /** Half-size of the cube around the camera that every drawn box meets; infinite when there is none. */
+    /** Infinite when there is no outer cube. */
     private final double outerHalfSize;
     private final boolean hasSafeZone;
     private final double safeZoneHalfSize;
-    /** The sweep's bounding planes as (inward normal, offset); none when the mode does not sweep. */
+    /** As (inward normal, offset); none when the mode does not sweep. */
     private final Vector4f[] sweep;
 
     /**
-     * @param cameraViewProjection the camera's projection times its model-view, camera-relative, with GL clip
-     *                             depth; read here and not kept
-     * @param lightVector          the world direction toward the shadow light; only its direction counts, and
-     *                             it is read here and not kept
+     * @param cameraViewProjection camera-relative, with GL clip depth; not kept
+     * @param lightVector          toward the shadow light; only its direction counts, and it is not kept
      */
     public ShadowCullingFrustum(Culler culler, Matrix4fc cameraViewProjection, Vector3fc lightVector) {
         Mode mode = culler.mode();
@@ -74,23 +59,20 @@ public final class ShadowCullingFrustum {
         return culler;
     }
 
-    /** Whether the camera-relative box goes into the shadow map. */
+    /** The box is camera-relative. */
     public boolean visible(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         return forced(minX, minY, minZ, maxX, maxY, maxZ)
                 || (meets(outerHalfSize, minX, minY, minZ, maxX, maxY, maxZ)
                 && reachesSweep(minX, minY, minZ, maxX, maxY, maxZ));
     }
 
-    /** Whether the camera-relative box is drawn whatever the view and the light: only in the safe zone. */
+    /** Drawn whatever the view and the light: only in the safe zone. */
     public boolean forced(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         return hasSafeZone && meets(outerHalfSize, minX, minY, minZ, maxX, maxY, maxZ)
                 && meets(safeZoneHalfSize, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    /**
-     * Whether the box meets the closed cube of this half-size around the camera. The comparison is in double, so
-     * a half-size that is not a float is not rounded.
-     */
+    /** Compared in double, so a half-size that is not a float is not rounded. */
     private static boolean meets(double halfSize, float minX, float minY, float minZ, float maxX, float maxY,
                                  float maxZ) {
         return !(maxX < -halfSize || minX > halfSize
@@ -98,7 +80,6 @@ public final class ShadowCullingFrustum {
                 || maxZ < -halfSize || minZ > halfSize);
     }
 
-    /** Whether no single bounding plane of the sweep has the whole box strictly outside it. */
     private boolean reachesSweep(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
         for (Vector4f plane : sweep) {
             // the corner farthest along the inward normal
@@ -111,14 +92,12 @@ public final class ShadowCullingFrustum {
     }
 
     /**
-     * The planes bounding the camera frustum swept toward the light. A face turned away from the light, or
-     * parallel to it, still bounds the sweep; one turned toward the light is swept past. Where a face turned away
-     * meets a face turned toward the light, the sweep is bounded by the plane through their shared edge that runs
-     * parallel to the light. With no light, the sweep is the frustum.
+     * Faces turned away from the light, or parallel to it, bound the sweep; between an away face and a toward face,
+     * the plane through their shared edge parallel to the light does. With no light, the sweep is the frustum.
      */
     private static Vector4f[] sweepPlanes(Matrix4fc camera, Vector3fc light) {
         Vector4f[] faces = new Vector4f[6];
-        // the inward normal's component along the light: positive on a face turned away from the light
+        // positive on a face turned away from the light
         float[] along = new float[6];
         for (int face = 0; face < faces.length; face++) {
             faces[face] = camera.frustumPlane(face, new Vector4f());
@@ -144,9 +123,8 @@ public final class ShadowCullingFrustum {
     }
 
     /**
-     * The plane through the edge where a face turned away from the light meets one turned toward it, parallel to
-     * the light. Every plane through that edge is a blend of the two face planes; these weights cancel the
-     * light's component, and being both positive they keep the frustum, and so the whole sweep, inside.
+     * A blend of the two face planes whose weights cancel the light's component; both weights are positive, so
+     * the frustum stays inside.
      */
     private static Vector4f rimPlane(Vector4f away, float awayAlong, Vector4f toward, float towardAlong) {
         return new Vector4f(away).mul(-towardAlong).fma(awayAlong, toward);

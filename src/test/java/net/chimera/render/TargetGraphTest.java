@@ -131,9 +131,8 @@ final class TargetGraphTest {
     }
 
     /**
-     * A target the pack declares no format for is RGBA8, colortex0 included: Iris starts every
-     * render target at InternalTextureFormat.RGBA, which GL allocates as RGBA8. A declared format
-     * stands.
+     * A target with no declared format is RGBA8, colortex0 included, since Iris starts every target at
+     * InternalTextureFormat.RGBA, which GL allocates as RGBA8.
      */
     @Test
     void undeclaredTargetsAreRgba8(@TempDir Path fixture) throws Exception {

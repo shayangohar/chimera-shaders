@@ -15,12 +15,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Keeps VulkanMod's section buffers on the live terrain format, and records each non-empty terrain draw
- * command as a shadow draw for storage-buffer ordering.
- *
- * DrawBuffers reads its vertex stride and position bias from the terrain format current when the class
- * loaded. Chimera changes the format when a pack installs or leaves, then rebuilds every section
- * (WorldRenderer.allChanged), so buffers created after that must follow the new format.
+ * Keeps VulkanMod's section buffers on the live terrain format: DrawBuffers reads stride and bias once at
+ * class load, but Chimera changes the format per pack. Each non-empty terrain draw is also recorded as a
+ * shadow draw for storage-buffer ordering.
  */
 @Mixin(value = DrawBuffers.class, remap = false)
 public abstract class ChimeraDrawBuffersMixin {

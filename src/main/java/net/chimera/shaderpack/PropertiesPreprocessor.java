@@ -25,16 +25,10 @@ import java.util.regex.Pattern;
 final class PropertiesPreprocessor {
     /** A {@code #} line JCPP reads as a directive: {@code #} and a name with nothing between. */
     private static final Pattern DIRECTIVE = Pattern.compile("^#([A-Za-z_]\\w*)(.*)$");
-    /**
-     * A {@code #define} argument: the name, a {@code (} right after it for a function-like macro, the body. JCPP
-     * also takes a name with {@code $} or a non-ASCII letter; Chimera neither defines nor expands one.
-     */
+    /** A {@code #define} argument; JCPP also takes a {@code $} or non-ASCII name, which Chimera ignores. */
     private static final Pattern MACRO = Pattern.compile("^([A-Za-z_]\\w*)(\\()?\\s*(.*?)\\s*$");
     private static final Set<String> CONDITIONALS = Set.of("if", "ifdef", "ifndef", "elif", "else", "endif");
-    /**
-     * JCPP 1.4.14's directive names (PreprocessorCommand): PropertiesPreprocessor keeps a {@code #}
-     * line that starts with one and empties any other, a properties comment.
-     */
+    /** JCPP 1.4.14's directive names; Iris keeps a {@code #} line starting with one and empties any other. */
     private static final List<String> JCPP_DIRECTIVES = List.of("define", "elif", "else", "endif", "error",
             "if", "ifdef", "ifndef", "include", "line", "pragma", "undef", "warning", "include_next", "import");
     /** Stands in for a backslash while a line expands, as Iris hides backslashes from JCPP. */
@@ -43,22 +37,15 @@ final class PropertiesPreprocessor {
     private PropertiesPreprocessor() {}
 
     /**
-     * The preprocessed text. {@code failed} when a conditional had an error, which JCPP reports
-     * ({@link #applyConditional}). {@code open} when a conditional is still open at the end, which
-     * JCPP keeps.
+     * The preprocessed text. {@code failed} when JCPP reports a conditional's error; {@code open} when one is still
+     * open at the end.
      */
     record Preprocessed(String text, boolean failed, boolean open) {}
 
     /**
-     * The file as PropertiesPreprocessor hands it on.
-     *
-     * Each line is trimmed and blank lines are dropped. A {@code #} line that starts with a JCPP directive's name is
-     * kept, any other {@code #} line is emptied, and every other line loses its {@code #} signs. JCPP then reads the
-     * text as C, so a block comment runs across lines. A directive inside one is comment text, and one right after
-     * its close on a line is a directive. A block comment a directive line leaves open takes the lines up to its
-     * close into the directive, which goes on after it. An active branch keeps its comment text as written, as
-     * JCPP's KEEPCOMMENTS does, and the rest of its text expands the macros defined before it. Directive lines and
-     * inactive branches are left empty.
+     * The file as PropertiesPreprocessor hands it on: JCPP reads the line pass's output as C, so block comments span
+     * lines. An active branch keeps its comment text, as under KEEPCOMMENTS, and expands the macros defined before
+     * it; directive lines and inactive branches are left empty.
      */
     static Preprocessed preprocess(String text, Map<String, String> macros) {
         PackConditionals.State conditions = new PackConditionals.State(macros);
@@ -91,17 +78,12 @@ final class PropertiesPreprocessor {
     enum Conditional { APPLIED, REPORTED, TAKES_NEXT_LINE }
 
     /**
-     * Applies a conditional directive in a properties file as JCPP does, which reports an error there and reads on.
+     * Applies a conditional directive as JCPP does in a properties file, reporting an error and reading on. An #if
+     * Chimera cannot evaluate reads false; a stray #else or #elif turns the rest of the file off, and a stray #endif
+     * is ignored. An #ifdef with no identifier leaves its branch on and, with no argument, also takes the next line
+     * with text.
      *
-     * An #if or #elif Chimera cannot evaluate reads false, as does an empty one. A second #else, or an #elif after
-     * #else, is ignored. A stray #else or #elif turns the rest of the file off; a stray #endif is ignored. An #ifdef
-     * or #ifndef in an active branch whose argument starts with no identifier leaves its branch on. With no argument
-     * at all, comments aside, it also takes the next line with text, whatever it is, past the lines Iris's line pass
-     * emptied. JCPP's identifier is a Java one, so it tests {@code $X} as a name, though a {@code #define} of such a
-     * name is not read here.
-     *
-     * REPORTED where Chimera reads false an expression JCPP gives a value, such as a character literal or a
-     * function-like macro, or where it read an #ifdef's error as JCPP does.
+     * REPORTED where Chimera reads false an expression JCPP gives a value, or where it read an #ifdef's error.
      */
     static Conditional applyConditional(PackConditionals.State conditions, String name, String argument) {
         String directive = name.toLowerCase(Locale.ROOT);
@@ -137,9 +119,8 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * The entries {@code text} loads into OrderBackedProperties: java.util.Properties' syntax, each
-     * key where it first appears with its last value. Like Properties.load, it throws
-     * IllegalArgumentException for a malformed unicode escape.
+     * The entries {@code text} loads into OrderBackedProperties, each key where it first appears with its last
+     * value. Throws IllegalArgumentException for a malformed unicode escape, as Properties.load does.
      */
     static Map<String, String> load(String text) throws IOException {
         OrderedProperties properties = new OrderedProperties();
@@ -148,19 +129,15 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * One line of a properties file as JCPP lexes it, its own text kept: a physical line, or a
-     * directive line with the lines its open block comment takes. {@code inComment} when it starts
-     * inside a block comment, where a {@code #} line is comment text and no directive.
+     * One line of a properties file as JCPP lexes it: a physical line, or a directive line with the lines its open
+     * block comment takes. {@code inComment} when it starts inside a block comment, so a {@code #} is no directive.
      */
     record Line(String text, boolean inComment) {}
 
     /**
-     * {@code physical}'s lines as JCPP lexes them after PropertiesPreprocessor's line pass.
-     *
-     * A block comment runs across lines. A directive may follow the close of the comment its line starts in, and
-     * that line is then the directive alone. A directive line that leaves a comment open takes the lines up to its
-     * close, joined with spaces, and goes on after it. shaders.properties is read this way; the id maps and
-     * dimension.properties through {@link #preprocess}.
+     * {@code physical}'s lines as JCPP lexes them after the line pass. A directive may follow the close of the
+     * comment its line starts in; a directive line that leaves a comment open takes the lines up to its close,
+     * joined with spaces. shaders.properties is read this way.
      */
     static List<Line> commentLines(List<String> physical) {
         List<Line> result = new ArrayList<>(physical.size());
@@ -212,9 +189,8 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * What PropertiesPreprocessor gives JCPP for one line: trimmed; a {@code #} line kept when it starts with a JCPP
-     * directive's name and emptied otherwise; any other line without its {@code #} signs; each backslash hidden
-     * behind an identifier.
+     * What PropertiesPreprocessor gives JCPP for one trimmed line: a {@code #} line only when it starts with a
+     * directive's name, any other line without its {@code #} signs. Backslashes are hidden.
      */
     private static String jcppLine(String raw) {
         String line = raw.trim();
@@ -228,11 +204,8 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * Applies one directive and returns how a conditional applied, or APPLIED for any other directive.
-     *
-     * Conditionals nest inside inactive branches; {@code #define} and {@code #undef} apply only in an active one.
-     * JCPP reports {@code #error} and {@code #warning}, cannot include a file into a properties text, and skips a
-     * name it does not know, so none of those changes the macros.
+     * Applies one directive; {@code #define} and {@code #undef} apply only in an active branch, and no other
+     * directive changes the macros.
      */
     private static Conditional apply(String name, String argument, PackConditionals.State conditions,
                                      Map<String, String> expansions) {
@@ -254,9 +227,8 @@ final class PropertiesPreprocessor {
     }
 
     /**
-     * A properties directive's argument without its C comments, as JCPP reads it with each
-     * backslash hidden behind an identifier: in {@code "a\" // b"} the string closes at the
-     * backslash's quote, so the value is {@code "a\"}. shaders.properties' #define reader takes it.
+     * A properties directive's argument without its C comments, as JCPP reads it with backslashes hidden: in
+     * {@code "a\" // b"} the string closes at the backslash's quote, so the value is {@code "a\"}.
      */
     static String withoutComments(String argument) {
         return PackConditionals.withoutComments(argument.replace("\\", BACKSLASH)).replace(BACKSLASH, "\\");

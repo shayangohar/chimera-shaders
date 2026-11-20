@@ -27,12 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Pack compute passes: declaration lists, frame slots, uniform offsets and the advanced-resource inventory. */
 final class ComputePassTest {
     /**
-     * Solas declares its two floodfill images, and their samplers, each in one statement; the plan and the
-     * runtime translator see both names.
-     *
-     * Solas also declares cameraPosition (vec3) before frameCounter, which std140 packs into the vec3's
-     * padding word. Dispatch writes each value where the compiled block reads it; a frameCounter read as 0
-     * leaves the compute writing one floodfill image while the gbuffers alternate, and every light flickers.
+     * Two images declared in one statement are both seen. A scalar after a vec3 packs into its padding
+     * word under std140, so dispatch writes each value where the compiled block reads it.
      */
     @Test
     void computeDeclarationListsAndUniformOffsets(@TempDir Path root) throws IOException {
@@ -108,9 +104,8 @@ final class ComputePassTest {
     }
 
     /**
-     * A compute's uniform block is written while a frame records, so each frame in flight owns one; a
-     * shared block could be rewritten while the GPU still runs the previous frame's dispatch. Pass computes,
-     * shadowcomp.csh included, bind ComputeKernel's current frame slot.
+     * A compute's uniform block is written while a frame records, so each frame in flight owns one. Pass
+     * computes, shadowcomp.csh included, bind ComputeKernel's current frame slot.
      */
     @Test
     void computeFrameSlots() throws IOException {
@@ -190,8 +185,7 @@ final class ComputePassTest {
 
     /**
      * Iris reads {@code <pass>.csh}, then {@code _a} on until a suffix is missing or disabled, and
-     * binds colorimgN and colortexN to the image the pass reads. Photon's deferred4_a writes the
-     * sky light deferred4 reads.
+     * binds colorimgN and colortexN to the image the pass reads.
      */
     @Test
     void passComputes(@TempDir Path root) throws IOException {
@@ -250,10 +244,7 @@ final class ComputePassTest {
         assertTrue(error == null, "the translated pass compute compiles: " + error + "\n" + sky.source());
     }
 
-    /**
-     * A pass compute keeps its own extensions ahead of Chimera's declarations, and an extension line
-     * in a comment is none: Photon comments out its subgroup and half-float extensions.
-     */
+    /** A pass compute keeps its own extensions ahead of Chimera's declarations; a commented one is none. */
     @Test
     void passComputesKeepOnlyTheirLiveExtensions(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -279,11 +270,9 @@ final class ComputePassTest {
     }
 
     /**
-     * colorimgN binds the target in its own format, so an integer target is an integer image:
-     * Rethinking Voxels' prepare4 compute writes its RGBA16I colortex11 as iimage2D. A layout naming
-     * another format of the target's texel size reads it through a view in that format, as for a
-     * pack image: Alpha Piscium's begin2_b clears its R32UI colortex9 as rgba8, and a float target can
-     * be read as integers of its size. Another size is refused.
+     * colorimgN binds the target in its own format, so an integer target is an integer image. A layout
+     * naming another format of the target's texel size reads it through a view in that format, as for a
+     * pack image; another size is refused.
      */
     @Test
     void passComputesWriteIntegerTargets(@TempDir Path root) throws IOException {
@@ -326,10 +315,8 @@ final class ComputePassTest {
     }
 
     /**
-     * A compute binds shadowcolorimgN, the shadow colour target in its format
-     * (IrisImages.addShadowColorImages), and shadowcolorN, up to Iris's eight targets with
-     * HIGHER_SHADOWCOLOR: Alpha Piscium's shadowcomp1 writes shadowcolorimg6, which no program draws,
-     * and its composite7 compute samples shadowcolor6. Without the feature Iris has two.
+     * A compute binds shadowcolorimgN in the target's format (IrisImages.addShadowColorImages) and
+     * shadowcolorN, up to eight targets with HIGHER_SHADOWCOLOR and two without, as in Iris.
      */
     @Test
     void passComputesBindShadowColorTargets(@TempDir Path root) throws IOException {
@@ -365,9 +352,8 @@ final class ComputePassTest {
     }
 
     /**
-     * A GL image unit reinterprets an image declared in another format of its texel size: Alpha
-     * Piscium reads its R32F uimg_r32f as layout(r32i) iimage2D for integer atomics. The compute
-     * binds a view in that format, which the session creates; another size is refused.
+     * A GL image unit reinterprets an image declared in another format of its texel size, so the
+     * compute binds a view in that format, which the session creates; another size is refused.
      */
     @Test
     void passComputesReadPackImagesThroughViews(@TempDir Path root) throws IOException {
@@ -401,8 +387,7 @@ final class ComputePassTest {
 
     /**
      * Iris gives a pass compute the pack's images and their samplers (IrisImages.addCustomImages,
-     * IrisSamplers.addCustomImages). Alpha Piscium's composite computes read usam_rgba16f and write
-     * uimg_rgba16f, a screen-relative RGBA16F image.
+     * IrisSamplers.addCustomImages).
      */
     @Test
     void passComputesBindPackImages(@TempDir Path root) throws IOException {
@@ -440,8 +425,7 @@ final class ComputePassTest {
 
     /**
      * Iris binds bufferObject.N at index N for every program and compute (ShaderStorageBufferHolder).
-     * Alpha Piscium's computes share its global data in bufferObject.0. A block no declared buffer
-     * serves stops its compute.
+     * A block no declared buffer serves stops its compute.
      */
     @Test
     void passComputesBindStorageBuffers(@TempDir Path root) throws IOException {
@@ -498,8 +482,7 @@ final class ComputePassTest {
 
     /**
      * Iris runs CommonTransformer on computes too: gl_Fog reads iris_Fog, built from the fog
-     * uniforms, and GL's built-ins take scalars. Rethinking Voxels' deferred1 compute reads
-     * gl_Fog.start and gl_Fog.scale.
+     * uniforms, and GL's built-ins take scalars.
      */
     @Test
     void passComputesReadLegacyFog(@TempDir Path root) throws IOException {
@@ -544,8 +527,8 @@ final class ComputePassTest {
 
     /**
      * colorimg0 is colortex0 as a storage image, in its format, as every other target (Iris
-     * IrisImages.addRenderTargetImages). Alpha Piscium's composite36 and composite42 bind it. The session
-     * moves colortex0 out of the HDR image into its storage graph image before such a compute.
+     * IrisImages.addRenderTargetImages). The session moves colortex0 out of the HDR image into its
+     * storage graph image before such a compute.
      */
     @Test
     void passComputesWriteColortex0(@TempDir Path root) throws IOException {
@@ -662,10 +645,7 @@ final class ComputePassTest {
         assertTrue(!graph.geometryReads().contains(3), "no world program reads colortex3");
     }
 
-    /**
-     * A shadowcomp the pack switches off is no source to Iris: BSL switches shadowcomp off with its
-     * coloured lighting, whose shadowcomp.csh then stops at an #error.
-     */
+    /** A shadowcomp the pack switches off is no source to Iris, even one that would stop at an #error. */
     @Test
     void switchedOffShadowcompIsNoStage(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -721,9 +701,8 @@ final class ComputePassTest {
     }
 
     /**
-     * RenderPearl 2.8's composite3_b sizes its work group with a constant expression,
-     * {@code min(gl_MaxComputeWorkGroupSize.x, LL_CAPACITY)}. Iris reads the size GL folds from it;
-     * the compute runs, and its module declares the folded size.
+     * A work group sized by a constant expression runs at the size GL folds from it, as under Iris, and
+     * its module declares that size.
      */
     @Test
     void aWorkGroupSizedByAnExpressionRuns(@TempDir Path root) throws IOException {
@@ -759,8 +738,7 @@ final class ComputePassTest {
 
     /**
      * A pass with computes and no fragment program runs its computes at its place in the chain
-     * (Iris CompositeRenderer.ComputeOnlyPass): Alpha Piscium's composite2 is composite2.csh alone.
-     * The schedule gives it the window its name gives a program, and the report its translation.
+     * (Iris CompositeRenderer.ComputeOnlyPass), in the window its name gives a program.
      */
     @Test
     void computeOnlyPasses(@TempDir Path root) throws IOException {
@@ -840,11 +818,9 @@ final class ComputePassTest {
     }
 
     /**
-     * Iris runs a shadowcomp pass's computes after the shadow pass (ShadowCompositeRenderer):
-     * shadowcomp.csh, then shadowcomp_a..z, then shadowcomp1 and its own. They bind noise, custom
-     * textures and images and the shadow maps, and no colour target, colorimg or depth texture
-     * (createComputes). shadowcomp.csh is a pass compute like every other: one that writes a pack
-     * image runs here, and one the pack points at a buffer dispatches from it.
+     * Iris runs a shadowcomp pass's computes after the shadow pass (ShadowCompositeRenderer). They bind
+     * the shadow maps but no colour target, colorimg or depth texture (createComputes); otherwise
+     * shadowcomp.csh is a pass compute like every other.
      */
     @Test
     void shadowcompComputesRunAfterTheShadowPass(@TempDir Path root) throws IOException {
@@ -910,8 +886,8 @@ final class ComputePassTest {
 
     /**
      * Iris runs the begin passes each frame after its clear passes and before the sky
-     * (IrisRenderingPipeline.beginLevelRendering), each one's computes as a composite's: Shrimple's
-     * begin1 is begin1_a.csh and begin1_b.csh alone. They run in the opening window, before prepare.
+     * (IrisRenderingPipeline.beginLevelRendering), each one's computes as a composite's. They run in
+     * the opening window, before prepare.
      */
     @Test
     void beginComputesRunFirst(@TempDir Path root) throws IOException {

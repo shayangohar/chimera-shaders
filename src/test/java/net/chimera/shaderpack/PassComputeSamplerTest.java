@@ -18,10 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** What a pass compute's samplers read: pack textures and images, depth and shadow maps, in Iris's order. */
 final class PassComputeSamplerTest {
-    /**
-     * A sampler only a local of its name is read through is inactive in GL and binds nothing: Rethinking
-     * Voxels' prepare4 compute declares the specular sampler and computes a local float specular.
-     */
+    /** A sampler whose name is read only through a shadowing local is inactive in GL and binds nothing. */
     @Test
     void passComputesDropSamplersOnlyLocalsShadow(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -48,10 +45,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * A sampler2D Iris does not register reads unit 0, and Iris binds colortex0 there in a fullscreen
-     * pass's computes as in its programs. Visual Vibrance's prepare2 sets its sky light from
-     * {@code texture(lightmap, vec2(0.0, 1.0))}, which reads colortex0 under Iris. A shadowcomp compute
-     * registers no colour target, so its lightmap stays unserved.
+     * An unregistered sampler2D reads unit 0, where Iris binds colortex0 in a fullscreen pass's computes too;
+     * a shadowcomp compute registers no colour target, so its sampler stays unserved.
      */
     @Test
     void anUnregisteredComputeSamplerReadsColortex0WhereIrisBindsIt(@TempDir Path root) throws IOException {
@@ -93,9 +88,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * With HIGHER_SHADOWCOLOR Iris creates any of eight shadowcolor targets a compute names, though
-     * the shadow pass renders only those a program names: Alpha Piscium's composite7 compute reads
-     * shadowcolor6, which no program does. It is served, so it never reads unit 0's colortex0.
+     * With HIGHER_SHADOWCOLOR Iris creates any of eight shadowcolor targets a compute names, so one no program
+     * names is still served rather than reading unit 0.
      */
     @Test
     void aComputeShadowColorNoProgramNamesIsNotUnitZero(@TempDir Path root) throws IOException {
@@ -121,10 +115,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris binds a pass's computes as its program (CompositeRenderer.createComputes): customTexture
-     * entries, the stage's textures behind the pass's flippedAtLeastOnce snapshot, and the noise.
-     * Alpha Piscium's computes read customTexture.usam_stbnVec1. composite1 writes colortex5, so
-     * composite2's compute samples the target, not texture.composite.colortex5.
+     * Iris binds a pass's computes as its program (CompositeRenderer.createComputes), so a target an earlier
+     * pass wrote wins over the stage's texture of that name.
      */
     @Test
     void passComputesBindPackTextures(@TempDir Path root) throws IOException {
@@ -176,11 +168,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris gives a compute that reads shadow samplers the shadow maps (IrisSamplers
-     * addShadowSamplers): shadowtexN as depth, a sampler2DShadow such as shadowtex1HW through a
-     * comparison, shadowcolorN, and shadow as shadowtex1 where watershadow is active. A legacy
-     * shadow2D reads the bound sampler as programs read it (Rethinking Voxels' deferred1).
-     * shadowtex1HW is registered with SEPARATE_HARDWARE_SAMPLERS and shadowtex1's filtering only.
+     * Iris gives a compute that reads shadow samplers the shadow maps (IrisSamplers.addShadowSamplers), with
+     * shadow as shadowtex1 where watershadow is active.
      */
     @Test
     void passComputesReadShadowMaps(@TempDir Path root) throws IOException {
@@ -234,9 +223,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris registers custom images after customTexture entries, so an image's sampler keeps its name
-     * against a customTexture of it; a texture.stage entry overrides both through the sampler
-     * interceptor (CompositeRenderer.createComputes and createProgram alike).
+     * Iris registers custom images after customTexture entries, so an image's sampler keeps its name; a
+     * texture.stage entry overrides both through the sampler interceptor.
      */
     @Test
     void imageSamplerPrecedence(@TempDir Path root) throws IOException {
@@ -317,10 +305,7 @@ final class PassComputeSamplerTest {
         assertEquals(PassComputePlan.Kind.TEXTURE, kinds.get("noisetex"), compute.deviations().toString());
     }
 
-    /**
-     * Iris registers gdepthtex with depthtex0 for a composite program and its computes
-     * (IrisSamplers.addCompositeSamplers): RedHat's composite1 reads gdepthtex.
-     */
+    /** Iris registers gdepthtex with depthtex0 for a composite program and its computes (addCompositeSamplers). */
     @Test
     void gdepthtexReadsDepthtex0InPostPassesAndComputes(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -350,9 +335,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * A stage texture of gdepthtex replaces depthtex0 where Iris registers the two names together
-     * (CustomTextureSamplerInterceptor.getOverride tries gdepthtex first), and not in a world
-     * program, which registers depthtex0 alone. A gdepthtex nothing reads is no alias to report.
+     * A stage texture of gdepthtex replaces depthtex0 where Iris registers the two names together, not in a
+     * world program. A gdepthtex nothing reads is no alias to report.
      */
     @Test
     void aGdepthtexStageTextureReplacesDepthtex0WhereIrisRegistersBoth(@TempDir Path root) throws IOException {
@@ -375,10 +359,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Bloop's prepare reads depthtex1 with texture.prepare.depthtex1 set to the vanilla clouds. There
-     * the name is the pack's texture, so the pass reads no depth snapshot from the frame and the graph
-     * copies none for it. prepare2's gaux3 reads colortex6 from the frame and counts as that target's
-     * read.
+     * A stage texture on a depth name makes it the pack's texture, so the graph copies no depth snapshot for
+     * it; a colour alias such as gaux3 still counts as its target's read.
      */
     @Test
     void aStageTextureOnADepthNameIsNoFrameInput(@TempDir Path root) throws IOException {
@@ -402,10 +384,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris reads {@code texture.<stage>.<sampler>} for its seven texture stages only (TextureStage.parse)
-     * and ignores any other scope with a warning: a program name, shadow (Rethinking Voxels' texture.shadow
-     * entries; shadow programs read the gbuffers stage), or *. A known stage replaces noisetex, which
-     * the composite registers through the sampler interceptor.
+     * Iris reads {@code texture.<stage>.<sampler>} for its seven texture stages only (TextureStage.parse) and
+     * ignores any other scope, shadow included. A known stage replaces noisetex.
      */
     @Test
     void stageTexturesNameAnIrisStage(@TempDir Path root) throws IOException {
@@ -429,12 +409,7 @@ final class PassComputeSamplerTest {
                 "TEXTURE_STAGE_UNKNOWN:texture.*.samA")), plan.settings().deviations().toString());
     }
 
-    /**
-     * A stage texture replaces only what a registration through the sampler interceptor binds. A
-     * composite registers its customTexture entries on its own builder, so samC reads the entry; a
-     * world program registers them through the interceptor, so samC reads texture.gbuffers.samC; and
-     * a world program's normals, registered on the builder, never reads texture.gbuffers.normals.
-     */
+    /** A stage texture replaces only what Iris registers through the sampler interceptor, which differs by program. */
     @Test
     void stageTexturesReplaceOnlyInterceptedRegistrations(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -461,9 +436,8 @@ final class PassComputeSamplerTest {
     }
 
     /**
-     * Iris gives a pass's computes the depth samplers its program gets (IrisSamplers
-     * addCompositeSamplers). Shrimple's deferred4 compute reads depthtex0 where no program does,
-     * so the target graph keeps that snapshot, and the colour target it writes, for it.
+     * Iris gives a pass's computes its program's depth samplers, so the target graph keeps a snapshot only a
+     * compute reads.
      */
     @Test
     void passComputesReadDepth(@TempDir Path root) throws IOException {

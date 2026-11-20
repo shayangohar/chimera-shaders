@@ -38,9 +38,8 @@ final class PackSessionStateTest {
     }
 
     /**
-     * createResources configures the post targets before it loads the pipelines; the load clears a
-     * rejection that configure set, so a target allocation that fails at load leaves the world
-     * programs, entity bridge and pack shadows running without post (PackPostChain's notice).
+     * The pipeline load clears a rejection the post target configure set, so a target allocation that
+     * fails at load leaves the pack running without post (PackPostChain's notice).
      */
     @Test
     void theLoadClearsATargetRejectionItsOwnConfigureSet() throws IOException {

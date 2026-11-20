@@ -23,14 +23,9 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
- * Applies the player's option values to a pack's sources before anything reads them.
- *
- * Edits the declaring lines as Iris does, so {@code const} options change as well as {@code #define}s.
- * A zip's extracted tree is edited in place; a folder pack is copied first, since the folder is the player's.
- *
- * Option file values follow Iris: undeclared names and toggles other than {@code true}/{@code false} are
- * ignored. {@code chimera.option.*} JVM properties override declared options, and toggles also take
- * {@code 1}/{@code 0}. Any other JVM property stays a locked preprocessor macro for development runs.
+ * Applies the player's option values to a pack's sources before anything reads them, editing the declaring lines
+ * as Iris does. A folder pack is copied first, since the folder is the player's. {@code chimera.option.*} JVM
+ * properties override declared options, toggles also taking 1 and 0; any other stays a locked macro.
  */
 final class PackOptionStaging {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -41,10 +36,8 @@ final class PackOptionStaging {
     record Staged(Path shadersDir, Path temporaryRoot, StagedOptions options) {}
 
     /**
-     * Discovers options in {@code shadersDir}, applies the stored values and returns the tree to read.
-     *
-     * {@code temporaryRoot} is a zip's extraction root, null for a folder pack. Stored values are the option
-     * file's with {@code pending} on top, or none on a reset, and are what the option file holds afterwards.
+     * Applies the option file's values, with {@code pending} on top or none on a reset, and returns the tree to
+     * read; the option file then holds them. {@code temporaryRoot} is null for a folder pack.
      */
     static Staged stage(Path packPath, Path shadersDir, Path temporaryRoot, PendingOptions.Drained pending,
                         List<String> deviations) {

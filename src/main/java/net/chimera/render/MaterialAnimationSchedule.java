@@ -12,13 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A material map's own animation table, read from its {@code .mcmeta} with Minecraft's
- * {@link AnimationMetadataSection} parser and frame-size rule.
- *
- * A map keeps its own frame order, durations and interpolation flag, whatever the albedo beside it does. The
- * whole table is checked up front: a frame size that does not divide the image, a frame index out of range or
- * a non-positive duration rejects the map, so that sprite and kind stays flat instead of animating the wrong
- * region.
+ * A material map's own animation table, read with Minecraft's {@link AnimationMetadataSection} parser and
+ * frame-size rule. An invalid table rejects the map, so it stays flat instead of animating the wrong region.
  */
 record MaterialAnimationSchedule(int frameWidth, int frameHeight, int columns,
         List<MaterialAnimation.Frame> frames, boolean interpolate) {

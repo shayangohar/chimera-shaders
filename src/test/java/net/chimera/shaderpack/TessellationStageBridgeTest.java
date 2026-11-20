@@ -18,11 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Tessellation stages between the vertex and fragment stages, in the shape Shrimple's
- * terrain and water take once their VertexData blocks are flattened: the control stage copies each
- * vertex through and sets its levels, the evaluation stage interpolates and projects.
- */
+/** Tessellation stages between the vertex and fragment stages, in the shape Shrimple's terrain and water take. */
 final class TessellationStageBridgeTest {
     /**
      * A plan holds its between stages as one BetweenStages, which refuses a lone tessellation stage
@@ -142,10 +138,8 @@ final class TessellationStageBridgeTest {
     }
 
     /**
-     * The control stage reads the vertex outputs' locations and writes its own, packed by name; the
-     * evaluation stage reads those and writes the fragment inputs' locations, an integer flat. Only
-     * the evaluation stage, the last before the rasteriser, converts GL's clip depth, and only it
-     * reads the host's projection, so only it declares the view block. Its winding is reversed.
+     * Each stage reads its producer's locations and writes its consumer's. Only the evaluation stage, the last
+     * before the rasteriser, converts GL's clip depth and declares the view block; its winding is reversed.
      */
     @Test
     void bothStagesConvert() {
@@ -181,10 +175,8 @@ final class TessellationStageBridgeTest {
             .replace("gl_Position = gl_ProjectionMatrix * view;", "");
 
     /**
-     * The entity bridge adds the identities and host values the hand fragment reads to the vertex
-     * stage's outputs; both stages pass them on after the pack's own. The control stage copies each
-     * per vertex. The evaluation stage writes an integer as the first vertex's and a float at the
-     * evaluated point, and converts the clip depth the vertex stage left in GL's range.
+     * Both stages pass the entity bridge's values on after the pack's own; the evaluation stage writes an
+     * integer as the first vertex's and a float at the evaluated point.
      */
     @Test
     void aHandPassesTheBridgeValuesOnThroughBothStages() {
@@ -216,9 +208,8 @@ final class TessellationStageBridgeTest {
     }
 
     /**
-     * Shrimple's DISPLACE_TESSELATION projects the hand in its evaluation stage, which reads the
-     * draw's own projection in GL's clip range from the host's Projection block, as the hand's vertex
-     * stage does; a terrain stage reads the view block's MVP.
+     * A hand evaluation stage projects with the draw's own projection from the host's Projection block, as
+     * the hand's vertex stage does; a terrain stage reads the view block's MVP.
      */
     @Test
     void aHandEvaluationStageProjectsWithTheHandsOwnProjection() {
@@ -235,11 +226,8 @@ final class TessellationStageBridgeTest {
     }
 
     /**
-     * A tessellated hand in a pack, projected in its evaluation stage as Shrimple's DISPLACE_TESSELATION
-     * does: admitted, its evaluation stage declaring the entity family's uniform block where it reads a
-     * uniform and the host's Projection block, and the whole descriptor set matching every stage as
-     * the runtime checks it (PackPipelines.prepareLayout). The terrain lanes' block there would fail
-     * that check with DESCRIPTOR_LAYOUT_MISMATCH:ChimeraTerrainPackUniforms.
+     * A tessellated hand's evaluation stage declares the entity family's uniform block, not the terrain
+     * lanes', so the whole descriptor set matches every stage as the runtime checks it.
      */
     @Test
     void aTessellatedHandsDescriptorsServeEveryStage(@TempDir Path root) throws IOException {
@@ -305,11 +293,7 @@ final class TessellationStageBridgeTest {
         assertNull(PackCompileTest.compile(prepared.fragment(), false), prepared.fragment());
     }
 
-    /**
-     * The hand's entity preamble declares the host's Normal, so a pack varying of that name is
-     * renamed, in the tessellation stages too; a control stage still reading Normal[] would not
-     * match the vertex stage's renamed output.
-     */
+    /** A pack varying named Normal is renamed in the tessellation stages too, or it would not match the vertex's. */
     @Test
     void aVaryingNamedLikeAHostInputPairsThroughTheTessellationStages(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));

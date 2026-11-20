@@ -14,9 +14,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Copies shader packs dropped on the pack list into the shaderpacks folder, in the order they came, and words
- * the one notice that reports it. Other files are skipped quietly when any pack came with them. The first
- * failed copy ends the run: packs copied before it stay, later ones are not tried.
+ * Copies packs dropped on the pack list into the shaderpacks folder. Other files are skipped quietly when a pack
+ * came with them; the first failed copy ends the run, keeping earlier copies.
  */
 final class PackDrop {
     /** The notice to show, and the pack to pick when exactly one was added. */

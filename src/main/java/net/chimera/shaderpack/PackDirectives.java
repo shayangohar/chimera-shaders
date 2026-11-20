@@ -6,11 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Iris's pack-wide scalar directives with its defaults, read from const directives in IrisConstDirectives'
- * order as Iris's PackDirectives.acceptDirectivesFrom reads them. Iris's drynessHalflife directive writes the
- * wetness half-life, so the dryness half-life always keeps its default 200, and a pack declaring both gets
- * whichever it declares last as its wetness half-life. ambientOcclusionLevel is clamped to [0, 1] as Iris
- * clamps it.
+ * Iris's pack-wide scalar directives with its defaults, read in IrisConstDirectives' order as Iris's
+ * PackDirectives.acceptDirectivesFrom reads them. Iris's drynessHalflife writes the wetness half-life, so dryness
+ * keeps its default 200. ambientOcclusionLevel is clamped to [0, 1] as in Iris.
  */
 public record PackDirectives(int noiseTextureResolution, float wetnessHalfLife, float drynessHalfLife,
                              float eyeBrightnessHalfLife, float centerDepthHalfLife, float ambientOcclusionLevel) {

@@ -50,11 +50,7 @@ final class SkyCloudAdapterTest {
         assertNoUnstable(first.report().toJson(), fixture);
     }
 
-    /**
-     * BSL (CLOUDS=3) and Complementary (CLOUD_STYLE_DEFINE=50) shade vanilla clouds by face
-     * normal. Iris 1.21.1 hands their programs vanilla's cloud mesh: gl_Vertex in the mesh's space,
-     * the clouds texture coordinate, the face colour, the axis normal and full light.
-     */
+    /** Iris 1.21.1 hands a cloud program vanilla's cloud mesh, which packs shade by its face normal. */
     @Test
     void cloudProgramReadsIrisMeshInputs() {
         String vertex = """
@@ -86,9 +82,8 @@ final class SkyCloudAdapterTest {
     }
 
     /**
-     * Iris gives both stages of a program one sampler set: Ebin's clouds run gbuffers_textured, whose
-     * vertex stage reads colortex4. Sky and cloud vertex stages bind such a sampler where the fragment
-     * stage's layout puts it.
+     * Iris gives both stages of a program one sampler set, so a sky or cloud vertex stage binds a sampler
+     * where the fragment stage's layout puts it.
      */
     @Test
     void skyAndCloudVertexStagesReadTheProgramsSamplers(@TempDir Path root) throws IOException {

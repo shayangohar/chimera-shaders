@@ -7,22 +7,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Storage blocks of a prepared source, read from the parse tree, and the rewrite of their bindings. Prepared
- * sources hold no macros, so a block's qualifiers are the ones its declaration spells.
- */
+/** Storage blocks of a prepared, macro-free source, and the rewrite of their bindings. */
 final class GlslStorageBufferParser {
     private static final Set<String> MEMORY_QUALIFIERS = Set.of(
             "readonly", "writeonly", "coherent", "volatile", "restrict");
 
     /**
-     * One storage block. {@code laidOut} means Vulkan lays it out as GL does: std430, std140 or no packing
-     * qualifier. glslang lays an unqualified block out std430 for Vulkan in every stage, as GL lays out an
-     * unqualified (shared) block alike in every program; Shrimple qualifies none of its blocks. Explicit
-     * {@code shared} or {@code packed} has no Vulkan layout.
-     *
-     * {@code originalBinding} is -1 without a readable binding. A block with no {@code layout(...)} at all
-     * has none and is not laid out.
+     * One storage block. {@code laidOut} means Vulkan lays it out as GL does: std430, std140, or unqualified,
+     * which glslang makes std430 in every stage as GL lays it out alike in every program. {@code shared} and
+     * {@code packed} have no Vulkan layout. {@code originalBinding} is -1 without a readable binding; a block
+     * with no {@code layout(...)} is not laid out.
      */
     record Block(
             String blockName,

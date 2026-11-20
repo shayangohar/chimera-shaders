@@ -16,10 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Gives the terrain builder the position of the block about to be rendered, as Iris's
- * block context does, so at_midBlock points from each vertex to its own block's centre.
- */
+/** Gives the terrain builder the block's position, as Iris's block context does, for at_midBlock. */
 @Mixin(value = BlockRenderer.class, remap = false)
 public abstract class ChimeraBlockRendererMixin {
     @Inject(method = "renderBlock", at = @At("HEAD"))

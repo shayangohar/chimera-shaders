@@ -21,9 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Each distinct failure is told once, with Copy Info, and waits for a player in a world; the status
- * command lists the current load's failures. The chat component itself (its Copy Info click and hover)
- * needs Minecraft's registries, so this test leaves it out.
+ * Each distinct failure is told once and waits for a player in a world. The chat component needs
+ * Minecraft's registries, so this test leaves it out.
  */
 final class PackFailureNoticesTest {
     @AfterEach
@@ -185,8 +184,8 @@ final class PackFailureNoticesTest {
     }
 
     /**
-     * Shaders off after a pack: the no-pack load drops that pack's conformance report. Kept, it would be
-     * written as the no-pack load's conformance file, and its skipped programs told again under "?".
+     * Shaders off after a pack: the no-pack load drops that pack's conformance report, which would
+     * otherwise be written as its own and its skips told again under "?".
      */
     @Test
     void shadersOffDropsTheLastPacksReport() throws IOException {

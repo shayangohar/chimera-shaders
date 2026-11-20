@@ -10,22 +10,16 @@ import org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState;
 import static org.lwjgl.vulkan.VK10.VK_BLEND_OP_ADD;
 
 /**
- * The blend attachments of a pipeline variant for a Chimera rendering window, or for one of
- * VulkanMod's render passes when the pack pipeline has a directive there. VulkanMod writes the
- * host draw's blend (the vanilla render type's, as in Iris) into attachment 0; every attachment
- * starts from it and takes the pack's blend directive for its buffer where one applies.
+ * Per-attachment blends of a pipeline variant: each starts from the host blend VulkanMod writes into attachment 0
+ * and takes the pack's directive where one applies.
  */
 public final class WindowBlendAttachments {
     private WindowBlendAttachments() {}
 
     /**
-     * Fills {@code attachments}. A null mode keeps the host's blend. An attachment whose bit in {@code written}
-     * is clear gets no colour writes and keeps its contents, as a GL draw buffer does. An integer format never
-     * blends, as GL skips blending for it.
-     *
-     * The host's state is copied first, since attachment 0 is the first one overwritten. Kappa's gbuffers_water
-     * turns blending off for colortex1 and leaves colortex3 to the host's translucent blend; read after its own
-     * directive, attachment 0 would turn colortex3's blending off too and stained glass would draw black.
+     * A null mode keeps the host's blend; an unwritten attachment keeps its contents, and an integer format never
+     * blends, as in GL. The host state is copied first, since overwriting attachment 0 would otherwise leak its
+     * directive into later attachments.
      */
     public static void fill(VkPipelineColorBlendAttachmentState.Buffer attachments, PackBlendPlan.Mode[] blends,
                             int written, int[] formats) {

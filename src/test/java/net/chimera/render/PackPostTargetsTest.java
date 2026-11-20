@@ -57,9 +57,8 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Rethinking Voxels' prepare passes do not run, so the chain drops colortex8, which its
-     * terrain reads. The terrain reads the image colortex8 holds, as under Iris; with no image its
-     * bind would fail (RESOURCE_BINDING_UNAVAILABLE).
+     * A target whose writers do not run keeps an image for the terrain that reads it, as under Iris;
+     * without one the bind fails (RESOURCE_BINDING_UNAVAILABLE).
      */
     @Test
     void worldProgramsReadWhatADroppedTargetHolds() {
@@ -77,10 +76,8 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Glimmer's prepare2 builds colortex7's mips (its sky), and its translucents and composite3
-     * read them with textureLod. Iris resets a target's filter only after final
-     * (FinalPassRenderer.resetRenderTarget), so the chain is still sampled through its mips in
-     * every later window and in final.
+     * Mips built in prepare are sampled in every later window and in final, since Iris resets a
+     * target's filter only after final (FinalPassRenderer.resetRenderTarget).
      */
     @Test
     void mipSamplingLastsUntilTheFrameEnds() {
@@ -96,9 +93,8 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Reforged sets a viewport's y from the bound framebuffer's height. Pegasus draws its sky into
-     * colortex6 at a third of the screen and composite2 into colortex9 at a tenth; bound to colortex0's
-     * full-size stand-in, both passes would draw below their images and leave the sky black.
+     * Reforged sets a viewport's y from the bound framebuffer's height, so a scaled pass bound to
+     * colortex0's full-size stand-in would draw below its image.
      */
     @Test
     void aPostPassBindsAStandInOfItsOwnSize() throws IOException {
@@ -131,9 +127,8 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * A post stage that throws aborts only its own step: the frame stays open, so the passes after
-     * it still record and the frame still commits. Only the window's abort closes the frame, and it
-     * turns the pack off.
+     * A post stage that throws aborts only its own step, and the frame still commits; only the window's
+     * abort closes the frame and turns the pack off.
      */
     @Test
     void aFailedStepLeavesTheFrameOpen() throws IOException {
@@ -188,9 +183,8 @@ final class PackPostTargetsTest {
     }
 
     /**
-     * Persistence comes only from the pack's clear declaration. A nonzero target cleared every frame does
-     * not persist even when a pass reads it before writing it; with colortexNClear=false the same shape
-     * persists. Every target is cleared on its first frame (PostTargetSides).
+     * Persistence comes only from colortexNClear=false, not from a pass reading a target before writing
+     * it. Every target is cleared on its first frame (PostTargetSides).
      */
     @Test
     void declarationDrivenPersistence(@TempDir Path root) throws Exception {

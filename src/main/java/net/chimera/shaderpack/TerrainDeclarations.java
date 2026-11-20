@@ -22,13 +22,12 @@ final class TerrainDeclarations {
     /** What a shadow attribute's line ends with: its trailing spaces and its line break. */
     private static final Pattern SHADOW_ATTRIBUTE_TAIL = Pattern.compile("[ \\t]*(?:\\r?\\n|$)", Pattern.MULTILINE);
 
-    /** One interface declaration: its characters, interpolation (null when none), storage, type and name. */
+    /** One interface declaration; {@code interpolation} is null when it has none. */
     record Declaration(int start, int end, String interpolation, String storage, String type, String name) {}
 
     /**
-     * The modern interface declarations {@code [interpolation] storage type name;} that start a line, storage
-     * one of {@code storages}. Each span takes in the blank lines and indentation before the declaration and
-     * ends at its semicolon. A declaration with array sizes, an initializer or another name is not one.
+     * The plain modern declarations {@code [interpolation] storage type name;} that start a line, storage one of
+     * {@code storages}. Each span takes in the blank lines and indentation before it and ends at its semicolon.
      */
     static List<Declaration> modern(String source, Set<String> storages) {
         GlslTree tree = GlslTree.parse(source);

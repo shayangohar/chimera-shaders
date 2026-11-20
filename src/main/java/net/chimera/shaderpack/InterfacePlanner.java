@@ -25,10 +25,8 @@ import java.util.stream.Collectors;
 import static net.chimera.shaderpack.GlslLexer.stripComments;
 
 /**
- * Plans a program's interface from its sources, one stage or the whole program: scans its uniform
- * and sampler declarations, resolves each uniform against the catalog (UniformRegistry) and the
- * pack's own values, binds each sampler to its selector slot, and removes the declarations the
- * generated uniform block replaces.
+ * Plans a program's interface from its sources: each uniform resolved against the catalog and the pack's own
+ * values, and each sampler bound to its selector slot.
  */
 public final class InterfacePlanner {
     /** Iris binds integer targets (IrisColorFormats) to isampler2D and usampler2D declarations. */
@@ -57,8 +55,7 @@ public final class InterfacePlanner {
 
     /**
      * A program interface over every stage the program runs, with the pack's own values and sampler slots.
-     * The uniforms and samplers of each stage between the vertex and fragment stages ({@code betweenStages},
-     * by stage name; null for none) join the program's, and each stage keeps its own plan as well.
+     * {@code betweenStages} maps stage names to sources, or is null; each stage also keeps its own plan.
      */
     public static ProgramInterfacePlan planProgram(
             String fragmentSource,
@@ -178,22 +175,18 @@ public final class InterfacePlanner {
         while (blockMatcher.find()) {
             deviations.add("UNIFORM_TYPE_UNSUPPORTED:" + blockMatcher.group(1));
         }
-        // a pack may declare a standard Iris uniform in a conditional include the prepared source lacks;
-        // a catalog name with exactly one accepted type is declared from the catalog, never a guessed type
+        // a conditional include may have held the declaration; take the type from the catalog, never a guess
         if (allowUnusedDeclarations) {
             declareReferencedCatalogValues(stripped, stage, declared, deviations);
         }
-        // the terrain bridge serves the legacy matrix built-ins from gbufferModelView
-        // (TerrainVertexBridge.modernTerrainInputReplacements), which a pack using gl_ModelViewMatrix
-        // need not declare
+        // the terrain bridge serves the legacy matrix built-ins from gbufferModelView, which the pack need not declare
         if ((stage == Stage.GEOMETRY || stage == Stage.TRANSLUCENT)
                 && usesLegacyModelView(stripped)
                 && !declared.uniforms().containsKey("gbufferModelView")
                 && !isLocallyDeclared(stripped, "gbufferModelView")) {
             declareImplicit("gbufferModelView", "mat4", declared, deviations);
         }
-        // the shadow bridge serves them from the shadow matrices (ShadowStageBuiltins.matrixReplacements);
-        // RenderPearl's shadow vertex reads modelViewMatrix, which Iris's core profile makes gl_ModelViewMatrix
+        // the shadow bridge serves them from the shadow matrices (ShadowStageBuiltins.matrixReplacements)
         for (String name : shadowMatrixValues(stripped, stage)) {
             if (declared.uniforms().containsKey(name) || isLocallyDeclared(stripped, name)) continue;
             declareImplicit(name, "mat4", declared, deviations);
@@ -326,9 +319,8 @@ public final class InterfacePlanner {
     }
 
     /**
-     * Why a declaration keeps its program from running, or null. A custom value the pack wrote and
-     * Chimera could not honour must not run with a substitute, so it fails closed; so do a type the
-     * uniform block cannot carry and a name this stage cannot read (UniformRegistry.unservedIn).
+     * Why a declaration keeps its program from running, or null. A custom value Chimera could not honour fails
+     * closed rather than run with a substitute.
      */
     private static String refusal(String name, String type, UniformDescriptor custom,
                                   Stage stage) {
@@ -399,16 +391,13 @@ public final class InterfacePlanner {
                     ? PackResourcePlan.programResource(name, waterShadow) : name;
             Integer slot = samplerSlot(name, lookup, stage, customSamplerSlots);
             if (!mappedType(name, type, customSamplerSlots) || slot == null) {
-                // a sampler nothing reads is inactive, as GL leaves it: Escheridia's composites
-                // declare clouds, normals and shadowtex0HW in a shared header and read none of them
+                // a sampler nothing reads is inactive, as GL leaves it
                 deviations.add(isSamplerUnused(stripped, name)
                         ? "SAMPLER_DECLARATION_UNUSED:" + name : unmappedSamplerDeviation(name, stage));
                 continue;
             }
-            // a pack texture takes a colour target's slot only when no program reads the target
-            // (PackSettingsPlan.customSamplerSlots), so GL leaves the target's declaration inactive in every stage
-            // strip it in each one, or a stage that keeps it puts two textures on the slot: with bloom off,
-            // Escheridia's unread colortex6 gives slot 10 to voxelFloodfill
+            // a pack texture takes an unread colour target's slot (PackSettingsPlan.customSamplerSlots); strip the
+            // target's declaration in every stage, or one that keeps it puts two textures on the slot
             if (slotOfAnotherCustomSampler(name, slot, customSamplerSlots) && isSamplerUnused(stripped, name)) {
                 deviations.add("SAMPLER_DECLARATION_UNUSED:" + name);
                 continue;
@@ -483,10 +472,8 @@ public final class InterfacePlanner {
         if (stage == Stage.POST && CenterDepthSmooth.SAMPLER.equals(lookup)) {
             return SelectorNamespace.CENTER_DEPTH_SLOT;
         }
-        // Iris gives every program, shadow programs too, each shadowcolor target and the hardware shadow
-        // samplers (addShadowSamplers)
-        // a shadow program reads a shadowcolor target as the pass opened (ChimeraShadowMap.snapshotPassReads)
-        // the hardware samplers bind outside the shadow pass; PackPlanBuilder refuses those the pack lacks
+        // Iris gives every program each shadowcolor and hardware shadow sampler (addShadowSamplers); a shadow
+        // program reads shadowcolor as the pass opened, and the hardware samplers bind outside the shadow pass
         if (stage.shadowPass()) return shadowPassColorSlot(lookup);
         int shadow = SelectorNamespace.shadowSamplerSlot(lookup);
         if (shadow >= 0) return shadow;
@@ -566,9 +553,8 @@ public final class InterfacePlanner {
     }
 
     /**
-     * How often {@code name} appears as a whole word, counting no further than {@code limit}, with word edges
-     * as Java's {@code \b} judges them. Planning asks this for every catalog uniform in every program, so it
-     * searches with {@code indexOf} instead of compiling a pattern each time.
+     * How often {@code name} appears as a whole word, up to {@code limit}, with word edges as Java's {@code \b}
+     * judges them. No pattern per call, since planning asks this for every catalog uniform.
      */
     private static int wholeWordCount(String source, String name, int limit) {
         if (name.isEmpty() || !wordCharacter(name.charAt(0)) || !wordCharacter(name.charAt(name.length() - 1))) {

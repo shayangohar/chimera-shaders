@@ -14,9 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Reforged 0.3.5 keeps the scissor box as GL state and reapplies it where a pass begins
- * (Renderer.applyScissor). Where Chimera begins a window in place of a host pass, or hands the pass
- * back after its own fullscreen draws, it reapplies the box the game set rather than overwriting it.
+ * Reforged reapplies the GL scissor box where a pass begins (Renderer.applyScissor), so Chimera's own
+ * passes reapply the box the game set instead of overwriting it.
  */
 final class HostScissorTest {
     private static final String RENDERER = "net/vulkanmod/vulkan/Renderer";

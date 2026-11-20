@@ -18,10 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Writes the running game's failure reports (PackFailureReport) from what the pass holds: the versions, the
- * device, and the pack as loaded with its options and conformance report.
- */
+/** Writes the running game's failure reports from what the pass holds. */
 final class PackFailureReporter implements PackFailureNotices.Reporter {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
     private final ChimeraMainPass pass;
@@ -30,10 +27,7 @@ final class PackFailureReporter implements PackFailureNotices.Reporter {
         this.pass = pass;
     }
 
-    /**
-     * Null when the report cannot be written. Runs inside failure handlers, such as a post window's, so
-     * nothing may throw out of it.
-     */
+    /** Null when the report cannot be written. Runs inside failure handlers, so it must never throw. */
     @Override
     public Path write(PackFailureNotices.Failure failure) {
         try {

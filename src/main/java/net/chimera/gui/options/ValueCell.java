@@ -6,10 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
-/**
- * A cell that names something and shows its value in a box on the right: a toggle, a choice or the profile.
- * The label is cut to leave room for the box, and turns warm yellow while the option has a pending change.
- */
+/** A cell that shows a name and its value in a box on the right. */
 abstract class ValueCell extends OptionCell {
     static final Component SET_TO_DEFAULT = Component.translatable("options.chimera.setToDefault")
             .withStyle(ChatFormatting.GREEN);
@@ -49,10 +46,7 @@ abstract class ValueCell extends OptionCell {
         if (hot()) tooltip(cut, mouseX, mouseY);
     }
 
-    /**
-     * Holding Shift offers the reset; otherwise a cut label shows in full, unless the comment is up.
-     * The profile cell overrides this with no tooltip at all.
-     */
+    /** Holding Shift offers the reset; otherwise a cut label shows in full, unless the comment is up. */
     void tooltip(boolean labelCut, int mouseX, int mouseY) {
         if (shiftDown()) {
             setToDefaultTooltip(mouseX, mouseY);

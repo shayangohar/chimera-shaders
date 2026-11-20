@@ -20,13 +20,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Tells the player what a pack lost, as Iris tells a failed load: a chat line that names the pack and the
- * program or pass, says whether Chimera skipped it or the pack fell back to vanilla, and ends with Copy Info
- * and report links. A line raised before the player is in a world waits for one, as Iris's does
- * (MixinClientPacketListener.handleLogin). The current pack's failures also feed /chimera pack status.
- *
- * A failure is recorded where it happens, on any thread, and published once the load or frame that found it
- * has its report: publishing queues its line, and the client tick posts it.
+ * Tells the player in chat what a pack lost, as Iris tells a failed load; a line raised before the player is in a
+ * world waits for one. Failures are recorded on any thread and published once their load or frame has its report.
  */
 public final class PackFailureNotices {
     /** What a failure did to the frame. */
@@ -39,10 +34,7 @@ public final class PackFailureNotices {
         LOAD_FAILED
     }
 
-    /**
-     * One failure: the pack, the program or pass it struck, the phase it struck in, what it did, a one-line
-     * reason, the text Copy Info copies, and the exception behind it, if one was thrown.
-     */
+    /** One failure; {@code info} is the text Copy Info copies. */
     public record Failure(String pack, String subject, String phase, Outcome outcome, String reason, String info,
                           Throwable cause) {
         public Failure {
@@ -71,10 +63,7 @@ public final class PackFailureNotices {
         }
     }
 
-    /**
-     * One chat line: its text, whether it says the pack stopped (red) or not (yellow), the text its Copy Info
-     * copies, and its report file; info and report are null for a line without them.
-     */
+    /** One chat line; {@code severe} means the pack stopped, and info and report may be null. */
     record Line(String text, boolean severe, String info, Path report) {}
 
     /** Writes a failure's report file and keeps the user's name out of what is shared (PackFailureReport). */
@@ -112,10 +101,7 @@ public final class PackFailureNotices {
         reporter = value;
     }
 
-    /**
-     * A load of {@code pack} begins, from {@code shadersDir}; the status command lists this load's failures
-     * from now on. A skip told before is not told again; a whole-pack failure is.
-     */
+    /** A load of {@code pack} begins; the status command lists this load's failures from now on. */
     public static void beginLoad(String pack, Path shadersDir) {
         synchronized (LOCK) {
             currentPack = pack;
@@ -139,13 +125,9 @@ public final class PackFailureNotices {
     }
 
     /**
-     * Records a failure for the next publish to tell. Within a load the first record of a program's skip
-     * wins, so a build failure with its compiler message beats the load report's later "did not run". A skip
-     * told before for the same reason is not told again.
-     *
-     * A whole-pack failure, which the player sees, is told every time. It takes in its load's skips of the
-     * pack, told before or not, since they are the root cause and a separate "skipped X" line beside "fell
-     * back to vanilla" would contradict it.
+     * Records a failure for the next publish. A load's first record of a skip wins, so the compiler message beats
+     * the later "did not run". A whole-pack failure is told every time and folds in the pack's skips, its root
+     * cause.
      */
     public static void record(Failure failure) {
         synchronized (LOCK) {
@@ -159,8 +141,7 @@ public final class PackFailureNotices {
                 if (!announced.contains(failure.toldKey())) pending.add(failure);
                 return;
             }
-            // this load's skips are in current; those of a pack change whose rollback began another load wait
-            // only in pending, where publish keeps them
+            // this load's skips are in current; a rolled-back pack change's wait only in pending
             Set<Failure> skips = new LinkedHashSet<>();
             current.stream().filter(skip -> isSkipOf(skip, failure.pack())).forEach(skips::add);
             pending.stream().filter(skip -> isSkipOf(skip, failure.pack())).forEach(skips::add);
@@ -180,16 +161,11 @@ public final class PackFailureNotices {
         return failure.outcome() == Outcome.SKIPPED && failure.pack().equals(pack);
     }
 
-    /**
-     * Writes a report for each failure recorded since the last publish and queues its line, at most
-     * {@link #LINES_PER_PUBLISH} with the rest folded into one. Call once the load or frame that found them
-     * has its conformance report, which each report carries.
-     */
+    /** Writes a report and queues a line per pending failure; call once their load or frame has its report. */
     public static void publish() {
         List<Failure> told;
         synchronized (LOCK) {
-            // another pack's skips belong to a load that did not finish, a rolled-back pack change, whose
-            // failed-load notice takes them in
+            // another pack's skips belong to a rolled-back load, whose failed-load notice takes them in
             String running = currentPack == null ? "?" : currentPack;
             told = pending.stream()
                     .filter(failure -> failure.outcome() != Outcome.SKIPPED || failure.pack().equals(running))
@@ -240,11 +216,7 @@ public final class PackFailureNotices {
         }
     }
 
-    /**
-     * What F3 and the shader pack screen add after {@code pack}'s name: " (fallback)" when the pack fell back
-     * to vanilla or did not load, as Iris's label says, " (N skipped)" when Chimera skipped programs of it
-     * this load, and nothing otherwise.
-     */
+    /** The suffix F3 and the pack screen add after {@code pack}'s name: " (fallback)" as in Iris, or " (N skipped)". */
     public static String label(String pack) {
         int skipped = 0;
         for (Failure failure : current()) {
@@ -274,10 +246,7 @@ public final class PackFailureNotices {
         return line(failure, null, null);
     }
 
-    /**
-     * One failure's chat line. Its Copy Info names the {@code report} file, and {@code writer} keeps the
-     * user's name out of the line and what it copies; either may be null.
-     */
+    /** One failure's chat line; {@code writer} redacts the user's name, and either may be null. */
     static Line line(Failure failure, Path report, Reporter writer) {
         String info = failure.info() + (report == null ? "" : "\nReport: chimera/reports/" + report.getFileName());
         String text = switch (failure.outcome()) {
@@ -295,10 +264,7 @@ public final class PackFailureNotices {
                 : new Line(writer.redact(text), severe, writer.redact(info), report);
     }
 
-    /**
-     * A line as chat shows it, ending with Iris's blue, underlined Copy Info link and a link that opens its
-     * report. Built on the client thread, where the chat classes are ready.
-     */
+    /** A line as chat shows it, with Iris's Copy Info link; build it on the client thread. */
     static Component component(Line line) {
         MutableComponent text = Component.literal(line.text())
                 .withStyle(line.severe() ? ChatFormatting.RED : ChatFormatting.YELLOW);

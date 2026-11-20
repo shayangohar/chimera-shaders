@@ -12,10 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * When a pass compute skips a frame or dispatches nothing, and how a round of setup computes runs: in
- * order, held by a skipping compute for a bounded number of frames.
- */
+/** When a pass compute skips a frame or dispatches nothing, and how a round of setup computes runs. */
 final class SetupRoundTest {
     private static final List<String> NAMES = List.of("setup", "setup1", "setup2");
     private static final List<PassComputePlan.Binding> BINDINGS = List.of(
@@ -77,9 +74,8 @@ final class SetupRoundTest {
     }
 
     /**
-     * Work groups GL refuses (INVALID_VALUE) dispatch nothing, and the compute counts as run. A
-     * negative workGroupsRender share gives a negative count, which Vulkan would read as about four
-     * billion.
+     * Work groups GL refuses (INVALID_VALUE) dispatch nothing; a negative count would read as about
+     * four billion in Vulkan.
      */
     @Test
     void workGroupsGlRefusesDispatchNothing() {
@@ -96,9 +92,8 @@ final class SetupRoundTest {
     }
 
     /**
-     * Work groups that cannot be dispatched count as run with nothing dispatched, so a setup round
-     * goes on in the same frame, as Iris's next setup program runs after a refused glDispatchCompute.
-     * Only a frame gap holds the round.
+     * A refused dispatch counts as run, so the setup round goes on in the same frame, as Iris's next
+     * setup program runs after a refused glDispatchCompute; only a frame gap holds the round.
      */
     @Test
     void aRefusedDispatchLetsTheRoundGoOn() {
@@ -118,8 +113,8 @@ final class SetupRoundTest {
     }
 
     /**
-     * A screen-sized count over a work group size of 0, as a layout sized by a constant expression
-     * reads when the module gives none, would divide by zero: Integer.MAX_VALUE groups.
+     * A screen-sized count over a work group size of 0, read when a constant-expression layout goes
+     * unresolved, gives Integer.MAX_VALUE groups instead of dividing by zero.
      */
     @Test
     void aScreenSizedCountNeedsAWorkGroupSize() {

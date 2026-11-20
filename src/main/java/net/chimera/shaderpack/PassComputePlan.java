@@ -21,17 +21,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Iris's pass computes, as its ProgramSet reads them and CompositeRenderer runs them.
- *
- * In the selected folder, a pass reads {@code <pass>.csh}, then {@code <pass>_a.csh} to {@code _z.csh} up to the
- * first missing or disabled one. They run at their begin, prepare, deferred or composite pass's place, right
- * before its program draws, or alone where the pass has none ({@link #runsAlone}). A shadowcomp pass's computes run
- * after the shadow pass. Setup computes, setup.csh and setup1..99.csh with no suffixes, run once the pipeline is
- * made and after each resize.
- *
- * {@code colorimgN} and {@code colortexN} both bind the image that pass reads; a shadowcomp compute gets neither.
- * A dispatch covers {@code workGroups}, the {@code workGroupsRender} share of the screen, or the screen over the
- * local size. A compute Chimera cannot bind keeps its reasons and does not run.
+ * Iris's pass computes, as its ProgramSet reads them and CompositeRenderer runs them: right before their pass's
+ * program, or alone where it has none ({@link #runsAlone}). {@code colorimgN} and {@code colortexN} both bind the
+ * image the pass reads.
  */
 public final class PassComputePlan {
     private static final Pattern SOURCE_NAME = Pattern.compile(
@@ -63,13 +55,13 @@ public final class PassComputePlan {
         TARGET_IMAGE,
         /** {@code colortexN}: target N sampled. */
         TARGET_SAMPLER,
-        /** A pack texture: a declared file or raw texture, a game resource, or the generated noise. */
+        /** A pack texture, including the generated noise. */
         TEXTURE,
         /** {@code depthtexN}: the depth snapshot the pass's program reads under that name. */
         DEPTH,
         /** {@code shadowtex0} or {@code shadowtex1}, or an alias, read as depth values. */
         SHADOW_DEPTH,
-        /** A shadow depth read through a comparison sampler: a {@code sampler2DShadow}, as {@code shadowtex0HW}. */
+        /** A {@code sampler2DShadow} comparing shadow depth, as {@code shadowtex0HW}. */
         SHADOW_COMPARE,
         /** {@code shadowcolorN} sampled. */
         SHADOW_COLOR,
@@ -79,13 +71,13 @@ public final class PassComputePlan {
         PACK_IMAGE,
         /** A pack image's sampler, reading the image it names. */
         PACK_IMAGE_SAMPLER,
-        /** A storage block: the pack's {@code bufferObject.<target>}. */
+        /** The pack's {@code bufferObject.<target>}. */
         STORAGE_BUFFER
     }
 
     /**
-     * One descriptor: its symbol and binding, what it binds, the target or bufferObject index (-1
-     * for none), a storage image's format, and the pack image's name or the pack texture's key.
+     * One descriptor. {@code target} is a target or bufferObject index, -1 for none; {@code resource} is the pack
+     * image's name or the pack texture's key.
      */
     public record Binding(String symbol, int binding, Kind kind, int target, String format, String resource) {
         /** Whether the compute writes through it, as a storage image. */
@@ -94,23 +86,16 @@ public final class PassComputePlan {
         }
     }
 
-    /** What a storage image declaration binds: its form, kind, target index and resource. */
+    /** What a storage image declaration binds. */
     private record ImageUse(StorageForm form, Kind kind, int target, String resource) {}
 
-    /**
-     * An {@code indirect.<compute> = <buffer> <offset>} pointer: the compute dispatches the work group counts
-     * {@code bufferObject.<buffer>} holds at that byte offset, as Iris's ComputeProgram does.
-     */
+    /** {@code indirect.<compute> = <buffer> <offset>}: the counts to dispatch, at that byte offset in the buffer. */
     public record Indirect(int buffer, long offset) {}
 
     /** The three uint work-group counts an indirect dispatch reads (VkDispatchIndirectCommand). */
     public static final long INDIRECT_COUNTS_BYTES = 12L;
 
-    /**
-     * One pass compute: its translated source (null when it cannot run), how it dispatches (by
-     * work groups, or {@code indirect} when the pack names a buffer), what dispatch binds, and
-     * the pack textures its {@link Kind#TEXTURE} bindings read.
-     */
+    /** One pass compute; {@code source} is null when it cannot run. */
     public record PassCompute(String name, String pass, String source, int[] localSize, int[] workGroups,
                               float[] workGroupsRender, Indirect indirect, List<Binding> bindings,
                               List<PackResourceBinding> textures, List<ComputeValueBlock.Value> values,
@@ -140,10 +125,7 @@ public final class PassComputePlan {
 
     public static PassComputePlan empty() { return new PassComputePlan(List.of()); }
 
-    /**
-     * The pack's {@code indirect.<compute>} pointer (Iris ShaderProperties), or null for none or one
-     * Iris cannot parse, which it ignores.
-     */
+    /** The pack's {@code indirect.<compute>} pointer, or null for none or one Iris cannot parse and so ignores. */
     public static Indirect indirectPointer(Map<String, String> propertyValues, String compute) {
         String value = propertyValues == null ? null : propertyValues.get("indirect." + compute);
         if (value == null) return null;
@@ -160,7 +142,7 @@ public final class PassComputePlan {
         String folder = plan.selectedSourceFolder();
         Path root = folder == null || folder.isBlank() ? shadersDir : shadersDir.resolve(folder).normalize();
         if (!root.startsWith(shadersDir.normalize()) || !Files.isDirectory(root)) return empty();
-        // every compute of every pass, shadowcomp.csh included, since Iris builds and dispatches them all one way
+        // shadowcomp computes included: Iris builds and dispatches them all one way
         Predicate<String> enabled = name -> plan.settings().enabled(folder, name);
         Translator translator = new Translator(plan, shadersDir);
         List<PassCompute> result = new ArrayList<>();
@@ -179,18 +161,12 @@ public final class PassComputePlan {
         return program != null && passOf(program + ".csh") != null;
     }
 
-    /**
-     * Whether {@code pass} is a setup compute: Iris runs those once the pipeline is made and after
-     * each resize, after a full clear (IrisRenderingPipeline), rather than in a frame's passes.
-     */
+    /** Whether {@code pass} is a setup compute, which Iris runs after a full clear at load and each resize. */
     public static boolean isSetup(String pass) {
         return pass != null && SETUP_NAME.matcher(pass).matches();
     }
 
-    /**
-     * Whether {@code pass} is a shadowcomp pass: Iris runs its computes after the shadow pass, over
-     * the shadow targets (ShadowCompositeRenderer), rather than in the frame's colour chain.
-     */
+    /** Whether {@code pass} is a shadowcomp pass, whose computes Iris runs after the shadow pass. */
     public static boolean isShadowcomp(String pass) {
         return pass != null && SHADOWCOMP_NAME.matcher(pass).matches();
     }
@@ -209,9 +185,8 @@ public final class PassComputePlan {
     }
 
     /**
-     * Whether a pass runs only its computes, as Iris's ComputeOnlyPass does for a missing or invalid source: it has
-     * no program, the pack switches it off, or it has no fragment stage. A missing vertex stage does not count,
-     * since Iris supplies one.
+     * Whether a pass runs only its computes (Iris: ComputeOnlyPass). A missing vertex stage does not count, since
+     * Iris supplies one.
      */
     public static boolean runsAlone(PackPlan plan, String pass) {
         PackProgramPlan program = plan == null ? null : plan.program(pass);
@@ -228,10 +203,7 @@ public final class PassComputePlan {
         return targets(Kind.TARGET_IMAGE);
     }
 
-    /**
-     * The formats a compute binds each pack image in, as Vulkan formats. The session creates an
-     * image with a view for each one other than its own (PackAdvancedImageOwner.load).
-     */
+    /** The Vulkan formats a compute binds each pack image in; each other than its own needs a view. */
     public Map<String, Set<Integer>> imageFormats() {
         Map<String, Set<Integer>> formats = new TreeMap<>();
         computes.stream().filter(PassCompute::supported).flatMap(value -> value.bindings().stream())
@@ -312,10 +284,7 @@ public final class PassComputePlan {
             this.lockedMacros = PackEngineDefines.lockedNames(plan.settingsLockedDefineNames(), customImages);
         }
 
-        /**
-         * Translates one compute. Its pass's program need not exist, since a pass with computes and no program still
-         * runs them at its place, as Iris's ComputeOnlyPass does.
-         */
+        /** Translates one compute; its pass need not have a program (Iris: ComputeOnlyPass). */
         PassCompute translate(String name, String pass, Path path) {
             Work work = new Work(name, pass);
             String text = prepare(path, work);
@@ -365,10 +334,7 @@ public final class PassComputePlan {
             }
         }
 
-        /**
-         * A setup compute's source with the pack's custom uniforms read as GL leaves them unset, since Iris pushes
-         * them to no setup compute.
-         */
+        /** Serves the pack's custom uniforms unset in a setup compute, since Iris pushes them to none. */
         private String withoutPushedCustomUniforms(String source, Work work) {
             List<String> served = new ArrayList<>();
             String result = ServedUniforms.serveUnset(source,
@@ -378,8 +344,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * Binds each used storage image as Iris registers it for the compute. The usage analysis tracks 3D images
-         * only; with unreachable functions blanked, any reference left besides the declaration is a use.
+         * Binds each used storage image as Iris registers it. The usage analysis tracks 3D images only, so any
+         * reference besides the declaration counts as a use.
          */
         private String bindImages(String body, Work work) {
             Matcher image = IMAGE_DECLARATION.matcher(body);
@@ -404,9 +370,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * What a storage image declaration names, as Iris's IrisImages registers them: a pack image,
-         * {@code colorimgN} where the compute registers targets (a shadowcomp compute does not), or
-         * {@code shadowcolorimgN} for any compute that declares one. Null for a name Iris binds nothing to.
+         * What a storage image names, as Iris's IrisImages registers it; a shadowcomp compute gets no
+         * {@code colorimgN}. Null for a name Iris binds nothing to.
          */
         private ImageUse imageUse(String name, String qualifiers, Work work) {
             PackAdvancedResourcePlan.ImageSpec pack = packImage(PackAdvancedResourcePlan.imageBySymbol(
@@ -425,9 +390,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * A pack image in its own format, or in the same-size format its layout names, as a GL image unit
-         * reinterprets it; Alpha Piscium reads its R32F uimg_r32f as layout(r32i) iimage2D. Null for a format of
-         * another size.
+         * A pack image in its own format, or in a same-size format its layout names, as a GL image unit
+         * reinterprets it. Null for a format of another size.
          */
         private static StorageForm packImageForm(PackAdvancedResourcePlan.ImageSpec pack, String qualifiers) {
             String view = AdvancedImageDeclarations.viewFormat(pack, declaredFormat(qualifiers));
@@ -445,12 +409,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * {@code colorimgN}: the target in its own format, as Iris's IrisImages binds it, with the image type its
-         * kind takes; Rethinking Voxels' prepare4 compute writes its RGBA16I colortex11 as iimage2D.
-         *
-         * A layout naming another format of the same texel size reads the target through a view, as for a pack
-         * image; Alpha Piscium's begin2_b clears its R32UI colortex9 as rgba8. Null out of range, or for a format
-         * of another size.
+         * {@code colorimgN}: the target in its own format, as Iris binds it, or through a view for a same-size
+         * format its layout names. Null out of range or for a format of another size.
          */
         private StorageForm targetImageForm(int target, String qualifiers) {
             if (target < 0 || target > PackTargetGraphPlan.MAX_TARGET) return null;
@@ -471,10 +431,7 @@ public final class PassComputePlan {
             return ShadowTargetDirectives.computeHas(index, plan.config());
         }
 
-        /**
-         * An image stored in {@code vkFormat}, as a declaration with {@code qualifiers} binds it: in
-         * its own format, or through a view in another one of its texel size; null for another size.
-         */
+        /** {@code vkFormat} as {@code qualifiers} bind it, viewed for a same-size format; null for another size. */
         private static StorageForm storageForm(int vkFormat, String qualifiers) {
             return StorageForm.of(vkFormat, declaredFormat(qualifiers));
         }
@@ -485,11 +442,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * Binds each live sampler as the pass's program would read it.
-         *
-         * A sampler the scope-aware usage analysis finds unread is inactive in GL, so it binds nothing and its
-         * declaration is dropped; Rethinking Voxels' prepare4 compute declares the specular sampler and reads only a
-         * local float of that name. A read the analysis missed would leave the name undeclared and fail the compile.
+         * Binds each live sampler as the pass's program would read it. A sampler the usage analysis finds unread is
+         * inactive in GL, so its declaration is dropped; a read it missed fails the compile.
          */
         private String bindSamplers(String body, GlslResourceUsage.Analysis usage, Work work) {
             Matcher sampler = SAMPLER_DECLARATION.matcher(body);
@@ -514,10 +468,7 @@ public final class PassComputePlan {
             return rewriteShadowLookups(result.toString(), work);
         }
 
-        /**
-         * Rewrites GL's legacy shadow lookups, such as shadow2D, for the bound sampler, as programs rewrite theirs;
-         * Rethinking Voxels' deferred1 compute calls shadow2D on shadowtex0.
-         */
+        /** Rewrites legacy shadow lookups such as shadow2D for the bound sampler, as programs do. */
         private static String rewriteShadowLookups(String body, Work work) {
             try {
                 return GlslTokenRewriter.rewriteShadowCalls(body, work.samplerTypes);
@@ -528,11 +479,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * Points each storage block at the pack buffer it names, as for programs; Iris binds {@code bufferObject.N}
-         * at index N for every program and compute.
-         *
-         * A block nothing reads is dropped. A read block stops the compute when no supported buffer serves it, when
-         * it is laid out shared or packed, which Vulkan lacks, or when it has no binding to rewrite.
+         * Points each read storage block at its {@code bufferObject.N}; a shared or packed layout, which Vulkan
+         * lacks, stops the compute.
          */
         private String bindStorageBuffers(String body, Work work) {
             List<GlslStorageBufferParser.Block> blocks;
@@ -567,8 +515,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * The compute's {@link #indirectPointer}, checked. A buffer the pack does not declare fails Iris's load, and
-         * Vulkan reads the three counts only at a multiple of 4 inside the buffer; either problem stops the compute.
+         * The compute's {@link #indirectPointer}, checked: Iris fails the load on an undeclared buffer, and Vulkan
+         * needs the offset a multiple of 4 inside the buffer.
          */
         private Indirect indirect(String name, Work work) {
             Indirect pointer = indirectPointer(plan.settings().propertyValues(), name);
@@ -598,9 +546,7 @@ public final class PassComputePlan {
                             : new Binding(name, index, Kind.PACK_IMAGE_SAMPLER, -1, null, pack.name());
                 }
                 case TARGET, DEPTH -> chainSampler(name, type, resource, index, work);
-                // a sampler2DShadow compares, as shadowtex0HW does in Iris's IrisSamplers
-                // shadowtexNHW binds only where Iris registers it, under SEPARATE_HARDWARE_SAMPLERS with hardware
-                // filtering
+                // a sampler2DShadow compares; shadowtexNHW binds only where Iris registers it
                 case SHADOW_DEPTH -> colour ? new Binding(name, index, Kind.SHADOW_DEPTH, -1, null, key)
                         : type.equals("sampler2DShadow") && ShadowTargetDirectives.bound(name, plan.config())
                         ? new Binding(name, index, Kind.SHADOW_COMPARE, -1, null, key) : null;
@@ -682,9 +628,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * The module: version 450, the source's own extensions except ARB ones, which are core, then the value
-         * block, the bindings and the body. Extension lines inside comments are skipped; Photon comments out its
-         * subgroup and half-float extensions.
+         * The module at version 450 with the source's extensions, except ARB ones, which are core. Extension lines
+         * inside comments are skipped.
          */
         private static String module(String body, Work work, List<ComputeValueBlock.Value> values) {
             StringBuilder extensions = new StringBuilder();
@@ -700,9 +645,8 @@ public final class PassComputePlan {
         }
 
         /**
-         * The declared local size, with 1 for an unspecified axis and 0 for one a constant expression sizes; the
-         * compiler folds that expression, and SpirvLocalSize reads the result from the module. Null with a deviation
-         * when there is no size layout.
+         * The declared local size: 1 for an unspecified axis, 0 for one a constant expression sizes, which
+         * SpirvLocalSize reads back from the module. Null when there is no size layout.
          */
         private static int[] localSize(String text, Work work) {
             Matcher layout = LOCAL_SIZE.matcher(text);
@@ -726,9 +670,8 @@ public final class PassComputePlan {
     }
 
     /**
-     * An {@code ivec3(x, y, z)} value as Iris's ComputeDirectiveParser reads a well-formed one; null for any other,
-     * which keeps the earlier directive. Iris logs other constructors and argument counts and reads on, but glslang
-     * rejects each of those initialisers, so no program that compiles has one.
+     * An {@code ivec3(x, y, z)} value as Iris's ComputeDirectiveParser reads it; null for any other, which keeps the
+     * earlier directive. glslang rejects the malformed ones Iris logs, so no compiling program has one.
      */
     static int[] workGroups(String value) {
         String[] parts = constructorArguments(value, "ivec3", 3);
@@ -762,7 +705,7 @@ public final class PassComputePlan {
         return parts;
     }
 
-    /** One compute's translation in progress: its bindings, generated declarations and deviations. */
+    /** One compute's translation in progress. */
     private static final class Work {
         final String name;
         final String pass;

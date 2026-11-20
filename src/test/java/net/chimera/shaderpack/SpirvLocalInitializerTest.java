@@ -20,12 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pack modules read zero from locals the authored GLSL never wrote, such as Complementary's
- * parallaxTexDepth, as on the GL drivers packs target.
- *
- * Each test compiles real GLSL, applies the initializer and checks that every plain-data function
- * variable carries an OpConstantNull of its own type, while opaque handles, initialized locals and the
- * id bound stay coherent. The same modules tell SpirvOutputWrites which output locations they write.
+ * Pack modules read zero from locals the authored GLSL never wrote, as on the GL drivers packs target.
+ * The same modules tell SpirvOutputWrites which output locations they write.
  */
 final class SpirvLocalInitializerTest {
     @Test
@@ -64,10 +60,8 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * Escheridia's composite5 returns before writing its reflection history over the sky. Under
-     * NVIDIA's GL compiler that output, like a private global read before it is written, starts
-     * at zero, so both get a null initializer declared ahead of them. The colour output main
-     * writes first, a built-in output and an input are left alone.
+     * Under NVIDIA's GL compiler an output or private global read before it is written starts at zero, so
+     * both get a null initializer; one main writes first, built-ins and inputs are left alone.
      */
     @Test
     void moduleScopeInitializers() {
@@ -118,10 +112,9 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * BSL's shadowcomp copies its light and tint colour tables into private globals at the top of
-     * main, where glslang stores a global's initializer. The zero would never be seen, and with it
-     * NVIDIA fills the tables per invocation, making the dispatch over a hundred times slower, so they
-     * keep no initializer. A global main writes only in part, or only after a call that reads it, does.
+     * A global main writes first keeps no initializer: the zero is never seen, and with it NVIDIA fills
+     * BSL's tables per invocation, over a hundred times slower. One written in part, or after a call that
+     * reads it, still gets one.
      */
     @Test
     void variablesWrittenFirst() {
@@ -155,10 +148,8 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * BSL's world programs store their light-colour table after the short-circuit test of an
-     * earlier initializer, and zeroing it first makes each terrain draw many times slower. A store
-     * that comes first on every path to every read is enough; a variable written on one path
-     * only, or an output an early return leaves unwritten, still starts at zero.
+     * A store first on every path to every read skips the zero, which slows BSL's terrain many times; a
+     * variable written on one path only, or an output an early return skips, still starts at zero.
      */
     @Test
     void storesAfterBranches() {
@@ -221,10 +212,8 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * Ebin's held light: {@code falloff} is written only inside the light's radius, and the
-     * optimizer that compiles pack modules (GlslCompiler.optimize) turns the other path's read
-     * into an OpUndef. Each plain undef must come back as a null constant with its id and type,
-     * declared ahead of every function.
+     * The optimiser turns a read on an unwritten path into an OpUndef; each plain undef must come back as a
+     * null constant with its id and type, declared ahead of every function.
      */
     @Test
     void optimizedUndefs() {
@@ -276,9 +265,8 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * BSL's value-noise hash: the arithmetic feeding sin, including the corner
-     * offset that reaches it through a function parameter, carries
-     * NoContraction ahead of the types; unrelated arithmetic keeps contraction.
+     * Arithmetic feeding sin, through a function parameter too, carries NoContraction ahead of the types;
+     * unrelated arithmetic keeps contraction.
      */
     @Test
     void trigPrecision() {
@@ -406,10 +394,8 @@ final class SpirvLocalInitializerTest {
     }
 
     /**
-     * An emit sends every output's current value as the vertex, so it reads them all: an output a
-     * geometry stage stores only after its first emit starts from zero, as GL's would, and one it
-     * stores before every emit needs no initializer. That holds for EmitStreamVertex, optimized or
-     * not, and for an emit in a helper that main calls.
+     * An emit reads every output, so an output a geometry stage stores only after its first emit starts from
+     * zero, as in GL, and one stored before every emit needs no initializer.
      */
     @Test
     void anEmitReadsEveryOutput() {
@@ -494,7 +480,7 @@ final class SpirvLocalInitializerTest {
         return compile(source, false);
     }
 
-    /** Compiles {@code source}, optimized as pack modules are when {@code optimize} is set. */
+    /** Compiles {@code source}, optimised as pack modules are when {@code optimize} is set. */
     private static ByteBuffer compile(String source, boolean optimize) {
         return compile(source, optimize, Shaderc.shaderc_glsl_fragment_shader);
     }

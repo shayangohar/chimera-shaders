@@ -33,16 +33,9 @@ import static org.lwjgl.vulkan.VK10.VK_FORMAT_UNDEFINED;
 import static org.lwjgl.vulkan.VK10.VK_NULL_HANDLE;
 
 /**
- * Pipelines for Chimera's dynamic-rendering windows.
- *
- * A variant created while a {@link ChimeraRenderingPass} is bound renders without a Vulkan render pass, into
- * the window's colour and depth formats, with one blend attachment per colour attachment
- * (WindowBlendAttachments). Each starts from the host draw's blend, the vanilla render type's as in Iris, and
- * takes the pack's blend directive for that buffer where the pipeline's MRT contract declares one. An
- * attachment whose location the pack's fragment stage never writes gets no colour writes (SpirvOutputWrites).
- *
- * A variant for one of VulkanMod's own render passes keeps its render pass and takes the pack pipeline's
- * directive for that pass's attachment, if it has one (MrtPipelineContext.hostPassBlends).
+ * Pipelines for Chimera's dynamic-rendering windows: no Vulkan render pass, and one blend attachment per
+ * colour attachment, from the host draw's blend unless the pack's MRT contract gives a directive. Locations
+ * the fragment stage never writes get no colour writes. A variant for a VulkanMod render pass keeps that pass.
  */
 @Mixin(value = GraphicsPipeline.class, remap = false)
 public abstract class GraphicsPipelineMrtMixin {
@@ -54,10 +47,7 @@ public abstract class GraphicsPipelineMrtMixin {
     @Unique
     private int chimera$hostFormat;
 
-    /**
-     * Opens the variant's pipeline-creation scope and closes it however creation ends, so a creation that
-     * throws cannot leave its contract in place for the pass's later variants.
-     */
+    /** Scopes the pipeline-creation contract, so a creation that throws cannot leave it for later variants. */
     @WrapMethod(method = "createGraphicsPipeline")
     private long chimera$variant(PipelineState state, Operation<Long> original) {
         RenderPass renderPass = ((ChimeraPipelineStateAccessor) state).chimera$renderPass();
@@ -109,8 +99,7 @@ public abstract class GraphicsPipelineMrtMixin {
                 integer[index] = IrisColorFormats.integer(formats[index]);
             }
             blends = PackBlendPlan.sharedAttachments(blends, integer);
-            // a module that writes no colour masks every attachment alike, as a depth-only shadow program
-            // such as Pixel Perfect's needs; any other mask must cover them all
+            // a depth-only module masks every attachment alike; any other mask must cover them all
             if (written != 0) written = SpirvOutputWrites.ALL;
         }
         WindowBlendAttachments.fill(attachments, blends, written, this.chimera$window.colorFormats());

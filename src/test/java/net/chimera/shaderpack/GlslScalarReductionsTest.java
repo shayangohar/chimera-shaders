@@ -10,8 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A scalar any() or all() call, which the GL compiler a pack was written against accepts, gets the
- * overload glslang lacks, as for Escheridia's any(isnan(occlusion)). A call on a vector, or a
- * reduction the source defines itself, is left alone (GlslScalarReductions).
+ * overload glslang lacks. A call on a vector, or a reduction the source defines itself, is left alone.
  */
 final class GlslScalarReductionsTest {
     private static final String ANY = "bool any(bool chimeraValue) { return chimeraValue; }";

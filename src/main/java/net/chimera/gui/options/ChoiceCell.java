@@ -8,11 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Optional;
 
-/**
- * An option with a list of values. Left click steps forward and right click back, wrapping at the ends;
- * Shift+click sets the default. From the keyboard, Shift steps back and Control resets. Values show with the
- * pack's prefix, suffix and value names.
- */
+/** An option with a list of values, stepped by click or key and wrapping at the ends. */
 class ChoiceCell extends ValueCell {
     protected final ShaderOption.Choice option;
 

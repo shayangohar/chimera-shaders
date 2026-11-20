@@ -42,10 +42,8 @@ public final class PackEntityIdResolver {
     }
 
     /**
-     * Reads entity.properties as Iris's IdMap.parseEntityIdMap does ({@link IdMapProperties}), preprocessed
-     * with the id-map {@code macros}. A later key's mapping wins over an earlier one for the same entity.
-     *
-     * The vertex attribute holds 0 to 65535; an id outside that range is reported and dropped.
+     * Reads entity.properties as Iris's IdMap.parseEntityIdMap does, with the id-map {@code macros}; a later key
+     * wins for the same entity. An id outside the vertex attribute's 0 to 65535 is reported and dropped.
      */
     public static ParseResult parse(Path shadersDir, Map<String, String> macros) {
         IdMapProperties.Loaded file = IdMapProperties.read(shadersDir, "entity.properties", macros);

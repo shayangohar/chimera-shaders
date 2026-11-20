@@ -17,24 +17,17 @@ record PackAlphaTestPlan(
 ) {
     enum Mode {
         OFF,
-        /**
-         * Each terrain layer tests against the reference the main pass sets for it: Iris's 0.1 for its cutout
-         * pass, none for solid and translucent, as SodiumPrograms.getAlphaTest gives them.
-         */
+        /** Per terrain layer: 0.1 for cutout, none for solid and translucent (Iris: SodiumPrograms.getAlphaTest). */
         DYNAMIC_TERRAIN,
         /** Each entity-family draw tests against its host pipeline's ALPHA_CUTOUT. */
         DYNAMIC_ENTITY,
         /**
-         * Each shadow terrain layer tests against the reference the shadow pass sets for it: Iris's 0.1 for its
-         * cutout pass, none for solid and translucent. VulkanMod's cutout_mipped layer holds solid blocks too,
-         * which take the 0.1 with the cutout ones; their opaque texels pass. Without the test every foliage quad
-         * casts a square shadow. Entity casters test at 0.1, as Iris's SHADOW_ENTITIES_CUTOUT.
+         * Per shadow terrain layer, as in the main pass. VulkanMod's cutout_mipped layer holds solid blocks too,
+         * whose opaque texels pass the 0.1; without the test foliage casts square shadows. Entity casters test at
+         * 0.1, as Iris's SHADOW_ENTITIES_CUTOUT.
          */
         DYNAMIC_SHADOW,
-        /**
-         * Each sky draw tests against its host format's Iris ShaderKey, NON_ZERO_ALPHA for SKY_BASIC_COLOR and
-         * none for SKY_BASIC; ChimeraSkyBridge sets it per draw.
-         */
+        /** Per sky draw from its Iris ShaderKey: NON_ZERO_ALPHA for SKY_BASIC_COLOR, none for SKY_BASIC. */
         DYNAMIC_SKY,
         FIXED
     }
@@ -88,8 +81,7 @@ record PackAlphaTestPlan(
         if (FamilyAdapterRegistry.isShadowFamily(name)) {
             return new PackAlphaTestPlan(Mode.DYNAMIC_SHADOW, "DYNAMIC", 0.0F, false, List.of());
         }
-        // Iris tests entity programs against the render type's own threshold, iris_currentAlphaTest; packs
-        // rely on it to drop the transparent texels of layered skins and cutout models
+        // Iris tests entity programs against the render type's own threshold, which layered skins rely on;
         // the lane passes the other families' references per draw: ONE_TENTH_ALPHA for TEXT_BG and
         // TEXTURED_COLOR, NON_ZERO_ALPHA for TEXTURED
         if (FamilyAdapterRegistry.isEntityLike(name)
@@ -110,13 +102,10 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * Appends the program's alpha test to the authored fragment before its interface is planned, as Iris does.
-     * A per-draw test declares its reference uniform, so the ordinary descriptor contract carries it.
-     *
-     * Iris tests only gl_FragData[0], indexed by a literal, or gl_FragColor, which CommonTransformer renames to
-     * it; a fragment writing neither is left unchanged. With {@code vertexAlpha} a negative reference tests
-     * against the vertex colour's alpha instead, as Iris's AlphaTests.VERTEX_ALPHA does; the entity vertex
-     * bridge forwards that alpha as {@link #VERTEX_ALPHA_VARYING}.
+     * Appends the program's alpha test to the authored fragment before its interface is planned, so the
+     * descriptor contract carries a per-draw reference uniform. Iris tests only gl_FragData[0] or gl_FragColor;
+     * a fragment writing neither is left unchanged. With {@code vertexAlpha} a negative reference tests the
+     * vertex colour's alpha, as Iris's AlphaTests.VERTEX_ALPHA does.
      */
     String injectDrawTest(String fragment, boolean vertexAlpha) {
         if (fragment == null || !active()
@@ -138,12 +127,8 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * Gives a stage's {@code alphaTestRef} the program's current alpha-test reference, as Iris does. Its core
-     * transformers rename the name to iris_currentAlphaTest, which IrisInternalUniforms serves from
-     * CapturedRenderingState; ExtendedShader and SodiumShader set that to the program's AlphaTest reference.
-     *
-     * The declaration goes, and each use reads the per-draw reference, the fixed one, or 0 for a program Iris
-     * tests with AlphaTest.ALWAYS. Iris's VERTEX_ALPHA reference reads as Float.MAX_VALUE.
+     * Gives a stage's {@code alphaTestRef} the program's alpha-test reference, as Iris's iris_currentAlphaTest
+     * does; 0 for a program Iris tests with AlphaTest.ALWAYS, Float.MAX_VALUE for VERTEX_ALPHA.
      */
     String serveReference(String source) {
         String perDraw = UniformRegistry.ENTITY_ALPHA_REFERENCE;
@@ -170,9 +155,8 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * Whether the fragment names gl_FragData[0] outside comments, its index an integer literal whose
-     * value is 0, as CommonTransformer's glFragDataI matcher reads it: {@code 0u}, {@code 0x0} and
-     * {@code 00} count.
+     * Whether the fragment names gl_FragData[0] outside comments, any integer literal of value 0 counting, as
+     * Iris's CommonTransformer reads it.
      */
     private static boolean indexesFragDataZero(String fragment) {
         List<GlslLexer.Token> tokens = GlslLexer.lex(fragment).stream().filter(GlslLexer.Token::significant).toList();
@@ -197,11 +181,9 @@ record PackAlphaTestPlan(
     }
 
     /**
-     * The test {@code alphaTest.<program>} sets, as Iris's ShaderProperties reads it: exactly
-     * "off" or "false" tests nothing; otherwise a function (Iris's names, or GL_ALWAYS) and a
-     * reference, split on single spaces, where a third part is ignored. A directive Iris rejects,
-     * with too few parts, an unknown function or a reference Float.parseFloat refuses, leaves the
-     * key's own test in place and is named.
+     * The test {@code alphaTest.<program>} sets, as Iris's ShaderProperties reads it: "off" or "false" tests
+     * nothing, else a function and a reference split on single spaces. A directive Iris rejects keeps the
+     * key's own test and is named.
      */
     private static PackAlphaTestPlan parse(String programName, String authored, PackAlphaTestPlan irisDefault) {
         String value = authored.stripLeading();

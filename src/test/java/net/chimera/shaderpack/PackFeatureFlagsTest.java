@@ -41,11 +41,7 @@ final class PackFeatureFlagsTest {
                 "mc_chunkFade does not exist, so packs must not take its path");
     }
 
-    /**
-     * Ebin declares its flood-fill light volume, and reversed shadow culling, under
-     * IRIS_FEATURE_CUSTOM_IMAGES. Iris defines every usable flag while it reads shaders.properties,
-     * listed or not; without this one Ebin loses its coloured block light.
-     */
+    /** Iris defines every usable feature flag while it reads shaders.properties, listed or not. */
     @Test
     void shadersPropertiesSeesCustomImages(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("shaders.properties"), """

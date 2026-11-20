@@ -3,9 +3,8 @@
 package net.chimera.shaderpack;
 
 /**
- * The deviation names a program's vertex bridge reports. The generic {@code _BRIDGE_UNSUPPORTED}
- * code drives severity routing; the {@code _CONVERSION_FAILED:<reason>} code beside it names the
- * first concrete failure and never matches a severe prefix.
+ * Vertex bridge deviation names. {@code _BRIDGE_UNSUPPORTED} drives severity routing; the
+ * {@code _CONVERSION_FAILED:<reason>} beside it names the first failure and never matches a severe prefix.
  */
 final class VertexBridgeDeviations {
     private VertexBridgeDeviations() {}

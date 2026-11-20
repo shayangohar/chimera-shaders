@@ -25,25 +25,14 @@ import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SH
 import static org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
 /**
- * Holds the colour targets a post pass or hand program stores to as colorimgN (TargetImages) in the general
- * layout for its draws. For a pass these are the images the chain reads at that point
- * (PackPostTargets.storageSource), as a pass compute binds them; for the hand, the images world programs read
- * (PackPostTargets.worldStorageImage).
- *
- * Iris binds the target's texture to an image unit, which needs no layout in GL. VulkanMod's tracked
- * transitions handle only sampled images and throw on one in GENERAL ("Unexpected value:1"), so each image
- * goes back to the sampled layout after the draws. For the same reason PackPostTargets holds a pass's targets
- * only once its output copies are recorded, just before the draw opens, and releases them as it closes;
- * Rethinking Voxels' prepare2 copies a colortex3 it also stores to. The hand's targets are held before its
- * lane run opens and released when the run ends (PackFamilyWindows.drawRun).
+ * Holds the colour targets a post pass or hand program stores to as colorimgN in the general layout for its
+ * draws. VulkanMod's tracked transitions throw on an image in GENERAL ("Unexpected value:1"), so each goes
+ * back to the sampled layout after the draws, and is held only after any copies of it are recorded.
  */
 final class PostTargetStorage {
     private final List<VulkanImage> held = new ArrayList<>();
 
-    /**
-     * Stages that may store to a held target, including a hand's tessellation and geometry stages where the
-     * device has them; a barrier may not name a stage the device lacks.
-     */
+    /** Stages that may store to a held target; a barrier may not name a stage the device lacks. */
     private static int shaderStages() {
         return VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
                 | (DeviceManager.isTessellationEnabled() ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT
@@ -59,10 +48,7 @@ final class PostTargetStorage {
         return this.held.contains(image);
     }
 
-    /**
-     * Moves each stored target's image, as {@code images} resolves it, into the general layout after every
-     * earlier use. A target already held stays as it is. Recorded outside a render pass.
-     */
+    /** Moves each stored target's image into the general layout after every earlier use; outside a render pass. */
     void begin(VkCommandBuffer commandBuffer, IntFunction<VulkanImage> images, List<Integer> stored) {
         if (stored.isEmpty()) return;
         try (MemoryStack stack = MemoryStack.stackPush()) {

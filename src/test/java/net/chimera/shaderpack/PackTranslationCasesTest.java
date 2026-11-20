@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Translation cases real packs depend on, each shown in a pack that has it. */
 final class PackTranslationCasesTest {
     /**
-     * Kappa names a parameter after its lightDir uniform; the parameter and a local hide the uniform.
-     * A struct member and a prototype's parameter are declarations, never references to the global.
+     * A parameter or local named like a uniform hides it; a struct member or prototype parameter is a
+     * declaration, never a reference to the global.
      */
     @Test
     void aDeclarationNamedLikeAUniformHidesIt() {
@@ -68,10 +68,8 @@ final class PackTranslationCasesTest {
     }
 
     /**
-     * Noble passes gl_FragDepth to its shadow lookup and never writes it. GL compiles the read;
-     * Vulkan's validator rejects FragDepth without DepthReplacing, which glslang declares only for a
-     * write. A read of an unwritten one reads the rasterized depth; a shader that may write it keeps
-     * its reads, and a redeclaration stays.
+     * Vulkan's validator rejects FragDepth without DepthReplacing, which glslang declares only for a write,
+     * so a read of an unwritten gl_FragDepth reads the rasterised depth; one that may be written keeps its reads.
      */
     @Test
     void anUnwrittenFragDepthReadsTheRasterizedDepth() {
@@ -186,9 +184,8 @@ final class PackTranslationCasesTest {
     }
 
     /**
-     * NVIDIA's GL compiler takes any(isnan(f) || isinf(f)) on a float, so Iris loads it.
-     * VectorLogicalOperators turns it into an or of any() calls, each on a scalar, which compile only
-     * with the scalar overloads.
+     * NVIDIA's GL compiler takes any(isnan(f) || isinf(f)) on a float; VectorLogicalOperators splits it into
+     * any() calls on scalars, which need the scalar overloads.
      */
     @Test
     void reductionsOverAnOrOfScalarTestsGetScalarOverloads() {
@@ -208,8 +205,7 @@ final class PackTranslationCasesTest {
     }
 
     /**
-     * Mellow writes its own Normal, which the entity preamble also declares, and its own Tangent.
-     * Iris binds no attribute named Tangent, so the pack's name is its own and an input of that
+     * Pack outputs named like host inputs are renamed; Iris binds no Tangent attribute, so an input of that
      * name reads GL's unbound default.
      */
     @Test
@@ -279,11 +275,7 @@ final class PackTranslationCasesTest {
         assertEquals(List.of(3), parsed.plan().targetSlots(), parsed.deviations().toString());
     }
 
-    /**
-     * RenderPearl writes its deferred-ignore flag to colortex2.y as {@code layout(location = 1,
-     * component = 1) out uint}. The generated output keeps the component; without it the flag lands
-     * in .x and deferred lights the beacon beam black.
-     */
+    /** A modern output keeps its layout component, or RenderPearl's flag in colortex2.y would land in .x. */
     @Test
     void aModernOutputKeepsItsComponent() {
         String source = """
@@ -307,11 +299,8 @@ final class PackTranslationCasesTest {
     }
 
     /**
-     * Every format in Iris's InternalTextureFormat list has a target image, the integer ones too, such
-     * as superDuperVanilla's RGB16_SNORM colortex1 and Noble's RGBA32UI one. Insanity's RGB16 and
-     * Bloop's R16 are 16-bit UNORM images, and RGB16 pads its alpha. Signed normalized formats are
-     * SNORM images, so a write clamps to [-1, 1]; stored as RGBA16F, Rethinking Voxels' RGBA8_SNORM
-     * colortex5 makes reflections brighter than Iris's.
+     * Every format in Iris's InternalTextureFormat list has a target image, integer ones included. RGB16 is
+     * 16-bit UNORM with padded alpha, and SNORM formats stay SNORM so a write clamps to [-1, 1].
      */
     @Test
     void everyIrisColourFormatHasATarget(@TempDir Path root) throws IOException {
@@ -426,10 +415,7 @@ final class PackTranslationCasesTest {
                 "colortex1 does not clear");
     }
 
-    /**
-     * Iris gives every gbuffers program depthtex0, depthtex1 and depthtex2. superDuperVanilla's
-     * gbuffers_block reads depthtex0 for its end portal's depth.
-     */
+    /** Iris gives every gbuffers program depthtex0, depthtex1 and depthtex2. */
     @Test
     void entityFamilyProgramsReadEveryDepthTexture(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -474,7 +460,7 @@ final class PackTranslationCasesTest {
                 "two nested packs stay ambiguous");
     }
 
-    /** Mellow, RedHat and Sildur's sample noisetex without texture.noise: Iris generates it. */
+    /** A pack that samples noisetex without texture.noise gets Iris's generated noise. */
     @Test
     void aPackWithoutTextureNoiseSamplesGeneratedNoise(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -530,10 +516,7 @@ final class PackTranslationCasesTest {
         assertFalse(PassComputePlan.isPassComputeProgram("final"));
     }
 
-    /**
-     * Reverie's shadow lanes and Mellow's entities write their own Normal, a name the entity-style
-     * preambles declare. The plan renames it in both stages, so the varying keeps its pair.
-     */
+    /** A varying named like a preamble input, such as Normal, is renamed in both stages so it keeps its pair. */
     @Test
     void aVaryingNamedLikeAHostInputIsRenamedInBothStages(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -555,10 +538,7 @@ final class PackTranslationCasesTest {
                 && entities.convertedVertex().contains("chimera_pack_Normal"), entities.convertedFragment());
     }
 
-    /**
-     * Alpha Piscium writes out uint frag_materialID and reads it flat. Since GLSL 4.40 the
-     * fragment's interpolation decides, and an integer vertex output needs no flat.
-     */
+    /** Since GLSL 4.40 the fragment's interpolation decides, so an integer vertex output needs no flat. */
     @Test
     void anEntityVaryingTakesTheFragmentsInterpolation(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -578,11 +558,7 @@ final class PackTranslationCasesTest {
         assertTrue(entities.executable(), entities.deviations().toString());
     }
 
-    /**
-     * Kappa's translucent program declares its outputs out of location order, translucentColor
-     * first at location 2. Numbered in declaration order, the glass colour would write colortex1 and
-     * the normals colortex2, and composite would draw stained glass black.
-     */
+    /** A fragment output keeps its declared location, not its declaration order (Kappa declares location 2 first). */
     @Test
     void aFragmentOutputKeepsItsDeclaredLocation(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -627,10 +603,7 @@ final class PackTranslationCasesTest {
         assertTrue(removed.contains("const bool clear = false;"), removed);
     }
 
-    /**
-     * Glimmer's and Reverie's entities include their storage blocks, laid out std430, and Reverie
-     * declares a sampler named image0Sampler. Neither is a pack-authored vertex layout or an image.
-     */
+    /** An entity vertex's std430 storage blocks and a sampler named image0Sampler are neither layout nor image. */
     @Test
     void anEntityVertexKeepsItsStorageBlocksAndImageNamedSamplers() {
         String vertex = """
@@ -647,11 +620,7 @@ final class PackTranslationCasesTest {
         assertTrue(refused.getMessage().contains("unsupported entity vertex"), refused.getMessage());
     }
 
-    /**
-     * Escheridia's vertex and fragment stages include one header declaring entityColor. Iris deletes
-     * the uniform from every stage; a vertex copy left in the shared block would clash with the
-     * fragment's global.
-     */
+    /** Iris deletes entityColor from every stage; a vertex copy left in the shared block would clash. */
     @Test
     void anEntityVertexLosesTheEntityColorItDoesNotRead(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -679,10 +648,7 @@ final class PackTranslationCasesTest {
         assertFalse(entities.convertedVertex().contains("entityColor"), entities.convertedVertex());
     }
 
-    /**
-     * Shrimple's entity fragment reads the entityId uniform and also names a parameter entityId
-     * (GetSceneEntityLightColor(const in int entityId)). Only the uniform becomes the varying.
-     */
+    /** Only the entityId uniform becomes the varying; a parameter of that name stays as it is. */
     @Test
     void aParameterNamedEntityIdKeepsItsName(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -714,10 +680,7 @@ final class PackTranslationCasesTest {
                 textBackground.deviations() + "\n" + hostFragment);
     }
 
-    /**
-     * Escheridia's programs share a header declaring textures most of them never read. GL leaves
-     * such a sampler inactive, so one with no slot is dropped rather than refused.
-     */
+    /** GL leaves an unread sampler inactive, so one with no slot is dropped rather than refused. */
     @Test
     void anUnreadSamplerWithoutASlotIsInactive(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectories(root.resolve("shaders"));

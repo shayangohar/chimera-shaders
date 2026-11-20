@@ -16,10 +16,8 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@code blend.<program>} outside the world programs, as Iris 1.21.1 applies it: CompositeRenderer gives
- * a begin, prepare, deferred or composite pass its program-level mode on every buffer and ignores
- * per-buffer directives; FinalPassRenderer always draws unblended; shadow programs blend each
- * buffer as directed over their ProgramId default, blending off.
+ * {@code blend.<program>} outside the world programs, as Iris 1.21.1 applies it: a pass takes its
+ * program-level mode on every buffer and final never blends. Shadow programs blend each buffer as directed.
  */
 final class PassBlendDirectiveTest {
     private static final PackBlendPlan.Mode ADD = PackBlendPlan.parse("ONE ONE ONE ONE");
@@ -98,9 +96,8 @@ final class PassBlendDirectiveTest {
     }
 
     /**
-     * A pipeline drawn into VulkanMod's render pass (no attachment contract) takes its program's
-     * directive for that pass's one attachment, colortex0, as Iris's BlendModeOverride does. Kappa's
-     * glint draws SRC_ALPHA ONE ZERO ONE there, not vanilla's SRC_COLOR, ONE.
+     * A pipeline drawn into VulkanMod's render pass takes its program's directive for that pass's one
+     * attachment, colortex0, as Iris's BlendModeOverride does.
      */
     @Test
     void aHostPassPipelineTakesItsDirectiveForColortex0() {

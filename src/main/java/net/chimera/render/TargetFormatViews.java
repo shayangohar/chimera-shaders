@@ -15,16 +15,14 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_VIEW_TYPE_2D;
 import static org.lwjgl.vulkan.VK10.vkDestroyImageView;
 
 /**
- * Views of target images in other formats of the same texel size, for a storage binding that declares one.
- * GL leaves a format qualifier that differs from the image unit's format undefined, but NVIDIA and Mesa
- * drivers read the same bits through the format the shader names, and Alpha Piscium's begin2_b clears its
- * R32UI colortex9 as rgba8. Such a target is created mutable (ChimeraMutableImageMixin) and owns one storage
- * view per extra format until it is freed.
+ * Storage views of target images in other formats of the same texel size. GL leaves a mismatched format qualifier
+ * undefined, but NVIDIA and Mesa read the same bits through the shader's format, and packs rely on it. Such a
+ * target is created mutable (ChimeraMutableImageMixin).
  */
 public final class TargetFormatViews {
     /** Per thread, since MemoryManager.createImage is shared and only this thread's allocation is the target. */
     private static final AllocationScope<Boolean> MUTABLE = new AllocationScope<>();
-    // render thread only: targets are created, bound and freed while the frame is recorded
+    // render thread only
     private static final Map<VulkanImage, Map<Integer, Long>> VIEWS = new IdentityHashMap<>();
 
     private TargetFormatViews() {}
@@ -34,7 +32,7 @@ public final class TargetFormatViews {
         return MUTABLE.current() != null;
     }
 
-    /** The image {@code create} allocates, mutable with a storage view in each of {@code formats} but its own. */
+    /** Mutable, with a storage view in each of {@code formats} but its own. */
     static VulkanImage create(Supplier<VulkanImage> create, int format, Set<Integer> formats) {
         Map<Integer, Long> views = new TreeMap<>();
         boolean mutable = formats.stream().anyMatch(view -> view != format);
@@ -47,7 +45,7 @@ public final class TargetFormatViews {
                 }
             }
         } catch (RuntimeException failure) {
-            // nothing has recorded a use of the new image yet, so it and its views can go now
+            // nothing has recorded a use of the new image yet
             views.values().forEach(view -> vkDestroyImageView(Vulkan.getVkDevice(), view, null));
             image.free();
             throw failure;
@@ -56,7 +54,7 @@ public final class TargetFormatViews {
         return image;
     }
 
-    /** The view a storage binding reads {@code image} through in {@code format}: its level-0 view in its own. */
+    /** The level-0 view in the image's own format. */
     static long storageView(VulkanImage image, int format) {
         Map<Integer, Long> views = VIEWS.get(image);
         Long view = views == null ? null : views.get(format);
@@ -64,9 +62,8 @@ public final class TargetFormatViews {
     }
 
     /**
-     * Frees {@code image} and the views it owns once every recorded use has finished on the GPU
-     * (HandleRetirement). MemoryManager.initFrame frees retired images before it runs frame ops, so
-     * an image with views is handed to VulkanMod's free after its views are destroyed.
+     * An image with views is freed once every recorded use has finished, after its views, since
+     * MemoryManager.initFrame frees retired images before it runs frame ops.
      */
     static void free(VulkanImage image) {
         Map<Integer, Long> views = VIEWS.remove(image);

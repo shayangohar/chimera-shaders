@@ -12,19 +12,10 @@ import java.util.Set;
 import static org.lwjgl.vulkan.VK10.VK_FRONT_FACE_CLOCKWISE;
 
 /**
- * Render passes whose images keep GL's bottom-up row order.
- *
- * VulkanMod rasterises with a negative-height viewport, so its images are stored top-down and gl_FragCoord.y
- * counts from the top. Iris packs rebuild view rays and shadow lookups with GL conventions (screen and
- * shadow-map v are 0 at the bottom), so Chimera's world and pack-shadow raster passes store GL-oriented images
- * instead: a positive viewport, an unflipped scissor and the mirrored front face. Fullscreen passes keep
- * VulkanMod's viewport, since they copy rows between images that already share an orientation. One flip moves
- * the world into the host-oriented output.
- *
- * Reforged 0.3.5 tracks a viewport it inverts itself (Renderer.isRasterRowsBottomUp) and mirrors the scissor
- * and front face for it. Chimera unflips below that, at vkCmdSetViewport and vkCmdSetScissor
- * (ChimeraRasterOrientationMixin), so VulkanMod sees its usual top-down rows in these passes and Chimera
- * mirrors the face (ChimeraPipelineFrontFaceMixin).
+ * Render passes whose images keep GL's bottom-up row order, since Iris packs rebuild view rays and shadow
+ * lookups with GL conventions. Fullscreen passes keep VulkanMod's top-down viewport; one flip moves the world
+ * into the host-oriented output. Chimera unflips at vkCmdSetViewport and vkCmdSetScissor, below Reforged's own
+ * inversion, so VulkanMod sees its usual rows.
  */
 public final class ChimeraRasterOrientation {
     private static final Set<RenderPass> GL_ORIENTED =

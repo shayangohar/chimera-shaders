@@ -91,8 +91,7 @@ final class AdvancedImagePlanTest {
 
     /**
      * A relative image whose refit allocation fails keeps its old image, and is not tried again
-     * while the screen keeps the failed size. Any other size drops the failure, the image's own
-     * included, so 1080p, a failed 4K, back to 1080p and to 4K again retries the 4K image.
+     * while the screen keeps the failed size; any other size drops the failure.
      */
     @Test
     void aFailedRefitIsRetriedOnceTheScreenLeavesTheFailedSize() {
@@ -104,10 +103,7 @@ final class AdvancedImagePlanTest {
         assertEquals(null, PackAdvancedImageOwner.keptFailure(back, "3840x2160"), "so the failed size is tried again");
     }
 
-    /**
-     * A custom image takes any InternalTextureFormat Iris knows (ShaderProperties, GlImage), such as
-     * Pegasus's R32UI and RGBA8 images.
-     */
+    /** A custom image takes any InternalTextureFormat Iris knows (ShaderProperties, GlImage). */
     @Test
     void imageFormatsFollowIris() {
         PackAdvancedResourcePlan.ImageSpec integer = AdvancedImageDeclarations.parseImage("image.cimage1a",
@@ -133,7 +129,7 @@ final class AdvancedImagePlanTest {
 
     /**
      * Iris's ShaderProperties reads 7, 8 or 9 values as a 1D, 2D or 3D image, and a relative image as
-     * 2D at a share of the screen (GlImage.Relative). Reverie's composites read its screen-sized images.
+     * 2D at a share of the screen (GlImage.Relative).
      */
     @Test
     void imagesOfEveryIrisShape(@TempDir Path root) throws Exception {
@@ -201,10 +197,7 @@ final class AdvancedImagePlanTest {
                 && !settings.propertyValues().containsKey("image.n00"), settings.deviations().toString());
     }
 
-    /**
-     * Iris creates custom images whatever programs the pack has and runs each program on its own.
-     * Pegasus's gbuffers programs read an image that only its prepare computes write.
-     */
+    /** Iris creates custom images whatever programs the pack has, so a program may read one only a compute writes. */
     @Test
     void imagesServeEachProgramWithoutAShadowcomp(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -243,11 +236,8 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * A storage image nothing reads is inactive, as GL leaves it, and its declaration is dropped
-     * (Pegasus's gbuffers declare cimage3_colored_light, which only voxelizing writes). So is one
-     * only a helper main never calls reads: GL compiles the helper away, and Iris binds no
-     * inactive image (Rethinking Voxels' composite7). The stage goes to the converters without
-     * that helper, on the same lines.
+     * A storage image nothing reads is inactive, as GL leaves it, and its declaration is dropped; so is
+     * one read only by a helper main never calls. The stage keeps its lines without that helper.
      */
     @Test
     void anImageOnlyADeadHelperReadsIsDroppedAsAnUnreadOne(@TempDir Path root) throws Exception {
@@ -320,8 +310,7 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * Glimmer's header declares its multiple-scattering LUT's sampler in every program, and only its
-     * compute passes read it, so no program Chimera runs gives it a slot. A program that only
+     * A sampler every program declares but only computes read gets no slot; a program that only
      * declares it leaves it inactive and runs, as under GL.
      */
     @Test
@@ -343,11 +332,7 @@ final class AdvancedImagePlanTest {
                 plan.program("composite").deviations().toString());
     }
 
-    /**
-     * Shrimple's composite18 keeps {@code //layout(r32f) uniform readonly image2D imgDepthNear;} in a
-     * comment. With MATERIAL_SPECULAR=0 no program reads the image, so it gets no slot, and the
-     * commented declaration must not refuse a pass (ADVANCED_IMAGE_UNSERVED) that Iris runs.
-     */
+    /** A commented-out image declaration must not refuse a pass (ADVANCED_IMAGE_UNSERVED) that Iris runs. */
     @Test
     void aCommentedImageDeclarationDeclaresNothing(@TempDir Path root) throws Exception {
         Path shaders = Files.createDirectories(root.resolve("shaders"));
@@ -395,9 +380,8 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * Alpha Piscium's water declares its R32F image r32i for integer atomics, which a GL image unit
-     * reads as the same bits. The program binds a view of that format; one of another texel size
-     * has no such reading and is refused.
+     * An R32F image declared r32i for atomics binds a view of that format, as a GL image unit reads the
+     * same bits; a format of another texel size is refused.
      */
     @Test
     void anImageReadThroughAnotherFormatOfItsSizeBindsThatView(@TempDir Path root) throws Exception {
@@ -458,9 +442,8 @@ final class AdvancedImagePlanTest {
     }
 
     /**
-     * The budget fixture's plan, which admits both images and keeps compute. Its 512^3 RGBA16F image,
-     * 1 GiB, is the size of Rethinking Voxels' distanceFieldI at VX_VOL_SIZE=3, and Iris creates any
-     * size the driver takes.
+     * The budget fixture's plan, which admits both images, a 1 GiB one included, and keeps compute;
+     * Iris creates any size the driver takes.
      */
     private static PackAdvancedResourcePlan budgetIsolationPlan(Path budgetPath) {
         assertTrue(Files.isDirectory(budgetPath), "budget fixture is missing");

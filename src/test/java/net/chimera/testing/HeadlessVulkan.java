@@ -44,9 +44,8 @@ public final class HeadlessVulkan {
     }
 
     /**
-     * Wraps the created instance {@code handle} as the game does: on a thread with a 4 MB
-     * MemoryStack. VkInstance lists every device's extensions on the stack, and two GPUs outgrow
-     * LWJGL's 64 KB default.
+     * Wraps the created instance {@code handle} on a thread with a 4 MB MemoryStack, as the game does; two
+     * GPUs' extension lists outgrow LWJGL's 64 KB default.
      */
     public static VkInstance instance(long handle, VkInstanceCreateInfo create) {
         CompletableFuture<VkInstance> instance = new CompletableFuture<>();
@@ -61,10 +60,7 @@ public final class HeadlessVulkan {
         return instance.join();
     }
 
-    /**
-     * A headless device on the first GPU, with one queue that does what {@code queueFlags} asks, one
-     * resettable command buffer and a fence. It never starts Minecraft or touches VulkanMod's device.
-     */
+    /** A headless device on the first GPU, apart from Minecraft and VulkanMod's device. */
     public static final class Device implements AutoCloseable {
         private VkInstance instance;
         private VkPhysicalDevice physical;

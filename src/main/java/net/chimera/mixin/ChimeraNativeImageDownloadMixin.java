@@ -14,11 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * NativeImage.downloadTexture reads the level asked for, only as much of it as the image holds. F3 + S dumps
- * each texture atlas one mip level at a time (TextureUtil.writeAsPNG), into an image of that level's size.
- * Reforged's overwrite (MNativeImage) copies the whole level whatever the image holds, and throws for a
- * level the texture lacks. Any level but 0, or an image of another size than the texture, is read here
- * instead; VulkanMod serves the remaining case correctly.
+ * Reads a texture level other than 0, or into an image of another size, as F3 + S does per atlas mip level.
+ * Reforged's overwrite copies the whole level whatever the image holds, and throws for a missing level.
  */
 @Mixin(NativeImage.class)
 public abstract class ChimeraNativeImageDownloadMixin {

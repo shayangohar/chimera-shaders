@@ -21,10 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The extra elements a family builder's vertices carry, through the hooks {@link FamilyBuilderHarness} applies:
- * ids and defaults as each vertex starts, then each polygon's mid-texture coordinate, tangent and level face
- * normal. Computed tangents, normals and mid coordinates may differ from the reference by one in a packed byte
- * or by one ulp; ids, defaults and every untouched byte must match exactly.
+ * The extra elements a family builder's vertices carry, through the hooks {@link FamilyBuilderHarness} applies.
+ * Computed values may differ from the reference by one in a packed byte or by one ulp; ids, defaults and every
+ * untouched byte must match exactly.
  */
 final class FamilyVertexWriterTest {
     /** A family format's stride and offsets; normal is -1 where the format has none. */

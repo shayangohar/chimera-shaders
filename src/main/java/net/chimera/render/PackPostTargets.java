@@ -44,12 +44,8 @@ import static org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 import static org.lwjgl.vulkan.VK10.vkCmdSetScissor;
 
 /**
- * Runs the pack's target graph on the render thread. The load-time flip plan decides which side of each
- * target a pass, the world and final read and write (PostTargetSides); this class makes the images and
- * records the copies and clears the plan asks for.
- *
- * Whether a target holds valid content is tracked apart from its images, so a skipped pass cannot expose a
- * cleared or stale image to a later pass.
+ * Runs the pack's target graph: makes the images and records the copies and clears the flip plan asks for
+ * (PostTargetSides). Validity is tracked apart from the images, so a skipped pass cannot expose a stale one.
  */
 public final class PackPostTargets {
     private static final Logger LOGGER = LoggerFactory.getLogger("chimera");
@@ -87,11 +83,7 @@ public final class PackPostTargets {
     /** The flip plan's step the frame is at (beginStep). */
     private PackFlipPlan.Step currentFlipStep;
 
-    /**
-     * Installs the graph and allocates the sides it needs: main for each target, and alt when the flip plan
-     * flips or writes it. A target a compute or post pass stores to also allows storage, in each format it is
-     * bound in. The first frame clears every side.
-     */
+    /** Installs the graph and allocates the sides it needs, alt only where the flip plan uses it. */
     public boolean configure(PackTargetGraphPlan graph, Map<Integer, Set<Integer>> storageTargets) {
         trace("configure begin oldTarget0=" + imageId(this.images[0][0])
                 + " oldTarget0Alt=" + imageId(this.images[1][0]));
@@ -131,12 +123,7 @@ public final class PackPostTargets {
         return true;
     }
 
-    /**
-     * Starts a frame: Iris's clears and its copy-back of last frame's flipped, uncleared targets
-     * (PostTargetSides.beginFrame), with colortex0 cleared to {@code colortex0Clear}. Recorded
-     * before the world target opens; the main pass then clears the HDR image to the same colour
-     * when colortex0 is cleared.
-     */
+    /** Starts a frame with Iris's clears and copy-backs; recorded before the world target opens. */
     public void beginFrame(VkCommandBuffer commandBuffer, VulkanImage hdrColor, float[] colortex0Clear) {
         if (!this.configured || this.graph == null) {
             throw new IllegalStateException("pack target graph is not configured");
@@ -157,9 +144,8 @@ public final class PackPostTargets {
                 hdrColor.transitionImageLayout(stack, commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
             }
         }
-        // every target opens the frame readable, as under Iris, which samples whatever a target holds
-        // a target a skipped pass invalidated last frame must be readable again, or a pass reading its own
-        // history, such as TAA, would fall back on every frame after one missing input
+        // every target opens the frame readable, as in Iris; otherwise a pass reading its own history, such as
+        // TAA, would fall back on every frame after one missing input
         for (int target = 0; target < TARGET_COUNT; target++) {
             if (!this.used[target]) continue;
             this.valid[target] = true;
@@ -173,11 +159,7 @@ public final class PackPostTargets {
         this.temporal.requireFrameStarted();
     }
 
-    /**
-     * Whether colortex0 carries over from the last frame (colortex0Clear=false), as under Iris. The world
-     * target must then open loading the HDR image, which beginFrame left holding the colortex0 side the world
-     * draws first.
-     */
+    /** Whether colortex0 carries over from the last frame (colortex0Clear=false); the world target then loads it. */
     public boolean carriesColortex0() {
         return this.configured && this.sides.carriesColortex0();
     }
@@ -211,11 +193,7 @@ public final class PackPostTargets {
         }
     }
 
-    /**
-     * Copies each written target the window also samples, and makes the copy what it samples. A
-     * target a skipped pass dropped is copied from the image it holds, which is the window's
-     * attachment: its world programs read it (worldImages), and must not read what they draw into.
-     */
+    /** Copies each written target the window also samples and points its reads at the copy. */
     private void snapshotOutputs(VkCommandBuffer commandBuffer, List<Integer> outputTargets,
                                  List<Integer> snapshotTargets) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -241,8 +219,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Attachments in fragment output order: colortex0's is the HDR image, every other target's the side the
-     * world's flip state names, which Iris's gbuffers both read and write (RenderTargets.createGbufferFramebuffer).
+     * Attachments in fragment output order: the HDR image for colortex0, else the world's side
+     * (Iris: RenderTargets.createGbufferFramebuffer).
      */
     public List<VulkanImage> geometryAttachments(List<Integer> outputTargets) {
         if (outputTargets == null || outputTargets.isEmpty()) return List.of();
@@ -274,12 +252,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Returns to the world after {@code window}'s pass group (BEGIN, PREPARE or EARLY). The group's steps that
-     * did not run pass through, and the state becomes the one Iris's gbuffers read and write. colortex0's side
-     * is written back into the HDR image, since Iris has one colortex0 for the whole frame
-     * (PostTargetSides.enterWorld).
-     *
-     * The HDR image is in the sampled layout here; the caller reopens it as the world target.
+     * Returns to the world after {@code window}'s pass group, writing colortex0's side back into the HDR image,
+     * as Iris has one colortex0 per frame. The HDR image is in the sampled layout; the caller reopens it.
      */
     public void enterWorld(VkCommandBuffer commandBuffer, PackFrameSchedulePlan.PostWindow window,
                            VulkanImage hdrColor) {
@@ -308,12 +282,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Invalidates a skipped stage's outputs for the rest of the frame, keeping their images.
-     *
-     * Later readers of an auxiliary target fall back too, since its image holds another pass's meaning, such
-     * as BSL's bloom atlas in colortex1. colortex0 keeps the scene as the passes that ran left it: the skipped
-     * step passes it through (PostTargetSides). Resetting it to the pre-post scene would drop every earlier
-     * pass's output too.
+     * Invalidates a skipped stage's outputs for the rest of the frame, so later readers fall back too.
+     * colortex0 is exempt: the skipped step passes it through, keeping earlier passes' output.
      */
     public void invalidateOutputs(List<Integer> targets) {
         if (targets == null) return;
@@ -326,9 +296,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Before a program that declares colortexNMipmapEnabled, rebuilds the chain of each such image it reads
-     * and samples the image through its mips until the next frame starts, as Iris's
-     * CompositeRenderer.setupMipmapping does. Call before the program's images are bound.
+     * Rebuilds the mip chain of each colortexNMipmapEnabled target a program reads, sampled through its mips
+     * until the frame ends (Iris: CompositeRenderer.setupMipmapping). Call before the images are bound.
      */
     public void generateMipmaps(VkCommandBuffer commandBuffer, String programName) {
         TargetStep step = this.graph == null ? null : this.graph.step(programName);
@@ -352,12 +321,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Opens {@code window}'s pass group. Steps of earlier groups that did not run pass through, and the
-     * group's {@code flip.<group>_pre} flips apply first, as Iris's CompositeRenderer applies them before any
-     * of its passes.
-     *
-     * Mip sampling carries on: Iris resets a target's filter only after final
-     * (FinalPassRenderer.resetRenderTarget), so later groups still read a chain built in prepare through its mips.
+     * Opens {@code window}'s pass group, applying its {@code flip.<group>_pre} flips first as Iris does. Mip
+     * sampling carries on, as Iris resets a target's filter only after final.
      */
     public void openPostWindow(VkCommandBuffer commandBuffer, PackFrameSchedulePlan.PostWindow window) {
         if (!this.configured) return;
@@ -366,9 +331,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Brings the frame up to {@code pass}, a post step or a pass that runs only its computes: each
-     * earlier step that did not run passes its input through (PostTargetSides.advanceTo). Call before
-     * the pass's computes, mips and bindings, which read the state it opens on.
+     * Brings the frame up to {@code pass}, passing through earlier steps that did not run. Call before the
+     * pass's computes and bindings.
      */
     public void beginStep(VkCommandBuffer commandBuffer, String pass) {
         if (!this.configured) return;
@@ -405,9 +369,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * The graph image a pass or its computes write as {@code colorimgN}: the target's read side, as Iris binds
-     * it (IrisImages). colortex0 held by the HDR image is written back to its graph side first, since the HDR
-     * image has no storage usage.
+     * The graph image a pass writes as {@code colorimgN}, its read side as in Iris. colortex0 is first written
+     * back out of the HDR image, which has no storage usage.
      */
     public VulkanImage storageSource(VkCommandBuffer commandBuffer, int target) {
         if (!this.configured || target < 0 || target >= TARGET_COUNT || this.sourceImages[target] == null) return null;
@@ -440,8 +403,8 @@ public final class PackPostTargets {
         }
         try (MemoryStack stack = MemoryStack.stackPush()) {
             claimOutputSides(stack, commandBuffer, plan, flipStep);
-            // after the write-backs above, which move images through VulkanMod's tracked layouts, and outside
-            // the render pass; VulkanMod moves no image out of GENERAL ("Unexpected value:1")
+            // after the write-backs, outside the render pass: VulkanMod moves no image out of GENERAL
+            // ("Unexpected value:1")
             this.storage.begin(commandBuffer, target -> storageSource(commandBuffer, target), post.storageTargets());
             PostAttachments attachments = colorAttachments(stack, commandBuffer, plan, step);
             int renderWidth = attachments.width();
@@ -479,9 +442,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * Picks each draw buffer's write side, the one the pass does not read (CompositeRenderer). The side keeps
-     * what it held, so a blend or discard lands on that, as under Iris, with no copy of the read side first.
-     * A target the pass leaves unwritten keeps it too, and the flip after the pass makes it current, as Iris does.
+     * Picks each draw buffer's write side, the one the pass does not read. As in Iris it keeps what it held,
+     * so a blend or discard lands on that.
      */
     private void claimOutputSides(MemoryStack stack, VkCommandBuffer commandBuffer, PostTargetPlan plan,
                                   PackFlipPlan.Step flipStep) {
@@ -508,11 +470,8 @@ public final class PackPostTargets {
     }
 
     /**
-     * The framebuffer VulkanMod takes a post pass's size from, one with its first attachment's extent.
-     *
-     * Reforged sets the viewport's y from the bound framebuffer's height (Renderer.setViewport), so under a
-     * full-size stand-in a pass drawing into a smaller size.buffer target would draw below its image. Only the
-     * HDR image, made outside the graph, can lack a stand-in; such a pass gets one of its own.
+     * The framebuffer VulkanMod takes a post pass's size from. Reforged sets the viewport's y from its height,
+     * so a full-size stand-in would draw a smaller size.buffer target below its image.
      */
     static Framebuffer standIn(Map<Long, Framebuffer> standIns, VulkanImage first) {
         Framebuffer standIn = standIns.get(extent(first));
@@ -555,10 +514,7 @@ public final class PackPostTargets {
         return new PostAttachments(attachments, first, renderWidth, renderHeight);
     }
 
-    /**
-     * Commits a successful draw: the step's flips take effect (PostTargetSides.finish), and each
-     * draw buffer that flipped, now read from the side the pass wrote, holds valid content.
-     */
+    /** Commits a successful draw: the step's flips take effect and each flipped draw buffer becomes valid. */
     public void finish(VkCommandBuffer commandBuffer) {
         if (!this.rendering) throw new IllegalStateException("pack post rendering is not active");
         boolean committed = false;
@@ -609,11 +565,7 @@ public final class PackPostTargets {
         }
     }
 
-    /**
-     * Aborts the current step's pending writes and leaves the frame open. The step never
-     * finished, so the next step's advance passes it through as one that did not run: its draw
-     * buffers carry their read sides, as an identity pass would (PostTargetSides.advanceTo).
-     */
+    /** Aborts the current step's pending writes and leaves the frame open; the next advance passes it through. */
     public void abortStep(VkCommandBuffer commandBuffer) {
         if (this.rendering) vkCmdEndRenderingKHR(commandBuffer);
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -630,12 +582,8 @@ public final class PackPostTargets {
     public PackTargetGraphPlan graph() { return this.graph; }
 
     /**
-     * The images world programs read the targets through: each one's source, or the image still held by a
-     * target a skipped pass dropped (invalidateOutputs).
-     *
-     * A post reader of such a target falls back with its pass. A world program has no fallback, and Iris
-     * samples whatever the target holds; Rethinking Voxels' terrain reads colortex8, which its prepare passes
-     * write.
+     * The images world programs read: each target's source, or the image a dropped target still holds, since
+     * a world program has no fallback and Iris samples whatever the target holds.
      */
     public VulkanImage[] worldImages() {
         for (int target = 0; target < TARGET_COUNT; target++) {
@@ -646,18 +594,14 @@ public final class PackPostTargets {
     }
 
     /**
-     * The image a world program reads as {@code target}: its {@code source} while the chain holds
-     * one, else the {@code held} image of a target the session made. colortex0 keeps its source;
-     * the resolver reads the HDR image in its place.
+     * The image a world program reads as {@code target}: its source, else the held image. colortex0 keeps its
+     * source, as the resolver reads the HDR image in its place.
      */
     static VulkanImage worldImage(int target, VulkanImage source, boolean used, VulkanImage held) {
         return source != null || target == 0 || !used ? source : held;
     }
 
-    /**
-     * The image a hand program stores to as colorimgN: the one world programs read as colortexN
-     * (Iris binds gbuffers programs the texture of their flip state, IrisImages.addRenderTargetImages).
-     */
+    /** The image a hand program stores to as colorimgN, the one world programs read as colortexN, as in Iris. */
     public VulkanImage worldStorageImage(int target) {
         if (target <= 0 || target >= TARGET_COUNT) return null;
         return worldImage(target, this.sourceImages[target], this.used[target], worldSideImage(target));

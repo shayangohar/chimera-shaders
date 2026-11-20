@@ -20,10 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Fills the elements Chimera's family formats add, through a {@link FamilyVertexWriter} on each builder of a
- * family format: defaults as each vertex starts, and each polygon once its last corner is written, which is
- * when the next vertex starts or the batch is built. The builder is also told not to wait for those elements,
- * since no VertexConsumer call fills them. Builders of any other format keep a null writer and are left alone.
+ * Fills the elements Chimera's family formats add: defaults as each vertex starts, and each polygon once the
+ * next vertex starts or the batch is built. No VertexConsumer call fills them, so the builder stops waiting
+ * for them.
  */
 @Mixin(BufferBuilder.class)
 public abstract class ChimeraBufferBuilderMixin {

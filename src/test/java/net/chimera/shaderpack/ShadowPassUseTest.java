@@ -101,10 +101,8 @@ final class ShadowPassUseTest {
     }
 
     /**
-     * Mellow draws its shadow pass only for DYNAMIC_SHADOWS or voxelised COLORED_LIGHTS (3.5: 1 or 3
-     * of Off, Voxelised, Screen-Space, Hybrid). For the voxels alone it reads shadowtex0 in
-     * deferred1.vsh behind {@code gl_VertexID == -1e6} ("Guarantee the shadowmap runs for colored
-     * lights to work"), so Iris builds its ShadowRenderer and drops vanilla entity shadows there too.
+     * Mellow draws its shadow pass only for DYNAMIC_SHADOWS or voxelised COLORED_LIGHTS; for the voxels alone
+     * it reads shadowtex0 behind a never-true condition, so Iris drops vanilla entity shadows there too.
      */
     @Test
     @Tag("packs")

@@ -11,13 +11,9 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
- * What a SPIR-V module needs from the device. Each OpExtension it declares and each extended instruction set
- * it imports needs its Vulkan extension enabled, unless Vulkan 1.2 made it core; each OpCapability may need a
- * feature (PackDevice.missing).
- *
- * A GL driver refuses an {@code #extension name : require} it lacks when it compiles the stage; a Vulkan
- * driver handed such a module can crash instead. RenderPearl requires GL_AMD_shader_trinary_minmax on a GPU
- * it does not take for NVIDIA's, and its deferred1 can crash NVIDIA's driver in vkCreateComputePipelines.
+ * What a SPIR-V module needs from the device: a Vulkan extension for each OpExtension and extended instruction set
+ * not core in Vulkan 1.2, and a feature for some capabilities (PackDevice.missing). A Vulkan driver handed a module
+ * whose extension it lacks can crash, where a GL driver would refuse the {@code #extension}.
  */
 public final class SpirvDeviceRequirements {
     private static final int MAGIC = 0x07230203;
@@ -35,9 +31,8 @@ public final class SpirvDeviceRequirements {
             "SPV_EXT_shader_viewport_index_layer");
 
     /**
-     * SPIR-V extensions whose Vulkan extension has another name; most KHR ones gained a {@code shader_}
-     * prefix. Without an entry a refusal names an extension that does not exist, and a device that has the
-     * real one still refuses the program.
+     * SPIR-V extensions whose Vulkan extension has another name, often with a {@code shader_} prefix; a missing
+     * entry refuses the program even on a device that has the extension.
      */
     private static final Map<String, String> RENAMED = Map.ofEntries(
             Map.entry("SPV_KHR_shader_ballot", "VK_EXT_shader_subgroup_ballot"),

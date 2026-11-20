@@ -9,11 +9,7 @@ import java.util.TreeMap;
 
 /**
  * Load-time plan for one pack program. The probe and pipeline construction read the same instance, so what the
- * report calls executable is what runs.
- *
- * {@code shadowAttachmentFormats} are the shadow pass's colour attachment formats from shadowcolor0 on, which a
- * shadow-stage pipeline declares; they are empty for every other stage. {@code betweenStages} holds the converted
- * geometry and tessellation stages. BetweenStages refuses a lone tessellation stage, so a plan never carries one.
+ * report calls executable is what runs. {@code shadowAttachmentFormats} is empty outside the shadow stages.
  */
 public record PackProgramPlan(
         PackProgram program,

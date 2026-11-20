@@ -18,10 +18,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Lets a light-emitting block darken its neighbours' ambient occlusion in the terrain Chimera meshes for a
- * pack, as vanilla and Sodium under Iris do (EmitterOcclusion). Packs are tuned against that; under
- * VulkanMod's rule a recess beside a glowing block comes out far too bright in packs such as Mellow.
- * VulkanMod's own meshes, with no pack, keep its rule.
+ * In pack terrain, a light-emitting block darkens its neighbours' ambient occlusion, as in vanilla and Sodium.
+ * Packs are tuned to that; under VulkanMod's rule a recess beside a glowing block comes out far too bright.
  */
 @Mixin(value = LightDataAccess.class, remap = false)
 public abstract class ChimeraEmitterOcclusionMixin {

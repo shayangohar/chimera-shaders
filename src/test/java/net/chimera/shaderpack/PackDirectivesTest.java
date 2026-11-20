@@ -19,12 +19,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Pack-wide directives: GLSL versions, property syntax, held items, screen overlays, particles and the sky. */
+/** Pack-wide directives and GLSL version rules. */
 final class PackDirectivesTest {
-    /**
-     * One version rule (any desktop 110-460, compatibility or core), Iris's core mode, and the
-     * declaration rewrites the converters rely on.
-     */
+    /** One version rule for desktop GLSL 110 to 460, compatibility or core, and the declaration rewrites. */
     @Test
     void glslVersionsAndDeclarations() {
         for (String accepted : List.of("#version 110", "#version 120e", "#version 150", "#version 330 core",
@@ -54,10 +51,7 @@ final class PackDirectivesTest {
                 "a storage-qualifier alias applies after its definition, lexed as one stream");
     }
 
-    /**
-     * Modern declarations in the entity-style converters, Iris core-profile names, and GL's
-     * discard of an output past the route, on a Photon-shaped pack.
-     */
+    /** Modern GLSL on a Photon-shaped pack, including GL's discard of an output past the route. */
     @Test
     void glslBreadth(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -92,11 +86,7 @@ final class PackDirectivesTest {
         assertTrue(compiled.failures().isEmpty(), "GLSL breadth compilation: " + compiled.failures());
     }
 
-    /**
-     * RenderPearl's NVIDIA path writes {@code out f16vec3 shadowcolor0}. The shadow colour keeps its
-     * type, as a vec3 one does, and replaces the pack's own output declaration. It compiles on a device
-     * without 16-bit stage outputs, where it widens.
-     */
+    /** A half shadow colour keeps its type and replaces the pack's declaration; without 16-bit outputs it widens. */
     @Test
     void aHalfShadowColourKeepsItsType(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -207,10 +197,7 @@ final class PackDirectivesTest {
                 """);
     }
 
-    /**
-     * Properties.load skips a line's leading whitespace; Photon indents its composite17 switch
-     * inside {@code #ifdef MC_GL_RENDERER_INTEL}.
-     */
+    /** Properties.load skips a line's leading whitespace, which Photon's indented switches rely on. */
     @Test
     void indentedProperties(@TempDir Path root) throws IOException {
         Path shaders = Files.createDirectory(root.resolve("shaders"));
@@ -228,10 +215,8 @@ final class PackDirectivesTest {
     }
 
     /**
-     * Iris serves heldItemId, heldBlockLightValue and heldBlockLightColor, and their 2 variants,
-     * from the pack's item.properties and the held stacks (IdMapUniforms). Without them a held torch
-     * lights nothing: Solas's hand light only runs for heldItemId 1..83, and BSL and Complementary
-     * read heldBlockLightValue.
+     * Iris serves the held item uniforms, and their 2 variants, from item.properties and the held stacks
+     * (IdMapUniforms); without them a held torch lights nothing.
      */
     @Test
     void heldItems(@TempDir Path root) throws IOException {
@@ -301,10 +286,7 @@ final class PackDirectivesTest {
         }
     }
 
-    /**
-     * Iris's frustum.culling defaults to on. BSL turns it off under World Curvature, from an
-     * #ifdef in shaders.properties, so the option's value decides it.
-     */
+    /** Iris's frustum.culling defaults to on; a shaders.properties #ifdef can turn it off, so options decide it. */
     @Test
     void frustumCullingFollowsTheDirective(@TempDir Path root) throws IOException {
         assertEquals(CullingDirectives.DEFAULTS, CullingDirectives.fromProperties(Map.of()), "on unless a pack says");
@@ -452,10 +434,7 @@ final class PackDirectivesTest {
         assertEquals(new ParticleDirectives(ParticleDirectives.Ordering.AFTER, true, List.of()), particles);
     }
 
-    /**
-     * Iris's sun, moon, stars and sky switches, all on by default. Bliss turns the stars off, and
-     * Mellow's {@code sun=off} is not a boolean to Iris, so the sun stays.
-     */
+    /** Iris's sky switches, all on by default; {@code sun=off} is no boolean to Iris, so the sun stays. */
     @Test
     void skyDirectives() {
         assertEquals(SkyDirectives.DEFAULTS, SkyDirectives.fromProperties(Map.of()), "every part of the sky draws");

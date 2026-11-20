@@ -7,11 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The shaders.properties switch for the camera's frustum culling; {@code frustum.culling} defaults to on, as
- * in Iris's PackDirectives.
- *
- * A pack turns it off when its projection shows what the perspective frustum misses, such as an isometric
- * camera or world curvature.
+ * {@code frustum.culling}, on by default as in Iris's PackDirectives; packs with an isometric camera or world
+ * curvature turn it off.
  */
 public record CullingDirectives(boolean frustumCulling, List<String> deviations) {
     public static final CullingDirectives DEFAULTS = new CullingDirectives(true, List.of());

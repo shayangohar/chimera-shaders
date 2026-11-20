@@ -23,9 +23,8 @@ final class BlockLayerTest {
     Path shadersDir;
 
     /**
-     * Complementary names glass, panes and beacons translucent; a key's last value wins, as a
-     * properties file keeps it. Iris's preprocessing drops the '#' of a text line, so the comment's
-     * word names a block (one that does not exist).
+     * A key's last value wins, as a properties file keeps it. Iris's preprocessing drops the '#' of a
+     * text line, so a trailing comment's word names a block.
      */
     @Test
     void layerLinesNameEachBlocksLayer() throws IOException {
@@ -52,10 +51,9 @@ final class BlockLayerTest {
     }
 
     /**
-     * The id maps see the options every program file and its includes declare, as Iris finds them:
-     * Bliss's glass switch lives in lib/settings.glsl. A switch counts only when an #ifdef names
-     * it, a value define only with an allowed-values list, a const only under a name Iris makes
-     * configurable (shadowMapResolution, not Noble's colortex8Format), and a launcher choice wins.
+     * The id maps see the options every program file and its includes declare, as Iris finds them: a
+     * switch only when an #ifdef names it, a value define only with an allowed-values list, a const only
+     * under a name Iris makes configurable. A launcher choice wins.
      */
     @Test
     void idMapMacrosCarryEveryIncludedOption() throws IOException {
@@ -93,9 +91,8 @@ final class BlockLayerTest {
     }
 
     /**
-     * A value the player changed reaches the id maps. Staging rewrites the option's line without its value list,
-     * so the macros come from the pack's own options at the staged values, as Iris preprocesses with its chosen
-     * values.
+     * A value the player changed reaches the id maps, as Iris preprocesses with its chosen values, though
+     * staging rewrites the option's line without its value list.
      */
     @Test
     void idMapMacrosTakeThePlayersValues(@TempDir Path packRoot) throws IOException {

@@ -10,9 +10,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SolidBucketItem;
 
 /**
- * Iris CapturedRenderingState's current rendered item. Chimera writes it into EntityIds.z (Iris
- * iris_Entity.z), which entity-layout programs read as currentRenderedItemId. An item is current
- * while ItemRenderer.render draws it (Iris MixinItemRenderer).
+ * Iris CapturedRenderingState's current rendered item, written into EntityIds.z (Iris iris_Entity.z) while
+ * ItemRenderer.render draws it.
  */
 public final class RenderedItemIds {
     /** The blockEntityId Iris sets while a block item renders. */
@@ -26,7 +25,6 @@ public final class RenderedItemIds {
 
     private RenderedItemIds() {}
 
-    /** Installs the session's item.properties ids and clears the current item. */
     public static void install(PackItemIdResolver next) {
         items = next == null ? PackItemIdResolver.empty() : next;
         depth = 0;
@@ -34,8 +32,8 @@ public final class RenderedItemIds {
     }
 
     /**
-     * The id Iris gives an item stack: a block item other than a solid bucket takes its default state's
-     * block.properties id, 0 when unmapped; any other item takes its item.properties id.
+     * As Iris: a block item other than a solid bucket takes its default state's block.properties id, 0 when
+     * unmapped; any other item its item.properties id.
      */
     public static int idOf(ItemStack stack) {
         Item item = stack == null ? null : stack.getItem();
@@ -51,7 +49,7 @@ public final class RenderedItemIds {
         return item instanceof BlockItem && !(item instanceof SolidBucketItem);
     }
 
-    /** Makes an item current while it renders; a block item also sets blockEntityId to 1. */
+    /** A block item also sets blockEntityId to 1. */
     public static void beginItem(ItemStack stack) {
         push(idOf(stack), stack != null && isBlockItem(stack.getItem())
                 ? BLOCK_ITEM_ENTITY_ID : ChimeraEntityBridge.currentBlockEntityId());
@@ -68,7 +66,6 @@ public final class RenderedItemIds {
         current = itemId;
     }
 
-    /** Restores the item and block entity that {@link #beginItem} replaced. */
     public static void pop() {
         if (depth <= 0) return;
         depth--;
@@ -78,9 +75,8 @@ public final class RenderedItemIds {
     }
 
     /**
-     * Restores what the outermost {@link #beginItem} replaced, as if every open item had popped.
-     * ItemRenderer.render has no finally, so a renderer that throws skips the pop at its return, and its item
-     * and block-item blockEntityId would stay on every later entity draw.
+     * Pops every open item. ItemRenderer.render has no finally, so a renderer that throws would leave its ids on
+     * every later entity draw.
      */
     static void unwind() {
         if (depth <= 0) return;
@@ -89,7 +85,6 @@ public final class RenderedItemIds {
         depth = 0;
     }
 
-    /** The item EntityIds.z carries for the vertex being written. */
     public static int current() {
         return current;
     }

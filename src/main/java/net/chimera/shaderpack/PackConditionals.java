@@ -22,11 +22,9 @@ final class PackConditionals {
     private PackConditionals() {}
 
     /**
-     * A directive's text as a C preprocessor such as Iris's JCPP reads it: each block comment is one space, and
-     * the text ends at a line comment. A block comment still open at the end is cut there; the line reader
-     * (ShaderSourcePreprocessor.LineReader) first joins the lines up to its close. A comment mark inside a
-     * string or character literal is text ({@link #literalEnd}). Left in, a block comment after {@code #if FOO}
-     * would read as operators and the condition as 0.
+     * A directive's text as Iris's JCPP reads it: each block comment is one space and a line comment ends the
+     * text, but a comment mark inside a literal is text. The line reader has already joined a block comment's
+     * lines. Left in, a block comment after {@code #if FOO} would read as operators and the condition as 0.
      */
     static String withoutComments(String text) {
         StringBuilder result = new StringBuilder(text.length());
@@ -49,11 +47,7 @@ final class PackConditionals {
         return result.toString();
     }
 
-    /**
-     * Where the next comment or literal in {@code text} starts, from {@code from} on: a {@code /*},
-     * a {@code //}, a {@code "} or a {@code '}; or -1. JCPP lexes a quote as a string or character
-     * literal, and a comment mark inside one is text.
-     */
+    /** Where the next comment or literal in {@code text} starts at or after {@code from}; -1 for none. */
     static int nextCommentOrLiteral(String text, int from) {
         for (int index = from; index < text.length(); index++) {
             char value = text.charAt(index);
@@ -67,11 +61,9 @@ final class PackConditionals {
     }
 
     /**
-     * The end of the literal whose quote is at {@code start}, as JCPP's lexer reads it on one line.
-     * A string runs to its closing {@code "}, a backslash escaping the next character. A character
-     * literal is one character or escape and its closing {@code '}; without that close it runs to the
-     * next {@code '}. Either one still open at the end of the line ends there: Iris reads
-     * {@code jack_o'lantern /* x} as a broken character literal, not a comment.
+     * The end of the literal whose quote is at {@code start}, as JCPP's lexer reads it on one line. A character
+     * literal without its close runs to the next {@code '}, and an open literal ends with the line, so Iris
+     * reads {@code jack_o'lantern /* x} as a broken literal, not a comment.
      */
     static int literalEnd(String text, int start) {
         int index = start + 1;
@@ -92,20 +84,16 @@ final class PackConditionals {
     }
 
     /**
-     * {@code text} with every identifier that names a macro replaced by its value, again inside
-     * that value, as the preprocessor expands a shaders.properties value: {@code size.buffer.colortex1
-     * = REFLECTION_RES REFLECTION_RES} reads as {@code 0.5 0.5}. A macro is not expanded inside its
-     * own expansion.
+     * {@code text} with macros expanded recursively, as the preprocessor expands a shaders.properties value. A
+     * macro is not expanded inside its own expansion.
      */
     static String expandMacros(String text, Map<String, String> macros) {
         return expandMacros(text, macros, new HashSet<>());
     }
 
     /**
-     * {@code text} with its macros expanded ({@link #expandMacros}) outside its comments and
-     * literals, as Iris preprocesses a properties file: JCPP keeps a comment as written
-     * (KEEPCOMMENTS) and expands no name inside a literal ({@link #literalEnd}). {@code inComment}
-     * is whether a block comment is open where the text starts.
+     * {@code text} with macros expanded outside comments and literals, as Iris's JCPP preprocesses a properties
+     * file with KEEPCOMMENTS. {@code inComment} is whether a block comment is open where the text starts.
      */
     static String expandOutsideComments(String text, boolean inComment, Map<String, String> macros) {
         StringBuilder result = new StringBuilder(text.length());
@@ -179,11 +167,7 @@ final class PackConditionals {
             return macros.remove(name);
         }
 
-        /**
-         * Applies one conditional directive; false when it is ignored. An #elif, #else or #endif with no open
-         * #if is skipped, as Iris's JCPP does; Photon's TAAU program ends in a stray #endif and still runs under
-         * Iris.
-         */
+        /** Applies one conditional directive; false when it is ignored, as JCPP skips one with no open #if. */
         boolean apply(String directive, String expression) {
             String argument = expression == null ? "" : withoutComments(expression).trim();
             boolean closing = directive.equalsIgnoreCase("elif") || directive.equalsIgnoreCase("else")
@@ -204,9 +188,8 @@ final class PackConditionals {
         }
 
         /**
-         * The expression an if, ifdef or ifndef directive tests. #ifdef and #ifndef name one
-         * identifier, and a C preprocessor such as Iris's JCPP skips the rest of the line: Bloop
-         * and others write {@code #ifdef IRIS_TAG_SUPPORT > 1}.
+         * The expression an if, ifdef or ifndef directive tests. JCPP skips whatever follows an #ifdef name, and
+         * packs write {@code #ifdef IRIS_TAG_SUPPORT > 1}.
          */
         private static String condition(String directive, String argument) {
             boolean ifdef = directive.equalsIgnoreCase("ifdef");
@@ -245,10 +228,7 @@ final class PackConditionals {
             return !branches.isEmpty() && branches.peek().elseSeen();
         }
 
-        /**
-         * Turns the rest of the text off, as JCPP does after a stray #else or #elif: branches
-         * opened later stay inactive, and no #endif turns it back on.
-         */
+        /** Turns the rest of the text off for good, as JCPP does after a stray #else or #elif. */
         void endAll() {
             ended = true;
         }

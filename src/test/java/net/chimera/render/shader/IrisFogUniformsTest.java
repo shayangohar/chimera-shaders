@@ -17,10 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Iris's fog uniforms (FogUniforms, and IrisInternalUniforms' for gl_Fog) and cloudTime
- * (IrisExclusiveUniforms).
- */
+/** Iris's fog uniforms (FogUniforms, and IrisInternalUniforms' for gl_Fog) and cloudTime (IrisExclusiveUniforms). */
 final class IrisFogUniformsTest {
     /** Before any fog setup Iris's captured density is 0 (CapturedRenderingState): GL_EXP2, density 0. */
     @Test
@@ -51,10 +48,8 @@ final class IrisFogUniformsTest {
     }
 
     /**
-     * gl_Fog's range is PER_FRAME in Iris: each program reads it at its first draw in a frame. The
-     * horizon draws gbuffers_skybasic first, under the start setupNoFog left, and the sky disc it
-     * draws after setupFog(FOG_SKY) keeps that range; a program first drawn after the setup reads
-     * the sky fog, and a compute, run once a frame, reads the current range.
+     * gl_Fog's range is PER_FRAME in Iris: each program latches it at its first draw in a frame, so the
+     * sky disc keeps the range skybasic first drew under, and a compute reads the current range.
      */
     @Test
     void eachProgramLatchesItsFirstFog() {

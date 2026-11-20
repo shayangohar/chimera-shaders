@@ -18,11 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Acceptance cases for what shaders.properties makes of a pack's options: the menu screens, the {@code *}
- * fill, and the profiles with how they are matched and cycled. Each case is a properties text and the menu,
- * profiles or problems it must give.
- */
+/** Acceptance cases for the menu screens and profiles shaders.properties makes of a pack's options. */
 final class OptionMenuAcceptanceTest {
     /** Toggles T1 T2 T3 BOTH and choices C1 C2 BOTH, declared in this order in one file. */
     private static final OptionSet MENU_OPTIONS = options("#define T1", "#define T2", "#define T3",

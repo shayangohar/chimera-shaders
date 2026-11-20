@@ -115,7 +115,7 @@ final class GlslTreeTest {
         assertInstanceOf(GlslTree.Directive.class, main.body().statements().get(0));
     }
 
-    /** Kappa names a parameter after its lightDir uniform; a block's local hides it until the block closes. */
+    /** A parameter may share a uniform's name; a block's local hides it until the block closes. */
     @Test
     void namesResolveThroughScopes() {
         String source = """

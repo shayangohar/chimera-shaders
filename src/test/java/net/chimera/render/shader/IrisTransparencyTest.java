@@ -17,9 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Iris's batched-entity transparency (MixinCompositeRenderType), which separateEntityDraws splits the
- * entity batches by: the opaque kinds before the deferred passes, the rest after. Held batches draw
- * in Iris's order (GraphTranslucencyRenderOrderManager).
+ * Iris's batched-entity transparency (MixinCompositeRenderType): separateEntityDraws draws the opaque
+ * kinds before the deferred passes and the rest after, in Iris's order.
  */
 final class IrisTransparencyTest {
     @Test
@@ -42,10 +41,8 @@ final class IrisTransparencyTest {
     }
 
     /**
-     * The bolt's type, LightningBoltRenderType, reads as the RenderType.lightning() it wraps
-     * (LightningBoltRenderType.unwrap): LIGHTNING_TRANSPARENCY is Iris's GENERAL_TRANSPARENT, so the
-     * bolt is held and drawn after RenderPearl's deferred pass, as Iris draws it. Read as itself it
-     * would draw with the entities, solid white over the unlit scene.
+     * LightningBoltRenderType reads as the RenderType.lightning() it wraps, which Iris holds as
+     * GENERAL_TRANSPARENT until after the deferred passes; read as itself it would draw solid white.
      */
     @Test
     void lightningDrawsAfterTheDeferredPasses() {
@@ -76,9 +73,8 @@ final class IrisTransparencyTest {
     }
 
     /**
-     * A level source holds every batch, vanilla's own flushes included, until Iris's translucent
-     * boundary (FullyBufferedMultiBufferSource ignores endBatch(type)). There it draws everything, or
-     * with separateEntityDraws the opaque kinds; after the deferred passes, everything.
+     * A level source holds every batch until Iris's translucent boundary, ignoring vanilla's flushes as
+     * FullyBufferedMultiBufferSource does; with separateEntityDraws only the opaque kinds draw there.
      */
     @Test
     void levelSourcesHoldTheirBatchesToTheBoundary() {
@@ -105,10 +101,8 @@ final class IrisTransparencyTest {
     }
 
     /**
-     * A pig writes its model, then its lead, in one entity's render; the chest in front of it is a
-     * block entity, written after every entity. Iris draws the chest first, then the pig, then the
-     * lead, which fails the depth test behind the chest: gbuffers_basic's lead writes targets the
-     * chest's program does not, so drawn first it would show through.
+     * Iris draws a chest before the pig and lead behind it, though the chest is written last; drawn
+     * first, the lead would write targets the chest's program does not and show through.
      */
     @Test
     void aLeadDrawsAfterItsEntityAndTheBlockEntitiesInFrontOfIt() {

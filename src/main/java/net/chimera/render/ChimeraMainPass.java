@@ -54,17 +54,8 @@ import static org.lwjgl.vulkan.VK10.*;
 
 /**
  * Chimera's main pass. The world draws into an internal HDR target and everything after it into a separate
- * output target, so a screen change can retire the world target at a frame boundary while the GUI keeps its
- * target, and the two never transition the same image.
- *
- * The world clear opens the HDR target, in colortex0's format under a pack and RGBA16F without one. The
- * shadow map records just before the sky (PreSkyPasses), then the world target resumes. At renderLevel's
- * return the world resolves into the output target. Until then Minecraft's main target is the HDR target;
- * after it, the output target, where the host hand, the GUI and post passes draw. {@link #end} presents the
- * output to the swapchain.
- *
- * This class schedules the frame and holds the pack session's state; each collaborator field owns one part
- * of the work.
+ * output target, so a screen change can retire the world target while the GUI keeps its own, and the two
+ * never transition the same image. At renderLevel's return the world resolves into the output target.
  */
 public final class ChimeraMainPass implements MainPass {
     // built before every other field, so collaborator constructors may only store the pass
@@ -125,11 +116,8 @@ public final class ChimeraMainPass implements MainPass {
     /** Per-session flags, once-only logs and plans; cleanUpPackVariant replaces it whole. */
     PackSessionState session = new PackSessionState();
     /**
-     * Why this session draws the host frame instead, or null: mask-critical families that did not install,
-     * or required features Chimera lacks.
-     *
-     * While set the session loads as if no pack were selected, so a resize or screen reset cannot rebuild a
-     * half-installed frame. A pack change, reload or dimension variant clears it.
+     * Why this session draws the host frame instead, or null. While set the session loads as if no pack were
+     * selected, so a resize cannot rebuild a half-installed frame; a pack change or reload clears it.
      */
     String packFrameUnsupported;
     // frame progress, reset when the world segment opens
@@ -190,8 +178,7 @@ public final class ChimeraMainPass implements MainPass {
         this.levelPhase = true;
         PackFailureNotices.setReporter(new PackFailureReporter(this));
         targets.createResources();
-        // VulkanMod resizes the current main pass itself; this covers frames where the host pass is current,
-        // without resizing ours twice
+        // VulkanMod resizes the current main pass itself; this covers frames where the host pass is current
         Renderer.getInstance().addOnResizeCallback(() -> {
             if (Renderer.getInstance().getMainPass() != this) onResize();
         });
@@ -254,8 +241,7 @@ public final class ChimeraMainPass implements MainPass {
         Renderer.getInstance().endRenderPass();
         if (this.packStorageBufferOwner != null) {
             this.packStorageBufferOwner.beginExecutionFrame();
-            // Iris sizes relative buffers, like relative images, from the main render target; a buffer that
-            // cannot grow would be read past its end, so the pack is turned off
+            // a relative buffer that cannot grow would be read past its end, so the pack turns off
             String unfit = this.packStorageBufferOwner.fitRelativeBuffers(Renderer.getCommandBuffer(),
                     this.targets.hdrFramebuffer.getWidth(), this.targets.hdrFramebuffer.getHeight());
             if (unfit != null && !this.session.packPostChainRejected) {
@@ -310,12 +296,8 @@ public final class ChimeraMainPass implements MainPass {
     }
 
     /**
-     * Clears the world target as it opens. With a pack's colortex0 in the HDR image this is Iris's ClearPass:
-     * colortex0ClearColor, else the fog colour with alpha 1.
-     *
-     * Under colortex0Clear=false only depth clears. PackPostTargets.beginFrame has already copied in the
-     * colortex0 side the world draws first, so a new pack starts from its full clear and a new HDR image
-     * after a screen change keeps the content.
+     * Clears the world target as it opens, as Iris's ClearPass clears colortex0. Under colortex0Clear=false
+     * only depth clears; PackPostTargets.beginFrame has already copied colortex0's content in.
      */
     private void clearWorldTarget(float[] fogColor) {
         if (!this.session.packPostChainActive || !this.packPostTargets.isConfigured()) {
@@ -375,9 +357,7 @@ public final class ChimeraMainPass implements MainPass {
             }
 
             postChain.commitPostFrame();
-            // post chain blocked or unconfigured: only HDR target 0 exists, so the pack composite can't bind
-            // its auxiliary samplers; present the HDR image through the identity resolve instead and leave
-            // installed pack objects alone for cleanup and reload
+            // post chain blocked or unconfigured: only HDR target 0 exists, so resolve it through the identity path
             resolveWorldToOutput(commandBuffer, hdrColor);
             this.currentFramebuffer = this.targets.compositeFramebuffer;
         }
@@ -448,8 +428,7 @@ public final class ChimeraMainPass implements MainPass {
             finishLevelSegment();
         }
         if (this.packWorldResolved && !this.packFinalApplied) {
-            // pack final runs at renderLevel's return; if it did not run, keep the resolved image and let the
-            // host hand and GUI draw over it
+            // pack final did not run at renderLevel's return; keep the resolved image under the hand and GUI
             if (this.session.packFinalExecution != null) {
                 postChain.markPostStageIdentityBoundary(this.session.packFinalExecution,
                         "level boundary not reached");
@@ -487,21 +466,17 @@ public final class ChimeraMainPass implements MainPass {
         swapChain.getColorAttachment().transitionImageLayout(stack, commandBuffer,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         Renderer.getInstance().beginRendering(this.targets.presentRenderPass, swapChain);
-        // the present draw would otherwise inherit the GUI's last viewport and scissor and leave the swapchain
-        // on its clear colour; cover the whole swapchain as DefaultMainPass.begin does
+        // cover the whole swapchain as DefaultMainPass.begin does, not the GUI's last viewport and scissor
         Renderer.setViewport(0, 0, swapChain.getWidth(), swapChain.getHeight(), stack);
         VK10.vkCmdSetScissor(commandBuffer, 0, swapChain.scissor(stack));
-        // VulkanMod picks the pipeline variant from the VRenderSystem state at bind time, and the GUI leaves
-        // its blend and colour mask behind; SRC_ALPHA blending over the output's zero alpha, a cleared colour
-        // mask or a depth test against the DONT_CARE swapchain depth would make the quad write nothing, so draw
-        // with the opaque fullscreen state and restore the globals after
+        // VulkanMod picks the pipeline variant from VRenderSystem state, which the GUI leaves blended and
+        // masked; without the opaque fullscreen state the quad may write nothing
         PackRenderState previousState = capturePackRenderState();
         preparePackFullscreenState();
         try {
             // pack final already ran before the hand; the swapchain always gets the host present pipeline
             drawFullscreen(commandBuffer, this.presentPipeline);
-            // end the frame with slot 0 on outputColor, as the identity path does; slot 0 may still hold
-            // hdrColor from bindAsTexture, and the next world target rebuild would hand the host a dead image
+            // slot 0 may still hold hdrColor, and the next world target rebuild would hand the host a dead image
             if (this.pipelines.finalPost != null) {
                 VTextureSelector.bindTexture(outputColor);
             }
@@ -740,8 +715,7 @@ public final class ChimeraMainPass implements MainPass {
         this.horizonRenderer.close();
         ChimeraCloudRenderer.shared().close();
         sessions.cleanUpPackVariant();
-        // material maps live as long as the renderer: a pack change never closes them, so a failed install
-        // keeps the previous ones; they close only here, while the device is still alive
+        // material maps outlive pack changes, so they close only here, while the device is still alive
         if (this.materials.materialMapOwner != null) this.materials.materialMapOwner.close();
         this.materials.materialMapOwner = null;
         targets.cleanUpFramebuffersAndPasses();

@@ -12,12 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The packs' vanilla cloud styles shade vanilla's cloud faces with their gbuffers_clouds program,
- * as under Iris: BSL CLOUDS=3 and Complementary CLOUD_STYLE_DEFINE=50 read the face normal, and
- * MakeUp V_CLOUDS=0 reads the face shade in gl_Color. The cloud program must plan on the decoded
- * faces with its authored targets, leave the vanilla clouds on, and the whole pack must compile.
- */
+/** Packs' vanilla cloud styles shade vanilla's cloud faces with their gbuffers_clouds program, as under Iris. */
 @Tag("packs")
 final class VanillaCloudPackTest {
     @Test

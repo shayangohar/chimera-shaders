@@ -23,86 +23,65 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
- * Builds and installs Chimera's terrain pipelines.
- *
- * The GLSL and JSON under /assets/chimera/shaders/ read the host terrain path's inputs: its uniform suppliers,
- * the ChunkOffset push constant DrawBuffers writes per area, and the section offset in the draw's base
- * instance.
- *
- * Enabling swaps the terrain shader getter to Chimera's pipeline and installs the matching extended builder.
- * Disabling restores the host getter, format and builder. Either rebuilds the live level only when the
+ * Builds and installs Chimera's terrain pipelines. Enabling or disabling rebuilds the live level only when the
  * terrain format changes.
  */
 public final class ChimeraTerrainPipelines {
     private static boolean initialized;
-    /** True while Chimera's terrain format and pipelines are installed for a pack; chunk builders read it. */
+    /** Chunk builders read it. */
     private static volatile boolean extendedMode;
-    /** Chimera's own terrain pipelines by vertex layout (bit 1: modern) and separateAo (bit 0). */
+    /** Indexed by vertex layout (bit 1: modern) and separateAo (bit 0). */
     private static final GraphicsPipeline[] fixedPipelines = new GraphicsPipeline[4];
-    /** Read by the chunk-build threads, through the render-layer overrides; replaced on the render thread. */
+    /** Read by the chunk-build threads; replaced on the render thread. */
     private static volatile PackMaterialResolver materialResolver = PackMaterialResolver.empty();
     private static TerrainMaterialPlan materialPlan = TerrainMaterialPlan.legacy();
-    /** The pack's gbuffers_terrain pipeline, drawn over Chimera's own for every layer but translucent. */
+    /** The pack's gbuffers_terrain pipeline, for every layer but translucent. */
     private static GraphicsPipeline geometryOverride;
-    /** The pack's water pipeline, drawn over Chimera's own for the translucent layer only. */
+    /** The pack's water pipeline, for the translucent layer only. */
     private static GraphicsPipeline translucentOverride;
     /** True for one translucent draw whose pack inputs are not live this frame. */
     private static boolean translucentOverrideSuspended;
-    /**
-     * The installed pack's terrain shading, which chunk builders read: its directional shading,
-     * separateAo, ambient occlusion level and light-block voxels, replaced as one value.
-     */
+    /** Read by chunk builders, so it is replaced as one value. */
     private static volatile TerrainShadingDirectives shading = TerrainShadingDirectives.VANILLA;
-    /** The rebuilds a handoff asked for (rebuildingOnce), by reason; null outside one. Render thread only. */
+    /** Rebuild reasons held by rebuildingOnce; null outside one. Render thread only. */
     private static Set<String> heldRebuilds;
 
     private ChimeraTerrainPipelines() {}
 
-    /** A block's shade brightness under the installed pack's ambientOcclusionLevel (Iris's getShadeBrightness). */
+    /** Shade brightness under the pack's ambientOcclusionLevel (Iris's getShadeBrightness). */
     public static float shadeBrightness(float original) {
         return shading.shadeBrightness(original);
     }
 
-    /**
-     * True while the installed pack lights faces itself (Iris's oldLighting off), so ClientLevel.getShade
-     * answers unshaded for block and fluid meshing.
-     */
+    /** True when the pack sets oldLighting off, so ClientLevel.getShade answers unshaded for meshing. */
     public static boolean directionalShadingDisabled() {
         return shading.disablesDirectionalShading();
     }
 
     /**
-     * True while Chimera's terrain meshes carry the light pipeline's brightness in the vertex colour's alpha
-     * instead of multiplying it into RGB (Iris's separateAo). Host-format meshes never do, since VulkanMod's
-     * own terrain shader reads alpha as opacity.
+     * True while meshes carry brightness in vertex alpha (Iris's separateAo). Never for host-format meshes, since
+     * VulkanMod's terrain shader reads alpha as opacity.
      */
     public static boolean separateAoActive() {
         return shading.separateAo() && extendedMode;
     }
 
     /**
-     * True while Chimera meshes terrain for a pack. Sections then compile as NeoForge's SectionCompiler and
-     * Sodium do where VulkanMod departs: a light-emitting block darkens its neighbours' ambient occlusion
-     * (ChimeraEmitterOcclusionMixin), and a block entity that renders off-screen joins only the level's global
-     * set (ChimeraGlobalBlockEntityMixin). The level rebuilds when this changes, with the terrain format.
+     * True while Chimera meshes terrain for a pack; sections then compile as NeoForge's SectionCompiler does
+     * where VulkanMod departs (ChimeraEmitterOcclusionMixin, ChimeraGlobalBlockEntityMixin).
      */
     public static boolean vanillaSectionCompile() {
         return extendedMode;
     }
 
-    /**
-     * True while the installed pack meshes each light block as a voxel quad (Iris's voxelizeLightBlocks);
-     * chunk builders read it.
-     */
+    /** Iris's voxelizeLightBlocks. */
     public static boolean voxelizeLightBlocks() {
         return shading.voxelizeLightBlocks();
     }
 
     /**
-     * Applies the installed pack's oldLighting, separateAo, ambientOcclusionLevel and voxelizeLightBlocks, or
-     * {@link TerrainShadingDirectives#VANILLA} when no pack is installed. Chunk meshes bake them in, so a change
-     * rebuilds the live level once, as Iris reloads chunks when one of its WorldRenderingSettings values
-     * changes.
+     * Meshes bake these in, so a change rebuilds the live level, as Iris reloads chunks when a
+     * WorldRenderingSettings value changes.
      */
     public static void setTerrainShading(TerrainShadingDirectives directives) {
         TerrainShadingDirectives next = directives == null ? TerrainShadingDirectives.VANILLA : directives;
@@ -125,12 +104,9 @@ public final class ChimeraTerrainPipelines {
         rebuildLiveLevel("terrain shading changed");
     }
 
-    /**
-     * Installs or clears the pack's gbuffers_terrain pipeline. Every terrain getter goes through
-     * getTerrainPipeline(renderType), so the override holds across the shadow pass's getter swap and restore.
-     */
+    /** The override lives behind getTerrainPipeline, so it survives the shadow pass's getter swap. */
     public static void setGeometryOverride(GraphicsPipeline pipeline) {
-        // logged only on change, since the no-pack load clears it on every window resize
+        // the no-pack load clears it on every window resize
         if (pipeline != geometryOverride) {
             ChimeraMod.LOGGER.debug("[chimera] terrain override: {}", pipeline != null ? "installed" : "cleared");
         }
@@ -138,16 +114,15 @@ public final class ChimeraTerrainPipelines {
         if (!initialized) {
             return;
         }
-        // re-register only while Chimera owns terrain; in host mode the host getter stays
+        // in host mode the host getter stays
         if (extendedMode) {
             PipelineManager.setShaderGetter(ChimeraTerrainPipelines::getTerrainPipeline);
         }
     }
 
     /**
-     * Destroys Chimera's own terrain pipelines at the renderer's final teardown (ChimeraMainPass.cleanUp).
-     * VulkanMod's PipelineManager.destroyPipelines destroys only its own, so these would outlive the device.
-     * The overrides belong to the pack and are destroyed with its pipelines.
+     * Final teardown; PipelineManager.destroyPipelines destroys only VulkanMod's own. The overrides go with the
+     * pack's pipelines.
      */
     public static void cleanUp() {
         for (int variant = 0; variant < fixedPipelines.length; variant++) {
@@ -179,7 +154,6 @@ public final class ChimeraTerrainPipelines {
         setTerrainMode(true);
     }
 
-    /** Hands terrain to the host's format and pipeline. */
     public static void disable() {
         setTerrainMode(false);
     }
@@ -188,7 +162,7 @@ public final class ChimeraTerrainPipelines {
         return geometryOverride != null ? geometryOverride : fixedPipeline();
     }
 
-    /** The pack's override for the layer, else Chimera's fixed pipeline; translucent takes only the water one. */
+    /** Translucent takes only the water override. */
     public static GraphicsPipeline getTerrainPipeline(TerrainRenderType renderType) {
         if (renderType == TerrainRenderType.TRANSLUCENT && translucentOverride != null
                 && !translucentOverrideSuspended) {
@@ -201,7 +175,7 @@ public final class ChimeraTerrainPipelines {
         return ChimeraVertexFormats.terrainFormat(materialPlan);
     }
 
-    /** Selects the pack-wide terrain vertex layout; while Chimera owns terrain, a new format rebuilds the level. */
+    /** While Chimera owns terrain, a new format rebuilds the level. */
     public static void setMaterialPlan(TerrainMaterialPlan plan) {
         TerrainMaterialPlan next = plan == null ? TerrainMaterialPlan.legacy() : plan;
         if (materialPlan.equals(next)) {
@@ -214,15 +188,12 @@ public final class ChimeraTerrainPipelines {
         }
     }
 
-    /** The pack's block.properties id for a block state, or -1 when unmapped (Iris's BlockMaterialMapping). */
+    /** The block.properties id, or -1 when unmapped (Iris's BlockMaterialMapping). */
     public static int blockStateId(BlockState state) {
         return materialResolver.resolve(state);
     }
 
-    /**
-     * The chunk render type the pack's {@code layer.*} lines give a block (Iris's BlockRenderType), or null to
-     * keep the host's. A new resolver rebuilds the live level, so every mesh takes its layers.
-     */
+    /** The pack's {@code layer.*} render type (Iris's BlockRenderType), or null to keep the host's. */
     public static RenderType packRenderType(BlockState state) {
         PackMaterialResolver.Layer layer = materialResolver.layer(state);
         if (layer == null) return null;
@@ -245,7 +216,6 @@ public final class ChimeraTerrainPipelines {
         }
     }
 
-    /** Installs or clears the pack's water pipeline for the translucent layer. */
     public static void setTranslucentOverride(GraphicsPipeline pipeline) {
         if (pipeline != translucentOverride) {
             ChimeraMod.LOGGER.debug("[chimera] translucent override: {}", pipeline != null ? "installed" : "cleared");
@@ -260,10 +230,7 @@ public final class ChimeraTerrainPipelines {
         }
     }
 
-    /**
-     * Routes one translucent layer draw to Chimera's fixed pipeline while the pack water program's sampled
-     * inputs are unavailable. TerrainLayerWindows sets it as the layer's window opens and clears it as it closes.
-     */
+    /** Routes one translucent draw to the fixed pipeline while the water program's sampled inputs are unavailable. */
     public static void suspendTranslucentOverride(boolean suspended) {
         translucentOverrideSuspended = suspended;
     }
@@ -298,10 +265,8 @@ public final class ChimeraTerrainPipelines {
     }
 
     /**
-     * Runs {@code handoff}, rebuilding the live level at most once, at its end. A frame boundary that hands
-     * terrain to the host, applies a pack or dimension variant and reinstalls it can change the terrain format
-     * and shading up to four times with no frame drawn in between. Rebuilding on each change would have the
-     * chunk builders mesh sections only to throw them away.
+     * Runs {@code handoff}, rebuilding the live level at most once, at its end. A handoff can change format and
+     * shading several times with no frame in between.
      */
     public static void rebuildingOnce(Runnable handoff) {
         if (heldRebuilds != null) {
@@ -340,11 +305,7 @@ public final class ChimeraTerrainPipelines {
                 separateAo ? ChimeraTerrainPipelines::withSeparateAo : UnaryOperator.identity());
     }
 
-    /**
-     * Defines CHIMERA_SEPARATE_AO after the #version line. The vertex shader then multiplies the brightness
-     * that separateAo meshes carry in alpha back into RGB, as the vanilla terrain shader would see it, and
-     * keeps the block opaque.
-     */
+    /** Defines CHIMERA_SEPARATE_AO, so the vertex shader folds the alpha brightness back into RGB. */
     public static String withSeparateAo(String source) {
         int lineEnd = source.indexOf('\n', source.indexOf("#version"));
         if (lineEnd < 0) {
@@ -353,7 +314,7 @@ public final class ChimeraTerrainPipelines {
         return source.substring(0, lineEnd + 1) + "#define CHIMERA_SEPARATE_AO\n" + source.substring(lineEnd + 1);
     }
 
-    /** The fixed pipeline for the session's vertex layout and separateAo, built on first use. */
+    /** Built on first use. */
     private static GraphicsPipeline fixedPipeline() {
         boolean modern = materialPlan.modern();
         boolean separateAo = shading.separateAo();

@@ -14,13 +14,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Shader settings in {@code config/chimera.properties}, under Iris's keys.
- *
- * {@code shaderPack} names a pack in the shaderpacks folder and {@code enableShaders} says whether it runs.
- * {@code maxShadowRenderDistance} and {@code colorSpace} are Iris's mod-wide video settings, shown on
- * ChimeraSettingsPage.
- */
+/** Shader settings in {@code config/chimera.properties}, under Iris's keys. */
 public final class ChimeraConfig {
     /** Iris's default shadow distance and the slider's top, in chunks (IrisVideoSettings.shadowDistance). */
     public static final int MAX_SHADOW_RENDER_DISTANCE = 32;
@@ -96,10 +90,7 @@ public final class ChimeraConfig {
         return enableShaders;
     }
 
-    /**
-     * The player's Max Shadow Distance in chunks, 0 to 32: how far the shadow pass draws when the pack sets
-     * no distance of its own; 0 means no shadow pass (IrisVideoSettings.shadowDistance).
-     */
+    /** Max Shadow Distance in chunks, used when the pack sets none; 0 means no shadow pass, as in Iris. */
     public int maxShadowRenderDistance() {
         return maxShadowRenderDistance;
     }

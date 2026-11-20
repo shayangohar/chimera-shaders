@@ -65,11 +65,7 @@ final class TerrainVertexBridge {
                 GlslVertexPreambles.TERRAIN_VERTEX_PREAMBLE, allowStorageBuffers);
     }
 
-    /**
-     * Converts a modern terrain or water vertex stage. It stays apart from the legacy bridge, since modern
-     * source must read the shared appended material inputs and must not fall through to the 24-byte identity
-     * layout.
-     */
+    /** Converts a modern terrain or water vertex stage onto the extended layout, never the 24-byte identity one. */
     public static LegacyGlslConverter.TerrainVertexConversion convertModernTerrainVertex(
             String source,
             Path sourceFile,
@@ -134,14 +130,8 @@ final class TerrainVertexBridge {
     }
 
     /**
-     * The modern bridge, paired with the stage after the vertex stage. That is the fragment stage, or, with
-     * {@code laterStageConverts}, a stage that converts the clip depth itself: a shadow or world program's
-     * geometry stage (GeometryStageBridge.consumerView stands in for {@code fragmentSource}), or a world
-     * program's tessellation control stage (TessellationStageBridge.consumerView).
-     *
-     * A vertex stage converts its clip depth only as the last stage before the rasterizer. Ahead of
-     * tessellation or a geometry stage a world stage runs in GL's range, so the next stage reads GL's clip
-     * position.
+     * The modern bridge, paired with the next stage. With {@code laterStageConverts} that is a geometry or
+     * tessellation stage that converts the clip depth itself, so this stage leaves GL's clip position as it is.
      */
     static LegacyGlslConverter.TerrainVertexConversion convertModernTerrainVertexOrThrow(
             String source,
@@ -221,7 +211,7 @@ final class TerrainVertexBridge {
     }
 
     /**
-     * The fragment source normalized as its vertex stage is, when it declares a supported version;
+     * The fragment source normalised as its vertex stage is, when it declares a supported version;
      * its outputs keep their locations.
      */
     static String normalizedFragment(String fragmentSource, boolean shadowStage) {
@@ -287,9 +277,8 @@ final class TerrainVertexBridge {
     }
 
     /**
-     * The first uniform block, or uniform whose type names no sampler or image, as its declared
-     * name; null when there is none. A memory or precision qualifier between {@code uniform} and
-     * the type (Reverie's {@code uniform restrict image2D image0}) leaves it opaque.
+     * The name of the first uniform block, or uniform whose type names no sampler or image; null for none. A
+     * qualifier between {@code uniform} and the type, as in {@code uniform restrict image2D}, leaves it opaque.
      */
     static String valueUniform(GlslTree tree) {
         for (GlslTree.External external : tree.externals()) {
@@ -327,9 +316,8 @@ final class TerrainVertexBridge {
     }
 
     /**
-     * Locations for the vertex outputs in name order, then the entity id varyings. The shared typed scanner
-     * keeps integral, matrix and array varyings, such as Photon's {@code flat uint material_mask} and
-     * {@code flat mat3 tbn}, and their location widths; a fragment input of another type is refused.
+     * Locations for the vertex outputs in name order, by location width, then the entity id varyings; a fragment
+     * input of another type is refused.
      */
     static LegacyGlslConverter.TerrainVaryingLayout modernVaryingLayout(
             String vertex, String fragment, Map<String, String> entityIdTypes) {
@@ -617,20 +605,14 @@ final class TerrainVertexBridge {
         return normalizeTo460(source, "modern terrain", false);
     }
 
-    /**
-     * A modern fragment stage, normalized as its vertex stage is except that its outputs keep their
-     * locations. Kappa's translucent program declares translucentColor first, at location 2; numbered in
-     * declaration order, it would write colortex1 and its normals colortex2.
-     */
+    /** A modern fragment stage, normalised as its vertex stage is except that its outputs keep their locations. */
     static String normalizeModernTerrainFragment(String source) {
         return normalizeTo460(source, "modern terrain", true);
     }
 
     /**
-     * Removes the authored version, known legacy extensions, precision statements and qualifiers, and
-     * interface layouts, then declares 460. A fragment stage's outputs keep their layouts. The result stays
-     * self-describing for the shared program plan, and the converter also accepts it, so the authored version
-     * is removed exactly once.
+     * Strips the authored version, legacy extensions, precision and interface layouts, then declares 460; a
+     * fragment stage's outputs keep their layouts.
      */
     static String normalizeTo460(String source, String stage, boolean fragment) {
         GlslVersion.requireSupported(source, stage, true);
@@ -738,10 +720,7 @@ final class TerrainVertexBridge {
         return result;
     }
 
-    /**
-     * The legacy attributes the extended terrain format backs, with the types each may be declared
-     * as. superDuperVanilla's waving terrain declares {@code attribute vec3 at_midBlock}.
-     */
+    /** The legacy attributes the extended terrain format backs, with the types each may be declared as. */
     private static final Map<String, Set<String>> TERRAIN_ATTRIBUTE_TYPES = Map.of(
             "mc_Entity", Set.of("float", "vec2", "vec3", "vec4"),
             "mc_midTexCoord", Set.of("vec2", "vec4"),
@@ -795,7 +774,6 @@ final class TerrainVertexBridge {
         replacements.putIfAbsent("at_tangent", "chimeraTangentValue()");
         GlslVertexPreambles.terrainMatrixBuiltins().forEach(replacements::putIfAbsent);
         // Vulkan GLSL names the vertex index gl_VertexIndex, as the entity, post and shadow lanes map it
-        // RenderPearl's terrain gates its per-face work on gl_VertexID & 3
         replacements.putIfAbsent("gl_VertexID", "gl_VertexIndex");
         for (TerrainDeclarations.Declaration attribute : TerrainDeclarations.keyword(source, "attribute")) {
             String type = attribute.type();

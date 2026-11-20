@@ -8,9 +8,8 @@ import net.vulkanmod.vulkan.shader.descriptor.UBO;
 import static org.lwjgl.vulkan.VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 
 /**
- * A pack storage buffer descriptor carried through VulkanMod's ordered buffer descriptor list. It declares
- * no uniforms: its {@link PackStorageBuffer} is attached as the descriptor's own buffer
- * (PackStorageBufferOwner), which VulkanMod binds whole at offset 0 instead of writing uniforms into it.
+ * A pack storage buffer descriptor in VulkanMod's buffer descriptor list. It declares no uniforms; VulkanMod
+ * binds its attached {@link PackStorageBuffer} whole at offset 0.
  */
 public final class PackStorageBufferDescriptor extends UBO {
     private final int logicalIndex;

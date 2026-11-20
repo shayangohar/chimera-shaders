@@ -49,10 +49,7 @@ final class GlslLexer {
         return tokens;
     }
 
-    /**
-     * The eight most recently used token lists, shared since they are immutable. A program's planning passes
-     * each lex the source they are handed, and many hand on the same text unchanged.
-     */
+    /** The eight most recent token lists, shared since immutable; planning passes often lex the same text. */
     private static final Map<String, List<Token>> RECENT = new LinkedHashMap<>(16, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, List<Token>> eldest) {
@@ -174,10 +171,7 @@ final class GlslLexer {
         return index;
     }
 
-    /**
-     * Blanks comment text but keeps every offset and line break, so a match on the result can edit the original
-     * source and never lands on a commented line such as {@code // layout(triangles, ccw) in;}.
-     */
+    /** Blanks comment text, keeping every offset and line break, so a match on the result can edit the original. */
     static String maskComments(String source) {
         StringBuilder masked = new StringBuilder(source.length());
         for (Token token : lex(source)) {
@@ -194,9 +188,8 @@ final class GlslLexer {
     }
 
     /**
-     * Replaces each comment with one space, scanning left to right so the comment that starts first wins.
-     * Removing block comments before line comments would read Bliss's {@code x = viewPos.z;//*viewPos.z*...}
-     * as a block that swallows live code. An unterminated block comment runs to the end of the source.
+     * Replaces each comment with one space, scanning left to right so the comment that starts first wins:
+     * {@code //*} opens a line comment. An unterminated block comment runs to the end.
      */
     static String stripComments(String source) {
         if (source == null) return "";
@@ -261,9 +254,8 @@ final class GlslLexer {
 
     /**
      * The operator at {@code index}: the longest of
-     * {@code <<= >>= == != <= >= && || ++ -- += -= *= /= %= << >> ::}, else the single character. Every symbol
-     * of every pack source passes through here, so it is decided from the next characters instead of by trying
-     * each operator in turn.
+     * {@code <<= >>= == != <= >= && || ++ -- += -= *= /= %= << >> ::}, else the single character. Decided from
+     * the next characters, since every symbol of every pack passes through here.
      */
     private static String operatorAt(String source, int index) {
         char first = source.charAt(index);

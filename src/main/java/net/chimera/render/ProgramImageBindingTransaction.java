@@ -11,8 +11,7 @@ import java.util.function.Function;
 
 /**
  * Binds a program's images to their selector slots and restores the previous bindings on close. Generic over
- * the slot state, so it needs neither Vulkan nor Minecraft; ChimeraTextureBindingState's snapshots restore
- * the sampler override with the image.
+ * the slot state, so tests need no Vulkan.
  */
 public final class ProgramImageBindingTransaction<S> implements AutoCloseable {
     public interface Store<S> {

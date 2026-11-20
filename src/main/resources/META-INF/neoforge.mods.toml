@@ -11,7 +11,7 @@ description = "Shaderpack pipeline for VulkanMod - Iris-class shaders on Vulkan.
 authors = "shayangohar"
 credits = "Iris (reference behaviour and screens), OptiFine by sp614x (shader pack format), VulkanMod by xCollateral and VulkanMod Reforged by Rindw (host renderer)"
 displayURL = "https://github.com/shayangohar/chimera-shaders"
-# light lettering for the mods list's dark panel
+# the mark alone: launchers show the logo in a small square and would cut off the wordmark
 logoFile = "chimera_logo.png"
 
 [[mixins]]

@@ -28,15 +28,13 @@ import java.util.OptionalInt;
  * ModSettingsRegistry entry beside its own, so this needs no mixin. The pack list opens from a button on the
  * screen itself (ChimeraVOptionScreenMixin).
  *
- * Reforged shows a page name as literal text, so it arrives translated and coloured with a legacy formatting
- * code. The blocks are untitled, as VulkanMod's own are. Values stay unstyled, since VulkanMod greys a locked
- * option's value itself.
+ * Reforged shows a page name as literal text, so it arrives translated, and white like VulkanMod's own. The
+ * blocks are untitled, as VulkanMod's own are. Values stay unstyled, since VulkanMod greys a locked option's
+ * value itself.
  */
 public final class ChimeraSettingsPage {
     private static final ResourceLocation ICON =
             ResourceLocation.fromNamespaceAndPath(ChimeraMod.MOD_ID, "textures/gui/settings_icon.png");
-    /** Brand red as a legacy formatting code, the nearest of the sixteen to the logo's crimson. */
-    private static final String BRAND = "§c";
 
     private ChimeraSettingsPage() {}
 
@@ -51,7 +49,7 @@ public final class ChimeraSettingsPage {
         OptionBlock[] blocks = {
                 new OptionBlock("", new Option<?>[]{shadowDistance()}),
                 new OptionBlock("", new Option<?>[]{colorSpace()})};
-        String page = BRAND + Component.translatable("options.chimera.page.shaders").getString();
+        String page = Component.translatable("options.chimera.page.shaders").getString();
         return List.of(new OptionPage(page, blocks));
     }
 

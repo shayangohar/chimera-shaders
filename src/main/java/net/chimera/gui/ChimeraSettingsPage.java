@@ -22,16 +22,7 @@ import net.vulkanmod.config.option.RangeOption;
 import java.util.List;
 import java.util.OptionalInt;
 
-/**
- * Chimera's entry in VulkanMod's options screen: the name in the brand colour beside the icon, and a Shaders
- * page with Iris's two mod-wide settings, Max Shadow Distance and Color Space. Reforged lists every
- * ModSettingsRegistry entry beside its own, so this needs no mixin. The pack list opens from a button on the
- * screen itself (ChimeraVOptionScreenMixin).
- *
- * Reforged shows a page name as literal text, so it arrives translated, and white like VulkanMod's own. The
- * blocks are untitled, as VulkanMod's own are. Values stay unstyled, since VulkanMod greys a locked option's
- * value itself.
- */
+/** Chimera's entry in VulkanMod's options screen, with Iris's Max Shadow Distance and Color Space. */
 public final class ChimeraSettingsPage {
     private static final ResourceLocation ICON =
             ResourceLocation.fromNamespaceAndPath(ChimeraMod.MOD_ID, "textures/gui/settings_icon.png");
@@ -53,11 +44,7 @@ public final class ChimeraSettingsPage {
         return List.of(new OptionPage(page, blocks));
     }
 
-    /**
-     * Iris's Max Shadow Distance, 0 to 32 chunks. A pack that sets shadowDistanceRenderMul forces its distance
-     * and locks the slider, as Iris does; the label and tooltip then name the distance in force, and the handle
-     * stops at the track's end past 32 chunks. LockableRangeOption keeps the tooltip on the greyed slider.
-     */
+    /** Iris's Max Shadow Distance, 0 to 32 chunks; a pack that sets shadowDistanceRenderMul locks it, as in Iris. */
     private static Option<Integer> shadowDistance() {
         ChimeraConfig config = ChimeraConfig.get();
         OptionalInt forced = ChimeraRenderer.forcedShadowDistance();

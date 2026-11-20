@@ -16,8 +16,10 @@ final class ComputeKernelSlotsTest {
         assertEquals(5, ComputeKernel.slotCount(2), "VulkanMod's frame queue reaches 5");
         assertEquals(5, ComputeKernel.slotCount(3));
         assertEquals(5, ComputeKernel.slotCount(0));
+        // a kernel built at 2 frames in flight keeps its slots while the queue grows to 5
+        int slotsBuiltAtTwo = ComputeKernel.slotCount(2);
         for (int frames = 2; frames <= 5; frames++) {
-            int slots = ComputeKernel.slotCount(2);
+            int slots = slotsBuiltAtTwo;
             for (int frame = 0; frame < frames; frame++) {
                 for (int other = frame + 1; other < frames; other++) {
                     assertEquals(false, frame % slots == other % slots, frames + " frames share no slot");
